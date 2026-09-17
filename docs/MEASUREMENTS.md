@@ -378,3 +378,52 @@ The rest of the acceptance run:
 | Rename + switch base mode through the page's own route | `preset.yml` → `name: "My Renamed Mode"`, composition header `# 基础模式: minimal`, row count 19 → 3, prompt rewritten |
 | Full UI pass on the seeded instance | the screenshot driver read the state, toggled a row, saved (`已保存（基础模式：standard）…`), switched language and theme |
 
+## 10. Upgrade check against dsh `0.1.6-alpha.2` — coupling points verified statically
+
+The project's versioning policy says an upstream release is checked against the coupling-point list
+before the version number moves. This is that check for `0.1.6-alpha.2`, and it needed no browser:
+the contracts are declarations, so the tarballs answer them.
+
+**Method.** Download the `0.1.6-alpha.2` tarballs for `dsh-agent-presets`, `dsh-system-prompt`,
+`dsh-client-locale`, `dsh-client-connection`, `dsh-tools`, `dsh-host-webserver`,
+`dsh-client-ui-settings` and `dsh-client-ui-slots`; grep the declarations this project depends on out
+of both that copy and the installed `0.1.6-alpha.1`; compare. Then run the full suite twice — once
+against each version's shipped presets.
+
+### Every coupling point is unchanged
+
+| Coupling point | Where it is declared | Result |
+| --- | --- | --- |
+| `agentPresets.list()` return shape (`trust`, `path`) | `dsh-agent-presets` | unchanged (11 matching declarations) |
+| `systemPrompt.section({ text: fn })` — text as a provider | `dsh-system-prompt` | unchanged |
+| `PromptSection.complete` | `dsh-system-prompt` | unchanged |
+| `locale.register` / `locale.bind` | `dsh-client-locale` | unchanged |
+| `connection.requestRejection` (the fail-closed 503) | `dsh-client-connection` | unchanged |
+| `tools.register(definition: ToolDefinition)` | `dsh-tools` | unchanged |
+| `WebRoute { kind, path, handler }` | `dsh-host-webserver` | unchanged |
+| `settings.section` slot: `kind: list`, `scope: root`, owner props | `dsh-client-ui-settings` | unchanged |
+| `locale:` registration option (supplies the bound `t`) | `dsh-client-ui-slots` | still documented — "present exactly on entries whose registration declares `locale:`" |
+
+### What did change: one new row per mode
+
+`standard`, `ptc` and `cordis` each gained exactly one row — `tool-plugin-manager`
+(`@deepseek-ai/dsh-plugin-manager/tools`); `minimal` is unchanged. **No code change was needed**:
+the compiler reads the shipped composition at runtime, so a regenerated composition picks the row up
+by itself. It only had no display label, which is now supplied in both languages — and
+`composition.test.mjs` now asserts that every shipped row id has a `ROW_META` entry, so the next
+upstream row turns CI red instead of silently rendering a bare id.
+
+### Suite result
+
+```
+DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.1 presets> node test/run.mjs   → 8 suites, all pass
+DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.2 presets> node test/run.mjs   → 8 suites, all pass
+```
+
+### Side finding: `chmod` cannot fake an unwritable directory as root
+
+`test/seed.test.mjs` used `chmod 0o500` on the parent directory to exercise the seeding failure
+path. Measured: **root bypasses permission bits**, so seeding succeeded and three assertions flipped
+to red. They were green on CI (a non-root runner) and red for anyone running the suite as root — a
+test whose outcome depended on who ran it. Blocking the path with a regular file instead fails with
+`ENOTDIR` for every user, and the assertions now mean the same thing everywhere.

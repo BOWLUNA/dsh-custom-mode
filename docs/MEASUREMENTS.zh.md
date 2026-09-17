@@ -377,3 +377,48 @@ GET /custom-mode（不带 cookie）   → 401
 | 走设置页自己的路由改名 + 切基础模式 | `preset.yml` → `name: "My Renamed Mode"`，组成文件表头 `# 基础模式: minimal`，行数 19 → 3，提示词被重写 |
 | 在播种出来的实例上跑完整 UI 流程 | 拍摄脚本读到状态、拨掉一行、保存成功（`已保存（基础模式：standard）…`）、切换语言与主题 |
 
+## 10. 面向 dsh `0.1.6-alpha.2` 的升级核对 —— 耦合点逐条静态验证
+
+项目的版本策略要求：官方发新版后，先照耦合点清单核对，再动版本号。这一节就是 `0.1.6-alpha.2` 的
+那次核对，而且**不需要浏览器**——契约都是类型声明，拉下包就能回答。
+
+**方法**：下载 `dsh-agent-presets`、`dsh-system-prompt`、`dsh-client-locale`、
+`dsh-client-connection`、`dsh-tools`、`dsh-host-webserver`、`dsh-client-ui-settings`、
+`dsh-client-ui-slots` 的 `0.1.6-alpha.2` 包；把本项目依赖的声明从新版与本机已装的
+`0.1.6-alpha.1` 里各抓一遍；逐条比对。然后把整套测试**对着两个版本的出厂 preset 各跑一次**。
+
+### 所有耦合点均未变化
+
+| 耦合点 | 声明所在包 | 结果 |
+| --- | --- | --- |
+| `agentPresets.list()` 返回形状（`trust`、`path`） | `dsh-agent-presets` | 未变（11 处匹配） |
+| `systemPrompt.section({ text: fn })` —— text 作为 provider | `dsh-system-prompt` | 未变 |
+| `PromptSection.complete` | `dsh-system-prompt` | 未变 |
+| `locale.register` / `locale.bind` | `dsh-client-locale` | 未变 |
+| `connection.requestRejection`（失败关闭 503） | `dsh-client-connection` | 未变 |
+| `tools.register(definition: ToolDefinition)` | `dsh-tools` | 未变 |
+| `WebRoute { kind, path, handler }` | `dsh-host-webserver` | 未变 |
+| `settings.section` 插槽：`kind: list`、`scope: root`、owner props | `dsh-client-ui-settings` | 未变 |
+| `locale:` 注册选项（提供绑定的 `t`） | `dsh-client-ui-slots` | 仍然存在——原文："present exactly on entries whose registration declares `locale:`" |
+
+### 确实变了的部分：每个模式多一行
+
+`standard`、`ptc`、`cordis` **各多且只多一行**——`tool-plugin-manager`
+（`@deepseek-ai/dsh-plugin-manager/tools`）；`minimal` 未变。**不需要改任何代码**：编译器运行时
+读出厂组成文件，重新生成时会自动带上。它只是没有显示标签，现已补齐中英两份；并且
+`composition.test.mjs` 现在断言"出厂每一行都能查到 `ROW_META` 条目"，所以下次官方新增行会让
+CI 变红，而不是在界面上静默显示成裸 id。
+
+### 测试结果
+
+```
+DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.1 的 preset> node test/run.mjs   → 8 个套件全部通过
+DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.2 的 preset> node test/run.mjs   → 8 个套件全部通过
+```
+
+### 附带发现：以 root 运行时，`chmod` 无法伪造不可写目录
+
+`test/seed.test.mjs` 原先对父目录用 `chmod 0o500` 来触发播种的失败路径。实测：**root 会绕过权限位**，
+于是播种照样成功，三条断言翻红。它们**在 CI（非 root 的运行器）上绿，在以 root 跑套件的人那里红**
+——一个"结果取决于谁在跑"的测试。改用普通文件阻断路径后，任何用户下都返回 `ENOTDIR`，这些断言
+在任何地方含义一致。

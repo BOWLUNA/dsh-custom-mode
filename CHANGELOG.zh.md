@@ -30,7 +30,7 @@
 要升到 `0.1.6-alpha.2`，必须**在同一个提交里**同时改 `editor/package.json` 与
 `.github/workflows/test.yml` 里钉住的 `@deepseek-ai/dsh@…`；只改一处会被
 `tools/verify-version-consistency.mjs` 拦下。该工作流文件需要 `workflow` 权限，所以这一步留给
-持有该权限的人。在那之前项目停在 `0.1.6-alpha.1`，而上面的测试结果就是「升级是安全的」的证据。
+持有该权限的人。在那之前项目停在 `0.1.6-alpha.1`。面向 `0.1.6-alpha.2` 的完整耦合点核对（本项目依赖的每一处声明，逐条与新版包比对）记录在 `docs/MEASUREMENTS.md` 第 10 节，同时附有「两个版本的出厂 preset 下测试均通过」的结果。
 
 适配 dsh `0.1.6-alpha.1`。按主题分组，组内不保证时间顺序。
 

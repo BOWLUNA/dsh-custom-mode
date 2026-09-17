@@ -37,7 +37,7 @@ Moving to `0.1.6-alpha.2` means changing `editor/package.json` **and** the pinne
 `@deepseek-ai/dsh@…` in `.github/workflows/test.yml` in the same commit;
 `tools/verify-version-consistency.mjs` fails when only one moves. That workflow file needs the
 `workflow` token scope, so the bump is left to an operator holding it. Until then the project stays on
-`0.1.6-alpha.1`, and the run above is the evidence that the bump is safe.
+`0.1.6-alpha.1`. The full coupling-point check against `0.1.6-alpha.2` — every declaration this project depends on, compared against the new tarballs — is recorded in `docs/MEASUREMENTS.md` §10, together with the suite passing against both versions' shipped presets.
 
 ### Marketplace install
 
