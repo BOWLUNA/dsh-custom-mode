@@ -1,0 +1,30 @@
+{
+  "name": "dsh-custom-mode",
+  "version": "0.1.6-alpha.1",
+  "private": true,
+  "description": "A custom agent mode for DeepSeek Harness (dsh): an editable system prompt that takes effect on the next step, per-row plugin switches, and a settings page.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BOWLUNA/dsh-custom-mode.git"
+  },
+  "homepage": "https://github.com/BOWLUNA/dsh-custom-mode#readme",
+  "bugs": {
+    "url": "https://github.com/BOWLUNA/dsh-custom-mode/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "agent-preset",
+    "system-prompt",
+    "plugin"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/run.mjs",
+    "verify-translation-pairing": "node tools/verify-translation-pairing.mjs"
+  }
+}
