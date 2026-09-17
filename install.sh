@@ -167,23 +167,42 @@ if (!ok) process.exit(1)
 console.log(`    组合树 ${rows} 行，${pkg} 已就位`)
 
 // 设置页是 Web 页面：装进没有 web 服务器的 profile（例如 tui）时它不可能工作。
-// 这不算安装失败 —— preset 与 custom_prompt 工具都照常 —— 但必须当场说清楚，
-// 否则用户会去翻「设置页怎么不出现」的故障排查。
-if (!dump.includes('@deepseek-ai/dsh-host-webserver')) {
+// 更关键的是，agent preset 本身也要靠 agent-presets 服务才会被挂载 —— 没有它，
+// 「自定义模式」连选都选不到。这不算安装失败，但必须当场说清楚，否则用户会去翻
+// 「设置页怎么不出现」的故障排查，然后发现问题是整个功能都不在这个 profile 里。
+const hasWebServer = dump.includes('@deepseek-ai/dsh-host-webserver')
+const hasAgentPresets = dump.includes('@deepseek-ai/dsh-agent-presets')
+if (!hasWebServer || !hasAgentPresets) {
   console.log('')
-  console.log(`    注意: profile "${profile}" 的组合里没有 web 服务器，因此没有设置页可用。`)
-  console.log('          仍然可用的是：模式本身（新建会话时可选）、以及 custom_prompt 工具')
-  console.log('          （在会话里直接说「把系统提示词改成……」）。')
-  console.log('          想要图形化设置页，请装进 web profile：./install.sh --profile web')
+  console.log(`    注意: profile "${profile}" 里这个插件只有一部分能生效。`)
+  if (hasAgentPresets) {
+    console.log('          · 模式本身可用（新建会话时可选）')
+  } else {
+    console.log('          · 组合里没有 agent-presets：**「自定义模式」无法被选中**，')
+    console.log('            preset 文件被复制过去了，但没有任何东西会挂载它')
+  }
+  console.log('          · custom_prompt 工具可用（会话里直接说「把系统提示词改成……」）')
+  if (!hasWebServer) console.log('          · 没有设置页：组合里没有 web 服务器')
+  console.log('          要用完整功能（模式可选 + 图形化设置页），请装进 web profile：')
+  console.log('            ./install.sh --profile web')
 }
 NODE
+
+# 收尾的三行说明也要随 profile 变，否则会出现「上一段说模式选不到、下一段说去选模式」。
+if grep -q '@deepseek-ai/dsh-agent-presets' "$DUMP_FILE" 2>/dev/null \
+  && grep -q '@deepseek-ai/dsh-host-webserver' "$DUMP_FILE" 2>/dev/null; then
+  NEXT_STEPS="  - 新会话选「自定义模式」；
+  - 设置面板 → 「系统提示词」即可编辑，保存后当前会话下一步生效。"
+else
+  NEXT_STEPS="  - 本 profile 里没有 agent-presets / 设置页，见上方「只有一部分能生效」那段；
+  - 可用的通道是 custom_prompt 工具（会话里直接说「把系统提示词改成……」）。"
+fi
 
 cat <<EOF
 
 安装完成。请**重启 dsh**（bundle 插件只在启动装配期生效），然后：
 
-  - 新会话选「自定义模式」；
-  - 设置面板 → 「系统提示词」即可编辑，保存后当前会话下一步生效。
+$NEXT_STEPS
 
 如果 preset 目录名不是 custom（--preset-id），编辑器默认找不到提示词文件，
 需要用环境变量指定：
