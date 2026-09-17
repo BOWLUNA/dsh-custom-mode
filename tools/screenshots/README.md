@@ -47,6 +47,9 @@ cp preset/agent.cordis.yml preset/preset.yml "$DSH_HOME/.agent-presets/custom/"
 cp preset/prompt.md "$DSH_HOME/.agent-presets/custom/prompt.md"
 ```
 
+`01`/`03`/`05`/`06` 是固定裁到设置弹窗，重跑应当是同一张图；`02`/`04` 取决于滚动位置与
+下拉框几何，重跑可能差一两个像素——叙事一致，像素不保证完全一致。
+
 ## 为什么不用 Playwright
 
 本目录的 `cdp.mjs` 是一个约 300 行的手写 CDP 客户端（Node 24 自带 `WebSocket`，零依赖）。

@@ -5,8 +5,8 @@
  *
  * Everything here is a real interaction: real settings-panel clicks, a real save through
  * the plugin's own HTTP route, real theme and language switches from the app's own
- * controls. The script prints the state it observed, and the log is kept next to the
- * images, so the screenshots are evidence rather than decoration.
+ * controls. The script prints the state it observed and writes it to `observed.json`
+ * next to itself, so the screenshots are evidence rather than decoration.
  *
  * Deterministic: the caller should restore a pristine preset first (see run-shots.sh),
  * so the "toggled a row → saved" narrative is the same on every run. The app's UI
@@ -14,6 +14,7 @@
  */
 import { connect } from './cdp.mjs'
 import { mkdirSync, writeFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 
 const url = process.argv[2]
 const outDir = process.argv[3] ?? '/home/bowluna/dsh/dsh-custom-mode/docs/images'
@@ -310,8 +311,17 @@ if ((report.picker?.found ?? 0) > 0) {
 report.pickerVisible = (await session.visibleText()).split('\n').filter((line) => /模式|Mode/.test(line)).slice(0, 12)
 console.log('  选择器里的模式：', JSON.stringify(report.pickerVisible))
 
-writeFileSync(`${outDir}/screenshots-observed.json`, JSON.stringify({ ...report, consoleLogs: logs }, null, 2))
-console.log('\n=== 观察到的状态 ===')
+/**
+ * Where the observed-state log goes: beside THIS script, not into the images directory.
+ *
+ * It is evidence about the capture run (which theme, which language, what the save
+ * endpoint answered), so it belongs with the tooling that produced it — the images
+ * directory should hold images.
+ */
+const observedFile = fileURLToPath(new URL('./observed.json', import.meta.url))
+writeFileSync(observedFile, JSON.stringify({ ...report, consoleLogs: logs }, null, 2))
+console.log(`\n观察结果已写入 ${observedFile}`)
+console.log('=== 观察到的状态 ===')
 console.log(JSON.stringify(report, null, 1))
 console.log('=== 页面 console ===')
 console.log(logs.join('\n') || '(无)')
