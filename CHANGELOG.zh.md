@@ -90,6 +90,20 @@
 - **工作指南**：`~/.dsh/AGENTS.md`（全局，所有会话生效）与工作区 `AGENTS.md` 记录了机器清单、
   实验机配方、dsh 升级的标签坑，以及「不要重启会话机上的 dsh」这条铁律。
 
+### npm
+
+`dsh-custom-mode@0.1.6-alpha.2` 已发布，`alpha` 与 `latest` **两个** tag 都指向它
+（只发 `alpha` 不移 `latest` 的话，市场的一键安装会停在旧版——见 `docs/PUBLISHING.md`）。
+
+发布后按文档验过，不是只看"发布成功"：
+
+- 匿名 `npm pack` 取回 tarball：16 个文件与仓库**逐字节一致**（含本版新增的 `assistants.mjs`
+  与更新后的 `prompt-tool.mjs`）；
+- 在一次性 `DSH_HOME` 里从 registry 真装一次：解析到 `0.1.6-alpha.2`、装成真实目录（不是软链）、
+  组合树里有 `custom-mode` 行；
+- 启动那个实例：日志打印「已播种 preset …（新建 5 个文件）」，路由列出助手，
+  `GET /custom-mode` 未授权仍是 401，本版新增的 `/reorder` 端点存在。
+
 ### 测试
 
 十一个套件共 **520 项**（上一版为八个套件 333 项）。新增两个套件，并给三个既有套件扩了覆盖：

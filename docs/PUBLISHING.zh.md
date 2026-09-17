@@ -26,7 +26,8 @@ cd dsh-custom-mode
 ## 方案二：editor 也发到 npm
 
 preset 仍然走 clone（它不是 npm 包），editor 单独发 npm。**已发布**：
-`dsh-custom-mode@0.1.6-alpha.1`（2026-09-17，tag `alpha`）。
+`dsh-custom-mode@0.1.6-alpha.1`（2026-09-17，tag `alpha`）、
+`dsh-custom-mode@0.1.6-alpha.2`（2026-09-18，tag `alpha` 与 `latest`）。
 
 ```sh
 cd editor

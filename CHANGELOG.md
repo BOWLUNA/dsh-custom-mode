@@ -115,6 +115,21 @@ see the "Versioning" section of the README.
   carry the machine inventory, the lab recipe, the npm-tag trap for upgrading dsh, and the rule that
   the session machine's dsh is never restarted.
 
+### npm
+
+`dsh-custom-mode@0.1.6-alpha.2` is published, with **both** the `alpha` and `latest` tags pointing at it
+(ship `alpha` without moving `latest` and the marketplace's one-command install stays on the old
+version — see `docs/PUBLISHING.md`).
+
+Verified after publishing as the documentation requires, rather than trusting "publish succeeded":
+
+- an anonymous `npm pack` pulls the tarball: its 16 files are **byte-identical** to the repository,
+  including this release's new `assistants.mjs` and the updated `prompt-tool.mjs`;
+- a throwaway `DSH_HOME` installs it from the registry for real: it resolves `0.1.6-alpha.2`, lands as a
+  real directory (not a symlink), and the composition carries the `custom-mode` row;
+- booting that instance logs 「已播种 preset …（新建 5 个文件）」, the route lists the assistant,
+  `GET /custom-mode` still answers 401 unauthenticated, and this release's `/reorder` endpoint exists.
+
 ### Tests
 
 Eleven suites with **520 checks** in total (the previous release had eight suites and 333 checks). Two

@@ -26,7 +26,8 @@ The script copies the preset and calls `dsh plugin add ./editor` (a local-path i
 ## Option two: publish editor to npm as well
 
 The preset still goes through clone (it is not an npm package), while editor is published to npm separately. **Already published**:
-`dsh-custom-mode@0.1.6-alpha.1` (2026-09-17, tag `alpha`).
+`dsh-custom-mode@0.1.6-alpha.1` (2026-09-17, tag `alpha`); `dsh-custom-mode@0.1.6-alpha.2`
+(2026-09-18, tags `alpha` and `latest`).
 
 ```sh
 cd editor
