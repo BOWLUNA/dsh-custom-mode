@@ -102,12 +102,6 @@ cd dsh-custom-mode
 
 或手动：`dsh plugin --profile <profile> remove dsh-custom-prompt-editor`，并删除 `$DSH_HOME/.agent-presets/custom/`。
 
-## 文档
-
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 为什么必须拆成两个产物；`dsh.client.inject` 为什么必须声明；私有 HTTP 路由为什么**必须**过平台鉴权（含实测证据）。
-- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) —— 实测复现过的失败：装完 dsh 起不来、WSL 下 pnpm panic、页面不出现、模式不见了、保存被拒。
-- [`docs/PUBLISHING.md`](docs/PUBLISHING.md) —— 发布到 npm、别人如何安装。
-
 ## 兼容性
 
 在 **dsh `0.1.6-alpha.1`** 上开发并验证。只使用该版本确实存在的 API：
@@ -200,6 +194,7 @@ CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 为什么必须拆成两个产物；`dsh.client.inject` 为什么必须声明；私有 HTTP 路由为什么**必须**过平台鉴权（含实测证据）。
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) —— 实测复现过的失败：装完 dsh 起不来、WSL 下 pnpm panic、页面不出现、模式不见了、保存被拒。
+- [`docs/实测记录.md`](docs/实测记录.md) —— 每条结论背后的命令与原始输出（安装、安全、保存链路、热更新、双语、测试）。
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) —— 发布到 npm、别人如何安装。
 
 # 路线图
