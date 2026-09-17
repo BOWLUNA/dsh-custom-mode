@@ -1,4 +1,4 @@
-# Bundle patch for dsh-custom-mode: inserts the 系统提示词 Settings page row.
+# Bundle patch for dsh-custom-mode: inserts the 自定义模式 settings page row.
 #
 # A bundle patch inserts new rows; the profile's own cordis.patch.yml can only
 # replace rows that already exist by id, which is why this row has to originate

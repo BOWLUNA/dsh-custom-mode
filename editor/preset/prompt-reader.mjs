@@ -38,7 +38,7 @@ const PERSONA_SUFFIX_ORDER = 10200
 const DEFAULT_SUFFIX = 'Your working directory is {{cwd}}.'
 const DEFAULT_FALLBACK =
   'You are a coding agent powered by the {{model}} model.\n\n' +
-  '(No custom system prompt is set yet. Open Settings -> 系统提示词 to write one.)'
+  '(No custom system prompt is set yet. Open Settings -> 自定义模式 to write one.)'
 
 /**
  * Owned, content-keyed cache of one prompt file.

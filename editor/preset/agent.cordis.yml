@@ -53,7 +53,7 @@
 - id: custom-prompt-tool
   name: './prompt-tool.mjs'
 
-# NOTE: the graphical 系统提示词 Settings page is NOT a row here, on purpose.
+# NOTE: the graphical 自定义模式 settings page is NOT a row here, on purpose.
 # The web client's module scanner composes the browser graph at boot from the
 # ROOT loader's entries; an agent preset's rows are mounted at runtime through
 # an Include subtree, so a browser half declared in this file is never
