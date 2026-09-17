@@ -7,6 +7,10 @@
 # 版本与 `editor/package.json` 的 version 保持一致；升 dsh 时这里也要改。
 name: test
 
+# 最小权限：这个 workflow 只读代码、跑测试，不需要写任何东西。
+permissions:
+  contents: read
+
 on:
   push:
     branches: [main]
@@ -22,9 +26,9 @@ jobs:
         # 20 是保守下限（只用标准库），24 是当前开发版本。
         node-version: ['20', '24']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
 
