@@ -108,6 +108,22 @@ So `editor/package.json` was given:
 > warning is not worth it: unpublishing the whole package locks the package name for 24 hours. It will take effect with the next version (that is, after the official DSH
 > update).
 
+### After publishing a revision, move `latest` too
+
+`npm publish --tag alpha` sets only the tag you pass. Storefronts install by package name, which
+resolves **`latest`**, so a revision published without moving it leaves the one-command install on the
+previous version. Measured: after publishing `0.1.6-alpha.1.rev1` under `alpha` only,
+`dsh plugin --profile web add dsh-custom-mode` still installed `0.1.6-alpha.1` — the version that
+predates the seeding which makes a one-command install complete.
+
+```sh
+npm dist-tag add dsh-custom-mode@<version> latest
+```
+
+pnpm caches the resolved `latest` too: a machine that resolved it before the change keeps installing the
+old version until its metadata cache expires, so verify an install from a clean cache rather than
+trusting the tag alone.
+
 ### The tension with "version numbers follow DSH only"
 
 npm requires the version number of every publish to be unique, while this project's version numbers follow DSH only. When the two meet:

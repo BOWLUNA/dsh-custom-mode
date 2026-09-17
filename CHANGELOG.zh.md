@@ -25,6 +25,8 @@
 - `tools/verify-version-consistency.mjs` 接进了 CI（此前存在但没人调用），并接受 `<DSH 版本>.revN`
   这类后缀，同时仍然拒绝偏离已测 DSH 版本的版本号。
 - `tools/screenshots` 遇到 `Page.captureScreenshot` 卡住时会重试一次，而不是让整次拍摄失败。
+- **以 `0.1.6-alpha.1.rev1` 发布，并把 `latest` 一并移了过去。** 只以 `alpha` 发布的修订会让市场安装
+  （按 `latest` 解析）停在上一版，也就是没有播种能力的那个。已记入 `docs/PUBLISHING.md`。
 
 ### 新增
 

@@ -108,6 +108,20 @@ alpha/rc，不存在一个"稳定的替代版本"可供 `latest` 指向。所以
 > 警告去 `npm unpublish` 不划算：整包撤销会让包名被锁 24 小时。它会随下一个版本（即官方 DSH
 > 更迭后）一起生效。
 
+### 发新版本之后，`latest` 也要一起移
+
+`npm publish --tag alpha` 只设置你给的那个 tag。市场是按包名安装的，解析的是 **`latest`**，所以只发
+`alpha` 而不移 `latest`，一键安装拿到的还是上一个版本。实测：`0.1.6-alpha.1.rev1` 只以 `alpha` 发布
+之后，`dsh plugin --profile web add dsh-custom-mode` 装到的仍是 `0.1.6-alpha.1` —— 也就是还没有播种
+能力、装完不好用的那个版本。
+
+```sh
+npm dist-tag add dsh-custom-mode@<version> latest
+```
+
+pnpm 也会缓存解析出来的 `latest`：改动之前解析过的机器会一直装旧版本，直到元数据缓存过期。所以要在
+干净缓存下验一次安装，而不是只看 tag。
+
 ### 与"版本号只跟随 DSH"的张力
 
 npm 要求每次发布的版本号唯一，而本项目的版本号只跟随 DSH。两者相遇时：

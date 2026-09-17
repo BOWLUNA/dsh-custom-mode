@@ -29,6 +29,9 @@ Adapted to dsh `0.1.6-alpha.1`. Grouped by theme; order within a group is not ch
 - `tools/verify-version-consistency.mjs` now runs in CI (it existed but nothing invoked it), and accepts
   `<dsh version>.revN` while still rejecting a version that drifts from the tested DSH release.
 - `tools/screenshots` retries a stalled `Page.captureScreenshot` once instead of failing the run.
+- **Published as `0.1.6-alpha.1.rev1`, with `latest` moved onto it.** A revision published under
+  `alpha` alone leaves storefront installs — which resolve `latest` — on the previous version, i.e. the
+  one without seeding. Documented in `docs/PUBLISHING.md`.
 
 ### Added
 
