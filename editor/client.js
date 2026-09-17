@@ -594,11 +594,7 @@ try {
             ),
             react.createElement("button", { className: "cpfe-btn", disabled: busy, onClick: () => load(true) }, t("btn.reload")),
             react.createElement("span", { className: statusClass }, shown),
-            react.createElement(
-              "span",
-              { className: "cpfe-path" },
-              "bundle 加载次数: " + String((typeof window !== "undefined" && window.__CPFE_BOOT) || 1) + "  ·  " + state.compositionPath,
-            ),
+            react.createElement("span", { className: "cpfe-path" }, state.compositionPath),
           ),
         )
       }
@@ -606,12 +602,6 @@ try {
       function apply(ctx) {
         console.log("dsh-custom-prompt-editor: apply() entered")
         try {
-          // 开发诊断：bundle 每被浏览器重新执行一次就 +1。热重载生效时这个数字会增长。
-          try {
-            window.__CPFE_BOOT = (window.__CPFE_BOOT || 0) + 1
-          } catch {
-            /* ignore */
-          }
           ensureStyles()
           const locale = ctx.get("locale")
           // Bound once so the nav label thunk can translate at projection time.
