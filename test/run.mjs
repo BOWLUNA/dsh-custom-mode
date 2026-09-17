@@ -109,9 +109,11 @@ console.log('')
 
 const suites = [
   'composition.test.mjs',
+  'composition-edge.test.mjs',
   'prompt-reader.test.mjs',
   'prompt-tool.test.mjs',
   'meta.test.mjs',
+  'editor-route.test.mjs',
   'locales.test.mjs',
 ]
 const env = { ...process.env, DSH_SHIPPED_PRESETS_DIR: found.dir }

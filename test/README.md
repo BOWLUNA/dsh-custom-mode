@@ -4,7 +4,7 @@
 node test/run.mjs
 ```
 
-一个入口跑五个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
+一个入口跑七个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
 `@deepseek-ai/dsh-agent-presets`）：
 
 ```
@@ -12,18 +12,22 @@ node test/run.mjs
 （来源：$DSH_HOME/profiles/node_modules）
 ──────── composition.test.mjs ────────
 … 结果: 63 通过, 0 失败
+──────── composition-edge.test.mjs ────────
+… 结果: 26 通过, 0 失败
 ──────── prompt-reader.test.mjs ────────
 … 结果: 15 通过, 0 失败
 ──────── prompt-tool.test.mjs ────────
 … 结果: 37 通过, 0 失败
 ──────── meta.test.mjs ────────
 … 结果: 45 通过, 0 失败
+──────── editor-route.test.mjs ────────
+… 结果: 50 通过, 0 失败
 ──────── locales.test.mjs ────────
 … 结果: 65 通过, 0 失败
-5 个套件全部通过（presets 来源：$DSH_HOME/profiles/node_modules）
+7 个套件全部通过（presets 来源：$DSH_HOME/profiles/node_modules）
 ```
 
-合计 **225 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余四个自带临时目录与桩，
+合计 **301 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余六个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 解析链有三条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析
@@ -42,6 +46,8 @@ node test/locales.test.mjs       # 不需要出厂 preset，纯词典/文案
 node test/prompt-reader.test.mjs # 不需要 dsh：驱动 persona section 的 text provider
 node test/prompt-tool.test.mjs   # 不需要 dsh：把工具模块复制到临时目录再 import
 node test/meta.test.mjs          # 不需要 dsh：用 DSH_CUSTOM_PROMPT_PATH 重定向写入位置
+node test/composition-edge.test.mjs  # 不需要 dsh：出厂 preset 用自己搭的夹具
+node test/editor-route.test.mjs      # 不需要 dsh：桩出 ctx / req / res，驱动真实 handler
 ```
 
 CI（`.github/workflows/test.yml`）在每次 push 时 `npm install @deepseek-ai/dsh@<适配版本>`，
@@ -74,3 +80,13 @@ CI（`.github/workflows/test.yml`）在每次 push 时 `npm install @deepseek-ai
 路径）与 `preset/prompt-tool.mjs`（工具写入路径）里各有一份，是有意重复的。它会从后者源码里把
 函数抽出来，对同一张输入表比对两者的判定——判定分叉意味着一条路径会接受渲染器会抛错的写法，
 也就是那个模式每个请求都失败。这和 `client.js` 的词典漂移是同一类风险，只是后果更重。
+
+`editor-route.test.mjs` 是这套测试里最该存在的一个：它覆盖的 `editor/index.mjs` 正是安全修复所在的
+那半边，而它此前**一个测试都没有**（修复当时是用 curl 手工验的）。手工验证证明"那一刻是对的"，
+挡不住以后有人把栅栏挪到方法分发之后、或忘记失败关闭。它用桩出的 `ctx`/`req`/`res` 驱动真实的
+handler，断言的第一条就是**被拒的请求不能产生任何副作用**（401 的 POST 不得改写文件）。
+
+`composition-edge.test.mjs` 用自己搭的出厂夹具，覆盖出厂文件今天没有、但手工编辑或未来版本可能
+出现的输入。写这两个套件时有两处断言是错的，改正的过程本身产出了两个值得写下来的事实：
+未触碰的行连 `\r` 一起保留（与"逐字节不变"一致，因此输出不保证全是 LF）；"显式打开一个在本平台
+本来就启用的行"是无操作，反推时不该记成 override —— 这正是三态语义。
