@@ -87,7 +87,7 @@ async function shotWindow(name) {
 
 async function pluginState() {
   return session.evaluate(
-    `fetch('/custom-prompt-editor', { headers: { accept: 'application/json' } }).then((r) => r.json())`,
+    `fetch('/custom-mode', { headers: { accept: 'application/json' } }).then((r) => r.json())`,
   )
 }
 
@@ -154,7 +154,7 @@ report.loadedState = {
   topLevelRows: Array.isArray(state?.rows) ? state.rows.length : null,
   promptChars: typeof state?.prompt === 'string' ? state.prompt.length : null,
 }
-console.log('  插件 GET /custom-prompt-editor →', JSON.stringify(report.loadedState))
+console.log('  插件 GET /custom-mode →', JSON.stringify(report.loadedState))
 if (state?.ok !== true) throw new Error(`设置页读取失败: ${JSON.stringify(state)}`)
 
 // 01：模式名称 + 基础模式

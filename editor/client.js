@@ -18,13 +18,13 @@
 
 try {
   window.__ModuleLoader__.load({
-    id: "dsh-custom-prompt-editor",
+    id: "dsh-custom-mode",
     factory: (require) => {
       var module = { exports: {} }
       var exports = module.exports
       Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" })
 
-      const ROUTE = "/custom-prompt-editor"
+      const ROUTE = "/custom-mode"
 
       const NS = "settings.customMode"
 
@@ -262,10 +262,10 @@ try {
       /** Apply the page stylesheet once, keyed so a re-mount never duplicates it. */
       function ensureStyles() {
         if (typeof document === "undefined") return
-        const tagId = "dsh-custom-prompt-editor/system-prompt"
+        const tagId = "dsh-custom-mode/system-prompt"
         if (document.querySelector('style[data-plugin-css="' + tagId + '"]') !== null) return
         const tag = document.createElement("style")
-        tag.dataset.plugin = "dsh-custom-prompt-editor"
+        tag.dataset.plugin = "dsh-custom-mode"
         tag.dataset.pluginCss = tagId
         tag.textContent = CSS
         document.head.appendChild(tag)
@@ -606,11 +606,11 @@ try {
           // Bound once so the nav label thunk can translate at projection time.
           const navT = locale === undefined ? null : locale.bind(NS)
           if (locale !== undefined) {
-            ctx.effect(() => locale.register(NS, TRANSLATIONS), "custom-prompt-editor: dictionaries")
+            ctx.effect(() => locale.register(NS, TRANSLATIONS), "custom-mode: dictionaries")
           }
           const slots = ctx.get("slots")
           if (slots === undefined) {
-            console.warn("dsh-custom-prompt-editor: slots service unavailable; settings page not registered")
+            console.warn("dsh-custom-mode: slots service unavailable; settings page not registered")
             return
           }
           slots.inject("settings.section", () => {
@@ -628,7 +628,7 @@ try {
             )
           })
         } catch (error) {
-          console.error("dsh-custom-prompt-editor: apply() failed", error)
+          console.error("dsh-custom-mode: apply() failed", error)
         }
       }
 
@@ -644,7 +644,7 @@ try {
 } catch (error) {
   // Never take the page down with us. The settings page simply will not appear.
   try {
-    console.error("dsh-custom-prompt-editor: browser half failed to register", error)
+    console.error("dsh-custom-mode: browser half failed to register", error)
   } catch {
     /* logging is best-effort */
   }

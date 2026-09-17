@@ -71,7 +71,7 @@ body:
       render: shell
       value: |
         $ dsh --profile web --dump-config | wc -l
-        $ dsh --profile web --dump-config | grep -n custom-prompt-editor
+        $ dsh --profile web --dump-config | grep -n custom-mode
     validations:
       required: true
 
@@ -80,7 +80,7 @@ body:
     attributes:
       label: 启动日志 / 浏览器 Console
       description: |
-        宿主半的诊断都以 `custom-prompt-editor:` 开头；浏览器 Console 里的报错同样以它开头
+        宿主半的诊断都以 `custom-mode:` 开头；浏览器 Console 里的报错同样以它开头
         （这一页的失败策略是「宁可整页不出现，也绝不把页面搞崩」，所以它只会往 Console 说话）。
       render: shell
     validations:

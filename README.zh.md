@@ -55,7 +55,7 @@ dsh-custom-mode/
 │   ├── prompt-reader.mjs        # 读文件 → 注册为身份段
 │   └── prompt-tool.mjs          # custom_prompt 工具（无浏览器时的编辑通道）
 ├── editor/                      # 设置页插件（npm 包 + profile bundle）
-│   ├── index.mjs                # 宿主半：私有路由 /custom-prompt-editor（带平台鉴权栅栏）
+│   ├── index.mjs                # 宿主半：私有路由 /custom-mode（带平台鉴权栅栏）
 │   ├── client.js                # 浏览器半：设置页（手写 bundle，无打包器）
 │   ├── composition.mjs          # 组成文件编译器（文本手术，保留 !!js 与出厂注释）
 │   ├── locales.mjs              # 中英词典（单一事实来源；client.js 里是它的副本）
@@ -92,6 +92,15 @@ cd dsh-custom-mode
 
 **然后重启 dsh web**（bundle 插件只在启动装配期生效）。刷新页面后，设置面板里会出现「系统提示词」。
 
+> 设置页插件也发布在 npm 上，可以单独装/单独升级：
+>
+> ```sh
+> dsh plugin --profile web add dsh-custom-mode
+> ```
+>
+> 但 **agent preset 不是 npm 包**（`preset/` 是文件目录），所以「自定义模式」本身仍然来自这个仓库。
+> 只想要最新设置页、又已经有 preset 的人可以用这条；第一次装仍然推荐 `./install.sh`。
+
 ## 使用
 
 - **图形化**：设置 → 「系统提示词」→ 编辑 → 保存。当前会话下一步即生效。
@@ -117,7 +126,7 @@ cd dsh-custom-mode
 ./uninstall.sh
 ```
 
-或手动：`dsh plugin --profile <profile> remove dsh-custom-prompt-editor`，并删除 `$DSH_HOME/.agent-presets/custom/`。
+或手动：`dsh plugin --profile <profile> remove dsh-custom-mode`，并删除 `$DSH_HOME/.agent-presets/custom/`。
 
 ## 兼容性
 

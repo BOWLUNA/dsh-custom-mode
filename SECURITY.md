@@ -22,7 +22,7 @@
 
 ### 设置页私有路由未做鉴权（已修复，未发布）
 
-**影响**：`/custom-prompt-editor` 这条路由注册在 `ctx.webServer` 的裸 HTTP 表上，而平台的
+**影响**：`/custom-mode` 这条路由注册在 `ctx.webServer` 的裸 HTTP 表上，而平台的
 Host/Origin 栅栏与浏览器会话鉴权只作用在 Connection 服务挂载的 channel（`/`、`/api`…）上。
 结果：**未授权**即可 `GET` 出整份系统提示词，并以 `content-type: text/plain` **POST** 改写
 `prompt.md`。后者尤其重要——普通表单式跨站请求不触发 CORS 预检，因此用户浏览器里打开的

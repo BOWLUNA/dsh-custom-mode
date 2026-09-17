@@ -159,7 +159,7 @@ function mount(options) {
 
 let route = mount({ rejection: undefined })
 check('注册了一条路由', route !== undefined)
-check('路径与浏览器半一致（/custom-prompt-editor）', route?.path === '/custom-prompt-editor', String(route?.path))
+check('路径与浏览器半一致（/custom-mode）', route?.path === '/custom-mode', String(route?.path))
 check('kind 是 exact（决定它只接这一个路径）', route?.kind === 'exact', String(route?.kind))
 check('handler 是函数', typeof route?.handler === 'function')
 

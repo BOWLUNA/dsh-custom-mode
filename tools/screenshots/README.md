@@ -35,7 +35,7 @@ CDP_PORT=9222 CDP_HOST=127.0.0.1 node tools/screenshots/screenshots.mjs ...   # 
 脚本做的事（全部是真实交互，没有任何 DOM 注入式伪造）：
 
 1. 打开应用，通过**界面自己的控件**切到浅色主题；
-2. 进设置 →「自定义模式」，读取插件自己的 `GET /custom-prompt-editor` 并把结果打进日志；
+2. 进设置 →「自定义模式」，读取插件自己的 `GET /custom-mode` 并把结果打进日志；
 3. 拍 `01`、`02`；
 4. **真的**把「网页检索与抓取」那一行拨掉，再**真的**点保存，读回状态栏文案；
 5. 拍 `03`；
@@ -57,7 +57,7 @@ cp preset/prompt.md "$DSH_HOME/.agent-presets/custom/prompt.md"
 ## 另外两张「不是界面截图」的图
 
 `live-hot-reload.mjs` 拍的是 **07-hot-reload-in-session.png**：它在真实会话里做一次
-「改提示词 → 下一步生效」的实验（两轮之间改 `/custom-prompt-editor` 后端那个 `prompt.md`）。
+「改提示词 → 下一步生效」的实验（两轮之间改 `/custom-mode` 后端那个 `prompt.md`）。
 
 ```sh
 node tools/screenshots/live-hot-reload.mjs "<带 token 的 URL>" "$DSH_HOME/.agent-presets/custom/prompt.md"

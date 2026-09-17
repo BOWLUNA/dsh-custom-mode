@@ -35,4 +35,4 @@ export const PRESET_DIR = dirname(PROMPT_PATH)
 export const COMPOSITION_PATH = join(PRESET_DIR, 'agent.cordis.yml')
 
 /** This feature's own private HTTP route. Browser half and host half must agree. */
-export const ROUTE_PATH = '/custom-prompt-editor'
+export const ROUTE_PATH = '/custom-mode'

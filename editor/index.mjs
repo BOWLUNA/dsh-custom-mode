@@ -262,7 +262,7 @@ function connectionRejection(ctx, req) {
   if (!warnedMissingConnection) {
     warnedMissingConnection = true
     console.error(
-      'custom-prompt-editor: connection 服务不可用（DSH 版本不匹配？），已拒绝该设置页的所有请求以保守处理。' +
+      'custom-mode: connection 服务不可用（DSH 版本不匹配？），已拒绝该设置页的所有请求以保守处理。' +
         'prompt.md 与 custom_prompt 工具不受影响。',
     )
   }
@@ -282,7 +282,7 @@ function connectionRejection(ctx, req) {
  * row-level `inject` then parks the whole entry forever:
  *
  *     dsh: warning: 1 entry did not activate
- *     custom-prompt-editor (dsh-custom-prompt-editor): pending (waiting for services: webServer, agentPresets)
+ *     custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
  *
  * That is the SAME line a broken installation prints, so it teaches users to ignore the
  * one warning that matters. Instead the row always activates, and the route is
@@ -301,7 +301,7 @@ export function apply(ctx) {
     if (typeof scope.webServer?.register !== 'function') missing.push('webServer.register()')
     if (missing.length > 0) {
       console.error(
-        'custom-prompt-editor: 当前 DSH 版本缺少所需 API：' +
+        'custom-mode: 当前 DSH 版本缺少所需 API：' +
           missing.join('、') +
           '。设置页将不可用，请核对 DSH 版本或提 issue。',
       )
@@ -323,7 +323,7 @@ export function apply(ctx) {
             if (system !== undefined) setShippedPresetsDir(dirname(dirname(system.path)))
           } catch (error) {
             console.error(
-              'custom-prompt-editor: 无法从 roster 解析出厂预设目录：' + String((error && error.message) || error),
+              'custom-mode: 无法从 roster 解析出厂预设目录：' + String((error && error.message) || error),
             )
           }
         })()
@@ -371,7 +371,7 @@ export function apply(ctx) {
 
     scope.effect(
       () => scope.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }),
-      'custom-prompt-editor.route',
+      'custom-mode.route',
     )
   })
 }
