@@ -266,17 +266,70 @@ dsh  deepseek-harness  agent-preset  system-prompt  cordis  plugin  prompt-engin
 **About → tick Issues**, and **Pin** this repository to the personal profile (the first public project is worth pinning).
 If Wikis / Discussions are of no use, do not enable them — empty entry points only make a project look abandoned.
 
-**Social preview**: use `docs/images/01-mode-switch.png` (Settings → Social preview upload).
+**Social preview**: use `docs/images/05-assistant-manager.png` (Settings → Social preview upload;
+01–04 predate the assistant manager and no longer represent the project).
 The default gray-background card looks bad when sharing a link.
 
-**Release**: `v0.1.6-alpha.1` (the tag name matches the plugin version; for the reason see README "version numbers follow the official one").
+**Release**: the tag name matches the plugin version (`v0.1.6-alpha.2`; for the reason see README
+"version numbers follow the official one").
 
 ```sh
-git checkout main && git merge --ff-only review/2026-09-fixes
-git tag -a v0.1.6-alpha.1 -m "dsh-custom-mode 0.1.6-alpha.1"
-git push && git push --tags
+git checkout main
+git tag -a v0.1.6-alpha.2 -m "dsh-custom-mode 0.1.6-alpha.2"
+git push origin main && git push origin v0.1.6-alpha.2
 ```
 
-For the Release body, use the corresponding section of [`CHANGELOG.md`](../CHANGELOG.md) directly, **and tick "Set as a pre-release"**
-(this is an alpha version). If this release contains security fixes, the body must **state explicitly the affected versions and the mitigation**,
-rather than only writing "fixed some issues" — copying that paragraph from `SECURITY.md` is enough.
+**The version and CI move together**: the moment `editor/package.json`'s version changes, the
+`@deepseek-ai/dsh@<version>` pinned in `.github/workflows/test.yml` has to move with it, or
+`tools/verify-version-consistency.mjs` fails — it exists to stop "CI green on the old runtime while the
+published package claims a version it was never tested against".
+
+**The body is for visitors — do not paste the CHANGELOG**: follow the shape of the two published
+releases — adapted dsh version → what this release is about → install (all three paths) → features →
+correctness points → tests → docs → built with. If the release contains security fixes, the body must
+**state the affected versions and the mitigation explicitly** rather than saying "fixed some issues";
+copying that paragraph from `SECURITY.md` is enough.
+
+**Do not tick "pre-release"** (matching both published releases): every version here is a preview and the
+npm side deliberately points `latest` at the newest one, so GitHub's Latest badge follows it too. To
+switch to pre-releases, change the published ones as well — not only the new one.
+
+**The `.dshpreset` attachment** (importable in the desktop client; both releases ship one) is a zip
+holding `manifest.json` plus the five files under `preset/`. The manifest fields are exactly:
+
+```json
+{
+  "format": "dsh-preset",
+  "version": 1,
+  "id": "custom",
+  "name": "自定义模式 / Custom mode",
+  "description": "one line, matching the README",
+  "sourceDshVersion": "the dsh version this release adapts to",
+  "exportedAt": "ISO timestamp"
+}
+```
+
+Pack and publish (`preset/` is the repository's current content; `sourceDshVersion` is this release's
+adapted dsh version):
+
+```sh
+python3 - <<'ZIP'
+import json, zipfile, datetime, os
+FILES = ['agent.cordis.yml', 'preset.yml', 'prompt.md', 'prompt-reader.mjs', 'prompt-tool.mjs']
+manifest = {
+    'format': 'dsh-preset', 'version': 1, 'id': 'custom',
+    'name': '自定义模式 / Custom mode',
+    'description': '<one line, matching the README>',
+    'sourceDshVersion': '<the dsh version this release adapts to>',
+    'exportedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+}
+with zipfile.ZipFile('dsh-custom-mode.dshpreset', 'w', zipfile.ZIP_DEFLATED) as z:
+    z.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
+    for name in FILES:
+        z.write(os.path.join('preset', name), 'preset/' + name)
+ZIP
+gh release create v<version> --title "v<version>" --notes-file notes.md dsh-custom-mode.dshpreset
+```
+
+Say in the body which host version the attachment was exported from, and warn that the importer may
+report a compatibility warning.

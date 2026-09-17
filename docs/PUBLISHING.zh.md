@@ -262,17 +262,62 @@ dsh  deepseek-harness  agent-preset  system-prompt  cordis  plugin  prompt-engin
 **About → 勾选 Issues**，并把本仓库 **Pin** 到个人主页（第一个公开项目值得钉住）。
 Wikis / Discussions 用不上就别开——空着的入口只会让人觉得项目烂尾。
 
-**Social preview**：用 `docs/images/01-mode-switch.png`（Settings → Social preview 上传）。
+**Social preview**：用 `docs/images/05-assistant-manager.png`（Settings → Social preview 上传；01–04 早于助手管理器，不再适合当门面）。
 默认的灰底卡片在分享链接时很难看。
 
-**Release**：`v0.1.6-alpha.1`（tag 名与插件版本一致，理由见 README「版本号跟随官方」）。
+**Release**：tag 名与插件版本一致（`v0.1.6-alpha.2`；理由见 README「版本号跟随官方」）。
 
 ```sh
-git checkout main && git merge --ff-only review/2026-09-fixes
-git tag -a v0.1.6-alpha.1 -m "dsh-custom-mode 0.1.6-alpha.1"
-git push && git push --tags
+git checkout main
+git tag -a v0.1.6-alpha.2 -m "dsh-custom-mode 0.1.6-alpha.2"
+git push origin main && git push origin v0.1.6-alpha.2
 ```
 
-Release 正文直接用 [`CHANGELOG.md`](../CHANGELOG.zh.md) 里对应那一节，**并勾选 "Set as a pre-release"**
-（这是个 alpha 版本）。如果这一版包含安全修复，正文里要**明确写出受影响版本与缓解方式**，
-而不是只写"修复了一些问题"——从 `SECURITY.md` 里复制那段即可。
+**版本号与 CI 必须同改**：`editor/package.json` 的 version 一动，`.github/workflows/test.yml` 里钉定的
+`@deepseek-ai/dsh@<version>` 就得跟着动，否则 `tools/verify-version-consistency.mjs` 会失败
+（它防的正是「CI 在旧版本上通过，而发布的包声称适配了从未测过的新版本」）。
+
+**正文面向访客，不要直接贴 CHANGELOG**：按已发布两版的体例写——适配的 dsh 版本 → 这一版的重点 →
+安装（三条路径）→ 功能 → 正确性关键点 → 测试 → 文档 → 构建环境。如果这一版包含安全修复，正文里要
+**明确写出受影响版本与缓解方式**，而不是只写"修复了一些问题"——从 `SECURITY.md` 里复制那段即可。
+
+**不勾 pre-release**（与已发布的两版一致）：本项目的每个版本都是预览，npm 侧也刻意把 `latest` 指向最新版，
+所以 GitHub 的 Latest 徽章同样跟随最新版。要改成勾选，就把已发布的版本一起改，别只改新的那个。
+
+**附件 `.dshpreset`**（桌面端可直接导入，两版 release 都带了）：它是一个 zip，内含
+`manifest.json` 与 `preset/` 下的五个文件。manifest 的字段就下面这些：
+
+```json
+{
+  "format": "dsh-preset",
+  "version": 1,
+  "id": "custom",
+  "name": "自定义模式 / Custom mode",
+  "description": "一句话描述，与 README 一致",
+  "sourceDshVersion": "本次适配的 dsh 版本",
+  "exportedAt": "ISO 时间戳"
+}
+```
+
+打包与发布（`preset/` 取自仓库当前内容，`sourceDshVersion` 填本次适配版本）：
+
+```sh
+python3 - <<'ZIP'
+import json, zipfile, datetime, os
+FILES = ['agent.cordis.yml', 'preset.yml', 'prompt.md', 'prompt-reader.mjs', 'prompt-tool.mjs']
+manifest = {
+    'format': 'dsh-preset', 'version': 1, 'id': 'custom',
+    'name': '自定义模式 / Custom mode',
+    'description': '<与 README 一致的一句话>',
+    'sourceDshVersion': '<本次适配的 dsh 版本>',
+    'exportedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+}
+with zipfile.ZipFile('dsh-custom-mode.dshpreset', 'w', zipfile.ZIP_DEFLATED) as z:
+    z.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
+    for name in FILES:
+        z.write(os.path.join('preset', name), 'preset/' + name)
+ZIP
+gh release create v<版本> --title "v<版本>" --notes-file notes.md dsh-custom-mode.dshpreset
+```
+
+正文里要说明附件导出的宿主版本，并提示导入器可能给出兼容性警告。
