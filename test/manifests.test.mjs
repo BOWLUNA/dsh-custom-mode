@@ -14,7 +14,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -69,6 +69,40 @@ console.log()
 console.log('=== 5. 根清单不应被误发布到 npm ===')
 // 发的是 editor/ 的内容；根清单 private 是防手滑的安全带。
 check('根清单仍然是 private', root.private === true, String(root.private))
+
+console.log()
+console.log('=== 6. npm 的 files 白名单必须覆盖运行时真正会 import 的模块 ===')
+// 这条是实战教训：多助手新增 `editor/assistants.mjs` 时忘了加进 `files`，本地一切正常
+// （仓库里文件就在那儿），而 npm 装出来的包一激活就 import 失败。白名单少一个文件 =
+// 插件坏掉，所以把依赖图走一遍来断言，而不是靠人记得。
+{
+  const PACKAGE_ROOT = join(REPO, 'editor')
+  const shipped = new Set(editor.files ?? [])
+  const covered = (rel) => shipped.has(rel) || [...shipped].some((entry) => entry.endsWith('/') && rel.startsWith(entry))
+  const reachable = new Set()
+  const pending = [join(PACKAGE_ROOT, 'index.mjs')]
+  const unshipped = []
+  while (pending.length > 0) {
+    const file = pending.pop()
+    if (reachable.has(file) || !existsSync(file)) continue
+    reachable.add(file)
+    const text = readFileSync(file, 'utf8')
+    for (const match of text.matchAll(/from\s+'(\.[^']+)'/g)) {
+      const target = resolve(dirname(file), match[1])
+      const rel = relative(PACKAGE_ROOT, target).split(sep).join('/')
+      if (!covered(rel)) unshipped.push(rel)
+      pending.push(target)
+    }
+  }
+  check('走了一遍 main 的依赖图（不是空跑）', reachable.size >= 6, String(reachable.size))
+  check('main 能 import 到的模块都在 files 里', unshipped.length === 0, JSON.stringify([...new Set(unshipped)]))
+  const clientFile = editor.exports?.['./client']
+  check(
+    'exports["./client"] 的那份文件也在 files 里',
+    typeof clientFile === 'string' && covered(relative(PACKAGE_ROOT, resolve(PACKAGE_ROOT, clientFile)).split(sep).join('/')),
+    String(clientFile),
+  )
+}
 
 console.log()
 console.log(`结果: ${passed} 通过, ${failed} 失败`)

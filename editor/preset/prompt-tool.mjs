@@ -1,6 +1,14 @@
 /**
- * Model-facing row for the `custom` agent preset: read and rewrite the system
+ * Model-facing row for a custom agent preset: read and rewrite the system
  * prompt this preset uses.
+ *
+ * One copy of this file lives inside EVERY assistant this feature creates; each
+ * copy resolves `prompt.md` relative to ITS OWN location, so N assistants edit N
+ * independent prompt files with no cross-talk. The assistant's display name comes
+ * from the composition row's `config.modeName` (written by the settings page on
+ * every save) and falls back to reading `preset.yml` beside this module, then to a
+ * generic label — an older assistant's copy of this module ignores the config
+ * entirely, which is why the fallback chain has to work without it.
  *
  * This exists because the graphical editor in Settings is a dynamic Cordis
  * plugin and therefore vanishes when the process restarts. The prompt FILE and
@@ -24,8 +32,14 @@ import { fileURLToPath } from 'node:url'
 /** Absolute path of the prompt file this preset reads. */
 const PROMPT_PATH = fileURLToPath(new URL('./prompt.md', import.meta.url))
 
+/** Absolute path of this preset's display metadata, used only to name the tool. */
+const META_PATH = fileURLToPath(new URL('./preset.yml', import.meta.url))
+
 /** Missing-file text the model gets, so a read never looks like an empty prompt. */
 const MISSING = '（prompt.md 不存在，当前模式会退回上一次成功的提示词文本）'
+
+/** Name used when neither the composition nor `preset.yml` supplies one. */
+const FALLBACK_MODE_NAME = '自定义模式'
 
 /**
  * Variable names the prompt renderer accepts, mirroring
@@ -89,66 +103,104 @@ function checkPromptText(text) {
   }
 }
 
-const definition = {
-  name: 'custom_prompt',
-  description:
-    'Read or replace the system prompt of the 自定义模式 (custom) agent preset. ' +
-    'The prompt is a plain file; this tool reads it (action "read", the default) ' +
-    'or overwrites it wholesale (action "write" with text). A write takes effect ' +
-    'on this session\'s next model step — no restart needed — and only affects ' +
-    'sessions running the custom preset. Use it when the user asks to change ' +
-    'their system prompt or wants to see what it currently says.',
-  parameters: {
-    type: 'object',
-    properties: {
-      action: {
-        type: 'string',
-        enum: ['read', 'write'],
-        description: 'Read the current prompt (default) or replace it.',
-      },
-      text: {
-        type: 'string',
-        description: 'Required when action is "write": the complete new prompt text.',
-      },
-    },
-  },
-  output: {
-    schema: { type: 'string' },
-    render(_args, value) {
-      return [{ type: 'text', text: String(value) }]
-    },
-  },
-  async execute(args) {
-    const action = args !== null && typeof args === 'object' && typeof args.action === 'string'
-      ? args.action
-      : 'read'
+/**
+ * The assistant's display name, for the tool description the model reads.
+ *
+ * Three sources, best first: the composition row's config (authoritative, written
+ * on every settings-page save), this directory's `preset.yml` (what the pickers
+ * show), and a generic label. Never throws — a tool description is not worth
+ * failing a registration over.
+ *
+ * @param {object} [config] - the row's `config:` block.
+ * @returns {string} a non-empty display name.
+ */
+function resolveModeName(config) {
+  const fromConfig = config !== null && typeof config === 'object' && typeof config.modeName === 'string'
+    ? config.modeName.replace(/\r?\n/g, ' ').trim()
+    : ''
+  if (fromConfig !== '') return fromConfig
+  try {
+    for (const line of readFileSync(META_PATH, 'utf8').split('\n')) {
+      if (!line.startsWith('name:')) continue
+      const value = line.slice('name:'.length).trim().replace(/^["']|["']$/g, '').trim()
+      if (value !== '') return value
+    }
+  } catch {
+    /* no metadata is the normal case for a hand-made preset */
+  }
+  return FALLBACK_MODE_NAME
+}
 
-    if (action === 'read') {
-      try {
-        return '当前系统提示词（' + PROMPT_PATH + '）：\n\n' + readFileSync(PROMPT_PATH, 'utf8')
-      } catch {
-        return MISSING
+/**
+ * The tool definition, bound to one assistant's name.
+ *
+ * @param {string} modeName - the display name to report.
+ */
+function makeDefinition(modeName) {
+  return {
+    name: 'custom_prompt',
+    description:
+      'Read or replace the system prompt of the 「' +
+      modeName +
+      '」 custom agent preset. ' +
+      'The prompt is a plain file; this tool reads it (action "read", the default) ' +
+      'or overwrites it wholesale (action "write" with text). A write takes effect ' +
+      "on this session's next model step — no restart needed — and only affects " +
+      'sessions running this preset. Use it when the user asks to change ' +
+      'their system prompt or wants to see what it currently says.',
+    parameters: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['read', 'write'],
+          description: 'Read the current prompt (default) or replace it.',
+        },
+        text: {
+          type: 'string',
+          description: 'Required when action is "write": the complete new prompt text.',
+        },
+      },
+    },
+    output: {
+      schema: { type: 'string' },
+      render(_args, value) {
+        return [{ type: 'text', text: String(value) }]
+      },
+    },
+    async execute(args) {
+      const action = args !== null && typeof args === 'object' && typeof args.action === 'string'
+        ? args.action
+        : 'read'
+
+      if (action === 'read') {
+        try {
+          return '当前系统提示词（' + PROMPT_PATH + '）：\n\n' + readFileSync(PROMPT_PATH, 'utf8')
+        } catch {
+          return MISSING
+        }
       }
-    }
 
-    if (typeof args.text !== 'string' || args.text.trim() === '') {
-      return '写入被拒绝：action 为 "write" 时必须提供非空的 text。'
-    }
-    const verdict = checkPromptText(args.text)
-    if (verdict.ok !== true) return verdict.error
-    try {
-      mkdirSync(dirname(PROMPT_PATH), { recursive: true })
-      writeFileSync(PROMPT_PATH, args.text, 'utf8')
-      return '已写入 ' + PROMPT_PATH + '（' + String(args.text.length) + ' 字符）。本会话下一步模型调用即使用新提示词。'
-    } catch (error) {
-      return '写入失败：' + String((error && error.message) || error)
-    }
-  },
+      if (typeof args.text !== 'string' || args.text.trim() === '') {
+        return '写入被拒绝：action 为 "write" 时必须提供非空的 text。'
+      }
+      const verdict = checkPromptText(args.text)
+      if (verdict.ok !== true) return verdict.error
+      try {
+        mkdirSync(dirname(PROMPT_PATH), { recursive: true })
+        writeFileSync(PROMPT_PATH, args.text, 'utf8')
+        return '已写入 ' + PROMPT_PATH + '（' + String(args.text.length) + ' 字符）。本会话下一步模型调用即使用新提示词。'
+      } catch (error) {
+        return '写入失败：' + String((error && error.message) || error)
+      }
+    },
+  }
 }
 
 /** The tool registry is a hard dependency; without it there is no tool. */
 export const inject = ['tools']
 
-export function apply(ctx) {
+export function apply(ctx, config = {}) {
+  const definition = makeDefinition(resolveModeName(config))
   ctx.effect(() => ctx.tools.register(definition), 'custom-prompt.tool')
 }

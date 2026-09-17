@@ -1,11 +1,23 @@
 /**
- * Host half: 「自定义模式」settings page.
+ * Host half: the 「自定义模式」 settings page — now an ASSISTANT MANAGER.
  *
- * Serves one private HTTP route; the browser half calls it with `fetch`:
+ * It serves one private HTTP route and its sub-paths; the browser half calls them
+ * with `fetch`:
  *
- *   GET  — the current base mode, the row tree with switch states, prompt text.
- *   POST — { mode, overrides, prompt }: validate, render a fresh
- *          `agent.cordis.yml`, write both files.
+ *   GET  /custom-mode              — every assistant this feature manages.
+ *   GET  /custom-mode/state?id=…   — one assistant: base mode, rows, switches, prompt.
+ *   POST /custom-mode/state        — { id, mode, overrides, prompt, name, description }:
+ *                                    validate, render a fresh `agent.cordis.yml`, write both files.
+ *   POST /custom-mode/create       — { name, description }: seed a new assistant from the
+ *                                    packaged template and give it the standard base mode.
+ *   POST /custom-mode/delete       — { id }: remove a locally authored assistant.
+ *   POST /custom-mode/reorder      — { id, direction }: move one assistant up/down in the
+ *                                    picker order by writing `order` into each `preset.yml`.
+ *
+ * Why one PREFIX route instead of five exact ones: the registered route table keys
+ * on (kind, path), so a prefix claims `/custom-mode` and everything under it while
+ * staying one registration to dispose. `dsh-host-webserver` matches a prefix route
+ * on the exact path too, so the list endpoint lives at the route path itself.
  *
  * Why a private route instead of a Remote namespace or `dsh-settings`: this
  * plugin then owns no Cordis service name and cannot collide with anything, and
@@ -27,8 +39,8 @@
  * rows the user changed by diffing against the same shipped base mode.
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
 import {
   BASE_MODES,
@@ -39,10 +51,39 @@ import {
   readBaseComposition,
   setShippedPresetsDir,
 } from './composition.mjs'
-import { readPresetMeta, writePresetMeta, PRESET_META_PATH } from './meta.mjs'
-import { seedPresetWithLog } from './seed.mjs'
+import { readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
+import { packagedPresetDir } from './seed.mjs'
+import {
+  allocateId,
+  assistantDir,
+  assistantsFromRoster,
+  COMPOSITION_FILE,
+  createAssistantDir,
+  reorderAssistant,
+  seedOnActivation,
+  userPresetRoot,
+} from './assistants.mjs'
 
 export { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR, PRESET_META_PATH }
+
+/** The list endpoint is the route path itself; the rest hang off it. */
+const STATE_PATH = ROUTE_PATH + '/state'
+const CREATE_PATH = ROUTE_PATH + '/create'
+const DELETE_PATH = ROUTE_PATH + '/delete'
+const REORDER_PATH = ROUTE_PATH + '/reorder'
+
+/** Which verbs each endpoint answers. `undefined` for a path means 404. */
+const METHODS = {
+  [ROUTE_PATH]: ['GET'],
+  [STATE_PATH]: ['GET', 'POST'],
+  [CREATE_PATH]: ['POST'],
+  [DELETE_PATH]: ['POST'],
+  [REORDER_PATH]: ['POST'],
+}
+
+/** Longest display name / description the page accepts, so one paste cannot bloat every picker. */
+const MAX_NAME = 80
+const MAX_DESCRIPTION = 400
 
 /**
  * Variable names the prompt renderer accepts, mirroring
@@ -101,47 +142,81 @@ export function checkPromptText(text) {
   }
 }
 
-/** Read the prompt file, or report a typed failure the page can show. */
-export function readPrompt() {
+/** Absolute path of one preset directory's editable prompt file. */
+export function promptFile(directory) {
+  return join(directory, 'prompt.md')
+}
+
+/** Absolute path of one preset directory's composition file. */
+export function compositionFile(directory) {
+  return join(directory, COMPOSITION_FILE)
+}
+
+/** Read one assistant's prompt file, or report a typed failure the page can show. */
+export function readPrompt(directory) {
+  const path = promptFile(directory)
   try {
-    return { ok: true, path: PROMPT_PATH, text: readFileSync(PROMPT_PATH, 'utf8') }
+    return { ok: true, path, text: readFileSync(path, 'utf8') }
   } catch (error) {
-    return { ok: false, error: '读取提示词失败：' + String((error && error.message) || error) }
+    return { ok: false, error: '读取提示词失败：' + describe(error) }
   }
 }
 
-/** Read the installed composition. */
-function readComposition() {
-  return existsSync(COMPOSITION_PATH) ? readFileSync(COMPOSITION_PATH, 'utf8') : null
+/** The isolation message for an id the roster does not describe as a managed assistant. */
+function unknownAssistant(id) {
+  return {
+    ok: false,
+    error:
+      '找不到助手「' +
+      String(id) +
+      '」。设置页只管理本工具创建的模式（目录里有 prompt.md，且组成文件用 prompt-reader.mjs 注入身份）；' +
+      '手工编写的其它模式不会被改动。',
+  }
 }
 
 /**
- * Everything the settings page renders from.
+ * Everything the settings page renders for ONE assistant.
  *
  * `mode` and `overrides` are derived from the composition file rather than
  * stored separately, so the file stays the single source of truth.
+ *
+ * @param {Array<object>} rows - the current roster.
+ * @param {string} id - the assistant's preset id.
+ * @returns {object} the payload the browser half reads.
  */
-export function readState() {
-  const text = readComposition()
-  if (text === null) {
-    return { ok: false, error: '找不到组成文件：' + COMPOSITION_PATH }
-  }
+export function readState(rows, id) {
+  const directory = assistantDir(rows, id)
+  if (directory === undefined) return unknownAssistant(id)
+  const composition = compositionFile(directory)
+  if (!existsSync(composition)) return { ok: false, error: '找不到组成文件：' + composition }
+  const text = readFileSync(composition, 'utf8')
   const mode = modeOf(text)
-  const prompt = readPrompt()
-  const meta = readPresetMeta()
+  const prompt = readPrompt(directory)
+  const meta = readPresetMeta(directory)
   return {
     ok: true,
+    id,
     mode,
     modes: BASE_MODES,
     rows: collectRows(text),
     overrides: overridesOf(text, mode),
     prompt: prompt.ok === true ? prompt.text : '',
+    ...prompt.ok === true ? {} : { promptError: prompt.error },
     name: meta.name,
     description: meta.description,
-    presetMetaPath: PRESET_META_PATH,
-    promptPath: PROMPT_PATH,
-    compositionPath: COMPOSITION_PATH,
+    promptPath: promptFile(directory),
+    compositionPath: composition,
+    presetMetaPath: presetMetaPath(directory),
   }
+}
+
+/**
+ * The list payload: every managed assistant, plus the root they live in.
+ *
+ * @param {Array<object>} rows - the current roster.
+ */
+export function readList(rows) {
+  return { ok: true, assistants: assistantsFromRoster(rows), root: userPresetRoot(rows) }
 }
 
 /**
@@ -150,8 +225,15 @@ export function readState() {
  * The render always carries a fresh timestamp, and `agent-presets` re-mounts a
  * preset when the composition file's `mtimeMs`/`size` differ — so the new
  * configuration reaches the next session without a process restart.
+ *
+ * @param {Array<object>} rows - the current roster.
+ * @param {object} input - `{ id, mode, overrides, prompt, name, description }`.
  */
-export function saveState(input) {
+export function saveState(rows, input) {
+  const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
+  const directory = assistantDir(rows, id)
+  if (directory === undefined) return unknownAssistant(id)
+
   const mode = input !== null && typeof input === 'object' && typeof input.mode === 'string' ? input.mode : ''
   if (!BASE_MODES.some((entry) => entry.id === mode)) {
     return { ok: false, error: '未知的基础模式：' + mode }
@@ -163,19 +245,31 @@ export function saveState(input) {
   const verdict = checkPromptText(prompt)
   if (verdict.ok !== true) return { ok: false, error: verdict.error }
 
+  const rawName = input !== null && typeof input === 'object' && typeof input.name === 'string' ? input.name : ''
+  const name = rawName.replace(/\r?\n/g, ' ').trim()
+  if (name.length > MAX_NAME) {
+    return { ok: false, error: '保存被拒绝：模式名称过长（上限 ' + String(MAX_NAME) + ' 个字符）。' }
+  }
+  const rawDescription =
+    input !== null && typeof input === 'object' && typeof input.description === 'string' ? input.description : ''
+  const description = rawDescription.replace(/\r?\n/g, ' ').trim()
+  if (description.length > MAX_DESCRIPTION) {
+    return { ok: false, error: '保存被拒绝：模式描述过长（上限 ' + String(MAX_DESCRIPTION) + ' 个字符）。' }
+  }
+
   const overrides = new Map()
   const raw = input !== null && typeof input === 'object' ? input.overrides : undefined
   if (raw !== null && typeof raw === 'object') {
-    for (const [id, value] of Object.entries(raw)) {
-      if (typeof value === 'boolean') overrides.set(id, value)
+    for (const [rowId, value] of Object.entries(raw)) {
+      if (typeof value === 'boolean') overrides.set(rowId, value)
     }
   }
 
   let composition
   try {
-    composition = renderComposition(mode, overrides)
+    composition = renderComposition(mode, overrides, { modeName: name, assistantId: id })
   } catch (error) {
-    return { ok: false, error: '生成组成文件失败：' + String((error && error.message) || error) }
+    return { ok: false, error: '生成组成文件失败：' + describe(error) }
   }
 
   // Self-check our own output before publishing it: a composition that lost its
@@ -184,27 +278,150 @@ export function saveState(input) {
     if (collectRows(composition).length === 0) throw new Error('生成的组成文件没有任何行')
     readBaseComposition(mode)
   } catch (error) {
-    return { ok: false, error: '生成结果自检失败，已放弃写入：' + String((error && error.message) || error) }
+    return { ok: false, error: '生成结果自检失败，已放弃写入：' + describe(error) }
   }
 
   try {
-    mkdirSync(dirname(COMPOSITION_PATH), { recursive: true })
-    writeFileSync(COMPOSITION_PATH, composition, 'utf8')
-    writeFileSync(PROMPT_PATH, prompt, 'utf8')
+    writeFileSync(compositionFile(directory), composition, 'utf8')
+    writeFileSync(promptFile(directory), prompt, 'utf8')
   } catch (error) {
-    return { ok: false, error: '写入失败：' + String((error && error.message) || error) }
+    return { ok: false, error: '写入失败：' + describe(error) }
   }
 
-  if (typeof input.name === 'string' && input.name.trim() !== '') {
-    const metaResult = writePresetMeta(input.name, input.description)
+  // A name the user cleared is left alone rather than written as an empty scalar:
+  // an empty `preset.yml` name is what makes a mode render as its bare id.
+  if (name !== '') {
+    const metaResult = writePresetMeta(name, description, directory)
     if (metaResult.ok !== true) return metaResult
   }
 
   return {
     ok: true,
+    id,
     mode,
-    note: '已保存（基础模式：' + mode + '）。新建会话即生效，当前会话保持原配置。',
+    note: '已保存（' + (name === '' ? id : name) + '，基础模式 ' + mode + '）。新建会话即生效，当前会话保持原配置。',
   }
+}
+
+/**
+ * Create one assistant from the packaged template — or duplicate an existing one.
+ *
+ * Nothing here copies an existing DIRECTORY: a copy would inherit whatever extra
+ * files its source had accumulated, and creation would break as soon as the user
+ * deleted the last one. Seeding the template makes "new" mean new, and a duplicate
+ * (`from`) then replays the source's prompt, base mode and row switches on top.
+ *
+ * @param {Array<object>} rows - the current roster.
+ * @param {object} input - `{ name, description, from }`; `from` names an existing
+ *   assistant to duplicate.
+ * @param {string} [templateDir] - packaged template (tests inject their own).
+ */
+export function createAssistant(rows, input, templateDir = packagedPresetDir()) {
+  const rawName = input !== null && typeof input === 'object' && typeof input.name === 'string' ? input.name : ''
+  const name = rawName.replace(/\r?\n/g, ' ').trim()
+  if (name === '') return { ok: false, error: '请先给新助手起个名字。' }
+  if (name.length > MAX_NAME) {
+    return { ok: false, error: '名字太长了（上限 ' + String(MAX_NAME) + ' 个字符）。' }
+  }
+  const rawDescription =
+    input !== null && typeof input === 'object' && typeof input.description === 'string' ? input.description : ''
+  const description = rawDescription.replace(/\r?\n/g, ' ').trim()
+  if (description.length > MAX_DESCRIPTION) {
+    return { ok: false, error: '描述太长了（上限 ' + String(MAX_DESCRIPTION) + ' 个字符）。' }
+  }
+
+  const root = userPresetRoot(rows)
+  const taken = new Set()
+  for (const row of rows) {
+    if (row !== null && typeof row === 'object' && typeof row.id === 'string') taken.add(row.id)
+  }
+  const id = allocateId(name, taken)
+  // The roster can lag a directory it skipped (a hand-made one with no
+  // composition). Refuse the name rather than half-own that directory.
+  if (existsSync(join(root, id))) {
+    return { ok: false, error: '目录已存在，请换一个名字：' + join(root, id) }
+  }
+
+  // A "duplicate" carries the source's prompt, base mode and row switches into a
+  // NEW assistant — read here, before anything is created, so a failure leaves no
+  // half-made directory behind. The composition is NOT copied verbatim: it is
+  // re-rendered from the source's base mode and overrides, because the generated
+  // file embeds the new assistant's own name and id.
+  let source = null
+  const from = input !== null && typeof input === 'object' && typeof input.from === 'string' ? input.from : ''
+  if (from !== '') {
+    const fromDir = assistantDir(rows, from)
+    if (fromDir === undefined) return unknownAssistant(from)
+    const fromComposition = compositionFile(fromDir)
+    if (!existsSync(fromComposition)) return { ok: false, error: '找不到组成文件：' + fromComposition }
+    const text = readFileSync(fromComposition, 'utf8')
+    const sourceMode = modeOf(text)
+    const sourcePrompt = readPrompt(fromDir)
+    source = {
+      mode: sourceMode,
+      overrides: overridesOf(text, sourceMode),
+      prompt: sourcePrompt.ok === true ? sourcePrompt.text : '',
+      description: readPresetMeta(fromDir).description,
+    }
+  }
+
+  let composition
+  try {
+    composition = source === null
+      ? renderComposition('standard', new Map(), { modeName: name, assistantId: id })
+      : renderComposition(source.mode, source.overrides, { modeName: name, assistantId: id })
+  } catch (error) {
+    return { ok: false, error: '生成组成文件失败：' + describe(error) }
+  }
+
+  const created = createAssistantDir({ root, id, composition, templateDir })
+  if (created.ok !== true) return created
+
+  // The template ships a starter prompt; a duplicate replaces it with the source's.
+  if (source !== null) {
+    try {
+      writeFileSync(promptFile(created.dir), source.prompt, 'utf8')
+    } catch (error) {
+      return { ok: false, error: '写入提示词失败：' + describe(error) }
+    }
+  }
+  const metaResult = writePresetMeta(name, description === '' && source !== null ? source.description : description, created.dir)
+  if (metaResult.ok !== true) return metaResult
+
+  return {
+    ok: true,
+    id,
+    name,
+    note: source === null
+      ? '已创建「' + name + '」。它的系统提示词现在是模板默认文本；写好后新建会话即可选择它。'
+      : '已复制出「' + name + '」：提示词、基础模式与插件开关都来自「' + from + '」，之后各改各的，互不影响。',
+  }
+}
+
+/**
+ * Delete one assistant.
+ *
+ * Deletion goes through the platform's own `agentPresets.remove`, which is what
+ * refuses a shipped preset and re-checks that the directory really lives under the
+ * writable root. A live session that mounted the preset keeps running: its
+ * composition was read at creation and is never re-read.
+ *
+ * @param {Array<object>} rows - the current roster.
+ * @param {object} input - `{ id }`.
+ * @param {{remove: (id: string) => Promise<void>}} agentPresets - the roster service.
+ */
+export async function deleteAssistant(rows, input, agentPresets) {
+  const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
+  if (assistantDir(rows, id) === undefined) return unknownAssistant(id)
+  if (typeof agentPresets?.remove !== 'function') {
+    return { ok: false, error: '当前 DSH 版本没有 agentPresets.remove()，无法删除。' }
+  }
+  try {
+    await agentPresets.remove(id)
+  } catch (error) {
+    return { ok: false, error: '删除失败：' + describe(error) }
+  }
+  return { ok: true, id, note: '已删除「' + id + '」。正在使用它的会话不受影响；新建会话时不再出现。' }
 }
 
 /** Send JSON with no-store caching, so a save is never read back stale. */
@@ -228,6 +445,23 @@ async function readBody(req) {
     chunks.push(chunk)
   }
   return Buffer.concat(chunks).toString('utf8')
+}
+
+/**
+ * The request's path and query.
+ *
+ * A missing or unparsable `url` resolves to the route path itself, which is the
+ * list endpoint — the lenient branch exists so a malformed request reads as an
+ * ordinary list call instead of throwing inside the fence.
+ */
+function requestUrl(req) {
+  const raw =
+    req !== null && typeof req === 'object' && typeof req.url === 'string' && req.url !== '' ? req.url : ROUTE_PATH
+  try {
+    return new URL(raw, 'http://localhost')
+  } catch {
+    return new URL(ROUTE_PATH, 'http://localhost')
+  }
 }
 
 /**
@@ -274,7 +508,7 @@ function connectionRejection(ctx, req) {
  * Where the settings page can exist at all.
  *
  * The page is a WEB page: without `webServer` there is nothing to serve the route on,
- * and without `agentPresets` the base-mode list cannot be built. The tui profile has
+ * and without `agentPresets` the assistant list cannot be built. The tui profile has
  * neither.
  *
  * These must NOT go into the row's own `inject`. Measured on 0.1.6-alpha.1:
@@ -293,15 +527,23 @@ function connectionRejection(ctx, req) {
 const WEB_SERVICES = ['webServer', 'agentPresets']
 
 export function apply(ctx) {
-  // Before anything else: make sure the preset exists on disk.
+  // Before anything else: make sure the preset tree on disk is complete.
   //
   // A storefront install is a single command (`dsh plugin --profile web add
   // dsh-custom-mode`), and the npm package is all that command carries. Without this,
   // such an install produces a settings page whose composition file does not exist: the
-  // page opens on an error and the mode cannot even be picked for a new session.
-  // Idempotent, never overwrites an existing file (see seed.mjs), and silent once the
-  // preset is complete.
-  seedPresetWithLog(PRESET_DIR)
+  // page opens on an error and no mode can be picked for a new session.
+  //
+  // Synchronous on purpose: this runs on EVERY activation, and profiles without a web
+  // server (tui) never reach the scoped fiber below, so the seed cannot live there.
+  // `seedOnActivation` fills only MISSING files (never overwriting a prompt or a
+  // generated composition) and creates the legacy assistant only on a first run — see
+  // the assistant registry for why a deleted assistant must not come back.
+  try {
+    seedOnActivation({ root: dirname(PRESET_DIR), templateDir: packagedPresetDir() })
+  } catch (error) {
+    console.error('custom-mode: 初始化 preset 目录时出现意外错误（已忽略）: ' + describe(error))
+  }
 
   ctx.inject(WEB_SERVICES, (scope) => {
     // Compatibility guard: this plugin reads host APIs that a future DSH release could
@@ -309,6 +551,7 @@ export function apply(ctx) {
     // fail with an opaque 500.
     const missing = []
     if (typeof scope.agentPresets?.list !== 'function') missing.push('agentPresets.list()')
+    if (typeof scope.agentPresets?.remove !== 'function') missing.push('agentPresets.remove()')
     if (typeof scope.webServer?.register !== 'function') missing.push('webServer.register()')
     if (missing.length > 0) {
       console.error(
@@ -333,13 +576,17 @@ export function apply(ctx) {
             // <presets>/<id>/agent.cordis.yml -> <presets>
             if (system !== undefined) setShippedPresetsDir(dirname(dirname(system.path)))
           } catch (error) {
-            console.error(
-              'custom-mode: 无法从 roster 解析出厂预设目录：' + String((error && error.message) || error),
-            )
+            console.error('custom-mode: 无法从 roster 解析出厂预设目录：' + describe(error))
           }
         })()
       }
       return shippedReady
+    }
+
+    /** The roster, or an empty list — discovery itself reports broken rows rather than throwing. */
+    const roster = async () => {
+      const rows = await scope.agentPresets.list()
+      return Array.isArray(rows) ? rows : []
     }
 
     const handler = async (req, res) => {
@@ -355,34 +602,74 @@ export function apply(ctx) {
           res.end(reason)
           return
         }
-        if (req.method === 'GET') {
-          await ensureShipped()
-          sendJson(res, 200, readState())
+
+        const url = requestUrl(req)
+        const pathname = url.pathname
+        const methods = METHODS[pathname]
+        if (methods === undefined) {
+          sendJson(res, 404, { ok: false, error: '未知的子路径：' + pathname })
           return
         }
-        if (req.method === 'POST') {
+        // Per-path method table, not a global GET/POST gate: `create` and `delete`
+        // are POST-only, and letting a GET fall through to them would create an
+        // assistant off a link a browser prefetched.
+        if (!methods.includes(req.method)) {
+          sendJson(res, 405, { ok: false, error: '只支持 ' + methods.join(' 与 ') })
+          return
+        }
+        if (req.method === 'GET' && pathname === ROUTE_PATH) {
           await ensureShipped()
-          const raw = await readBody(req)
-          let parsed
-          try {
-            parsed = JSON.parse(raw)
-          } catch {
-            sendJson(res, 400, { ok: false, error: '请求体不是合法 JSON' })
-            return
-          }
-          const result = saveState(parsed)
+          sendJson(res, 200, readList(await roster()))
+          return
+        }
+        if (req.method === 'GET' && pathname === STATE_PATH) {
+          await ensureShipped()
+          sendJson(res, 200, readState(await roster(), url.searchParams.get('id') ?? ''))
+          return
+        }
+
+        // Everything below writes, so the body is read and parsed exactly once.
+        const raw = await readBody(req)
+        let parsed
+        try {
+          parsed = JSON.parse(raw)
+        } catch {
+          sendJson(res, 400, { ok: false, error: '请求体不是合法 JSON' })
+          return
+        }
+        await ensureShipped()
+        if (pathname === STATE_PATH) {
+          const result = saveState(await roster(), parsed)
           sendJson(res, result.ok === true ? 200 : 400, result)
           return
         }
-        sendJson(res, 405, { ok: false, error: '只支持 GET 与 POST' })
+        if (pathname === CREATE_PATH) {
+          const result = createAssistant(await roster(), parsed)
+          sendJson(res, result.ok === true ? 200 : 400, result)
+          return
+        }
+        if (pathname === REORDER_PATH) {
+          const result = reorderAssistant(await roster(), parsed)
+          sendJson(res, result.ok === true ? 200 : 400, result)
+          return
+        }
+        const result = await deleteAssistant(await roster(), parsed, scope.agentPresets)
+        sendJson(res, result.ok === true ? 200 : 400, result)
       } catch (error) {
-        sendJson(res, 500, { ok: false, error: String((error && error.message) || error) })
+        sendJson(res, 500, { ok: false, error: describe(error) })
       }
     }
 
+    // A PREFIX route claims `/custom-mode` and every sub-path under it, which keeps
+    // the endpoints to one registration and one disposer.
     scope.effect(
-      () => scope.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }),
+      () => scope.webServer.register({ kind: 'prefix', path: ROUTE_PATH, handler }),
       'custom-mode.route',
     )
   })
+}
+
+/** `error` as a readable string, without assuming it is an Error. */
+function describe(error) {
+  return String((error && error.message) || error)
 }

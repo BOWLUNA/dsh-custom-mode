@@ -3,7 +3,7 @@
 #
 # 用法:
 #   ./uninstall.sh                 # 默认 web profile
-#   ./uninstall.sh --purge         # 连同提示词文件一起删除
+#   ./uninstall.sh --purge         # 连同本工具创建的所有模式目录一起删除
 set -euo pipefail
 
 PROFILE=web
@@ -59,15 +59,57 @@ if (next.length !== bundles.length) {
 }
 NODE
 
-PRESET_DIR="$DSH_HOME/.agent-presets/$PRESET_ID"
+PRESET_ROOT="$DSH_HOME/.agent-presets"
+PRESET_DIR="$PRESET_ROOT/$PRESET_ID"
+
+# 一个设置页可以管理多个助手：每个助手是预设根目录下的一个目录。判据与插件一致——
+# 目录里有 prompt.md，且（有 prompt-reader.mjs，或组成文件里引用了 './prompt-reader.mjs'）。
+# 手写的 preset 不会被误伤：它们两者都不满足。
+managed_dirs() {
+  for dir in "$PRESET_ROOT"/*/; do
+    [ -d "$dir" ] || continue
+    name="$(basename "$dir")"
+    case "$name" in .*) continue ;; esac
+    [ -f "$dir/prompt.md" ] || continue
+    if [ -f "$dir/prompt-reader.mjs" ] || grep -qF "'./prompt-reader.mjs'" "$dir/agent.cordis.yml" 2>/dev/null; then
+      printf '%s\n' "${dir%/}"
+    fi
+  done
+}
+
+# 先把名单算出来再用，不要写成 `managed_dirs | grep -q`：脚本开了 pipefail，grep 命中即退出
+# 会让 managed_dirs 收到 SIGPIPE，整条管道的状态变成 141，判断随之反过来。
+MANAGED="$(managed_dirs)"
+
 if [ "$PURGE" = "1" ]; then
-  echo "==> 删除 preset 目录（含提示词）: $PRESET_DIR"
-  rm -rf "$PRESET_DIR"
+  echo "==> 删除本工具创建的助手目录（含提示词）"
+  named=0
+  while IFS= read -r dir; do
+    if [ "$dir" = "$PRESET_DIR" ]; then named=1; fi
+  done <<< "$MANAGED"
+  if [ -d "$PRESET_DIR" ] && [ "$named" = "0" ]; then
+    # 组成文件被改坏、或身份不再走 prompt-reader.mjs 时名单会漏掉它；
+    # 但 --preset-id 明确点名了这个目录，就按点名的删。
+    echo "    $PRESET_DIR（按 --preset-id 指名）"
+    rm -rf "$PRESET_DIR"
+  fi
+  while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    echo "    $dir"
+    rm -rf "$dir"
+  done <<< "$MANAGED"
+  # 播种标记一并删掉，否则重装时不会再建出第一个助手。
+  rm -f "$PRESET_ROOT/.custom-mode.json"
 else
-  echo "==> 保留 preset 目录: $PRESET_DIR"
-  echo "    提示词仍在: $PRESET_DIR/prompt.md"
+  echo "==> 保留助手目录与提示词"
+  found=0
+  while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    found=1
+    echo "    $dir/prompt.md"
+  done <<< "$MANAGED"
+  if [ "$found" = "0" ]; then echo "    （没有找到本工具创建的模式）"; fi
   echo "    如需一并删除，重新执行 ./uninstall.sh --purge"
 fi
-
 echo
 echo "完成。重启 dsh 后生效。"

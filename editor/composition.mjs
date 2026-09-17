@@ -452,15 +452,25 @@ function normaliseOverrides(input) {
  * @param {string} modeId - one of {@link BASE_MODES}.
  * @param {Map<string, boolean>|Set<string>|string[]} overrides - explicit per-row
  *   states; ids absent from a Map keep their shipped value.
+ * @param {{modeName?: string, assistantId?: string}} [options] - the assistant this
+ *   composition belongs to. Recorded in the header (so a stray file is traceable)
+ *   and passed to the `custom_prompt` row's config, which lets the tool name the
+ *   assistant it edits. Optional: every existing caller keeps working, and an
+ *   assistant created before this existed keeps its old module, which ignores it.
  * @returns {string} the composition text to install.
  */
-export function renderComposition(modeId, overrides) {
+export function renderComposition(modeId, overrides, options = {}) {
   if (!BASE_MODES.some((mode) => mode.id === modeId)) throw new Error(`未知基础模式: ${modeId}`)
+  const modeName = typeof options?.modeName === 'string' ? options.modeName.trim() : ''
+  const assistantId = typeof options?.assistantId === 'string' ? options.assistantId.trim() : ''
   const explicit = normaliseOverrides(overrides)
   const base = readBaseComposition(modeId)
   const rewritten = applyLevel(base, true, explicit, false)
   const header = [
     '# 本文件由「自定义模式」设置页生成，请勿手工编辑——下次保存会覆盖。',
+    ...modeName === '' && assistantId === ''
+      ? []
+      : [`# 助手: ${modeName === '' ? assistantId : modeName}${assistantId === '' ? '' : ` (${assistantId})`}`],
     `# 基础模式: ${modeId}`,
     `# 生成时间: ${new Date().toISOString()}`,
     '#',
@@ -471,7 +481,7 @@ export function renderComposition(modeId, overrides) {
   ].join('\n')
   // Rows this feature owns are appended after the base mode's rows, so a
   // regeneration cannot drop them.
-  const extras = EXTRA_ROWS.map((extra) => setDisabled(extra.text, explicit.get(extra.id))).join('')
+  const extras = EXTRA_ROWS.map((extra) => setDisabled(extra.text(modeName), explicit.get(extra.id))).join('')
   return `${header}${rewritten}${extras}`
 }
 
@@ -499,18 +509,44 @@ const PERSONA_ROW = [
  *
  * They are always emitted, so a regeneration cannot drop them. `custom-prompt-tool`
  * is the durable editing path for sessions with no browser.
+ *
+ * Its text is a function of the assistant's display name because this feature now
+ * manages several assistants and the tool description is what tells the model which
+ * one it is editing. A module from before that change ignores `config:` entirely,
+ * so the extra key is additive rather than a compatibility break.
  */
 const EXTRA_ROWS = [
   {
     id: 'custom-prompt-tool',
-    text: [
-      '# 无浏览器时的改提示词通道（模型工具 custom_prompt）。',
-      '- id: custom-prompt-tool',
-      "  name: './prompt-tool.mjs'",
-      '',
-    ].join('\n'),
+    text: (modeName) => {
+      const lines = [
+        '# 无浏览器时的改提示词通道（模型工具 custom_prompt）。',
+        '- id: custom-prompt-tool',
+        "  name: './prompt-tool.mjs'",
+      ]
+      if (modeName !== '') {
+        lines.push('  config:', '    # 让工具描述报出本助手的名字；不认识这一行的旧版模块会忽略它。', '    modeName: ' + yamlScalar(modeName))
+      }
+      lines.push('')
+      return lines.join('\n')
+    },
   },
 ]
+
+/**
+ * Quote a value into a single-line YAML scalar.
+ *
+ * JSON string syntax is valid YAML flow-scalar syntax, and it is the one escaping
+ * this repository already trusts (`meta.mjs` writes `preset.yml` the same way): a
+ * colon, a leading dash or a newline in an assistant's name must not restructure
+ * the document, because a composition that stops parsing makes the mode vanish.
+ *
+ * @param {string} value - the raw value.
+ * @returns {string} a double-quoted scalar.
+ */
+function yamlScalar(value) {
+  return JSON.stringify(String(value).replace(/\r?\n/g, ' ').trim())
+}
 
 /** Read the base mode recorded in a generated composition, defaulting to standard. */
 export function modeOf(text) {

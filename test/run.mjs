@@ -113,9 +113,11 @@ const suites = [
   'prompt-reader.test.mjs',
   'prompt-tool.test.mjs',
   'meta.test.mjs',
+  'assistants.test.mjs',
   'editor-route.test.mjs',
   'seed.test.mjs',
   'locales.test.mjs',
+  'client-bundle.test.mjs',
   'manifests.test.mjs',
 ]
 const env = { ...process.env, DSH_SHIPPED_PRESETS_DIR: found.dir }

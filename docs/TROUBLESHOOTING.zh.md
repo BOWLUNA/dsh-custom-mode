@@ -328,10 +328,99 @@ dsh --profile web --dump-config | wc -l
 # 4. preset 被 dsh 看见了（重启 dsh 之后、新建会话时）
 dsh --profile web --dump-config >/dev/null && ls "$HOME/.dsh/.agent-presets/custom"
 
-# 5. 设置页能读到状态（把 <token> 换成 dsh web 启动时打印的那个）
-curl -s "http://127.0.0.1:3080/custom-mode" \
-  -H 'cookie: dsh-token=<token>' | head -c 300
+# 5. 设置页能列出助手、并读到其中一个的状态（cookie 见下方说明）
+curl -s "http://127.0.0.1:3080/custom-mode" -H 'cookie: dsh-token=<token>' | head -c 300
+curl -s "http://127.0.0.1:3080/custom-mode/state?id=custom" -H 'cookie: dsh-token=<token>' | head -c 300
 ```
 
 > 第 5 条的 cookie 名与 token 取法随 dsh 版本可能不同；用浏览器打开设置页时看 Network 面板
 > 里那条 `/custom-mode` 请求最省事。
+
+## 13. 多助手：列表、新增、删除相关
+
+### 13.1 某个模式没有出现在助手列表里
+
+设置页**只管理本工具创建的模式**，判据是：目录里有 `prompt.md`，且（目录里有 `prompt-reader.mjs`，
+或 `agent.cordis.yml` 里引用了 `'./prompt-reader.mjs'`）。
+
+所以下面这些**不会**出现在列表里，这是有意的：
+
+- 用官方选择器的「复制 preset」从 `standard` 等出厂模式复制出来的模式（身份走 `@deepseek-ai/dsh-persona`）；
+- 自己手写的 preset。
+
+原因是保存会**按基础模式重新生成组成文件**（逐行开关就是这么实现的），对手写的组成文件做这件事
+等于毁掉它。想把它变成受管助手：让它的组成文件用 `./prompt-reader.mjs` 注入身份、并放一份
+`prompt.md`，或者干脆在设置页新建一个助手再把提示词贴过去。
+
+### 13.2 删掉的助手重启后又回来了
+
+只有旧版本会这样：那时 `apply()` 每次激活都无条件播种 `custom`。现在的规则是——根目录下没有
+`.custom-mode.json` 标记、且**一个受管助手都没有**时，才会创建 `custom`；否则只是补上标记。
+
+如果确实遇到复活，检查 `$DSH_HOME/.agent-presets/.custom-mode.json` 是否存在；不存在就手工建一个
+（内容 `{"seededAt":"…"}` 即可），再重启。
+
+### 13.3 新增助手失败
+
+页面会把后端给的原因原样显示，常见三种：
+
+- **名字是空的** —— 后端拒绝空名字（空名字会让模式在各处显示成裸目录 id）。
+- **目录已存在** —— 说明用户预设根目录下有同名目录，但 discovery 没把它算成一个模式（例如缺
+  `agent.cordis.yml`）。换个名字，或者先处理掉那个目录。
+- **复制模式模板失败** —— 包内的 `editor/preset/` 少了文件，或目标目录不可写。
+
+### 13.4 助手改名了，但旧助手会话里的 `custom_prompt` 描述还是旧名字
+
+工具描述来自组成文件里的 `config.modeName`，而**模块文件**（`prompt-tool.mjs`）在用户目录里、
+激活时不会被覆盖（用户可能改过它）。旧版本装出来的助手，其模块不认识这个键。
+
+跑一次 `./install.sh` 会刷新模块文件（它保留 `prompt.md`）。这只影响描述文案，工具的读写行为一直是
+正确的。
+
+## 14. 页面能开，但控件很朴素、和官方设置页不一样
+
+这不是 bug，是**降级路径生效**了：本页的按钮、输入框、开关、标签、确认弹窗与图标都来自壳的
+共享原子组件库 `@deepseek-ai/dsh-client-ui-primitives`，它必须由**壳**在启动时注册成种子词
+（与 `react` 同级）。当前壳没有提供它时，页面会退回内置的朴素控件 —— 功能一致，外观更简。
+
+确认方法：打开页面后看 Console，应当有一条
+
+```
+dsh-custom-mode: 当前壳没有在种子表里提供 @deepseek-ai/dsh-client-ui-primitives，
+改用内置的朴素控件（功能一致，外观更简）。
+```
+
+要恢复统一外观，把 dsh 升到在种子表里注册了该包的版本即可（在 `dsh-web-frontend/dist/assets/index-*.js`
+里搜 `dsh-client-ui-primitives` 就能确认有没有）。本插件不需要任何额外声明：`dsh.client.external`
+是给「自己就是一条启动记录的 bundle」用的，而这个包是种子词，直接 `require` 即可（见
+`docs/ARCHITECTURE.md` §14）。
+
+## 15. 页面显示成 `assistant.heading`、`btn.create` 这类原始键
+
+**0.1.6-alpha.2 起不应该再出现**：这是 `settings.section` 契约变化（`locale:` 选项被移除）造成的，
+现在页面自带中英词典兜底（见 `docs/ARCHITECTURE.md` §15）。若仍看到键名，说明你用的是旧版编辑器包。
+
+判断方法：打开页面看 Console。
+
+```
+dsh-custom-mode: 当前壳没有在种子表里提供 …        ← 另一回事（控件降级，见 §14）
+dsh-custom-mode: 词典注册被拒，改用内置词典：…      ← 命名空间已被占用（多为热重载二次 apply）
+dsh-custom-mode: 词典注册后宿主仍查不到 …，页面已改用内置词典。
+```
+
+三种情况下页面文案都是正常的（内置词典兜底）；这些警告只是告诉你宿主那一侧发生了什么。
+若文案**确实**是键名，先确认 `editor/client.js` 是最新的（`grep -c assistant.heading editor/client.js`
+应当大于 0，且同一条在 `editor/locales.mjs` 里存在），再重启 dsh 并刷新页面。
+
+## 16. 调整顺序后选择器里的顺序没变
+
+顺序写在每个助手目录的 `preset.yml` 里（`order: 1..N`）。若没生效，先看文件：
+
+```
+grep -n '^order:' "$DSH_HOME"/.agent-presets/*/preset.yml
+```
+
+- **一个都没有**：说明「上移 / 下移」没有真正调用成功，看页面状态栏的错误。
+- **只有部分助手有**：这正是 writer 保留磁盘旧值的行为；对任意一个助手再点上移/下移一次，
+  会给**所有**受管助手补齐 1..N。
+- **文件对了但选择器没变**：选择器只在**新建会话**时读取 roster；已经打开的会话不受影响。

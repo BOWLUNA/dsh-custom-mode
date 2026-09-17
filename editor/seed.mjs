@@ -99,12 +99,13 @@ export function seedPreset(presetDir, sourceDir = packagedPresetDir()) {
  * @param {string} presetDir - destination preset directory.
  * @param {(message: string) => void} [log] - error sink (defaults to console.error).
  * @param {(message: string) => void} [info] - info sink (defaults to console.log).
+ * @param {string} [sourceDir] - packaged template to copy from (defaults to `preset/` beside this module).
  * @returns {{created: string[], kept: string[], errors: string[]}}
  */
-export function seedPresetWithLog(presetDir, log = console.error, info = console.log) {
+export function seedPresetWithLog(presetDir, log = console.error, info = console.log, sourceDir = packagedPresetDir()) {
   let result
   try {
-    result = seedPreset(presetDir)
+    result = seedPreset(presetDir, sourceDir)
   } catch (error) {
     // seedPreset is written not to throw; this is a last-resort guard so that a bug here
     // can never stop the host from booting.

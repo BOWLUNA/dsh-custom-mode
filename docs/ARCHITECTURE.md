@@ -280,7 +280,7 @@ custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPr
 export function apply(ctx) {
   ctx.inject(['webServer', 'agentPresets'], (scope) => {
     // execution only reaches here when both services exist
-    scope.effect(() => scope.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }), '…')
+    scope.effect(() => scope.webServer.register({ kind: 'prefix', path: ROUTE_PATH, handler }), '…')
   })
 }
 ```
@@ -297,3 +297,235 @@ so it is the **dynamic form of the same declaration**, not a way around the depe
   half does not apply, the whole row becomes a warning that looks like a failure.
 - Conversely, **never** drop dependency declarations entirely and guess in `apply` with `ctx.get()` whether a service is present, just to avoid
   `pending`: in web, `apply` may run before `webServer` is ready, in which case the settings page would silently fail to register. Use `ctx.inject` to wait.
+
+## 13. Several assistants: why one settings page managing N modes needs no new mechanism
+
+The first version managed a single preset (`$DSH_HOME/.agent-presets/custom`). To become "create and
+delete assistants like a chat app", the first question is whether the preset layer supports N at all.
+It does — that is what it is for:
+
+- `dsh-agent-presets`' `scanRoot()` turns **every** id-shaped subdirectory of the user preset root into
+  a roster row (`USER_PRESET_DIR = '.agent-presets'`, `PRESET_ID = /^[a-z0-9][a-z0-9-]*$/`);
+- discovery is **unmemoised**: `list()` / `resolve()` re-read the roots on every call, so a directory
+  created a moment ago is selectable the next time a session starts;
+- every preset directory is self-contained: `prompt-reader.mjs` / `prompt-tool.mjs` resolve `prompt.md`
+  with `new URL('./prompt.md', import.meta.url)`, so one copy is one independent prompt.
+
+The only genuinely single-instance part was the **settings page**: `paths.mjs` hard-codes the prompt path
+as `.../custom/prompt.md`, there is one route, and the browser half assumes one mode. So this change
+lands entirely in the editor package; not one composition file under `preset/` moved.
+
+### 13.1 Which directories this tool owns (the test is a safety boundary)
+
+The managed list must be **presets this tool created**, not "every preset under the user root":
+
+- a save **regenerates the composition from a base mode** (that is how the per-row switches work);
+- doing that to a hand-written `agent.cordis.yml` destroys it.
+
+The test: the directory carries `prompt.md`, and it either carries `prompt-reader.mjs` or its
+composition still references `'./prompt-reader.mjs'`. The second branch is what keeps an assistant
+repairable after its reader module is deleted by accident. Deciding on `prompt.md` alone would misclaim
+somebody else's hand-authored preset — and that mistake is destructive, so the test errs narrow.
+
+### 13.2 Creation and deletion both go through the platform's own authoring seam
+
+- **Deletion** uses `agentPresets.remove(id)`: the platform itself refuses `trust: 'system'` and
+  re-checks that the directory really lives under the writable root (`preset.path.startsWith(dir)` in
+  `deleteComposition`). Safer than the plugin running its own `rm -rf`.
+- **Creation** seeds the packaged template (`seedPreset` → `createAssistantDir`) rather than calling
+  `agentPresets.copy()`: a copy inherits the source assistant's prompt, switch states and extra files,
+  and — decisive — creation would break the moment the user deleted every source. Seeding also makes
+  "new" mean new.
+- The writable root is **derived from the roster** (the grandparent of any `trust: 'user'` row), not
+  hard-coded: a profile may point `roots` elsewhere, and a hard-coded path would write to the wrong
+  place in that deployment.
+
+### 13.3 A deleted assistant must not come back
+
+The old `apply()` called `seedPresetWithLog(PRESET_DIR)` on every activation. With several assistants
+that semantics becomes a bug: delete `custom`, restart the process, and it returns. The rule now:
+
+- every activation repairs **every** managed directory by filling in only MISSING files (never
+  overwriting — and it rescues the failure where a composition row names a deleted module, which makes
+  the whole preset read as BROKEN and vanish from every picker);
+- `custom` is created only on a genuine **first run** (no `.custom-mode.json` under the root);
+- a root that already has managed assistants is adopted silently, marker and all.
+
+The marker is a **file**: discovery's `child.isDirectory()` skips it, and its name does not match
+`PRESET_ID`, so it can never be mistaken for a preset.
+
+### 13.4 How the tool description knows which assistant it belongs to
+
+The `custom_prompt` description carries the assistant's name from the composition row's config
+(`config.modeName`), which the settings page writes on every save; the module falls back to reading
+`preset.yml` beside itself, then to a generic label. **An older assistant's older module does not know
+that key** — deliberately: the module lives in the user's directory and activation must not overwrite it
+behind their back. Running `./install.sh` refreshes the modules (and keeps `prompt.md`).
+
+## 14. The UI uses the shell's own atoms instead of hand-rolled controls
+
+The page's **layout** is ours (grids, cards, spacing). Its **controls** all come from
+`@deepseek-ai/dsh-client-ui-primitives`: `Button` / `Input` / `Switch` / `Tag` / `Pill` /
+`Tooltip` / `RiskConfirmation` and the icon set.
+
+### 14.1 Why it can just be required: the shell's seed table
+
+A hand-written bundle cannot import an ESM package; it can only `require`. At boot the shell registers
+a **seed table** mapping a fixed set of module names onto instances it has already bundled
+(measured in `dsh-web-frontend/dist/assets/index-*.js`):
+
+```js
+{"react":_c,"react-dom":bc,"react-dom/client":Ic,"@deepseek-ai/cordis":ec,
+ "@deepseek-ai/dsh-client-store":Jc,"@deepseek-ai/dsh-client-ui-slots":ou,
+ "@deepseek-ai/dsh-client-ui-primitives":Cy,"@deepseek-ai/dsh-client-ui-dockkit":Xw}
+```
+
+So `require("@deepseek-ai/dsh-client-ui-primitives")` is the same kind of operation as
+`require("react")`, and it does **not** need a `dsh.client.external` declaration — that field serves
+*graph rows* (bundles with their own record in the boot manifest). The official
+`@deepseek-ai/dsh-client-ui-settings-general` requires it at runtime with no `external` declaration
+either, which is the precedent this follows.
+
+The seed table also carries `@deepseek-ai/dsh-client-ui-slots` and `@deepseek-ai/dsh-client-store`:
+the former is how official pages read slot contracts, the latter is small cross-page state.
+
+### 14.2 The payoff is "it cannot drift"
+
+The atoms are bundled with the shell and styled by the shell's CSS through `--dsw-*` tokens, so theme,
+light/dark, density, corner radius and any future restyling reach this page automatically. Writing
+one's own `<input>` / `<button>` is copying the shell's visual specification — and the copy is the
+thing that goes stale.
+
+The line drawn here: **containers are ours, controls are the shell's**. `client.js`'s CSS does layout
+only; `cpfe-btn*` / `cpfe-input` / `cpfe-switch*` / `cpfe-tag*` / `cpfe-pill*` exist solely for the
+fallback path below.
+
+### 14.3 Degrading: an older shell without that seed word must still open
+
+`ui-primitives` tracks the shell version. The probe is a `try`/`catch`: when it is unavailable the page
+uses built-in plain controls with the **same prop contract** (`Switch.onChange` still hands over the
+next boolean, not an event), so it renders plainer but usable rather than blank; with no
+`RiskConfirmation`, deletion falls back to a native `confirm` instead of dropping the "irreversible
+operation needs a confirmation" guardrail.
+
+This is the other face of §3's lesson: there the failure was a page that **silently never appeared**,
+so here degrading is always preferred to a failed `apply`.
+
+### 14.4 A related confirmation: the client bundle's long cache is safe
+
+`/plugins/??<id>/client.js&rev=<hash>` answers with
+`cache-control: public, max-age=31536000, immutable`, which looks alarming. But `dsh-client-modules`
+derives that rev from `artifactRevision(bundle, baseline)` — a sha1 over the **client.js bytes plus
+mtimeMs**. Edit the file and the rev changes, so the URL changes, which is what makes `immutable`
+safe: an ordinary refresh after a restart picks up the new UI, with no cache clearing.
+
+## 15. `settings.section` no longer hands over a bound `t`: the page carries its own dictionaries (measured on 0.1.6-alpha.2)
+
+This section records a real failure: every function was correct, yet the whole page rendered as raw keys
+(`assistant.heading`, `btn.create`) — including the left nav, which showed `nav`. The page depended on a
+contract that no longer exists.
+
+### 15.1 The authoritative contract: three registration options, no `locale`
+
+The `settings.section` slot declaration (shipped with `dsh-cordis-client-runner`, documentation included)
+says:
+
+```
+registerOptions: [
+  { name: "id",    requirement: "required", type: "string" },
+  { name: "order", requirement: "optional", type: "number" },
+  { name: "label", requirement: "optional", type: "string | (() => string)" }
+]
+doc: … `label` (registrant-localized display text — the registrant re-registers with
+     fresh text on locale change, so the shell never subscribes locale state; the ledger
+     bump doubles as the shell's re-render trigger) …
+```
+
+**There is no `locale:` any more.** The shell no longer binds a namespaced `t` for a section, so
+`props.t` — even when present — is not ours, and the body echoed keys. Official bundles still contain a
+leftover `locale: NS` (`ui-settings-plugins`, …), but the contract dropped it and it cannot be relied on.
+
+`label` explicitly still supports a thunk and documents that a thunk "is re-read on every projection, so
+localized text follows the active locale without re-registering" — so the nav label staying a thunk is
+correct.
+
+### 15.2 Two lessons
+
+**(1) Never depend on the registration having succeeded.** The page used to route all of its copy through
+`locale.register(ns, {zh, en})` plus the shell's `t`; one failed registration turned it into a wall of
+keys. Now:
+
+- the shell's `t` still wins when it answers (and a language switch re-renders through it);
+- **the bundle's own zh/en dictionaries are the floor**: when the shell cannot answer, `t()` consults its
+  own table, so a key that is in the table can never be displayed raw;
+- language switches are driven by `locale.subscribe()`, and `activeLanguage()` re-reads the snapshot on
+  every render.
+
+That is not "ignoring host i18n" — it is treating it as an accelerator rather than a foundation. A test
+builds a shell whose `t` echoes the key and drives this path (`test/client-bundle.test.mjs` §3), and it
+was verified to go red against the old code.
+
+**(2) `ctx.effect` swallows exceptions from its callback — which is what made the failure silent.**
+The registration sat inside `ctx.effect(() => locale.register(...))`, and `effect()` hands the callback to
+its own runner (setup barrier, promise handling): a throw inside it does **not** reach `apply`'s
+`try/catch`. "Registration failed" and "everything is fine" were therefore indistinguishable from the
+outside — page present, console quiet, all copy raw. Registration now catches its own error, warns with
+the reason, and re-reads once afterwards (`bind(ns)("nav") === "nav"` means "registered but the host
+cannot see it"), telling the two cases apart.
+
+This holds for **any** initialization placed in `ctx.effect`: **do not treat its exceptions as ones that
+will bubble.**
+
+## 16. Assistant ordering lives in `preset.yml`'s `order`, with no second state file
+
+The picker order is the roster order, and `dsh-agent-presets` sorts by `order ?? Infinity`, then id —
+which is exactly how the shipped presets declare their own order. So "move up/down" keeps no list of its
+own; it writes `order: 1..N` into **every** managed assistant:
+
+- the order becomes a property of the preset: it survives a restart, is visible in the file, and has no
+  second copy to drift from;
+- writing all of 1..N is necessary: assistants that were never reordered have no `order` at all, so
+  writing just one would interleave with the id sort;
+- `meta.mjs`'s writer preserves the on-disk value when no `order` is passed — otherwise a RENAME would
+  quietly push the assistant to the back.
+
+The order affects **new sessions** only (the roster re-reads the roots on every call); open sessions are
+unaffected.
+
+## 17. Browser verification: the last mile unit tests cannot see
+
+This repository's tests have a structural blind spot: they prove the host answers correctly and the
+bundle registers, but they **cannot see the rendered page**. §15's failure was that blind spot's
+product — every function correct, the page present, the page a wall of raw keys, and **every suite
+green**.
+
+From this version on, the acceptance test for a UI change is therefore not "the suite is green" but
+"`tools/browser-verify.mjs` has run against a real instance".
+
+### 17.1 What it asserts
+
+Driving a real browser over a CDP port, it checks:
+
+1. **no raw translation keys anywhere in the panel** (a built-in list: `assistant.heading`,
+   `btn.create`, `status.enabled`, …);
+2. the copy is **translated** (section headings, and the move/duplicate/import/export buttons);
+3. **every switch has a visible row title** — `Switch`'s `label` is its `aria-label` only, so the
+   title has to be drawn by the page;
+4. the left nav entry is not the raw key `nav`;
+5. a **create/delete round trip through the browser**: new assistant → it appears → the risk
+   confirmation opens → acknowledge → delete permanently → it is gone;
+6. no `dsh-custom-mode` error in the page console.
+
+It does **not** start dsh itself; it takes one token URL. Which instance on which machine is the
+caller's choice (the lab recipe is in the repository `AGENTS.md` §"The lab" and in
+`~/.dsh/AGENTS.md`).
+
+### 17.2 Two traps, both measured
+
+- **The settings panel is itself `[role=dialog]`.** So "find the confirmation" cannot be
+  `document.querySelector('[role=dialog]')` — that returns the panel. Search **all** dialogs by
+  content. The first version of the verifier failed exactly this way: the assertion failed, the
+  checkbox got ticked, and the confirm button was never clicked.
+- **Ticking and confirming must be separate steps.** `RiskConfirmation`'s confirm button reads React
+  state, so clicking the checkbox and the button in the same tick deletes nothing — the state has not
+  landed yet.

@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 8 suites, 333 checks; resolves the shipped presets itself
+node test/run.mjs                                  # 11 suites, 520 checks; resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
@@ -26,7 +26,11 @@ DSH_HOME=/tmp/dsh-dev ./install.sh
 DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open
 DSH_HOME=/tmp/dsh-dev dsh --profile web --dump-config | wc -l      # hundreds of lines = healthy
 
-# Screenshots (it really clicks, saves, and switches theme and language), see tools/screenshots/README.md
+# Browser verification — the ONLY check that can see a rendered page. Needs a browser with a
+# DevTools port and a running instance; see "The lab" below.
+CDP_PORT=9222 node tools/browser-verify.mjs --url "http://127.0.0.1:3082/?token=…" --out shot.png
+
+# Screenshots for the README (really clicks, saves, switches theme and language), see tools/screenshots/README.md
 DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?token=…" docs/images
 ```
 
@@ -71,6 +75,44 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
 - pnpm can leave the plugin symlink behind in `node_modules` (`uninstall.sh` cleans it up).
 - Under WSL, if the `pnpm` on PATH is the Windows build, `dsh plugin add` panics with
   `current dir is an absolute path with drive letter`; use the Linux build (`corepack enable pnpm`).
+
+## The lab (browser verification)
+
+Unit tests here are blind to the last mile: they prove the host answers and the bundle registers,
+but not what the page *renders*. That gap shipped a real bug — a page of raw keys
+(`assistant.heading`) that every suite passed through. So a UI change is not verified until
+`tools/browser-verify.mjs` has run against a real instance.
+
+The lab is any second machine you can reboot freely (`$LAB` below); the machine running the harness
+is **never** a test target — its `dsh web` serves the user and hosts the running agent, so restarting
+it kills the session. Concrete hosts, addresses and launcher scripts belong in the operator's own
+`~/.dsh/AGENTS.md`, which is not part of this repository.
+
+```sh
+# 1. ship the tree (the lab has its own checkout; node_modules excluded)
+tar czf - --exclude=node_modules --exclude=.git -C <repo-parent> dsh-editable-prompt \
+  | ssh "$LAB" 'tar xzf - -C /root/dsh-lab'
+
+# 2. a throwaway DSH_HOME on the lab. Seed settings.yaml (onboarding version + locale + theme) so
+#    the first-run modals stay away. NEVER copy ~/.dsh/.credentials.yaml — credentials stay here.
+ssh "$LAB" 'mkdir -p /root/dsh-custom-lab && cd /root/dsh-lab/dsh-editable-prompt \
+  && DSH_HOME=/root/dsh-custom-lab ./install.sh'
+
+# 3. boot it (a script + setsid, not a foreground ssh command) and read the token URL from the log
+ssh "$LAB" '/root/custom-lab.sh && cat /root/custom-lab.log'
+
+# 4. a browser with a DevTools port. The lab already has playwright's chromium and a launcher.
+ssh "$LAB" '/root/chrome-lab.sh'          # CDP on 127.0.0.1:9222
+
+# 5. verify the rendered page (create/delete round trip included), then look at the screenshot
+ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && CDP_PORT=9222 \
+  node tools/browser-verify.mjs --url "<token URL>" --out /root/verify.png'
+scp "$LAB":/root/verify.png /tmp/verify.png               # then read the image
+```
+
+`pkill -f "some string"` over ssh matches **its own command line** and kills the session
+(`exit 255`); use the `[x]` trick. Long operations (an `npm i -g`) belong in a script behind
+`setsid nohup`, polled — not in a foreground `ssh`.
 
 ## Knowing when you are done
 

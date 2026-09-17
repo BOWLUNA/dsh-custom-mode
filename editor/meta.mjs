@@ -6,6 +6,10 @@
  * a change here appears without a process restart; only a NEW session picks it up,
  * exactly like a composition change.
  *
+ * The directory is a parameter because this feature manages SEVERAL assistants:
+ * each one owns its own `preset.yml`, and one shared constant would make every save
+ * rename the same assistant.
+ *
  * Only two scalar keys are handled, so a full YAML parser is unnecessary. Writing
  * always emits double-quoted, escaped scalars: a user-supplied colon, leading
  * dash, or newline would otherwise restructure the document, and a malformed
@@ -16,8 +20,18 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { PRESET_DIR } from './paths.mjs'
 
-/** Absolute path of the preset's metadata file. */
-export const PRESET_META_PATH = join(PRESET_DIR, 'preset.yml')
+/**
+ * Absolute path of one preset directory's metadata file.
+ *
+ * @param {string} [directory] - the preset directory (defaults to the legacy `custom`).
+ * @returns {string} absolute path.
+ */
+export function presetMetaPath(directory = PRESET_DIR) {
+  return join(directory, 'preset.yml')
+}
+
+/** The legacy single-preset metadata path, kept for callers that address it directly. */
+export const PRESET_META_PATH = presetMetaPath()
 
 /** Strip one layer of matching quotes and undo backslash escaping. */
 function unquote(value) {
@@ -39,14 +53,15 @@ function unquote(value) {
 }
 
 /**
- * Read the preset's display name and description.
+ * Read one preset directory's display name and description.
  *
+ * @param {string} [directory] - the preset directory (defaults to the legacy `custom`).
  * @returns {{name: string, description: string}} both empty when the file is absent.
  */
-export function readPresetMeta() {
+export function readPresetMeta(directory = PRESET_DIR) {
   let text = ''
   try {
-    text = readFileSync(PRESET_META_PATH, 'utf8')
+    text = readFileSync(presetMetaPath(directory), 'utf8')
   } catch {
     return { name: '', description: '' }
   }
@@ -59,7 +74,12 @@ export function readPresetMeta() {
     }
     return ''
   }
-  return { name: read('name'), description: read('description') }
+  // `order` is the roster's own sort key (`dsh-agent-presets` orders by
+  // `order ?? Infinity`, then id), which is what makes it the right home for
+  // "which assistant comes first".
+  const rawOrder = Number(read('order'))
+  const order = read('order') !== '' && Number.isFinite(rawOrder) ? rawOrder : undefined
+  return { name: read('name'), description: read('description'), ...order === undefined ? {} : { order } }
 }
 
 /** Quote and flatten a value into a single-line YAML scalar. */
@@ -76,17 +96,24 @@ function yamlScalar(value) {
  *
  * @param {string} name - display name.
  * @param {string|undefined} description - optional description.
+ * @param {string} [directory] - the preset directory (defaults to the legacy `custom`).
+ * @param {{order?: number}} [options] - roster position. Omitted means "keep whatever is on
+ *   disk": a rename must never reshuffle the pickers.
  * @returns {{ok: true, name: string} | {ok: false, error: string}} the outcome.
  */
-export function writePresetMeta(name, description) {
+export function writePresetMeta(name, description, directory = PRESET_DIR, options = {}) {
   const cleanName = typeof name === 'string' ? name.replace(/\r?\n/g, ' ').trim() : ''
   if (cleanName === '') return { ok: false, error: '模式名称不能为空。' }
   const lines = ['name: ' + yamlScalar(cleanName)]
   if (typeof description === 'string' && description.trim() !== '') {
     lines.push('description: ' + yamlScalar(description))
   }
+  const requested = options !== null && typeof options === 'object' ? options.order : undefined
+  const order =
+    typeof requested === 'number' && Number.isFinite(requested) ? Math.trunc(requested) : readPresetMeta(directory).order
+  if (order !== undefined) lines.push('order: ' + String(order))
   try {
-    writeFileSync(PRESET_META_PATH, lines.join('\n') + '\n', 'utf8')
+    writeFileSync(presetMetaPath(directory), lines.join('\n') + '\n', 'utf8')
   } catch (error) {
     return { ok: false, error: '写入 preset.yml 失败：' + String((error && error.message) || error) }
   }

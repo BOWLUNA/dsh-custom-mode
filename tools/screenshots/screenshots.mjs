@@ -111,10 +111,23 @@ async function shotCanvas(name, anchor) {
   console.log(`  → ${name}（${CANVAS.width}x${CANVAS.height}）`)
 }
 
+/**
+ * Ask the plugin's own endpoints, in the order the page does:
+ * `GET /custom-mode` is the assistant list, then `GET /custom-mode/state` is the
+ * one assistant the editor opens on. Reading only the list would silently report
+ * nulls for every editor field, which is exactly the staleness this script exists
+ * to prevent.
+ */
 async function pluginState() {
-  return session.evaluate(
-    `fetch('/custom-mode', { headers: { accept: 'application/json' } }).then((r) => r.json())`,
-  )
+  return session.evaluate(`(async () => {
+    const list = await fetch('/custom-mode', { headers: { accept: 'application/json' } }).then((r) => r.json());
+    const assistants = Array.isArray(list.assistants) ? list.assistants : [];
+    const first = assistants.length > 0 ? assistants[0].id : null;
+    const detail = first === null
+      ? null
+      : await fetch('/custom-mode/state?id=' + encodeURIComponent(first), { headers: { accept: 'application/json' } }).then((r) => r.json());
+    return { list, detail, assistants };
+  })()`)
 }
 
 /** Switch UI language through the app's own control (its label shows the CURRENT language). */
@@ -173,18 +186,22 @@ console.log('打开「自定义模式」设置页…')
 await clickAny(L.customMode, { exact: true })
 await session.sleep(1800)
 
-const state = await pluginState()
+const probe = await pluginState()
 report.loadedState = {
-  ok: state?.ok,
-  mode: state?.mode,
-  topLevelRows: Array.isArray(state?.rows) ? state.rows.length : null,
-  promptChars: typeof state?.prompt === 'string' ? state.prompt.length : null,
+  ok: probe?.list?.ok,
+  assistants: Array.isArray(probe?.assistants) ? probe.assistants.map((item) => item.name || item.id) : null,
+  editing: probe?.detail?.id ?? null,
+  mode: probe?.detail?.mode,
+  topLevelRows: Array.isArray(probe?.detail?.rows) ? probe.detail.rows.length : null,
+  promptChars: typeof probe?.detail?.prompt === 'string' ? probe.detail.prompt.length : null,
 }
 console.log('  插件 GET /custom-mode →', JSON.stringify(report.loadedState))
-if (state?.ok !== true) throw new Error(`设置页读取失败: ${JSON.stringify(state)}`)
+if (probe?.list?.ok !== true || probe?.detail?.ok !== true) {
+  throw new Error(`设置页读取失败: ${JSON.stringify(probe)}`)
+}
 
-// 01：模式名称 + 基础模式
-console.log('截图 01（模式名称 + 基础模式）…')
+// 01：助手列表（多助手管理的入口）
+console.log('截图 01（助手列表）…')
 await scrollTo('.cpfe > section:nth-of-type(1)')
 await shotDialog('01-mode-switch.png')
 

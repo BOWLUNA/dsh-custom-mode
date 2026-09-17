@@ -427,3 +427,425 @@ path. Measured: **root bypasses permission bits**, so seeding succeeded and thre
 to red. They were green on CI (a non-root runner) and red for anyone running the suite as root — a
 test whose outcome depended on who ran it. Blocking the path with a regular file instead fails with
 `ENOTDIR` for every user, and the assertions now mean the same thing everywhere.
+
+---
+
+## 11. Several assistants: create, delete and switch N modes from one settings page (real instance)
+
+Environment as in §9: a fresh `DSH_HOME=/tmp/dsh-dev`, web profile, its own port 3081 — the instance in
+use on this machine was never touched.
+
+### 11.1 Test suites
+
+```
+$ node test/run.mjs
+shipped presets dir: /usr/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-agent-presets/presets
+(from: $DSH_HOME/profiles/node_modules)
+…
+result: 64 passed, 0 failed      composition.test.mjs
+result: 26 passed, 0 failed      composition-edge.test.mjs
+result: 15 passed, 0 failed      prompt-reader.test.mjs
+result: 37 passed, 0 failed      prompt-tool.test.mjs
+result: 45 passed, 0 failed      meta.test.mjs
+result: 56 passed, 0 failed      assistants.test.mjs   ← new in this change
+result: 94 passed, 0 failed      editor-route.test.mjs ← grew from one route to five endpoints
+result: 31 passed, 0 failed      seed.test.mjs
+result: 66 passed, 0 failed      locales.test.mjs
+result: 19 passed, 0 failed      client-bundle.test.mjs ← new (the browser half's registration contract)
+result: 16 passed, 0 failed      manifests.test.mjs
+all 11 suites passed, 469 checks in total
+```
+
+### 11.2 Install and start
+
+```
+$ DSH_HOME=/tmp/dsh-dev ./install.sh
+    composition tree: 164 rows, dsh-custom-mode in place
+$ DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open --host 127.0.0.1
+dsh web: http://127.0.0.1:3081/?token=…
+```
+
+The token is exchanged for a browser-session cookie (`GET /?token=…` → `303` + `set-cookie: dsh-auth-…`);
+every request below carries it.
+
+### 11.3 The fence, then the list
+
+```
+$ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3081/custom-mode
+401                                          ← unauthenticated (the fence still comes first)
+
+$ curl -s -b "$JAR" http://127.0.0.1:3081/custom-mode
+{"ok":true,"assistants":[{"id":"custom","name":"自定义模式","description":"完整编码能力…"}],
+ "root":"/tmp/dsh-dev/.agent-presets"}
+```
+
+### 11.4 Creating two assistants (one Chinese name, one English)
+
+```
+$ curl -s -b "$JAR" -H 'content-type: application/json' \
+    -d '{"name":"写作助手","description":"负责写文档与博客"}' http://127.0.0.1:3081/custom-mode/create
+{"ok":true,"id":"custom-2","name":"写作助手",…}      ← Chinese slugs to nothing → custom-2
+
+$ curl -s -b "$JAR" -H 'content-type: application/json' \
+    -d '{"name":"Writer"}' http://127.0.0.1:3081/custom-mode/create
+{"ok":true,"id":"writer","name":"Writer",…}          ← an English name becomes the directory name
+
+$ ls -1 /tmp/dsh-dev/.agent-presets/
+custom
+custom-2
+writer
+```
+
+The new directory holds the complete five-file template, with `agent.cordis.yml` regenerated from Standard:
+
+```
+$ head -3 /tmp/dsh-dev/.agent-presets/custom-2/agent.cordis.yml
+# 本文件由「自定义模式」设置页生成，请勿手工编辑——下次保存会覆盖。
+# 助手: 写作助手 (custom-2)
+# 基础模式: minimal
+$ grep -n modeName /tmp/dsh-dev/.agent-presets/custom-2/agent.cordis.yml
+77:    modeName: "写作助手"
+```
+
+### 11.5 Every prompt is independent (the actual claim being verified)
+
+```
+$ curl -s -b "$JAR" -H 'content-type: application/json' \
+    -d '{"id":"custom-2","mode":"minimal","overrides":{"tool-fs":false},
+         "prompt":"你是写作助手，负责把要点写成清晰的文档。\n\n工作目录：{{cwd}}\n",
+         "name":"写作助手","description":"负责写文档与博客"}' \
+    http://127.0.0.1:3081/custom-mode/state
+{"ok":true,"id":"custom-2","mode":"minimal","note":"已保存（写作助手，基础模式 minimal）。…"}
+
+$ head -c 30 /tmp/dsh-dev/.agent-presets/custom/prompt.md   → You are a coding agent pow
+$ head -c 30 /tmp/dsh-dev/.agent-presets/custom-2/prompt.md → 你是写作助手，负责把要点写成清
+$ head -c 30 /tmp/dsh-dev/.agent-presets/writer/prompt.md   → You are a coding agent pow
+```
+
+Validation still guards the write path (a rejected save leaves the file untouched):
+
+```
+$ curl -s -b "$JAR" -H 'content-type: application/json' \
+    -d '{"id":"custom-2","mode":"minimal","prompt":"x {{foo}} y"}' …/custom-mode/state
+{"ok":false,"error":"保存被拒绝：{{foo}} 不是已注册的变量，渲染时会报错并让本模式每个请求都失败。可用：{{model}}、{{cwd}}、{{provider}}。"}
+```
+
+### 11.6 Deletion: shipped presets are refused, your own are not
+
+`remove` goes through `scope.agentPresets.remove(id)`, so "the row really was in the roster" is itself
+proof that the running process had already discovered the new directory:
+
+```
+$ curl … -d '{"id":"standard"}' …/custom-mode/delete
+{"ok":false,"error":"找不到助手「standard」。设置页只管理本工具创建的模式…"}
+
+$ curl … -d '{"id":"writer"}' …/custom-mode/delete
+{"ok":true,"id":"writer","note":"已删除「writer」。正在使用它的会话不受影响；新建会话时不再出现。"}
+$ ls -1 /tmp/dsh-dev/.agent-presets/
+custom
+custom-2
+```
+
+Methods and sub-paths (a GET must not create an assistant):
+
+```
+$ curl -s -o /dev/null -w "%{http_code}\n" -b "$JAR" …/custom-mode/create   → 405
+$ curl -s -b "$JAR" …/custom-mode/nope
+{"ok":false,"error":"未知的子路径：/custom-mode/nope"}
+$ curl … --data-binary @4MB.json …/custom-mode/state                        → 500 (body too large)
+```
+
+### 11.7 The new assistant really is in the mode picker
+
+The picker reads discovery, so ask discovery — against the real instance's `DSH_HOME`:
+
+```
+$ node /tmp/roster-check.mjs
+custom     user    自定义模式        mountable
+custom-2   user    写作助手         mountable      ← not broken: the composition loads and every row resolves
+standard   system  标准模式         mountable
+ptc        system  PTC 模式        mountable
+minimal    system  极简模式         mountable
+cordis     system  创造模式        mountable
+```
+
+The browser half is confirmed new as well (the bundle the page loads is byte-identical to the repo file,
+apart from the appended `sourceMappingURL`):
+
+```
+$ curl -s -b "$JAR" '…/plugins/??dsh-custom-mode/client.js&rev=…' -o /tmp/served-client.js
+http=200 bytes=44361
+$ diff /tmp/served-client.js editor/client.js
+874,875d873
+< ;
+< //# sourceMappingURL=/plugins/??dsh-custom-mode/client.js.map&rev=…
+```
+
+**One thing NOT verified**: no browser was available, so the React output itself (the assistant list and
+button layout) has no screenshot check. Every other link — route, disk, roster, bundle — was exercised
+on a real instance.
+
+---
+
+## 12. Aligning the UI with the shell's atoms (seed table measured) + duplicate (real instance)
+
+### 12.1 The evidence that decides whether this layer is even possible: the seed table
+
+A hand-written bundle can only `require`. So "use the official controls" depends on the shell
+registering them as seed words. Searching `dsh-web-frontend/dist/assets/index-8VXBH-f-.js` (616 KB)
+finds exactly that table:
+
+```
+$ python3 - <<'PY'   # search the dist for dsh-client-ui-primitives and print the context
+...untime":_c,"react-dom":bc,"react-dom/client":Ic,"@deepseek-ai/cordis":ec,
+"@deepseek-ai/dsh-client-store":Jc,"@deepseek-ai/dsh-client-ui-slots":ou,
+"@deepseek-ai/dsh-client-ui-primitives":Cy,"@deepseek-ai/dsh-client-ui-dockkit":Xw}}var ix=class{...
+```
+
+It sits beside `react`, so any bundle can require it, and it needs **no** `dsh.client.external` (that
+field serves *graph rows*, which have their own record in the boot manifest).
+
+### 12.2 How it looks in the boot manifest (an easy misreading)
+
+```
+$ python3 … parse globalThis["__DSH_BOOT__"]
+keys: ['rev', 'entries', 'batches'];  entries: 59
+--- @deepseek-ai/dsh-client-ui-primitives      → (NOT A ROW)
+--- @deepseek-ai/dsh-client-ui-settings-general → {"id":"…settings-general","url":"/plugins/??…&rev=b97a6adea38cd90c-20","inject":[…]}
+--- dsh-custom-mode                             → {"id":"dsh-custom-mode","url":"/plugins/??dsh-custom-mode/client.js&rev=b97a6adea38cd90c-49","rev":"…-49"}
+declared by @deepseek-ai/dsh-client-ui-subagent in inject
+declared by @deepseek-ai/dsh-client-ui-jobs in inject
+```
+
+It is **not an entry**; it appears only in two official bundles' `inject` lists, while the official
+`settings-general` requires it at runtime with no declaration — consistent with the seed table in
+12.1. (Reading only the boot manifest would wrongly suggest a dependency declaration is required.)
+
+### 12.3 Duplicating an assistant (real instance, port 3081)
+
+```
+$ curl … -d '{"id":"custom","mode":"minimal","overrides":{"tool-fs":false},
+              "prompt":"原始提示词 MARK-SOURCE\n","name":"原始助手","description":"被复制的那一个"}' …/custom-mode/state
+{"ok":true,…}
+
+$ curl … -d '{"name":"副本助手","from":"custom"}' …/custom-mode/create
+{"ok":true,"id":"custom-2","name":"副本助手",
+ "note":"已复制出「副本助手」：提示词、基础模式与插件开关都来自「custom」，之后各改各的，互不影响。"}
+
+$ curl … '…/custom-mode/state?id=custom-2'
+{"id":"custom-2","mode":"minimal","overrides":{},"prompt":"原始提示词 MARK-SOURCE\n",
+ "name":"副本助手","description":"被复制的那一个","promptPath":"/tmp/dsh-dev/.agent-presets/custom-2/prompt.md"}
+
+$ grep -c MARK-SOURCE /tmp/dsh-dev/.agent-presets/*/prompt.md
+/tmp/dsh-dev/.agent-presets/custom/prompt.md:1
+/tmp/dsh-dev/.agent-presets/custom-2/prompt.md:1
+```
+
+`overrides` is `{}` rather than `{"tool-fs":false}` because the source is `{}` too — Minimal has no
+`tool-fs` row, so that switch was dropped at write time. The duplicate matches the source field for
+field, which is the property worth asserting.
+
+### 12.4 Cache headers and the rev (whether users must clear their cache)
+
+```
+$ curl -D - … '/plugins/??dsh-custom-mode/client.js&rev=b97a6adea38cd90c-49'
+HTTP/1.1 200 OK
+cache-control: public, max-age=31536000, immutable
+```
+
+`immutable` looks alarming, but the rev is a content hash:
+
+```
+dsh-client-modules/lib/index.js:
+  function artifactRevision(bundle, baseline) {
+    return framedHash("plugin-artifact", [bundle, Buffer.from(String(baseline.mtimeMs))]);
+  }
+  const rev = artifactRevision(readFileSync(record.meta.clientPath), baseline);
+```
+
+Change the file's bytes or mtime and the rev changes, hence the URL. **An ordinary refresh after a
+restart is therefore enough.**
+
+### 12.5 Suites
+
+```
+result: 104 passed, 0 failed     editor-route.test.mjs  ← new: route-constant drift guard, duplicate
+result: 26 passed, 0 failed      client-bundle.test.mjs ← new: atoms present / absent, both paths
+all 11 suites passed            ← 486 checks in total
+```
+
+---
+
+## 13. A whole page of raw keys caused by the `settings.section` contract, plus ordering measured live
+
+### 13.1 The authoritative contract (not an inference)
+
+The slot declaration ships inside `dsh-cordis-client-runner`, `registerOptions` and documentation included:
+
+```
+$ python3 - <<'PY'   # extract the settings.section declaration from dsh-cordis-client-runner/lib/client.js
+{
+  key: "settings.section", kind: "list", scope: "root",
+  registerOptions: [
+    { name: "id",    requirement: "required", type: "string" },
+    { name: "order", requirement: "optional", type: "number" },
+    { name: "label", requirement: "optional", type: "string | (() => string)" }
+  ],
+  ownerProps: […SettingsSectionOwnerProps…],
+  standardProps: ["useResource: UseResource", "useWorkspaces: …", …]
+}
+```
+
+**`locale:` is not among them.** The old code relied on it to receive the shell's bound `t`, so the body
+echoed keys.
+
+### 13.2 Boot manifest: this bundle is installed exactly once (ruling out a repeated apply)
+
+```
+$ parse globalThis["__DSH_BOOT__"]
+entries: 59
+occurrences of dsh-custom-mode: 1
+its manifest row: [{"id":"dsh-custom-mode","url":"/plugins/??dsh-custom-mode/client.js&rev=e159d1f9c23eee42-49","rev":"e159d1f9c23eee42-49"}]
+is ui-primitives an entry: False        ← it is a seed word, not a graph row
+```
+
+So "registered twice / applied twice" does not hold in this version; with the contract change above, the
+raw keys are fully explained.
+
+### 13.3 The fixed artifact and its dictionary content
+
+```
+$ curl -s '…/plugins/??dsh-custom-mode/client.js&rev=e159d1f9c23eee42-49' -o /tmp/s3.js
+http=200 bytes=70019
+$ node -e "…count the inlined dictionaries…"
+served ZH entries: 127
+contains "nav": true
+contains "assistant.heading": true
+```
+
+The floor dictionaries do ship, and they carry the nav and page keys.
+
+### 13.4 Ordering (real instance, port 3081)
+
+```
+$ create Alpha / Beta / Gamma
+ created alpha Alpha / created beta Beta / created gamma Gamma
+
+$ curl … /custom-mode            → alpha:Alpha | beta:Beta | custom:自定义模式 | gamma:Gamma
+$ curl … -d '{"id":"beta","direction":"up"}' …/custom-mode/reorder
+{"ok":true,"id":"beta","order":["beta","alpha","custom","gamma"],
+ "note":"顺序已保存：新建会话时的模式选择器按这个顺序排列。"}
+$ curl … /custom-mode            → beta:Beta | alpha:Alpha | custom:自定义模式 | gamma:Gamma
+
+$ for d in custom alpha beta gamma; do grep ^order: /tmp/dsh-dev/.agent-presets/$d/preset.yml; done
+custom   order: 3
+alpha    order: 2
+beta     order: 1
+gamma    order: 4
+
+$ curl … -d '{"id":"beta","direction":"up"}' …/custom-mode/reorder
+{"ok":false,"error":"「Beta」已经在最前面。"}
+$ curl … -d '{"id":"custom","direction":"sideways"}' …/custom-mode/reorder
+{"ok":false,"error":"未知的排序方向：sideways"}
+$ curl -o /dev/null -w '%{http_code}' …/custom-mode/reorder     (GET)
+405
+```
+
+The order lands in `preset.yml` rather than in plugin state, so it survives a restart; `GET` cannot change it.
+
+### 13.5 The client bundle is still content-addressed
+
+```
+cache-control: public, max-age=31536000, immutable
+rev = artifactRevision(readFileSync(clientPath), { mtimeMs })
+```
+
+Change the file and the rev — hence the URL — changes. **An ordinary refresh after a restart is enough**;
+no cache clearing.
+
+---
+
+## 14. Browser verification (lab, dsh `0.1.6-alpha.2`)
+
+This is the first time the project has **seen** the page it renders. The machine running the harness
+is the **host** and can never be a test target — restarting it kills the running session. So
+verification happens on a lab machine you can reboot freely. `$LAB` below is that machine (its address
+and launcher scripts live in the operator's own `~/.dsh/AGENTS.md`); a generic recipe that needs only
+"a second machine and a browser" is in the repository `AGENTS.md` §"The lab".
+
+### 14.1 Lab preparation (including the dsh upgrade)
+
+```
+$ ssh "$LAB" 'dsh --version'
+0.1.6-alpha.1
+$ ssh "$LAB" 'npm i -g @deepseek-ai/dsh@0.1.6-alpha.2'      # run it in the background
+$ ssh "$LAB" 'dsh --version'
+0.1.6-alpha.2
+```
+
+The npm tags are a trap: `latest` is the stale `0.1.5-rc.2` while new builds sit on `alpha`; and the
+upgrade is slow (Tencent mirror), so it belongs in the background with polling, never a foreground ssh.
+
+```
+# isolated DSH_HOME + a settings.yaml that suppresses the first-run modals (onboarding/locale/theme
+# only — credentials never leave the session machine)
+$ ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && DSH_HOME=/root/dsh-custom-lab ./install.sh'
+    composition tree: 164 rows, dsh-custom-mode in place
+$ ssh "$LAB" '/root/custom-lab.sh'
+dsh web: http://127.0.0.1:3082/?token=SaOzofZ2…
+```
+
+Browser: the lab already carries playwright's chromium
+(`/root/.cache/ms-playwright/chromium-1243/chrome-linux64/chrome`); `/root/chrome-lab.sh` starts it
+with `--headless=new --remote-debugging-port=9222`.
+
+```
+$ ssh "$LAB" '/root/chrome-lab.sh'
+{"Browser": "Chrome/153.0.8010.12", "Protocol-Version": "1.3", …}
+```
+
+### 14.2 Result: 21/21
+
+```
+$ ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && CDP_PORT=9222 \
+    node tools/browser-verify.mjs --url "http://127.0.0.1:3082/?token=…" --out /root/custom-mode-verify.png'
+
+PASS  first-run overlay cleared (otherwise every click below is intercepted)
+PASS  the 「自定义模式」 settings page opens
+PASS  no raw translation keys in the panel
+PASS  rendered the 「助手」 section heading
+PASS  rendered the 「新增助手」 button
+PASS  rendered the 「上移」 button
+PASS  rendered the 「下移」 button
+PASS  rendered the 「复制一份」 button
+PASS  rendered the 「导出提示词」 button
+PASS  rendered the 「导入提示词」 button
+PASS  rendered the system-prompt section
+PASS  rendered the base-mode section
+PASS  rendered the plugin-switch section
+PASS  every switch has a visible row title
+PASS  the left nav entry is not the raw key nav
+PASS  the new assistant appears in the list
+PASS  the delete risk-confirmation opens
+PASS  the confirmation has an acknowledgement checkbox
+PASS  「永久删除」 clicked
+PASS  the assistant is gone from the list
+PASS  no dsh-custom-mode error in the page console
+
+result: 21 passed, 0 failed
+```
+
+The screenshot was copied back and inspected **by eye**: the nav reads 「自定义模式」; the 「助手」
+section has the hint text, the pill, the full-width create field and 「+ 新增助手」; 「模式名称」 has two
+full-width inputs; the action row shows 「上移 / 下移 / 复制一份 / 删除这个助手」 (move buttons correctly
+disabled with a single assistant); 「基础模式」 shows four pills plus the note line; 「插件开关」 shows two
+cards whose switches have **visible titles** (「身份（系统提示词）」, 「custom_prompt 工具」). Zero raw keys.
+
+### 14.3 Two traps the verifier itself hit (both fixed)
+
+- The settings panel is itself `[role=dialog]`, so `querySelector('[role=dialog]')` returned the
+  **panel**, not the confirmation — the assertion failed, the checkbox got ticked, and the confirm
+  button was never clicked (the screenshot captured exactly that intermediate state). It now searches
+  **all** dialogs by content.
+- `RiskConfirmation`'s confirm button reads React state, so ticking and clicking must happen in **two
+  ticks**, or the delete never fires.

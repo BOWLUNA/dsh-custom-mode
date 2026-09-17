@@ -191,8 +191,9 @@ NODE
 # 收尾的三行说明也要随 profile 变，否则会出现「上一段说模式选不到、下一段说去选模式」。
 if grep -q '@deepseek-ai/dsh-agent-presets' "$DUMP_FILE" 2>/dev/null \
   && grep -q '@deepseek-ai/dsh-host-webserver' "$DUMP_FILE" 2>/dev/null; then
-  NEXT_STEPS="  - 新会话选「自定义模式」；
-  - 设置面板 → 「系统提示词」即可编辑，保存后当前会话下一步生效。"
+  NEXT_STEPS="  - 新会话选一个自定义模式（设置页里可以建多个助手）；
+  - 设置面板 → 「自定义模式」：上方助手列表可新增 / 切换 / 删除，
+    下方编辑当前助手的系统提示词与插件开关，保存后新建会话即生效。"
 else
   NEXT_STEPS="  - 本 profile 里没有 agent-presets / 设置页，见上方「只有一部分能生效」那段；
   - 可用的通道是 custom_prompt 工具（会话里直接说「把系统提示词改成……」）。"
@@ -203,6 +204,10 @@ cat <<EOF
 安装完成。请**重启 dsh**（bundle 插件只在启动装配期生效），然后：
 
 $NEXT_STEPS
+
+设置页管理的是预设根目录下所有「本工具创建的」模式（判据：目录里有 prompt.md，
+且组成文件用 prompt-reader.mjs 注入身份）。以前只有一个 custom 时用的是同一个根目录，
+所以升级不需要迁移：它会作为第一个助手出现在列表里。
 
 如果 preset 目录名不是 custom（--preset-id），编辑器默认找不到提示词文件，
 需要用环境变量指定：

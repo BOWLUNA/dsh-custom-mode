@@ -280,7 +280,7 @@ custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPr
 export function apply(ctx) {
   ctx.inject(['webServer', 'agentPresets'], (scope) => {
     // 只有两个服务都在时才会走到这里
-    scope.effect(() => scope.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }), '…')
+    scope.effect(() => scope.webServer.register({ kind: 'prefix', path: ROUTE_PATH, handler }), '…')
   })
 }
 ```
@@ -297,3 +297,196 @@ export function apply(ctx) {
   整行都会变成一条看起来像故障的警告。
 - 反过来，**绝不能**为了躲开 `pending` 就完全不声明依赖、在 `apply` 里 `ctx.get()` 猜服务在不在：
   在 web 里 `apply` 可能先于 `webServer` 就绪，那样设置页会静默地不注册。等待要用 `ctx.inject`。
+
+## 13. 多助手：一个设置页管 N 个模式，为什么不需要新机制
+
+最初的版本只管一个 preset（`$DSH_HOME/.agent-presets/custom`）。要变成「像常见聊天软件那样新增 /
+删除助手」，先得回答：preset 这一层支持 N 个吗？**支持，而且这本来就是它的用法**：
+
+- `dsh-agent-presets` 的 `scanRoot()` 会把用户预设根目录下**每个**合法子目录变成 roster 里的一行
+  （`USER_PRESET_DIR = '.agent-presets'`，`PRESET_ID = /^[a-z0-9][a-z0-9-]*$/`）；
+- discovery **不做缓存**：`list()` / `resolve()` 每次重新读根目录，所以刚建的目录下一次选会话就能选到；
+- 每个 preset 目录是自包含的：`prompt-reader.mjs` / `prompt-tool.mjs` 用
+  `new URL('./prompt.md', import.meta.url)` 定位提示词，拷一份就是一套独立提示词。
+
+真正是单例的只有**设置页**：`paths.mjs` 把提示词路径写死成 `.../custom/prompt.md`，路由只有一条，
+浏览器半假定只有一个模式。所以这次改动全部落在 editor 包里，`preset/` 的组成文件一份没动。
+
+### 13.1 哪些目录归本工具管（这条判据是安全边界）
+
+管理列表必须是**本工具创建的模式**，不能是「用户目录下的所有 preset」：
+
+- 保存会**按基础模式重新生成组成文件**（逐行开关就是这么实现的）；
+- 对一份手写的 `agent.cordis.yml` 做这件事 = 毁掉它。
+
+判据：目录里有 `prompt.md`，且（有 `prompt-reader.mjs`，或组成文件里引用 `'./prompt-reader.mjs'`）。
+第二个分支让「reader 被误删」也还能被补回来。只凭 `prompt.md` 判断会把别人手写的模式误认成
+本工具的产物 —— 这个错误的代价是破坏性的，所以宁可判窄。
+
+### 13.2 新增与删除都走平台自己的 authoring 通道
+
+- **删除**用 `agentPresets.remove(id)`：平台自己拒绝 `trust: 'system'`，并再确认目录确实在可写根目录下
+  （`deleteComposition` 里的 `preset.path.startsWith(dir)`）。比本插件自己 `rm -rf` 安全。
+- **新增**用包内模板播种（`seedPreset` → `createAssistantDir`），**不用** `agentPresets.copy()`：
+  copy 会把源助手的提示词、开关状态和附带文件一起继承过去；更关键的是，源助手被删光时就建不出新的。
+  播种的另一个好处是「新建」就是全新的。
+- 可写根目录**从 roster 推**（任一 `trust: 'user'` 行的祖父目录），而不是拼死路径：profile 可以用
+  `roots` 把可写根指到别处，硬编码会在那种部署上写错地方。
+
+### 13.3 删掉的助手不能复活
+
+旧版 `apply()` 每次激活都 `seedPresetWithLog(PRESET_DIR)`。多助手之后这条语义变成 bug：用户删掉
+`custom`，重启进程它又回来了。现在的规则是：
+
+- 每次激活对**所有**受管目录做一次「只补缺失文件」的修复（保持永不覆盖，同时让「组成文件引用的模块
+  被删掉 → 整个 preset 被判 broken、从选择器消失」有救）；
+- 只有在**从没跑过**这里（根目录下没有 `.custom-mode.json`）时才创建 `custom`；
+- 根目录里已有受管助手 → 直接补上标记，静默收养。
+
+标记是个**文件**：discovery 的 `child.isDirectory()` 会跳过它，名字也不匹配 `PRESET_ID`，
+所以它不会被当成一个 preset。
+
+### 13.4 工具描述怎么知道自己属于哪个助手
+
+`custom_prompt` 的 description 由设置页写进组成文件的行配置（`config.modeName`），模块再退回读同目录的
+`preset.yml`，最后才用通用名。**旧助手里的旧模块不认识这个键** —— 这是刻意的：模块文件在用户目录里，
+激活时不能偷偷覆盖（用户可能改过它）。想要新模块，跑一次 `./install.sh`（它只覆盖模块，保留 `prompt.md`）。
+
+## 14. 界面控件用壳自己的原子组件，不自己写
+
+页面的**布局**是本项目自己的（网格、卡片、间距），但**控件**一律来自
+`@deepseek-ai/dsh-client-ui-primitives`：`Button` / `Input` / `Switch` / `Tag` / `Pill` /
+`Tooltip` / `RiskConfirmation` 和整套图标。
+
+### 14.1 为什么可以直接 require：壳的种子表
+
+手写 bundle 不能 import ESM 包，只能 `require`。壳在启动时注册了一张**种子表**，把若干模块名
+直接映射到它自己已经打包好的实例（`dsh-web-frontend/dist/assets/index-*.js` 里实测）：
+
+```js
+{"react":_c,"react-dom":bc,"react-dom/client":Ic,"@deepseek-ai/cordis":ec,
+ "@deepseek-ai/dsh-client-store":Jc,"@deepseek-ai/dsh-client-ui-slots":ou,
+ "@deepseek-ai/dsh-client-ui-primitives":Cy,"@deepseek-ai/dsh-client-ui-dockkit":Xw}
+```
+
+所以 `require("@deepseek-ai/dsh-client-ui-primitives")` 与 `require("react")` 是同一类操作，
+**不需要**在 `package.json` 里声明 `dsh.client.external` —— 那个字段服务于「图行」（在启动清单
+里有自己一条记录的 bundle）。官方 `@deepseek-ai/dsh-client-ui-settings-general` 运行时也直接
+require 它、且没有声明任何 `external`，这是可复制的先例。
+
+种子表里还有 `@deepseek-ai/dsh-client-ui-slots` 与 `@deepseek-ai/dsh-client-store`：前者是官方页面
+读插槽契约的通道，后者是跨页面小状态。
+
+### 14.2 用它的收益是「不再漂移」
+
+原子的样式随壳一起打包、由壳的 CSS 通过 `--dsw-*` token 决定，所以主题、深浅色、密度、圆角
+以及未来任何一次改版都会自动作用到本页。自己写一遍 `<input>` / `<button>` 等于把壳的视觉规范
+抄了一份，而抄的那份必然过时。
+
+本项目的划线是「容器是我们的、控件是壳的」：`client.js` 的 CSS 只做布局，
+`cpfe-btn*` / `cpfe-input` / `cpfe-switch*` / `cpfe-tag*` / `cpfe-pill*` 只服务于下面的降级路径。
+
+### 14.3 降级：老壳没有这个种子词也要能开
+
+`ui-primitives` 随壳版本走。探测写成 try/catch：取不到就用内置的朴素控件（**同样的 prop 契约**，
+例如 `Switch.onChange` 一样回传下一个布尔值而不是事件对象），页面**变朴素但可用**，而不是白屏；
+`RiskConfirmation` 缺失时删除退回原生 `confirm`，不把「不可逆操作要确认」这条护栏一起丢掉。
+
+这和 §3 是同一个教训的两面：那里的失败是页面**静默不出现**，所以这里宁可降级，也要让 `apply` 成功。
+
+### 14.4 顺带确认：客户端 bundle 的长缓存是安全的
+
+`/plugins/??<id>/client.js&rev=<hash>` 的响应头是
+`cache-control: public, max-age=31536000, immutable`，看着很危险。但 `dsh-client-modules` 的 rev 是
+`artifactRevision(bundle, baseline)` —— 对 **client.js 的字节 + mtimeMs** 做 sha1。文件一改 rev 就变、
+URL 就变，所以 immutable 是安全的：重启后**普通刷新**即可拿到新界面，不需要清缓存。
+
+## 15. `settings.section` 不再给绑定好的 `t`：页面自带词典（0.1.6-alpha.2 实测）
+
+这一节记录的是一次**真实翻车**：功能全对，界面却整页显示成 `assistant.heading`、`btn.create`
+这种原始键（连左侧导航都变成 `nav`）。原因是页面依赖了一个**已经不存在**的契约。
+
+### 15.1 权威契约：注册选项只剩三个
+
+`settings.section` 的插槽声明（随 `dsh-cordis-client-runner` 一起打包，含文档）写着：
+
+```
+registerOptions: [
+  { name: "id",    requirement: "required", type: "string" },
+  { name: "order", requirement: "optional", type: "number" },
+  { name: "label", requirement: "optional", type: "string | (() => string)" }
+]
+doc: … `label` (registrant-localized display text — the registrant re-registers with
+     fresh text on locale change, so the shell never subscribes locale state; the ledger
+     bump doubles as the shell's re-render trigger) …
+```
+
+**没有 `locale:` 了。** 壳不再为 section 绑定一个命名空间化的 `t`，因此 `props.t` 即便存在也不是
+我们那个命名空间——正文于是全部回显键名。官方包里还能看到残留的 `locale: NS`（`ui-settings-plugins`
+等），但契约里它已被移除，**不能依赖**。
+
+而 `label` 的契约仍然明确支持 thunk，并说明「每次投影重新读取，所以本地化文本无需重新注册」，
+所以导航标签继续用 thunk 是正确写法。
+
+### 15.2 两条教训
+
+**（1）不要依赖「注册一定成功」。** 本页原本把可见文案全部交给 `locale.register(ns, {zh, en})` +
+壳递进来的 `t`。注册一旦不生效，页面就变成键名墙。现在：
+
+- 壳的 `t` 仍然优先（能答就用它，语言切换时它自己会触发重渲染）；
+- **bundle 自带的中英词典是地板**：`t()` 在壳答不上来时直接查自己的表，所以只要键在表里，
+  就不可能显示成裸键；
+- 语言切换由 `locale.subscribe()` 驱动重渲染，`activeLanguage()` 每次渲染重新读快照。
+
+这不是「不用宿主 i18n」，而是「把它当加速器而不是地基」。测试里专门造了一个「`t` 一律回显键名」
+的壳来跑这条路径（`test/client-bundle.test.mjs` §3），并验证过它在旧写法下确实变红。
+
+**（2）`ctx.effect` 会吞掉回调里的异常——失败因此是静默的。**
+注册写在 `ctx.effect(() => locale.register(...))` 里，而 `effect()` 把回调交给自己的 runner
+（带 setup barrier 与 promise 处理），回调抛出的错误**不会**回到 `apply` 的 `try/catch`。
+于是「注册失败」与「一切都好」在外部完全无法区分：页面照常出现、控制台一片安静、文案全是键名。
+现在注册自己 `try/catch`、把原因 `console.warn` 出来，并在注册后回读一次
+（`bind(ns)("nav") === "nav"` 即「注册了但宿主查不到」），把两种情形分别说清楚。
+
+这条对**任何**写在 `ctx.effect` 里的初始化都成立：**别把它的异常当成会冒泡的异常来处理。**
+
+## 16. 助手排序用 `preset.yml` 的 `order`，不另存一份状态
+
+选择器里的顺序是 roster 的顺序，而 `dsh-agent-presets` 的排序键是 `order ?? Infinity`，再按 id
+——这正是出厂 preset 声明自己顺序的方式。所以「上移/下移」不维护任何列表，而是给**每个**受管助手
+写 `order: 1..N`：
+
+- 顺序成为 preset 自己的属性：重启后仍在、文件里看得见、没有第二份状态可以与它漂移；
+- 全部写满 1..N 是必要的：之前没排过序的助手根本没有 `order`，只给一个写就会与 id 排序混在一起；
+- `meta.mjs` 的 writer 在**没有**显式传 order 时保留磁盘上的旧值——否则「改名」会把助手悄悄挪到队尾。
+
+顺序只影响**新建会话**的选择器（roster 在每次读取时重新扫盘），已开的会话不受影响。
+
+## 17. 真浏览器验证：单测看不见的那一公里
+
+这个仓库的测试有个结构性盲区：它们能证明宿主半答得对、bundle 注册得上，但**看不见渲染出来的页面**。
+§15 那次翻车就是这个盲区的产物——功能全对、页面也在，整页却是裸键，而**所有套件都是绿的**。
+
+所以从这一版起，界面的验收标准不是「测试绿了」，而是 `tools/browser-verify.mjs` 在真实实例上跑过。
+
+### 17.1 它断言什么
+
+对着 CDP 端口驱动一个真浏览器，逐条断言：
+
+1. **面板里没有任何裸翻译键**（内建一张清单：`assistant.heading`、`btn.create`、`status.enabled`…）；
+2. 文案是**翻译过的**（区块标题、上移/下移/复制一份/导入/导出按钮都在）；
+3. **每个开关都有可见行标题**——`Switch` 的 `label` 只进 `aria-label`，标题必须由页面自己画；
+4. 左侧导航项不是裸键 `nav`；
+5. **浏览器里跑一遍增删**：新建助手 → 出现在列表 → 打开风险确认弹窗 → 勾选 → 永久删除 → 从列表消失；
+6. 页面 console 没有 `dsh-custom-mode` 的报错。
+
+它自己**不启动** dsh，只吃一个带 token 的 URL：跑哪个实例、哪台机器由调用方决定
+（实验机配方见仓库 `AGENTS.md` 的「The lab」一节与 `~/.dsh/AGENTS.md`）。
+
+### 17.2 两个实测坑
+
+- **设置面板自己就是 `[role=dialog]`**。所以「找确认弹窗」不能写
+  `document.querySelector('[role=dialog]')`（那会拿到设置面板），必须**按内容在全部 dialog 里找**。
+  第一版验证脚本正是这么失败的：断言失败、勾选框被勾上、但确认按钮没被点到。
+- **勾选与确认必须分成两步**。`RiskConfirmation` 的确认按钮读的是 React 状态，
+  在同一个 tick 里先 `click()` 勾选框再点确认，状态还没落地，删除不会发生。

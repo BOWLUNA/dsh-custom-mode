@@ -152,6 +152,30 @@ console.log('=== 6. 文件缺失或不完整时的读取行为（不能崩） ==
   check('单引号值也能读', readPresetMeta().name === 'single', JSON.stringify(readPresetMeta()))
 }
 
+console.log()
+console.log('=== 7. order：roster 的排序键，改名时必须保留 ===')
+{
+  // `dsh-agent-presets` 按 `order ?? Infinity` 再按 id 排序，所以 order 是「谁排在前面」的
+  // 唯一正式位置。而改名走的是同一个 writer——它若把 order 弄丢，助手会悄悄跳到后面去。
+  const presetDir = join(dir, 'custom')
+  const first = writePresetMeta('有序', '描述', presetDir, { order: 3 })
+  check('写入 order 成功', first.ok === true, JSON.stringify(first))
+  const raw = readFileSync(PRESET_META_PATH, 'utf8')
+  check('order 是不带引号的数字（平台要求 number）', /^order: 3$/m.test(raw), JSON.stringify(raw))
+  check('读回来是数字 3', readPresetMeta(presetDir).order === 3, String(readPresetMeta(presetDir).order))
+
+  const renamed = writePresetMeta('改了名字', '描述', presetDir)
+  check('不带 order 重写时保留了磁盘上的值', readPresetMeta(presetDir).order === 3, String(readPresetMeta(presetDir).order))
+  check('名字确实改了', readPresetMeta(presetDir).name === '改了名字', readPresetMeta(presetDir).name)
+
+  writeFileSync(PRESET_META_PATH, 'name: "没有顺序"\ndescription: "x"\n', 'utf8')
+  check('没有 order 时读出 undefined', readPresetMeta(presetDir).order === undefined, String(readPresetMeta(presetDir).order))
+  check('不写 order 的文件不会被凭空加上 order', writePresetMeta('还是没顺序', 'x', presetDir).ok === true && !/order:/.test(readFileSync(PRESET_META_PATH, 'utf8')), readFileSync(PRESET_META_PATH, 'utf8'))
+
+  writeFileSync(PRESET_META_PATH, 'name: "坏顺序"\norder: 后面这些是字\n', 'utf8')
+  check('order 不是数字时读出 undefined（不让文本骗过排序）', readPresetMeta(presetDir).order === undefined, JSON.stringify(readPresetMeta(presetDir)))
+}
+
 rmSync(dir, { recursive: true, force: true })
 
 console.log()

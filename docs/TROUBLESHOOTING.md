@@ -336,3 +336,106 @@ curl -s "http://127.0.0.1:3080/custom-mode" \
 
 > The cookie name and the way to obtain the token in item 5 may differ between dsh versions; when opening the settings page in a browser, look at the
 > `/custom-mode` request in the Network panel — that is the least effort.
+
+## 13. Several assistants: the list, creation and deletion
+
+### 13.1 A mode does not show up in the assistant list
+
+The settings page manages **only presets this tool created**. The test: the directory carries
+`prompt.md`, and it either carries `prompt-reader.mjs` or its `agent.cordis.yml` references
+`'./prompt-reader.mjs'`.
+
+So these deliberately do **not** appear:
+
+- a mode copied from a shipped one (`standard`, …) with the official picker's "copy preset", whose
+  identity goes through `@deepseek-ai/dsh-persona`;
+- any hand-authored preset.
+
+The reason is that a save **regenerates the composition from a base mode** (that is how the per-row
+switches work), and doing that to a hand-written composition would destroy it. To make one managed:
+have its composition inject identity through `./prompt-reader.mjs` and provide a `prompt.md`, or create
+an assistant on the page and paste the prompt into it.
+
+### 13.2 A deleted assistant comes back after a restart
+
+Only old versions did that: `apply()` used to seed `custom` unconditionally on every activation. The
+rule now is that `custom` is created only when there is no `.custom-mode.json` marker under the root
+**and** no managed assistant exists at all; otherwise only the marker is written.
+
+If it does happen, check whether `$DSH_HOME/.agent-presets/.custom-mode.json` exists; if not, create it
+(any `{"seededAt":"…"}` body) and restart.
+
+### 13.3 Creating an assistant fails
+
+The page shows the backend's reason verbatim. Three common ones:
+
+- **the name is empty** — the backend refuses it (an empty name renders the mode as its bare directory
+  id everywhere);
+- **the directory already exists** — there is a same-named directory under the user preset root that
+  discovery does not count as a preset (no `agent.cordis.yml`, say). Pick another name, or deal with
+  that directory first;
+- **copying the mode template failed** — the packaged `editor/preset/` is missing files, or the target
+  directory is not writable.
+
+### 13.4 An assistant was renamed, but `custom_prompt`'s description in its sessions still shows the old name
+
+The tool description comes from the composition row's `config.modeName`, while the **module file**
+(`prompt-tool.mjs`) lives in the user's directory and is not overwritten at activation (the user may
+have edited it). An assistant installed by an older version has a module that does not know that key.
+
+Running `./install.sh` refreshes the module files (it keeps `prompt.md`). This only affects the
+description text; the tool's read and write behaviour was always correct.
+
+## 14. The page opens, but its controls look plainer than the official settings pages
+
+That is not a bug — the **degradation path** is active. This page's buttons, inputs, switches, tags,
+confirmation dialog and icons come from the shell's shared atom library
+`@deepseek-ai/dsh-client-ui-primitives`, which the **shell** has to register as a seed word (beside
+`react`). When the shell does not provide it, the page falls back to built-in plain controls —
+identical behaviour, simpler look.
+
+To confirm, open the page and check the Console for:
+
+```
+dsh-custom-mode: 当前壳没有在种子表里提供 @deepseek-ai/dsh-client-ui-primitives，
+改用内置的朴素控件（功能一致，外观更简）。
+```
+
+To restore the unified look, move dsh to a version that registers that package in its seed table
+(search `dsh-client-ui-primitives` in `dsh-web-frontend/dist/assets/index-*.js`). This plugin needs no
+extra declaration: `dsh.client.external` is for bundles that are themselves boot records, whereas this
+package is a seed word that any bundle may `require` (see `docs/ARCHITECTURE.md` §14).
+
+## 15. The page renders raw keys such as `assistant.heading` / `btn.create`
+
+**This should no longer happen from 0.1.6-alpha.2 on.** It was caused by the `settings.section`
+contract change (the `locale:` option was removed); the page now carries its own zh/en dictionaries as a
+floor (see `docs/ARCHITECTURE.md` §15). If you still see keys, the editor package is out of date.
+
+How to tell: open the page and read the Console.
+
+```
+dsh-custom-mode: 当前壳没有在种子表里提供 …        ← a different matter (plain controls, see §14)
+dsh-custom-mode: 词典注册被拒，改用内置词典：…      ← the namespace is taken (usually a double apply under HMR)
+dsh-custom-mode: 词典注册后宿主仍查不到 …，页面已改用内置词典。
+```
+
+In all three cases the page's copy is correct (the inlined dictionaries back it); the warnings only say
+what happened on the host side. If the copy really is raw keys, first confirm `editor/client.js` is
+current (`grep -c assistant.heading editor/client.js` should be > 0, and the same key must exist in
+`editor/locales.mjs`), then restart dsh and refresh the page.
+
+## 16. The picker order did not change after reordering
+
+The order lives in each assistant's `preset.yml` (`order: 1..N`). If it did not take effect, look at the
+files first:
+
+```
+grep -n '^order:' "$DSH_HOME"/.agent-presets/*/preset.yml
+```
+
+- **none at all**: the move up/down call did not actually succeed — check the page's status line.
+- **only some have it**: that is the writer preserving on-disk values; move any assistant up or down once
+  more and it fills in 1..N for **every** managed assistant.
+- **the files are right but the picker did not change**: the picker reads the roster when a **new session**
+  starts; sessions already open are unaffected.
