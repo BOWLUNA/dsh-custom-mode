@@ -1,0 +1,27 @@
+{
+  "name": "dsh-custom-prompt-editor",
+  "version": "0.1.6-alpha.1",
+  "private": true,
+  "description": "自定义模式 settings page: base-mode switching, per-row plugin switches, editable system prompt, custom mode name. Follows the DSH version.",
+  "type": "module",
+  "main": "./index.mjs",
+  "exports": {
+    ".": "./index.mjs",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "test": "node test/composition.test.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh": ">=0.1.2-alpha.1"
+  }
+}
