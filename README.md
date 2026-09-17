@@ -32,6 +32,16 @@
 | ![深色模式](docs/images/05-dark.png) | ![English](docs/images/06-english.png) |
 | 深色模式 | English 界面（导航项会跟随语言） |
 
+### 核心主张的实证：改文件 → 下一步就生效
+
+下面这张是**真机实测**（不是示意）：在提示词里植入一条格式规则（回答第一行必须是 `MARK-ONE`），
+在会话里问一句；**不重启、不刷新、不新建会话**，只把 `prompt.md` 改成 `MARK-TWO`，再问第二句：
+
+![改提示词后下一步生效](docs/images/07-hot-reload-in-session.png)
+
+注意两轮之间那一行「**系统提示词更新**」—— 那是 dsh 自己标出来的：它检测到系统提示词在会话中途
+变了。命令与原始输出见 [`docs/实测记录.md`](docs/实测记录.md) §0。
+
 ## 它解决什么问题
 
 dsh 的系统提示词在 preset 的 `cordis.yml` 里写死，改它要编辑 YAML 并重启。而官方 `@deepseek-ai/dsh-persona` 的 `prefix` 是**挂载时解析的静态字符串**，所以哪怕你改了文件也不会重新读取。

@@ -54,6 +54,18 @@ cp preset/prompt.md "$DSH_HOME/.agent-presets/custom/prompt.md"
 `01`/`03`/`05`/`06` 是固定裁到设置弹窗，重跑应当是同一张图；`02`/`04` 取决于滚动位置与
 下拉框几何，重跑可能差一两个像素——叙事一致，像素不保证完全一致。
 
+## 另外两张「不是界面截图」的图
+
+`live-hot-reload.mjs` 拍的是 **07-hot-reload-in-session.png**：它在真实会话里做一次
+「改提示词 → 下一步生效」的实验（两轮之间改 `/custom-prompt-editor` 后端那个 `prompt.md`）。
+
+```sh
+node tools/screenshots/live-hot-reload.mjs "<带 token 的 URL>" "$DSH_HOME/.agent-presets/custom/prompt.md"
+```
+
+**注意它会花模型额度**（两个来回，实测约 17K token），并且会**覆盖那个 `prompt.md`** ——
+它先把文件设成带 `MARK-ONE` 的验证提示词，中途再改成 `MARK-TWO`。只在你自己的测试实例上跑。
+
 ## 为什么不用 Playwright
 
 本目录的 `cdp.mjs` 是一个约 300 行的手写 CDP 客户端（Node 24 自带 `WebSocket`，零依赖）。
