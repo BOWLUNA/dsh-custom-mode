@@ -12,8 +12,8 @@
 ```
 
 拍摄方式、依赖与如何重跑见 [`../../tools/screenshots/README.md`](../../tools/screenshots/README.md)。
-同目录的 `screenshots-observed.json` 是拍摄时脚本核对到的实际状态（主题、语言、保存返回、
-模式列表等），可以当作这些图确实来自真实运行实例的证据。
+同目录下的 [`observed.json`](../../tools/screenshots/observed.json) 是拍摄时脚本核对到的实际状态
+（主题、语言、保存返回、模式列表等），可以当作这些图确实来自真实运行实例的证据。
 
 README 引用这些文件名，**改名要同步改文档**：
 
