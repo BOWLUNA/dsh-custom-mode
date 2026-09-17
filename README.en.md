@@ -32,6 +32,18 @@ Light/dark and both languages were verified the same way (official theme tokens 
 | ![Dark mode](docs/images/05-dark.png) | ![English](docs/images/06-english.png) |
 | Dark mode | English UI (the nav entry follows the language) |
 
+### The core claim, measured
+
+The frame below is a real run (not a mock-up): a formatting rule was planted in the prompt (the first
+line of every answer must be `MARK-ONE`), a question was asked, and then — **without restarting,
+refreshing or starting a new session** — `prompt.md` was changed to `MARK-TWO` and a second question
+was asked in the same session:
+
+![Editing the prompt takes effect on the next step](docs/images/07-hot-reload-in-session.png)
+
+Note the **系统提示词更新** (system prompt updated) divider between the two turns: dsh itself flags
+that the system prompt changed mid-session. Commands and raw output: [`docs/实测记录.md`](docs/实测记录.md) §0.
+
 ## The problem it solves
 
 dsh's system prompt is written into a preset's `cordis.yml`. Changing it means editing YAML and restarting. The shipped `@deepseek-ai/dsh-persona` cannot help: its `prefix` is a **static string resolved at mount**, so editing a file would change nothing.
