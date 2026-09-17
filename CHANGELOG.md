@@ -27,6 +27,10 @@ Adapted to dsh `0.1.6-alpha.1`. Grouped by theme; order within a group is not ch
   permission bits, so three assertions were green on CI and red for anyone running as root — a test
   whose result depended on who ran it. The path is now blocked by a regular file, which fails with
   `ENOTDIR` for every user.
+- **The new row ships disabled in `standard`/`ptc`** (only `cordis` enables it), so the existing
+  "rows that ship disabled stay disabled until touched" test now covers it — and the per-row switch is
+  the only way to turn it on inside a Standard-based mode, since upstream keeps agent-preset rows
+  read-only.
 - **`tools/sync-client-dictionaries.mjs`** regenerates the dictionaries inlined in `client.js` from
   `locales.mjs` (with `--check`). The bundle cannot import, so those copies were hand-written — which
   is exactly how this release's new entries went missing from the bundle at first.

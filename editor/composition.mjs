@@ -120,7 +120,7 @@ export const ROW_META = {
   'tool-cordis': { label: 'Cordis 运行时工具', note: '可读写 harness 运行时' },
   'tool-plugin-manager': {
     label: '插件管理（安装 / 启停）',
-    note: '模型侧可安装与启停插件；0.1.6-alpha.2 起出厂模式自带这一行',
+    note: '模型侧可安装/启停插件；标准与 PTC 模式里出厂即关闭（只有创造模式默认开），本模式可以显式打开它',
   },
   'tool-presentation': { label: 'PTC 工具呈现' },
   present: { label: '交付文件（present）' },

@@ -21,6 +21,9 @@
 - **`test/seed.test.mjs` 不再用 `chmod 0o500` 伪造不可写目录**。root 会绕过权限位，导致三条断言
   在 CI 上绿、在本地以 root 跑时红——一个「结果取决于谁在跑」的测试。现在改用普通文件阻断路径，
   任何用户下都返回 `ENOTDIR`。
+- **新行在 `standard`/`ptc` 里出厂即关闭**（只有 `cordis` 默认开），所以既有的「出厂关闭的行未触碰时
+  必须仍然关闭」这条测试现在也覆盖了它；而官方把 agent-preset 行留为只读，因此**在基于标准模式的模式里
+  打开它，只有本模式的逐行开关能做到**。
 - **新增 `tools/sync-client-dictionaries.mjs`**：从 `locales.mjs` 重新生成 `client.js` 里内联的
   词典（支持 `--check`）。bundle 不能 import，所以那两份是手抄的——这正是本次新增词条一开始没进
   bundle 的原因。

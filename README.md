@@ -60,6 +60,14 @@ It and this mode's per-row switches act at **different levels**:
 
 They coexist: the harness decides what the machine has, this mode decides which of it the mode uses.
 
+The boundary is **drawn by upstream**: the Plugins page documents that it manages "the profile's bundles
+and their uniquely addressable rows", and states plainly that **agent-preset rows remain read-only**.
+The preset layer is therefore out of its reach — and that is exactly the layer this mode covers.
+
+A demonstrable example: `tool-plugin-manager` (the agent-facing install/toggle tool) ships **off in
+Standard and PTC** — only Creator enables it. The official modes give you no way to change that; here
+you flip one switch.
+
 ## How it works
 
 dsh normally takes the system prompt from a preset's YAML, and `@deepseek-ai/dsh-persona` resolves its
