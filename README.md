@@ -1,10 +1,36 @@
 # dsh-custom-mode
 
+[![test](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
+![DSH](https://img.shields.io/badge/dsh-0.1.6--alpha.1-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+
 中文说明 · [English](README.en.md)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的「**自定义模式**」：一个能力等同标准模式的 agent 模式，**系统提示词是一个普通文件，可以在 Web 设置页里随时改、保存后下一步就生效**。
 
 > 官方四个模式（标准 / ptc / minimal / cordis）完全不受影响——本模式是一个独立的 agent preset。
+
+![设置 → 自定义模式：模式名称与基础模式](docs/images/01-mode-switch.png)
+
+<sub>上面的界面截图由 `tools/screenshots/` 里的脚本驱动真实运行的实例自动拍摄并核对，不是手绘或拼的图。</sub>
+
+## 界面
+
+设置面板里多出一节「自定义模式」，四块内容：
+
+|  |  |
+| --- | --- |
+| ![基础模式](docs/images/01-mode-switch.png) | ![插件开关](docs/images/02-plugin-switches.png) |
+| **模式名称 + 基础模式**：改显示名，选标准 / PTC / 极简 / Cordis 作底子 | **插件开关**：一行一个三态开关；分组（含 `isolate realm`）带子行缩进，未触碰的行标「跟随平台」 |
+| ![系统提示词](docs/images/03-system-prompt.png) | ![模式选择器](docs/images/04-preset-picker.png) |
+| **系统提示词**：底部状态栏说明何时生效、写进了哪个文件 | **新建会话**：它在模式选择器里是一个真实存在的模式 |
+
+深浅色与中英双语都是实测过的（全部走官方主题 token 与 `locale` 服务）：
+
+|  |  |
+| --- | --- |
+| ![深色模式](docs/images/05-dark.png) | ![English](docs/images/06-english.png) |
+| 深色模式 | English 界面（导航项会跟随语言） |
 
 ## 它解决什么问题
 
@@ -78,16 +104,18 @@ cd dsh-custom-mode
 
 ## 文档
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 为什么设置页**不能**写成 preset 的一行；`dsh.client.inject` 为什么必须声明；这些都是实测踩出来的。
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 为什么必须拆成两个产物；`dsh.client.inject` 为什么必须声明；私有 HTTP 路由为什么**必须**过平台鉴权（含实测证据）。
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) —— 实测复现过的失败：装完 dsh 起不来、WSL 下 pnpm panic、页面不出现、模式不见了、保存被拒。
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) —— 发布到 npm、别人如何安装。
 
 ## 兼容性
 
 在 **dsh `0.1.6-alpha.1`** 上开发并验证。只使用该版本确实存在的 API：
 
-- `ctx.systemPrompt.section()`（`@deepseek-ai/dsh-system-prompt`）
+- `ctx.systemPrompt.section()`，且 `text` 支持函数（这是热更新的根基）
 - `ctx.tools.register()`（`@deepseek-ai/dsh-tools`）
-- `ctx.webServer.register()`（`@deepseek-ai/dsh-web`）
+- `ctx.webServer.register({ kind, path, handler })`
+- `ctx.connection.requestRejection(req)`（`@deepseek-ai/dsh-client-connection`）—— 设置页路由的 Host/Origin 栅栏与浏览器鉴权
 - 客户端种子模块表里的 `react`
 
 **不依赖** `dsh-settings` 的 `installSettingsSection` / `settingsNamespace`——那两个函数在 0.1.6 里**不存在**，而社区某些插件正是因为 import 它们而在新宿主上加载失败。
@@ -152,11 +180,27 @@ MIT
 ## 测试
 
 ```sh
-DSH_SHIPPED_PRESETS_DIR=<.../dsh-agent-presets/presets> node test/composition.test.mjs  # 63 项
-DSH_SHIPPED_PRESETS_DIR=<.../dsh-agent-presets/presets> node test/locales.test.mjs      # 60 项
+node test/run.mjs
 ```
 
+一个入口跑三个套件，并自己解析「出厂 preset 目录」（三条回退，解析不到会打印试过哪些路）：
+
+| 套件 | 项数 | 测什么 |
+| --- | --- | --- |
+| `test/composition.test.mjs` | 63 | 组成文件编译器：文本手术是否无损、开关语义、平台条件、分组缩进 |
+| `test/prompt-reader.test.mjs` | 15 | 热更新契约：改文件后下一次求值必须是新文本、读失败不得把身份变成空串 |
+| `test/locales.test.mjs` | 65 | 中英键集一致 + `client.js` 里那份**手抄字典**与 `locales.mjs` 不漂移 |
+
 编译器那 63 项测的是**属性不是字节**（出厂文本会随 dsh 版本变，但"什么都不改就什么都不变"必须永远成立）。开发过程中它抓到了 6 个真 bug，其中 3 个会导致静默错误行为（平台条件丢失、关闭分组无效、开关语义反向）。
+
+CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek-ai/dsh@0.1.6-alpha.1`，
+再跑这三个套件 —— 测的是**真实的出厂文本**，不是自造的 fixture。
+
+## 文档
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 为什么必须拆成两个产物；`dsh.client.inject` 为什么必须声明；私有 HTTP 路由为什么**必须**过平台鉴权（含实测证据）。
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) —— 实测复现过的失败：装完 dsh 起不来、WSL 下 pnpm panic、页面不出现、模式不见了、保存被拒。
+- [`docs/PUBLISHING.md`](docs/PUBLISHING.md) —— 发布到 npm、别人如何安装。
 
 # 路线图
 
@@ -165,7 +209,10 @@ DSH_SHIPPED_PRESETS_DIR=<.../dsh-agent-presets/presets> node test/locales.test.m
 - [x] 兼容：深浅色（全部使用官方主题 token，无硬编码色值）
 - [x] 兼容：客户端 HMR（实测可用：改界面约 1 秒后页面自更新，无需重启/刷新）
 - [x] 兼容：别人改过 UI 布局/装饰时的兜底（不假定 DOM 结构，只用声明式插槽；窄面板自适应；三条回退解析）
-- [ ] 工程化：发布到 npm + GitHub，补中英文说明书与截图演示
+- [x] 安全：设置页路由过平台的 Host/Origin 栅栏与浏览器鉴权（修复前的未授权读写见 `docs/TROUBLESHOOTING.md` §9）
+- [x] 工程化：CI（三个套件对着真实出厂 preset 跑）+ 统一测试入口 + 安装后自检
+- [x] 文档：中英文说明书 + 界面截图 + 故障排查
+- [ ] 工程化：发布到 npm（`editor/` 已备好元数据，删掉 `private: true` 即可）
 
 # 版本策略与兼容性
 

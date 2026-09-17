@@ -115,6 +115,59 @@ react, react/jsx-runtime, react-dom, react-dom/client,
 
 优点：完全自包含，不占用任何 Cordis 服务名，不可能和别人冲突；也不需要理解 Remote 生成机制。
 
+### 5.1 但裸路由**不在**平台的浏览器信任栅栏里（实测，已修）
+
+上面这个写法有个当时没意识到的后果。`ctx.webServer` 是**裸 HTTP 表**；平台的
+Host/Origin 栅栏 + 浏览器鉴权是 `@deepseek-ai/dsh-client-connection` 挂在**它自己挂载的
+channel**（`/`、`/api`…）上的，直接在 `webServer` 上注册的路由**不经过**它。
+
+实测（0.1.6-alpha.1，本插件修复前）：
+
+```sh
+# 未授权 GET：把整份系统提示词交出去
+curl http://127.0.0.1:3081/custom-prompt-editor
+→ 200 {"ok":true,...,"prompt":"You are a coding agent powered by ..."}
+
+# 未授权 POST：直接改写 prompt.md
+curl -X POST http://127.0.0.1:3081/custom-prompt-editor \
+     -H 'content-type: text/plain' --data '{"mode":"standard","overrides":{},"prompt":"PWNED"}'
+→ 200 {"ok":true,...}         # 文件真的被改了
+
+# 同一台机器上，官方路由的表现
+curl http://127.0.0.1:3081/                → 401
+curl http://127.0.0.1:3081/api/settings    → 401
+```
+
+`content-type: text/plain` 这一点让它不只是「本机进程能改」：**普通表单式跨站请求不需要预检**，
+所以用户访问的任意网页都能朝这个端口 POST，把 agent 的系统提示词改成攻击者想要的内容
+（响应读不到，但写入已经发生）。对一个手里有 Shell 与文件工具的 agent 来说，这是实打实的
+提示词注入通道。
+
+**修法**：把平台自己的裁决接到这条路由上 —— `ctx.connection.requestRejection(req)`
+（Host/Origin 栅栏 + 浏览器会话校验），和 `/api` 拿到的是同一个判定：
+
+```js
+const rejection = ctx.get('connection').requestRejection(req)   // 403 / 401 / undefined
+if (rejection !== undefined) { res.writeHead(rejection); res.end(); return }
+```
+
+修完的实测结果：
+
+```
+未授权 GET                              → 401 unauthorized
+未授权 POST (text/plain)                → 401，文件未被改写
+POST + Origin: https://evil.example
+     + Sec-Fetch-Site: cross-site       → 403 forbidden
+带合法 dsh-auth-* cookie（浏览器会话）   → 200（功能照旧）
+```
+
+**两条可复用的结论**：
+
+- 插件在 `ctx.webServer` 上注册路由 = 自己负责安全。需要浏览器访问的，一律先过
+  `connection.requestRejection`；只给本机进程用的，也要意识到它是**任何**本机进程都能调的。
+- `connection` 服务在 bundle 行的 `apply()` 执行时**还没就绪**（实测：写进 `inject` 会让插件
+  停在 `pending`），所以要在**请求时**惰性取 `ctx.get('connection')`，并在取不到时**失败关闭**。
+
 ## 6. 为什么不用 `dsh-settings` 的 API
 
 社区插件 `dsh-session-prompt` 的宿主半是：
@@ -153,7 +206,7 @@ const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
 - **确认客户端模块能被发现**：挂一个动态 Cordis 插件，`ctx.get('clientModules').graph().entries` 里找自己的包 id。有条目 = 组合成功；没有 = 发现环节失败。
 - **确认浏览器半真的跑了**：在 `apply` 里 `console.log`，看浏览器 Console。
 - **`ctx.loader.entries()` 只有根平面的条目**，别用它验证 preset 的行。
-- 改 `client.js` 内容后**必须重启**：bundle 内容只在启动装配期进入图，之后只通过 HMR 重建。
+- 改 `client.js` 内容后**不用重启**：HMR 会重建客户端图（见下方 §10）；只有改宿主半才需要重启。
 
 ## 9. 一句话总结
 

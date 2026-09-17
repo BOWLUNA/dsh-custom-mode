@@ -1,10 +1,36 @@
 # dsh-custom-mode
 
+[![test](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
+![DSH](https://img.shields.io/badge/dsh-0.1.6--alpha.1-blue)
+![license](https://img.shields.io/badge/license-MIT-green)
+
 [中文说明](README.md) · English
 
 A **custom mode** for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh): an agent mode whose **system prompt is a plain file you can edit from the Web settings page**, plus a switch for every plugin row it mounts and a picker for which official mode it is built on.
 
 The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouched — this is a separate agent preset.
+
+![Settings → Custom mode: mode name and base mode](docs/images/01-mode-switch.png)
+
+<sub>These screenshots are captured from a real running instance by the script under `tools/screenshots/`, which also asserts the state it observed — they are not mock-ups.</sub>
+
+## Screens
+
+The settings panel gains one section, in four parts:
+
+|  |  |
+| --- | --- |
+| ![Base mode](docs/images/01-mode-switch.png) | ![Plugin switches](docs/images/02-plugin-switches.png) |
+| **Mode name + base mode**: rename it, build on standard / PTC / minimal / Cordis | **Plugin switches**: one tri-state switch per row; groups (those carrying an `isolate realm`) indent their children, and untouched rows read "follows platform" |
+| ![System prompt](docs/images/03-system-prompt.png) | ![Mode picker](docs/images/04-preset-picker.png) |
+| **System prompt**: the status bar says when a save takes effect and which file it wrote | **New session**: it is a real, selectable mode |
+
+Light/dark and both languages were verified the same way (official theme tokens and the `locale` service throughout):
+
+|  |  |
+| --- | --- |
+| ![Dark mode](docs/images/05-dark.png) | ![English](docs/images/06-english.png) |
+| Dark mode | English UI (the nav entry follows the language) |
 
 ## The problem it solves
 
@@ -77,11 +103,20 @@ Interpolation variables: `{{model}}`, `{{cwd}}`, `{{provider}}` only. The render
 Changes to the browser half (`editor/client.js`) are picked up by `@deepseek-ai/dsh-client-hmr` **about a second later with no restart and no page refresh** — it stat-polls each client bundle and hot-swaps the plugin. Only the host half (`index.mjs`, `composition.mjs`, `meta.mjs`) needs a restart.
 
 ```sh
-node test/composition.test.mjs   # 63 assertions
-node test/locales.test.mjs       # 60 assertions
+node test/run.mjs
 ```
 
-`DSH_SHIPPED_PRESETS_DIR` may be needed when running from a source checkout (the shipped presets are not beside this module there).
+One entry point for three suites; it resolves the shipped-preset directory itself (three fallbacks,
+and it prints which paths it tried when it fails):
+
+| Suite | Checks | What it protects |
+| --- | --- | --- |
+| `test/composition.test.mjs` | 63 | the compiler: lossless text surgery, switch semantics, platform conditions, group indentation |
+| `test/prompt-reader.test.mjs` | 15 | the hot-reload contract: an edit must be visible on the next evaluation, and a read failure must never blank the prompt |
+| `test/locales.test.mjs` | 65 | zh/en key parity, plus the **hand-copied dictionary** in `client.js` not drifting from `locales.mjs` |
+
+CI (`.github/workflows/test.yml`) installs `@deepseek-ai/dsh@0.1.6-alpha.1` and runs all three, so the
+tests always run against the **real shipped text** rather than a fixture of our own making.
 
 The compiler tests assert **properties, not bytes**: the shipped text changes between dsh versions, but "changing nothing changes nothing" must always hold. During development they caught six real bugs, three of which were silent misbehaviour (lost platform conditions, ineffective group toggles, inverted switch semantics).
 
@@ -91,7 +126,8 @@ The compiler tests assert **properties, not bytes**: the shipped text changes be
 
 ## Documentation
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the measured findings: why the settings page **cannot** be a row of the preset, why `dsh.client.inject` is required, why a stock `dsh-settings` import breaks on this version, and how to verify the browser hop without DevTools.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the measured findings: why the settings page **cannot** be a row of the preset, why `dsh.client.inject` is required, why a route registered on the raw `webServer` table is **outside** the platform's browser-trust fence (with the measured 401/403 evidence), and how to verify the browser hop without DevTools.
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — failures reproduced on a real machine: a dsh that no longer boots after install, pnpm panicking under WSL, the settings page not appearing, the mode vanishing from the picker, rejected saves.
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) — how to publish, and three hard lessons from surveying the existing plugin ecosystem.
 
 ## License

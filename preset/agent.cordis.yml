@@ -58,8 +58,9 @@
 # ROOT loader's entries; an agent preset's rows are mounted at runtime through
 # an Include subtree, so a browser half declared in this file is never
 # discovered. That page therefore lives in its own profile-level package
-# (`$DSH_HOME/custom-prompt-editor`, installed into the web profile), which is
-# the only plane where a browser half is reachable. See README.md.
+# (the `editor/` directory of this repo, linked into the profile as
+# `profiles/<profile>/node_modules/dsh-custom-prompt-editor` by install.sh),
+# which is the only plane where a browser half is reachable. See README.md.
 
 - id: agent-instructions
   name: '@deepseek-ai/dsh-agent-instructions'

@@ -1,0 +1,55 @@
+# 截图怎么来的
+
+`docs/images/` 里的 6 张图不是手拍的，也不是拼的：它们由本目录的脚本驱动一个**真实运行的
+dsh 实例**拍下来，同时把当时观察到的状态写进 [`observed.json`](observed.json)。
+
+这样做的理由很实际：手拍的截图会随 UI 改版过期，而没人知道它是什么时候、在哪个版本上拍的。
+有脚本就有一条可重跑、可核对的路径。
+
+## 需要什么
+
+1. 一个装好本插件、正在运行的 dsh web 实例（`DSH_HOME` 随便，本机默认 `~/.dsh`）；
+2. 带 DevTools 端口启动的 Chrome/Chromium：
+
+   ```sh
+   # Linux/macOS
+   chrome --headless=new --remote-debugging-port=9222 --user-data-dir=/tmp/dsh-shots about:blank
+   # Windows（WSL 的 mirrored 网络模式下，WSL 里可以直接连 127.0.0.1:9222）
+   "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new \
+     --remote-debugging-port=9222 --user-data-dir=C:\tmp\dsh-shots about:blank
+   ```
+
+3. 运行实例的带 token URL（`dsh web` 启动时会在日志里打印）。
+
+## 怎么跑
+
+```sh
+node tools/screenshots/screenshots.mjs "http://127.0.0.1:3080/?token=<token>" docs/images
+CDP_PORT=9222 CDP_HOST=127.0.0.1 node tools/screenshots/screenshots.mjs ...   # 端口可覆盖
+```
+
+脚本做的事（全部是真实交互，没有任何 DOM 注入式伪造）：
+
+1. 打开应用，通过**界面自己的控件**切到浅色主题；
+2. 进设置 →「自定义模式」，读取插件自己的 `GET /custom-prompt-editor` 并把结果打进日志；
+3. 拍 `01`、`02`；
+4. **真的**把「网页检索与抓取」那一行拨掉，再**真的**点保存，读回状态栏文案；
+5. 拍 `03`；
+6. 通过界面自己的语言控件切 English，确认导航项变成 `Custom mode`、小节标题全变英文，拍 `06`；
+7. 切回中文 + 深色，拍 `05`；
+8. 关闭设置面板，打开新建会话的模式选择器，确认列表里有「自定义模式」，拍 `04`；
+9. 把上面每一步观察到的值写进 `observed.json`。
+
+要重复运行得到**同一套叙事**（"拨了一行 → 保存"），先把 preset 还原成出厂状态：
+
+```sh
+cp preset/agent.cordis.yml preset/preset.yml "$DSH_HOME/.agent-presets/custom/"
+cp preset/prompt.md "$DSH_HOME/.agent-presets/custom/prompt.md"
+```
+
+## 为什么不用 Playwright
+
+本目录的 `cdp.mjs` 是一个约 300 行的手写 CDP 客户端（Node 24 自带 `WebSocket`，零依赖）。
+截图这件事只需要 goto / evaluate / 鼠标事件 / captureScreenshot 四个动作，为此装一个浏览器
+自动化框架（连同它自己下载的一份 Chromium）不值得。想用 Playwright 也完全可以，脚本里跟
+浏览器交互的部分是独立的。
