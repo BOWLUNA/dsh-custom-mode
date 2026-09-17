@@ -253,7 +253,37 @@ const rejection = ctx.get('connection').requestRejection(req)
 
 ---
 
-## 10. 一次性验证清单（改完之后照着跑）
+## 10. 装进 tui / headless 之类的 profile：能用的比预期少
+
+`./install.sh --help` 与两份 README 都写了 `--profile tui`，但**实测**要先看清一件事：
+
+```sh
+dsh --profile web      --dump-config | grep agent-presets   # 有
+dsh --profile tui      --dump-config | grep agent-presets   # 无
+dsh --profile headless --dump-config | grep agent-presets   # 无
+```
+
+`agent-presets` 这个服务**只出现在 web 组合里**，而「自定义模式」正是由它挂载的。所以在 tui 里
+不是"设置页看不到"，而是**这个模式根本不存在**：新建会话时选不到它。设置页还额外需要
+`webServer`（它是个 Web 页面），tui 同样没有。
+
+修复前，装进 tui 之后每次启动都会打印这一行：
+
+```
+dsh: warning: 1 entry did not activate
+custom-prompt-editor (dsh-custom-prompt-editor): pending (waiting for services: webServer, agentPresets)
+```
+
+它和 [§1](#1-严重装完之后-dsh-起不来了只剩一行-pending) 里那个"装完 dsh 变砖"的报错**一模一样**，
+所以极具误导性——一个正常的、装错 profile 的安装，看起来和一次灾难性损坏没有区别。
+现在插件改成**作用域内等待服务**（`ctx.inject`），不再把整行卡在 `pending`，`install.sh` 也会在
+装完后当场说明这个 profile 里没有设置页可用。
+
+**结论**：想用图形化设置页，就装进 web profile。装进别的 profile 不会弄坏任何东西，但也用不上。
+
+---
+
+## 11. 一次性验证清单（改完之后照着跑）
 
 ```sh
 # 1. 两个测试套件（其中 63 项是组成文件编译器）

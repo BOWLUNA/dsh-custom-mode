@@ -253,3 +253,45 @@ profiles/web/node_modules/dsh-custom-prompt-editor -> <repo>/editor
 所以**仓库就是活跃代码**。曾经存在的 `$DSH_HOME/custom-prompt-editor/` 是早期布局的**陈旧副本**；往那里写文件不会有任何效果（客户端 bundle 的 `artifactBaseline` 报的是另一份的 size）。该目录已删除，避免继续误导。
 
 排查这类问题的办法：读 `clientModules.artifactBaseline(id)`，它给出的 `path` 就是真正被监视/服务的那一份。
+
+## 12. 行级 `inject` 会把整行卡死；要等服务的正确写法是作用域化的 `ctx.inject`
+
+这条是实测撞出来的，教训比结论值钱。
+
+**起因**：`install.sh --help` 与两份 README 都写了 `--profile tui`，而设置页插件当时在包级导出
+`inject = ['webServer', 'agentPresets']`。tui 组合里这两个服务都不存在，于是每次启动 tui 都会打印：
+
+```
+dsh: warning: 1 entry did not activate
+custom-prompt-editor (dsh-custom-prompt-editor): pending (waiting for services: webServer, agentPresets)
+```
+
+**为什么这不能接受**：这一行与 [§5.1] 里那个"装完 dsh 变砖"的报错**完全相同**。一个正常的
+"装错 profile"于是看起来和一次灾难性损坏没有区别 —— 这等于在教用户忽略唯一重要的那条警告。
+
+**机制**：Cordis 的 `inject` 是**硬依赖**——名字在 `inject` 里，fiber 就一直等到它出现。没有
+"可选依赖"这个形态（`cordis/src/registry.ts` 里 `inject` 只有必填语义）。
+
+**正确写法**：让整行正常激活，把"需要服务的那部分"放进一个作用域化的子 fiber：
+
+```js
+export function apply(ctx) {
+  ctx.inject(['webServer', 'agentPresets'], (scope) => {
+    // 只有两个服务都在时才会走到这里
+    scope.effect(() => scope.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }), '…')
+  })
+}
+```
+
+`ctx.inject(deps, callback)` 就是 `ctx.plugin({ inject: deps, apply: callback })` 的语法糖
+（`registry.ts` 里 "Start a callback once the requested dependencies are available"），
+所以它是**同一个声明的动态形态**，而不是绕开依赖系统。
+
+**实测结果**：tui 有 TTY 启动也不再出现那行警告，web 里设置页照常（`401` 未授权 / `200` 带会话）。
+
+**可复用的两条**：
+
+- 插件只要有一半功能依赖某个服务，就别把那个服务写进行级 `inject` —— 否则那半边不适用时，
+  整行都会变成一条看起来像故障的警告。
+- 反过来，**绝不能**为了躲开 `pending` 就完全不声明依赖、在 `apply` 里 `ctx.get()` 猜服务在不在：
+  在 web 里 `apply` 可能先于 `webServer` 就绪，那样设置页会静默地不注册。等待要用 `ctx.inject`。

@@ -32,6 +32,17 @@ else
   echo "    找不到 dsh CLI，跳过（请手动从 profile 的 dsh.profile.bundles 中移除）"
 fi
 
+# 实测：`dsh plugin remove` 会清掉 package.json 的依赖与 bundles 条目，但 pnpm 可能在
+# node_modules 里留下指向本仓库的软链（pnpm 12.4.2 上复现过）。它不影响 dsh 装配
+# （装配只看 bundles 列表），但 uninstall 就该不留痕迹——尤其当你随后要删掉这个仓库时，
+# 它会变成一个指不到任何地方的断链。只删我们自己这一个包名。
+for modules_dir in "$DSH_HOME/profiles/$PROFILE/node_modules" "$DSH_HOME/profiles/node_modules"; do
+  if [ -L "$modules_dir/$PKG_NAME" ] || [ -e "$modules_dir/$PKG_NAME" ]; then
+    rm -rf "$modules_dir/$PKG_NAME"
+    echo "    已清掉 node_modules 里的残留: $modules_dir/$PKG_NAME"
+  fi
+done
+
 # remove 之后 bundles 列表若仍留有名字，补一次清理。
 node - "$PROFILE" "$DSH_HOME" "$PKG_NAME" <<'NODE' || true
 const fs = require('fs')

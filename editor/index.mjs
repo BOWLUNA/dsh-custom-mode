@@ -229,9 +229,6 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8')
 }
 
-/** Both are hard dependencies: webServer carries the route, agentPresets locates the shipped modes. */
-export const inject = ['webServer', 'agentPresets']
-
 /**
  * Rejection status for one request, or undefined when it may proceed.
  *
@@ -272,74 +269,106 @@ function connectionRejection(ctx, req) {
   return 503
 }
 
+/**
+ * Where the settings page can exist at all.
+ *
+ * The page is a WEB page: without `webServer` there is nothing to serve the route on,
+ * and without `agentPresets` the base-mode list cannot be built. The tui profile has
+ * neither.
+ *
+ * These must NOT go into the row's own `inject`. Measured on 0.1.6-alpha.1:
+ * `./install.sh --profile tui` — a usage both `install.sh --help` and the READMEs
+ * advertise — installs this web-only bundle into a profile with no web server, and a
+ * row-level `inject` then parks the whole entry forever:
+ *
+ *     dsh: warning: 1 entry did not activate
+ *     custom-prompt-editor (dsh-custom-prompt-editor): pending (waiting for services: webServer, agentPresets)
+ *
+ * That is the SAME line a broken installation prints, so it teaches users to ignore the
+ * one warning that matters. Instead the row always activates, and the route is
+ * registered from a scoped fiber that waits for those two services (`ctx.inject`),
+ * which is the dynamic form of the same declaration.
+ */
+const WEB_SERVICES = ['webServer', 'agentPresets']
+
 export function apply(ctx) {
-  // Compatibility guard: this plugin reads three host APIs that a future DSH
-  // release could reshape. Check them once and say so plainly, instead of
-  // letting every request fail with an opaque 500.
-  const missing = []
-  if (typeof ctx.agentPresets?.list !== 'function') missing.push('agentPresets.list()')
-  if (typeof ctx.webServer?.register !== 'function') missing.push('webServer.register()')
-  if (missing.length > 0) {
-    console.error(
-      'custom-prompt-editor: 当前 DSH 版本缺少所需 API：' + missing.join('、') + '。设置页将不可用，请核对 DSH 版本或提 issue。',
-    )
-  }
-
-  /**
-   * Resolve the shipped-preset directory through the roster, which reports each
-   * preset's absolute path and is therefore independent of install layout.
-   */
-  let shippedReady = null
-  const ensureShipped = () => {
-    if (shippedReady === null) {
-      shippedReady = (async () => {
-        try {
-          const rows = await ctx.agentPresets.list()
-          const system = rows.find((row) => row.trust === 'system' && typeof row.path === 'string')
-          // <presets>/<id>/agent.cordis.yml -> <presets>
-          if (system !== undefined) setShippedPresetsDir(dirname(dirname(system.path)))
-        } catch (error) {
-          console.error('custom-prompt-editor: 无法从 roster 解析出厂预设目录：' + String((error && error.message) || error))
-        }
-      })()
+  ctx.inject(WEB_SERVICES, (scope) => {
+    // Compatibility guard: this plugin reads host APIs that a future DSH release could
+    // reshape. Check them once and say so plainly, instead of letting every request
+    // fail with an opaque 500.
+    const missing = []
+    if (typeof scope.agentPresets?.list !== 'function') missing.push('agentPresets.list()')
+    if (typeof scope.webServer?.register !== 'function') missing.push('webServer.register()')
+    if (missing.length > 0) {
+      console.error(
+        'custom-prompt-editor: 当前 DSH 版本缺少所需 API：' +
+          missing.join('、') +
+          '。设置页将不可用，请核对 DSH 版本或提 issue。',
+      )
+      return
     }
-    return shippedReady
-  }
 
-  const handler = async (req, res) => {
-    try {
-      // The fence comes first, before any method dispatch: the GET leaks the whole
-      // system prompt and the POST rewrites it, so neither may run unauthenticated.
-      const rejection = connectionRejection(ctx, req)
-      if (rejection !== undefined) {
-        res.writeHead(rejection, { 'content-type': 'text/plain; charset=utf-8' })
-        res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
-        return
+    /**
+     * Resolve the shipped-preset directory through the roster, which reports each
+     * preset's absolute path and is therefore independent of install layout.
+     */
+    let shippedReady = null
+    const ensureShipped = () => {
+      if (shippedReady === null) {
+        shippedReady = (async () => {
+          try {
+            const rows = await scope.agentPresets.list()
+            const system = rows.find((row) => row.trust === 'system' && typeof row.path === 'string')
+            // <presets>/<id>/agent.cordis.yml -> <presets>
+            if (system !== undefined) setShippedPresetsDir(dirname(dirname(system.path)))
+          } catch (error) {
+            console.error(
+              'custom-prompt-editor: 无法从 roster 解析出厂预设目录：' + String((error && error.message) || error),
+            )
+          }
+        })()
       }
-      if (req.method === 'GET') {
-        await ensureShipped()
-        sendJson(res, 200, readState())
-        return
-      }
-      if (req.method === 'POST') {
-        await ensureShipped()
-        const raw = await readBody(req)
-        let parsed
-        try {
-          parsed = JSON.parse(raw)
-        } catch {
-          sendJson(res, 400, { ok: false, error: '请求体不是合法 JSON' })
+      return shippedReady
+    }
+
+    const handler = async (req, res) => {
+      try {
+        // The fence comes first, before any method dispatch: the GET leaks the whole
+        // system prompt and the POST rewrites it, so neither may run unauthenticated.
+        const rejection = connectionRejection(scope, req)
+        if (rejection !== undefined) {
+          res.writeHead(rejection, { 'content-type': 'text/plain; charset=utf-8' })
+          res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
           return
         }
-        const result = saveState(parsed)
-        sendJson(res, result.ok === true ? 200 : 400, result)
-        return
+        if (req.method === 'GET') {
+          await ensureShipped()
+          sendJson(res, 200, readState())
+          return
+        }
+        if (req.method === 'POST') {
+          await ensureShipped()
+          const raw = await readBody(req)
+          let parsed
+          try {
+            parsed = JSON.parse(raw)
+          } catch {
+            sendJson(res, 400, { ok: false, error: '请求体不是合法 JSON' })
+            return
+          }
+          const result = saveState(parsed)
+          sendJson(res, result.ok === true ? 200 : 400, result)
+          return
+        }
+        sendJson(res, 405, { ok: false, error: '只支持 GET 与 POST' })
+      } catch (error) {
+        sendJson(res, 500, { ok: false, error: String((error && error.message) || error) })
       }
-      sendJson(res, 405, { ok: false, error: '只支持 GET 与 POST' })
-    } catch (error) {
-      sendJson(res, 500, { ok: false, error: String((error && error.message) || error) })
     }
-  }
 
-  ctx.effect(() => ctx.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }), 'custom-prompt-editor.route')
+    scope.effect(
+      () => scope.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }),
+      'custom-prompt-editor.route',
+    )
+  })
 }
