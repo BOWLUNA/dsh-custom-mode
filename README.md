@@ -92,6 +92,16 @@ The script copies `preset/` into `$DSH_HOME/.agent-presets/custom/` (an agent pr
 
 **Restart dsh** afterwards (the browser bundle is discovered at boot), then pick 「自定义模式」 for a new session; the settings page appears under **自定义模式**.
 
+> The settings-page plugin is also on npm, so it can be installed or updated on its own:
+>
+> ```sh
+> dsh plugin --profile web add dsh-custom-mode
+> ```
+>
+> The **agent preset is not an npm package** — `preset/` is a directory of files — so the mode itself
+> still comes from this repository. Use that command to update just the settings page on a machine
+> that already has the preset; first-time installs should still use `./install.sh`.
+
 Uninstall with `./uninstall.sh` (keeps your prompt by default; `--purge` removes it too).
 
 ## Usage

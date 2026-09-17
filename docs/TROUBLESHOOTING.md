@@ -5,7 +5,7 @@
 先记住一条总的自查命令——它能区分「装没装上」和「装上了但没生效」：
 
 ```sh
-dsh --profile web --dump-config | grep -n custom-prompt-editor
+dsh --profile web --dump-config | grep -n custom-mode
 ```
 
 有输出 = 插件行已经进了组合树（剩下的问题都在浏览器侧）。
@@ -21,16 +21,16 @@ dsh --profile web --dump-config | grep -n custom-prompt-editor
 
 ```
 dsh: warning: 1 entry did not activate
-custom-prompt-editor (dsh-custom-prompt-editor): pending (waiting for services: webServer, agentPresets)
+custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
 ```
 
 界面打不开、端口没人监听、agent 也没了 —— 整个 harness 只剩这一个插件在等两个永远不会出现的服务。
 `dsh --profile web --dump-config` 的输出短得可疑：
 
 ```yaml
-# == dsh-custom-prompt-editor
-- id: custom-prompt-editor
-  name: dsh-custom-prompt-editor
+# == dsh-custom-mode
+- id: custom-mode
+  name: dsh-custom-mode
 ```
 
 ### 原因（已修复，但已经装过的机器需要自救）
@@ -47,7 +47,7 @@ profile **模板自带**的 in-box bundle（`@deepseek-ai/dsh-base`、`@deepseek
 里删除**。基础 bundle 一没，`llm` / `session` / `webServer` / `agentPresets` 全都不再装配。
 
 这不是猜测，是实测：全新 `DSH_HOME` 跑一遍旧版 `install.sh`，profile 的 bundles 从
-`["@deepseek-ai/dsh-base","@deepseek-ai/dsh-web-app"]` 变成 `["dsh-custom-prompt-editor"]`。
+`["@deepseek-ai/dsh-base","@deepseek-ai/dsh-web-app"]` 变成 `["dsh-custom-mode"]`。
 
 dsh 自己的 `reconcilePlugins` 明确写着 in-box bundle「are never touched」，所以正确做法是
 **只增不删**。现在的 `install.sh` 就是这么做的，并且加了一道安装后自检：
@@ -87,7 +87,7 @@ dsh --profile web --dump-config | wc -l
 ### 症状
 
 ```
-==> 2/2 安装设置页插件 "dsh-custom-prompt-editor" 到 profile "web"
+==> 2/2 安装设置页插件 "dsh-custom-mode" 到 profile "web"
 Error:   × Main thread panicked.
   ├─▶ at pnpm\crates\config\src\defaults.rs:51:39
   ╰─▶ current dir is an absolute path with drive letter
@@ -136,13 +136,13 @@ HMR 的前提：profile 的组合里 `dsh-client-hmr` 处于启用状态（`dsh 
 
 按顺序查：
 
-1. **插件在组合树里吗**：`dsh --profile web --dump-config | grep custom-prompt-editor`。
+1. **插件在组合树里吗**：`dsh --profile web --dump-config | grep custom-mode`。
 2. **装完重启过 dsh 吗**：bundle 的客户端内容只在**启动装配期**进入客户端图。
 3. **`dsh.client` 与 `exports["./client"]` 是否都在** `editor/package.json` 里
    （缺任何一个，浏览器半就不会被发现，而且**不会报错**）。
 4. **宿主半的服务依赖满足吗**：宿主半 `inject = ["webServer", "agentPresets"]`，
    缺任一服务时插件会停在 `pending`（启动日志里会写 waiting for services）。
-5. 浏览器 Console 是否有 `dsh-custom-prompt-editor:` 开头的报错 —— 这一页的失败策略是
+5. 浏览器 Console 是否有 `dsh-custom-mode:` 开头的报错 —— 这一页的失败策略是
    「宁可整页不出现，也绝不把页面搞崩」，所以它只会往 Console 说话。
 
 ---
@@ -210,11 +210,11 @@ systemd 服务里则写进 unit 的 `Environment=`。
 
 ### 症状（0.1.6-alpha.1 上实测过，本仓库已在源码层修复）
 
-修复前的 `/custom-prompt-editor` 是**未授权可读写**的：
+修复前的 `/custom-mode` 是**未授权可读写**的：
 
 ```sh
-curl http://127.0.0.1:3080/custom-prompt-editor            # 200，整份系统提示词被读走
-curl -X POST http://127.0.0.1:3080/custom-prompt-editor \
+curl http://127.0.0.1:3080/custom-mode            # 200，整份系统提示词被读走
+curl -X POST http://127.0.0.1:3080/custom-mode \
      -H 'content-type: text/plain' --data '{"mode":"standard","overrides":{},"prompt":"PWNED"}'
                                                            # 200，prompt.md 真的被改写
 ```
@@ -271,7 +271,7 @@ dsh --profile headless --dump-config | grep agent-presets   # 无
 
 ```
 dsh: warning: 1 entry did not activate
-custom-prompt-editor (dsh-custom-prompt-editor): pending (waiting for services: webServer, agentPresets)
+custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
 ```
 
 它和 [§1](#1-严重装完之后-dsh-起不来了只剩一行-pending) 里那个"装完 dsh 变砖"的报错**一模一样**，
@@ -295,7 +295,7 @@ DSH_SHIPPED_PRESETS_DIR="$(node -e '
 node test/locales.test.mjs
 
 # 2. 插件行进了组合树
-dsh --profile web --dump-config | grep custom-prompt-editor
+dsh --profile web --dump-config | grep custom-mode
 
 # 3. 组合树没有塌（应当是上百行，不是 1 行）
 dsh --profile web --dump-config | wc -l
@@ -304,9 +304,9 @@ dsh --profile web --dump-config | wc -l
 dsh --profile web --dump-config >/dev/null && ls "$HOME/.dsh/.agent-presets/custom"
 
 # 5. 设置页能读到状态（把 <token> 换成 dsh web 启动时打印的那个）
-curl -s "http://127.0.0.1:3080/custom-prompt-editor" \
+curl -s "http://127.0.0.1:3080/custom-mode" \
   -H 'cookie: dsh-token=<token>' | head -c 300
 ```
 
 > 第 5 条的 cookie 名与 token 取法随 dsh 版本可能不同；用浏览器打开设置页时看 Network 面板
-> 里那条 `/custom-prompt-editor` 请求最省事。
+> 里那条 `/custom-mode` 请求最省事。

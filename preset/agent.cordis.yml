@@ -59,7 +59,7 @@
 # an Include subtree, so a browser half declared in this file is never
 # discovered. That page therefore lives in its own profile-level package
 # (the `editor/` directory of this repo, linked into the profile as
-# `profiles/<profile>/node_modules/dsh-custom-prompt-editor` by install.sh),
+# `profiles/<profile>/node_modules/dsh-custom-mode` by install.sh),
 # which is the only plane where a browser half is reachable. See README.md.
 
 - id: agent-instructions

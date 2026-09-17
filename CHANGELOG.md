@@ -14,7 +14,7 @@ API 是否还在，而不是本仓库的补丁号 —— 在这里摆一个自�
 
 ### 安全
 
-- **修复：设置页私有路由未做鉴权。** `/custom-prompt-editor` 注册在 `ctx.webServer` 的裸 HTTP 表上，
+- **修复：设置页私有路由未做鉴权。** `/custom-mode` 注册在 `ctx.webServer` 的裸 HTTP 表上，
   而平台的 Host/Origin 栅栏与浏览器会话鉴权只作用在 Connection 服务挂载的 channel（`/`、`/api`…）上。
   修复前实测：未授权 `GET` 返回整份系统提示词（200），未授权 `POST`（`content-type: text/plain`）
   可改写 `prompt.md`（200），而同进程的官方路由均为 401。因为普通表单式跨站请求不触发预检，
@@ -26,7 +26,7 @@ API 是否还在，而不是本仓库的补丁号 —— 在这里摆一个自�
 
 - **修复：`install.sh` 会删掉 profile 模板自带的基础 bundle。** 全新 `DSH_HOME` 里跑一次旧脚本，
   `dsh.profile.bundles` 从 `["@deepseek-ai/dsh-base","@deepseek-ai/dsh-web-app"]` 变成
-  `["dsh-custom-prompt-editor"]`——那段"清理幽灵条目"逻辑按两个硬编码路径探测依赖，而这两个包由
+  `["dsh-custom-mode"]`——那段"清理幽灵条目"逻辑按两个硬编码路径探测依赖，而这两个包由
   dsh 自己的 install anchor 解析。后果是装完 dsh 起不来（组合树从 158 行变 1 行，只剩本插件 `pending`），
   而脚本**以 0 退出**。触发条件是"装好 dsh 后尚未启动过就装插件"。
   改为只增不删，并补三道防线：前置版本/pnpm 自检、bundle 不变量断言、安装后组合自检（组合树少于
@@ -141,8 +141,21 @@ API 是否还在，而不是本仓库的补丁号 —— 在这里摆一个自�
 - 顺手修了宿主半一处措辞：`connection` 缺失时返回 503，响应体原本写成 `forbidden`，
   既不是未授权也不是被禁止，会误导排查的人；现在按 401/403/503 分别给
   `unauthorized` / `forbidden` / `unavailable`。
-- **发布到 npm**：`editor/` 去掉 `private`，以 `--tag alpha` 发布
-  （预发布版本不该占用 `latest`，否则 `npm i dsh-custom-prompt-editor` 会装到预览版）。
+- **发布到 npm**：包名按你的要求与 GitHub 仓库一致 —— **`dsh-custom-mode`**（原名
+  `dsh-custom-prompt-editor` 在发布前改掉；客户端 bundle 的 id、bundle 行名与路由都要跟着
+  包名走，官方插件也是这个约定）。已发布 `dsh-custom-mode@0.1.6-alpha.1`（tag `alpha`）。
+- npm 发布过程中实测出三个坑，都写进了 `docs/PUBLISHING.md`：
+  1. `publishConfig.tag` 不被采纳，必须显式 `--tag alpha`（不加时提示 `with tag latest`）；
+  2. **首次发布时 registry 仍会把 `latest` 指向预发布版**（`dist-tags` 里 alpha 与 latest 同时
+     存在）。本项目接受这个状态并写清了理由：版本号策略决定了每个版本都是预发布，没有稳定版
+     可供 `latest` 指向；
+  3. 不 import 的 peer 依赖要标 `optional`，否则用户从 registry 装完第一眼是一条
+     `[WARN] Issues with peer dependencies found`。这条修正**没有**随 `0.1.6-alpha.1` 发出
+     （同一个版本号不能重发，为一个元数据警告去 `npm unpublish` 会让包名被锁 24 小时），
+     随下一个版本生效。
+- 发布后的验证不是"看它说成功"：在一次性 `DSH_HOME` 里从 registry 真装了一次，确认
+  `dependencies` 里是真实版本号、`node_modules` 里是真目录（不是软链）、组合树里出现
+  `id: custom-mode` / `name: dsh-custom-mode` 两行、8 个发布文件齐全。
 
 ### 功能
 

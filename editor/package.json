@@ -1,7 +1,6 @@
 {
-  "name": "dsh-custom-prompt-editor",
+  "name": "dsh-custom-mode",
   "version": "0.1.6-alpha.1",
-  "private": true,
   "description": "自定义模式 settings page: base-mode switching, per-row plugin switches, editable system prompt, custom mode name. Follows the DSH version.",
   "license": "MIT",
   "type": "module",
@@ -49,5 +48,14 @@
   },
   "peerDependencies": {
     "@deepseek-ai/dsh": ">=0.1.2-alpha.1"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "alpha"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
   }
 }

@@ -21,31 +21,26 @@ cd dsh-custom-mode
 
 脚本会复制 preset 并调用 `dsh plugin add ./editor`（本地路径安装，pnpm 会 link）。
 
-## 方案二：发布 editor 到 npm
+## 方案二：editor 也发到 npm
 
-preset 仍然走 clone，editor 可以单独发 npm：
+preset 仍然走 clone（它不是 npm 包），editor 单独发 npm。**已发布**：
+`dsh-custom-mode@0.1.6-alpha.1`（2026-09-17，tag `alpha`）。
 
 ```sh
 cd editor
-npm publish --access public
+npm login --auth-type=web          # 首次：浏览器登录
+npm publish --tag alpha            # 显式给 --tag，原因见下
 ```
-
-别人：
-
-```sh
-dsh plugin --profile web add dsh-custom-prompt-editor
-```
-
-前提是 editor 已发布且包名未被占用。
 
 ### 发布前的自查清单
 
-- [ ] `lib/` 或源码**随包提交**，安装时不需要构建脚本。
+- [x] 源码**随包提交**，安装时不需要构建脚本。
       否则 pnpm 的 `allowBuilds` 会拦住用户（`dsh` 自己会提示，但体验很差）。
-- [ ] `dsh.bundle.patch` 指向的补丁文件在 `files` 里没被漏掉。
-- [ ] `dsh.client.platform` 是 `"web"`。
-- [ ] `exports["./client"]` 指向浏览器半。
-- [ ] `private` 字段删掉（`editor/package.json` 里现在是 `true`，那是本地开发用的）。
+- [x] `dsh.bundle.patch` 指向的补丁文件在 `files` 里没被漏掉（CI 里有一条对着真实 packlist 的断言）。
+- [x] `dsh.client.platform` 是 `"web"`。
+- [x] `exports["./client"]` 指向浏览器半。
+- [x] `private` 字段已删掉（发布前是 `true`，只用于本地开发）。
+- [x] `peerDependenciesMeta` 里把不适用的 peer 标成 `optional`，否则用户装完第一眼是一条 WARN。
 
 `files` 白名单已经写好了，而且这件事**不能靠肉眼核对**——最容易踩的坑是"少打了文件"，
 而那要等到有人装完才发现。CI（`.github/workflows/test.yml`）里有一条对着真实 packlist 的断言，
@@ -66,6 +61,88 @@ npm pack --dry-run --json | node -e '
 
 ```
 client.js, composition.mjs, cordis.patch.yml, index.mjs, locales.mjs, meta.mjs, package.json, paths.mjs
+```
+
+### 三个实测出来的坑
+
+**1）`publishConfig.tag` 不被采纳，必须显式 `--tag`。**
+
+`editor/package.json` 里声明了 `"publishConfig": { "access": "public", "tag": "alpha" }`，
+但 npm 11.19.0 的 `npm publish --dry-run` 仍然打印 `with tag latest`；只有命令行显式加
+`--tag alpha` 才变成 `with tag alpha`。所以**别赌 publishConfig 被读到**。
+
+**2）首次发布时，`latest` 还是被指到了预发布版。**
+
+实测结果：`npm view dsh-custom-mode dist-tags` →
+
+```json
+{ "alpha": "0.1.6-alpha.1", "latest": "0.1.6-alpha.1" }
+```
+
+即"预发布不该占用 `latest`"这条惯例在这里没保住（首次发布时 registry 会给它补上 `latest`）。
+本项目接受这个状态，理由是**版本号策略决定了每一个版本都是预发布**——版本号跟随 DSH 的
+alpha/rc，不存在一个"稳定的替代版本"可供 `latest` 指向。所以：
+
+- `dsh plugin --profile web add dsh-custom-mode` 直接可用（装到当前版本）；
+- 想钉死版本就写全 `dsh-custom-mode@0.1.6-alpha.1`；
+- 等哪天 DSH 发正式版、本插件跟着换成正式版本号时，`latest` 的语义才真正开始有意义。
+
+**3）peer 依赖要标 `optional`，否则用户装完第一眼就是一条警告。**
+
+我们**不** import `@deepseek-ai/dsh`（设置页只用平台注入的服务与 node 内建），声明它只是为了
+表达"适配哪个宿主"。不标 optional 时，从 registry 装会打印：
+
+```
+[WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
+```
+
+`editor/package.json` 里因此补了：
+
+```json
+"peerDependenciesMeta": { "@deepseek-ai/dsh": { "optional": true } }
+```
+
+> 这条修正在仓库里，但**没有**随 `0.1.6-alpha.1` 一起发出去（那个版本已经占用）。为一个元数据
+> 警告去 `npm unpublish` 不划算：整包撤销会让包名被锁 24 小时。它会随下一个版本（即官方 DSH
+> 更迭后）一起生效。
+
+### 与"版本号只跟随 DSH"的张力
+
+npm 要求每次发布的版本号唯一，而本项目的版本号只跟随 DSH。两者相遇时：
+
+- **元数据/文档级别的小修正**：攒着，随下一个版本一起发（本项目选择这条）；
+- **必须立刻修的问题**（例如安全）：可以临时用 `0.1.6-alpha.1.1` 这类 npm 语义化后缀，
+  但要在 `CHANGELOG.md` 里写明原因，并在下一次 DSH 更迭时回归标准版本号；
+- **同一个版本号不能重发**：`npm publish` 会拒绝 `EPUBLISHCONFLICT`。
+
+### 2FA
+
+账号若开了 auth-and-writes，网页登录拿到的 token **不能**发布，会返回：
+
+```
+403 Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.
+```
+
+两条路：`npm publish --otp=123456`（30 秒一换），或建一个勾了 "bypass 2FA" 的 granular access
+token 并在临时 userconfig 里用它（不发到 `~/.npmrc`，用完即撤）：
+
+```sh
+umask 077
+printf '//registry.npmjs.org/:_authToken=%s\n' "$NPM_TOKEN" > /tmp/npmrc-publish
+npm publish --userconfig /tmp/npmrc-publish --tag alpha
+rm -f /tmp/npmrc-publish
+```
+
+### 发布后怎么验证（别只看"发布成功"）
+
+```sh
+npm view dsh-custom-mode dist-tags versions
+
+# 在一次性 DSH_HOME 里从 registry 真装一次，确认拿到的是真包而不是软链
+H=$(mktemp -d); DSH_HOME=$H dsh plugin --profile web add dsh-custom-mode
+node -p "JSON.stringify(require('$H/profiles/web/package.json').dependencies)"
+ls -la "$H/profiles/web/node_modules/dsh-custom-mode"      # 应是目录，不是箭头
+DSH_HOME=$H dsh --profile web --dump-config | grep -A1 'id: custom-mode'
 ```
 
 ### 三条硬经验（踩过坑，务必遵守）

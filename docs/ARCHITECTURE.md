@@ -78,7 +78,7 @@ exports.inject = inject     // inject = ["slots"]
 
 ```js
 window.__ModuleLoader__.load({
-  id: "dsh-custom-prompt-editor",
+  id: "dsh-custom-mode",
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports
@@ -110,8 +110,8 @@ react, react/jsx-runtime, react-dom, react-dom/client,
 
 本项目改用**一条私有 HTTP 路由**：
 
-- 宿主半 `ctx.webServer.register({ kind: "exact", path: "/custom-prompt-editor", handler })`
-- 浏览器半 `fetch("/custom-prompt-editor", { method: "GET" | "POST" })`
+- 宿主半 `ctx.webServer.register({ kind: "exact", path: "/custom-mode", handler })`
+- 浏览器半 `fetch("/custom-mode", { method: "GET" | "POST" })`
 
 优点：完全自包含，不占用任何 Cordis 服务名，不可能和别人冲突；也不需要理解 Remote 生成机制。
 
@@ -125,11 +125,11 @@ channel**（`/`、`/api`…）上的，直接在 `webServer` 上注册的路由*
 
 ```sh
 # 未授权 GET：把整份系统提示词交出去
-curl http://127.0.0.1:3081/custom-prompt-editor
+curl http://127.0.0.1:3081/custom-mode
 → 200 {"ok":true,...,"prompt":"You are a coding agent powered by ..."}
 
 # 未授权 POST：直接改写 prompt.md
-curl -X POST http://127.0.0.1:3081/custom-prompt-editor \
+curl -X POST http://127.0.0.1:3081/custom-mode \
      -H 'content-type: text/plain' --data '{"mode":"standard","overrides":{},"prompt":"PWNED"}'
 → 200 {"ok":true,...}         # 文件真的被改了
 
@@ -247,10 +247,10 @@ entry rev    345c0f1330e41a14-47 → 50e01f6dc101
 `install.sh` 把编辑器包**链接到仓库目录**：
 
 ```
-profiles/web/node_modules/dsh-custom-prompt-editor -> <repo>/editor
+profiles/web/node_modules/dsh-custom-mode -> <repo>/editor
 ```
 
-所以**仓库就是活跃代码**。曾经存在的 `$DSH_HOME/custom-prompt-editor/` 是早期布局的**陈旧副本**；往那里写文件不会有任何效果（客户端 bundle 的 `artifactBaseline` 报的是另一份的 size）。该目录已删除，避免继续误导。
+所以**仓库就是活跃代码**。曾经存在的 `$DSH_HOME/custom-mode/` 是早期布局的**陈旧副本**；往那里写文件不会有任何效果（客户端 bundle 的 `artifactBaseline` 报的是另一份的 size）。该目录已删除，避免继续误导。
 
 排查这类问题的办法：读 `clientModules.artifactBaseline(id)`，它给出的 `path` 就是真正被监视/服务的那一份。
 
@@ -263,7 +263,7 @@ profiles/web/node_modules/dsh-custom-prompt-editor -> <repo>/editor
 
 ```
 dsh: warning: 1 entry did not activate
-custom-prompt-editor (dsh-custom-prompt-editor): pending (waiting for services: webServer, agentPresets)
+custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
 ```
 
 **为什么这不能接受**：这一行与 [§5.1] 里那个"装完 dsh 变砖"的报错**完全相同**。一个正常的
