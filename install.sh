@@ -165,6 +165,17 @@ if (rows < MIN_ROWS) {
 }
 if (!ok) process.exit(1)
 console.log(`    组合树 ${rows} 行，${pkg} 已就位`)
+
+// 设置页是 Web 页面：装进没有 web 服务器的 profile（例如 tui）时它不可能工作。
+// 这不算安装失败 —— preset 与 custom_prompt 工具都照常 —— 但必须当场说清楚，
+// 否则用户会去翻「设置页怎么不出现」的故障排查。
+if (!dump.includes('@deepseek-ai/dsh-host-webserver')) {
+  console.log('')
+  console.log(`    注意: profile "${profile}" 的组合里没有 web 服务器，因此没有设置页可用。`)
+  console.log('          仍然可用的是：模式本身（新建会话时可选）、以及 custom_prompt 工具')
+  console.log('          （在会话里直接说「把系统提示词改成……」）。')
+  console.log('          想要图形化设置页，请装进 web profile：./install.sh --profile web')
+}
 NODE
 
 cat <<EOF

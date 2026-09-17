@@ -56,7 +56,7 @@ dsh-custom-mode/
 │   ├── meta.mjs / paths.mjs     # preset.yml 读写 / 路径解析
 │   ├── cordis.patch.yml         # bundle 补丁：insert 插件行
 │   └── package.json             # 含 files 白名单（CI 会断言打包内容）
-├── test/                        # 三个套件共 143 项，用 node test/run.mjs 跑
+├── test/                        # 五个套件共 225 项，用 node test/run.mjs 跑
 │   ├── composition.test.mjs     # 63 项：文本手术是否无损、开关语义、平台条件
 │   ├── prompt-reader.test.mjs   # 15 项：热更新契约
 │   └── locales.test.mjs         # 65 项：双语键集 + client.js 副本不漂移
@@ -188,18 +188,20 @@ MIT
 node test/run.mjs
 ```
 
-一个入口跑三个套件，并自己解析「出厂 preset 目录」（三条回退，解析不到会打印试过哪些路）：
+一个入口跑五个套件，并自己解析「出厂 preset 目录」（三条回退，解析不到会打印试过哪些路）：
 
 | 套件 | 项数 | 测什么 |
 | --- | --- | --- |
 | `test/composition.test.mjs` | 63 | 组成文件编译器：文本手术是否无损、开关语义、平台条件、分组缩进 |
 | `test/prompt-reader.test.mjs` | 15 | 热更新契约：改文件后下一次求值必须是新文本、读失败不得把身份变成空串 |
+| `test/prompt-tool.test.mjs` | 37 | `custom_prompt` 工具（无浏览器时的编辑通道）+ 两份 `{{变量}}` 校验不许漂移 |
+| `test/meta.test.mjs` | 45 | `preset.yml` 往返：引号/反斜杠/冒号/换行/emoji 写入后必须原样读回 |
 | `test/locales.test.mjs` | 65 | 中英键集一致 + `client.js` 里那份**手抄字典**与 `locales.mjs` 不漂移 |
 
 编译器那 63 项测的是**属性不是字节**（出厂文本会随 dsh 版本变，但"什么都不改就什么都不变"必须永远成立）。开发过程中它抓到了 6 个真 bug，其中 3 个会导致静默错误行为（平台条件丢失、关闭分组无效、开关语义反向）。
 
 CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek-ai/dsh@0.1.6-alpha.1`，
-再跑这三个套件 —— 测的是**真实的出厂文本**，不是自造的 fixture。
+再跑这五个套件 —— 测的是**真实的出厂文本**，不是自造的 fixture。
 
 ## 文档
 
@@ -217,7 +219,7 @@ CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek
 - [x] 兼容：客户端 HMR（实测可用：改界面约 1 秒后页面自更新，无需重启/刷新）
 - [x] 兼容：别人改过 UI 布局/装饰时的兜底（不假定 DOM 结构，只用声明式插槽；窄面板自适应；三条回退解析）
 - [x] 安全：设置页路由过平台的 Host/Origin 栅栏与浏览器鉴权（修复前的未授权读写见 `docs/TROUBLESHOOTING.md` §9）
-- [x] 工程化：CI（三个套件对着真实出厂 preset 跑）+ 统一测试入口 + 安装后自检
+- [x] 工程化：CI（五个套件对着真实出厂 preset 跑）+ 统一测试入口 + 安装后自检
 - [x] 文档：中英文说明书 + 界面截图 + 故障排查
 - [ ] 工程化：发布到 npm（`editor/` 已备好元数据，删掉 `private: true` 即可）
 
@@ -242,6 +244,8 @@ CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek
 | `ctx.systemPrompt.section()` 且 `text` 支持**函数** | 每步重新读取提示词 | 提示词不再热更新（这是整个功能的根基） |
 | `ctx.tools.register(definition)` | `custom_prompt` 工具 | 失去无浏览器时的编辑通道 |
 | `ctx.webServer.register({kind,path,handler})` | 设置页的私有路由 | 设置页空白 |
+| `ctx.connection.requestRejection(req)` | 私有路由的 Host/Origin 栅栏与浏览器鉴权 | 设置页**失败关闭**（503），不会退回不校验 |
+| `ctx.inject(deps, cb)`（作用域化等待服务） | 整行激活，只有那条路由等 `webServer` / `agentPresets` | 装进 tui 之类没有 web 服务的 profile 时，整行会退回 `pending`，并打印与「变砖」相同的警告 |
 | `dsh.client` + `exports["./client"]` | 浏览器半被发现 | 设置页不出现 |
 | 客户端插槽 `settings.section`，注册项支持 `locale` | 页面位置与取翻译函数 | 页面位置丢失 / 显示裸键名 |
 | `ctx.locale.register/bind` | 双语 | 回退中文（不崩） |
