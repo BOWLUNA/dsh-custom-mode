@@ -1,48 +1,61 @@
-# 安全策略
+# Security Policy
 
-## 报告问题
+English | [中文](SECURITY.zh.md)
 
-请用 GitHub 的 **private vulnerability reporting**（仓库 → Security → Report a vulnerability）提交，
-不要开公开 issue。若该入口不可用，也可以开一个只写「有一个安全问题，请给一个私下渠道」的 issue，
-不带任何细节。
+## Reporting a Problem
 
-我会在确认后尽量给出：影响范围、复现条件、修复版本，并在修复发布后再公开细节。
+Submit through GitHub's **private vulnerability reporting** (repository → Security → Report a
+vulnerability), not a public issue. If that entry point is unavailable, an issue may be opened
+that says only "there is a security problem, please provide a private channel", carrying no
+details.
 
-## 支持范围
+Once a report is confirmed, the aim is to provide, where possible: impact scope, reproduction
+conditions, and the fixed version, and to publish details only after the fix is released.
 
-本插件的版本号**跟随所适配的 DSH 版本**（见 README「版本策略与兼容性」），所以"支持哪个版本"
-等价于"在哪个 DSH 版本上验证过"。当前只在下面这一行上开发与验证：
+## Support Scope
 
-| 插件版本 | DSH 版本 | 状态 |
+This plugin's version number **follows the DSH version it is adapted to** (see README, "Version
+Policy and Compatibility"), so "which version is supported" is equivalent to "which DSH version it
+has been verified against". Development and verification currently cover only the row below:
+
+| Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `0.1.6-alpha.1`（含本仓库 `review/2026-09-fixes` 分支之后的提交） | `0.1.6-alpha.1` | 支持 |
-| 早于上述分支的 `0.1.6-alpha.1`（即最初的提交） | `0.1.6-alpha.1` | **受下文所述问题影响，建议升级** |
+| `0.1.6-alpha.1` (including commits after this repository's `review/2026-09-fixes` branch) | `0.1.6-alpha.1` | Supported |
+| `0.1.6-alpha.1` earlier than the above branch (i.e. the initial commit) | `0.1.6-alpha.1` | **Affected by the problem described below; upgrading is recommended** |
 
-## 已知问题与修复
+## Known Problems and Fixes
 
-### 设置页私有路由未做鉴权（已修复，未发布）
+### The settings-page private route has no authentication (fixed, unreleased)
 
-**影响**：`/custom-mode` 这条路由注册在 `ctx.webServer` 的裸 HTTP 表上，而平台的
-Host/Origin 栅栏与浏览器会话鉴权只作用在 Connection 服务挂载的 channel（`/`、`/api`…）上。
-结果：**未授权**即可 `GET` 出整份系统提示词，并以 `content-type: text/plain` **POST** 改写
-`prompt.md`。后者尤其重要——普通表单式跨站请求不触发 CORS 预检，因此用户浏览器里打开的
-任意网页都能朝该端口 POST；响应读不到，但写入已经发生。
+**Impact**: The `/custom-mode` route is registered on `ctx.webServer`'s bare HTTP table, while the
+platform's Host/Origin fence and browser session authentication apply only to the channels mounted
+by the Connection service (`/`, `/api`…). As a result, the entire system prompt can be read with an
+**unauthorized** `GET`, and `prompt.md` can be rewritten with a `content-type: text/plain`
+**POST**. The latter matters especially — an ordinary form-style cross-site request does not
+trigger a CORS preflight, so any web page open in the user's browser can POST to that port; the
+response cannot be read, but the write has already happened.
 
-**已修复**：路由在处理任何请求之前先调用 `ctx.connection.requestRejection(req)`（与 `/api`
-同一判定），并在该服务不可用时**失败关闭**（503 + 宿主日志），而不是退回不校验。
+**Fixed**: Before handling any request, the route first calls
+`ctx.connection.requestRejection(req)` (the same decision as for `/api`), and **fails closed**
+when that service is unavailable (503 + host log), rather than falling back to no validation.
 
-**缓解**（无法立即升级时）：该路由默认只绑 `127.0.0.1`，因此风险主要来自
-(a) 同机的其他用户/进程，与 (b) 用户自己浏览器里的跨站请求。把 dsh 暴露到局域网或反向代理
-之下会显著放大影响，请不要那样部署旧版本。
+**Mitigation** (when an immediate upgrade is not possible): the route is bound only to `127.0.0.1`
+by default, so the risk comes mainly from (a) other users/processes on the same machine and (b)
+cross-site requests from the user's own browser. Exposing dsh on a LAN or behind a reverse proxy
+significantly amplifies the impact, so do not deploy the old version that way.
 
-修复前后的完整实测（含 401/403 对照）见
-[`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) 第 2 节与 [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) 第 9 节。
+For the full measurements before and after the fix (including the 401/403 comparison), see
+[`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) section 2 and
+[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) section 9.
 
-## 设计上的边界
+## Design Boundaries
 
-- 本插件**不引入**任何网络出站请求，也不读凭据。
-- 设置页只能写 preset 目录下的两个文件（`prompt.md`、`agent.cordis.yml`）与 `preset.yml`；
-  写入前会校验提示词的插值变量，避免把一个手误升级成"该模式每个请求都失败"。
-- `composition.mjs` 会对出厂组合里的 `!!js` 平台表达式求值（`new Function`）。它求值的是
-  **本机已安装的组合文件**——那份文件本来就会被 DSH 当 Cordis 插件执行，因此这不引入新的信任面；
-  但如果你从别处拿了一份组合文件放进 preset 目录，请按代码看待它。
+- This plugin **introduces no** outbound network requests and reads no credentials.
+- The settings page can write only the two files in the preset directory (`prompt.md`,
+  `agent.cordis.yml`) and `preset.yml`; before writing it validates the prompt's interpolation
+  variables, avoiding the promotion of a typo into "every request in that mode fails".
+- `composition.mjs` evaluates the `!!js` platform expressions in the factory composition
+  (`new Function`). What it evaluates is the **composition file already installed on this
+  machine** — DSH would execute that file as a Cordis plugin anyway, so this introduces no new
+  trust surface; but if a composition file is taken from elsewhere and placed in the preset
+  directory, treat it as code.

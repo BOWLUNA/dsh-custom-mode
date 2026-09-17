@@ -1,17 +1,19 @@
-# 发布与分发
+# Publishing and Distribution
 
-这个项目有**两个产物**，分发方式不同（原因见 [`ARCHITECTURE.md`](ARCHITECTURE.md)）：
+English | [中文](PUBLISHING.zh.md)
 
-| 产物 | 类型 | 分发方式 |
+This project has **two artifacts**, distributed in different ways (for the reasons, see [`ARCHITECTURE.md`](ARCHITECTURE.md)):
+
+| Artifact | Type | Distribution |
 |---|---|---|
-| `preset/` | agent preset（**文件目录**） | 复制到 `$DSH_HOME/.agent-presets/<id>/` |
-| `editor/` | profile bundle 插件（**npm 包**） | `dsh plugin --profile <p> add <包名或路径>` |
+| `preset/` | agent preset (**a file directory**) | copy into `$DSH_HOME/.agent-presets/<id>/` |
+| `editor/` | profile bundle plugin (**an npm package**) | `dsh plugin --profile <p> add <package name or path>` |
 
-agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` 是从磁盘目录发现的。
+An agent preset is **not** an npm package, so do not expect `npm install` to install it — `dsh` discovers it from a directory on disk.
 
-## 方案一：GitHub 仓库（最省事，推荐先用这个）
+## Option one: a GitHub repository (the least effort; recommended to start with)
 
-别人：
+Others:
 
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode
@@ -19,32 +21,32 @@ cd dsh-custom-mode
 ./install.sh
 ```
 
-脚本会复制 preset 并调用 `dsh plugin add ./editor`（本地路径安装，pnpm 会 link）。
+The script copies the preset and calls `dsh plugin add ./editor` (a local-path install, which pnpm will link).
 
-## 方案二：editor 也发到 npm
+## Option two: publish editor to npm as well
 
-preset 仍然走 clone（它不是 npm 包），editor 单独发 npm。**已发布**：
-`dsh-custom-mode@0.1.6-alpha.1`（2026-09-17，tag `alpha`）。
+The preset still goes through clone (it is not an npm package), while editor is published to npm separately. **Already published**:
+`dsh-custom-mode@0.1.6-alpha.1` (2026-09-17, tag `alpha`).
 
 ```sh
 cd editor
-npm login --auth-type=web          # 首次：浏览器登录
-npm publish --tag alpha            # 显式给 --tag，原因见下
+npm login --auth-type=web          # first time: browser login
+npm publish --tag alpha            # give --tag explicitly, for the reason below
 ```
 
-### 发布前的自查清单
+### Pre-publish self-check list
 
-- [x] 源码**随包提交**，安装时不需要构建脚本。
-      否则 pnpm 的 `allowBuilds` 会拦住用户（`dsh` 自己会提示，但体验很差）。
-- [x] `dsh.bundle.patch` 指向的补丁文件在 `files` 里没被漏掉（CI 里有一条对着真实 packlist 的断言）。
-- [x] `dsh.client.platform` 是 `"web"`。
-- [x] `exports["./client"]` 指向浏览器半。
-- [x] `private` 字段已删掉（发布前是 `true`，只用于本地开发）。
-- [x] `peerDependenciesMeta` 里把不适用的 peer 标成 `optional`，否则用户装完第一眼是一条 WARN。
+- [x] The source is **shipped with the package**, so installing needs no build script.
+      Otherwise pnpm's `allowBuilds` will block users (`dsh` itself will prompt, but the experience is poor).
+- [x] The patch file that `dsh.bundle.patch` points to is not missing from `files` (CI has an assertion against the real packlist).
+- [x] `dsh.client.platform` is `"web"`.
+- [x] `exports["./client"]` points to the browser half.
+- [x] The `private` field has been deleted (it was `true` before publishing and was only for local development).
+- [x] Peers that do not apply are marked `optional` in `peerDependenciesMeta`, otherwise the first thing a user sees after installing is a WARN.
 
-`files` 白名单已经写好了，而且这件事**不能靠肉眼核对**——最容易踩的坑是"少打了文件"，
-而那要等到有人装完才发现。CI（`.github/workflows/test.yml`）里有一条对着真实 packlist 的断言，
-本地也可以随时跑同一件事：
+The `files` allowlist is already written, and this is something that **cannot be checked by eye** — the easiest trap to fall into is "a file was left out",
+and that only surfaces after someone installs it. CI (`.github/workflows/test.yml`) has an assertion against the real packlist,
+and the same thing can be run locally at any time:
 
 ```sh
 cd editor
@@ -57,74 +59,74 @@ npm pack --dry-run --json | node -e '
 '
 ```
 
-当前应输出（`locales.mjs` 是文档里那份"单一事实来源"，随包发出以免读者找不到它）：
+The current expected output (`locales.mjs` is the "single source of truth" copy from the documentation, shipped with the package so that readers can find it):
 
 ```
 client.js, composition.mjs, cordis.patch.yml, index.mjs, locales.mjs, meta.mjs, package.json, paths.mjs
 ```
 
-### 三个实测出来的坑
+### Three pitfalls found by actual testing
 
-**1）`publishConfig.tag` 不被采纳，必须显式 `--tag`。**
+**1) `publishConfig.tag` is not honored; `--tag` must be given explicitly.**
 
-`editor/package.json` 里声明了 `"publishConfig": { "access": "public", "tag": "alpha" }`，
-但 npm 11.19.0 的 `npm publish --dry-run` 仍然打印 `with tag latest`；只有命令行显式加
-`--tag alpha` 才变成 `with tag alpha`。所以**别赌 publishConfig 被读到**。
+`editor/package.json` declares `"publishConfig": { "access": "public", "tag": "alpha" }`,
+but npm 11.19.0's `npm publish --dry-run` still prints `with tag latest`; only explicitly adding
+`--tag alpha` on the command line turns it into `with tag alpha`. So **do not gamble on publishConfig being read**.
 
-**2）首次发布时，`latest` 还是被指到了预发布版。**
+**2) On the first publish, `latest` was still pointed at the prerelease.**
 
-实测结果：`npm view dsh-custom-mode dist-tags` →
+Measured result: `npm view dsh-custom-mode dist-tags` →
 
 ```json
 { "alpha": "0.1.6-alpha.1", "latest": "0.1.6-alpha.1" }
 ```
 
-即"预发布不该占用 `latest`"这条惯例在这里没保住（首次发布时 registry 会给它补上 `latest`）。
-本项目接受这个状态，理由是**版本号策略决定了每一个版本都是预发布**——版本号跟随 DSH 的
-alpha/rc，不存在一个"稳定的替代版本"可供 `latest` 指向。所以：
+That is, the convention that "a prerelease should not occupy `latest`" did not hold here (on the first publish the registry fills in `latest` for it).
+This project accepts that state, on the grounds that **the versioning policy dictates that every version is a prerelease** — version numbers follow DSH's
+alpha/rc, and there is no "stable alternative version" for `latest` to point at. Therefore:
 
-- `dsh plugin --profile web add dsh-custom-mode` 直接可用（装到当前版本）；
-- 想钉死版本就写全 `dsh-custom-mode@0.1.6-alpha.1`；
-- 等哪天 DSH 发正式版、本插件跟着换成正式版本号时，`latest` 的语义才真正开始有意义。
+- `dsh plugin --profile web add dsh-custom-mode` works directly (installing the current version);
+- to pin an exact version, write the full `dsh-custom-mode@0.1.6-alpha.1`;
+- once DSH ships a stable release and this plugin follows it with a stable version number, the semantics of `latest` will only then start to be meaningful.
 
-**3）peer 依赖要标 `optional`，否则用户装完第一眼就是一条警告。**
+**3) Peer dependencies must be marked `optional`, otherwise the first thing a user sees after installing is a warning.**
 
-我们**不** import `@deepseek-ai/dsh`（设置页只用平台注入的服务与 node 内建），声明它只是为了
-表达"适配哪个宿主"。不标 optional 时，从 registry 装会打印：
+This project does **not** import `@deepseek-ai/dsh` (the settings page only uses services injected by the platform and node built-ins); declaring it serves only to
+express "which host this adapts to". Without the optional marking, installing from the registry prints:
 
 ```
 [WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
 ```
 
-`editor/package.json` 里因此补了：
+So `editor/package.json` was given:
 
 ```json
 "peerDependenciesMeta": { "@deepseek-ai/dsh": { "optional": true } }
 ```
 
-> 这条修正在仓库里，但**没有**随 `0.1.6-alpha.1` 一起发出去（那个版本已经占用）。为一个元数据
-> 警告去 `npm unpublish` 不划算：整包撤销会让包名被锁 24 小时。它会随下一个版本（即官方 DSH
-> 更迭后）一起生效。
+> This fix is in the repository, but it was **not** shipped with `0.1.6-alpha.1` (that version is already occupied). Running `npm unpublish` for one metadata
+> warning is not worth it: unpublishing the whole package locks the package name for 24 hours. It will take effect with the next version (that is, after the official DSH
+> update).
 
-### 与"版本号只跟随 DSH"的张力
+### The tension with "version numbers follow DSH only"
 
-npm 要求每次发布的版本号唯一，而本项目的版本号只跟随 DSH。两者相遇时：
+npm requires the version number of every publish to be unique, while this project's version numbers follow DSH only. When the two meet:
 
-- **元数据/文档级别的小修正**：攒着，随下一个版本一起发（本项目选择这条）；
-- **必须立刻修的问题**（例如安全）：可以临时用 `0.1.6-alpha.1.1` 这类 npm 语义化后缀，
-  但要在 `CHANGELOG.md` 里写明原因，并在下一次 DSH 更迭时回归标准版本号；
-- **同一个版本号不能重发**：`npm publish` 会拒绝 `EPUBLISHCONFLICT`。
+- **Small metadata/documentation-level fixes**: save them up and ship them with the next version (this project chooses this path);
+- **Problems that must be fixed immediately** (for example security): a temporary npm semver suffix such as `0.1.6-alpha.1.1` may be used,
+  but the reason must be stated in `CHANGELOG.md`, and the version number must return to the standard one at the next DSH update;
+- **The same version number cannot be republished**: `npm publish` will reject it with `EPUBLISHCONFLICT`.
 
 ### 2FA
 
-账号若开了 auth-and-writes，网页登录拿到的 token **不能**发布，会返回：
+If the account has auth-and-writes enabled, the token obtained by browser login **cannot** publish, and returns:
 
 ```
 403 Two-factor authentication or granular access token with bypass 2fa enabled is required to publish packages.
 ```
 
-两条路：`npm publish --otp=123456`（30 秒一换），或建一个勾了 "bypass 2FA" 的 granular access
-token 并在临时 userconfig 里用它（不发到 `~/.npmrc`，用完即撤）：
+Two ways out: `npm publish --otp=123456` (changes every 30 seconds), or create a granular access
+token with "bypass 2FA" checked and use it in a temporary userconfig (do not write it to `~/.npmrc`; revoke it after use):
 
 ```sh
 umask 077
@@ -133,23 +135,23 @@ npm publish --userconfig /tmp/npmrc-publish --tag alpha
 rm -f /tmp/npmrc-publish
 ```
 
-### 发布后怎么验证（别只看"发布成功"）
+### How to verify after publishing (do not just look at "published successfully")
 
 ```sh
 npm view dsh-custom-mode dist-tags versions
 
-# 在一次性 DSH_HOME 里从 registry 真装一次，确认拿到的是真包而不是软链
+# really install once from the registry in a throwaway DSH_HOME, to confirm that it is a real package and not a symlink
 H=$(mktemp -d); DSH_HOME=$H dsh plugin --profile web add dsh-custom-mode
 node -p "JSON.stringify(require('$H/profiles/web/package.json').dependencies)"
-ls -la "$H/profiles/web/node_modules/dsh-custom-mode"      # 应是目录，不是箭头
+ls -la "$H/profiles/web/node_modules/dsh-custom-mode"      # should be a directory, not an arrow
 DSH_HOME=$H dsh --profile web --dump-config | grep -A1 'id: custom-mode'
 ```
 
-### 三条硬经验（踩过坑，务必遵守）
+### Three hard-won lessons (learned the hard way; be sure to follow them)
 
-**1. 不要钉死 peerDependencies 的精确版本。**
+**1. Do not pin exact versions in peerDependencies.**
 
-社区插件 `dsh-session-prompt` 写了：
+The community plugin `dsh-session-prompt` wrote:
 
 ```json
 "peerDependencies": {
@@ -157,81 +159,81 @@ DSH_HOME=$H dsh --profile web --dump-config | grep -A1 'id: custom-mode'
 }
 ```
 
-结果它在 dsh `0.1.6-alpha.1` 上加载失败——因为它 import 的
-`installSettingsSection` / `settingsNamespace` 在新宿主里**已经不存在**了。而它是
-bundle 层，宿主半 import 失败会让 **boot 挂掉**，不是只坏一个功能。
+As a result it failed to load on dsh `0.1.6-alpha.1` — because the
+`installSettingsSection` / `settingsNamespace` it imports **no longer exist** in the new host. And since it is a
+bundle layer, a failed import in the host half makes **boot fail**, not merely one broken feature.
 
-建议做法：**peer 依赖写宽松范围**，或者干脆不声明你没真正使用的包。
-本项目就**完全不依赖** `dsh-settings`。
+Recommended practice: **write a loose range for peer dependencies**, or simply do not declare packages you do not actually use.
+This project **does not depend on** `dsh-settings` at all.
 
-**2. 不要用 `workspace:^`。**
+**2. Do not use `workspace:^`.**
 
-那是 monorepo 内部写法，发布出去的包里无法解析。社区插件 Armory 就用了它，
-只能靠 `npx` 安装器在安装时现场改写声明——徒增脆弱性。
+That is an internal monorepo notation and cannot be resolved in a published package. The community plugin Armory used it,
+and could only rely on an `npx` installer rewriting the declaration on the spot at install time — adding fragility for nothing.
 
-**3. 不要用 `[data-slot]` 之类的 DOM 锚点做挂载。**
+**3. Do not use DOM anchors such as `[data-slot]` for mounting.**
 
-那是赌产品内部 DOM 不变。用**声明的插槽**（本项目用 `settings.section`）。
+That is a gamble that the product's internal DOM never changes. Use **declared slots** (this project uses `settings.section`).
 
-## 让别人更容易装：可选的一键安装器
+## Making it easier for others to install: an optional one-click installer
 
-如果以后想要 `npx dsh-custom-mode` 这种体验，做一个 `cli.cjs`：
+If an experience like `npx dsh-custom-mode` is wanted later, write a `cli.cjs` that:
 
-1. 定位 `$DSH_HOME`；
-2. 把 `preset/` 复制到 `.agent-presets/custom/`；
-3. 跑 `dsh plugin --profile <p> add <包名>`；
-4. 检查 profile 的 `dsh.profile.bundles` 是否含该包，缺了补上；
-5. **提供卸载**（`npx ... uninstall`），并且卸载时要清理 bundles 列表。
+1. locates `$DSH_HOME`;
+2. copies `preset/` into `.agent-presets/custom/`;
+3. runs `dsh plugin --profile <p> add <package name>`;
+4. checks whether the profile's `dsh.profile.bundles` contains that package, and adds it if missing;
+5. **provides uninstall** (`npx ... uninstall`), and cleans up the bundles list when uninstalling.
 
-第 5 点很重要：改了用户的 profile 却不给卸载路径，是很不礼貌的行为。
+Point 5 matters: changing a user's profile without giving them an uninstall path is very impolite behavior.
 
-## 版本兼容性怎么声明
+## How to declare version compatibility
 
-在 README 里写清**在哪个版本上验证过**，比写一个假的 semver 范围诚实得多。本项目：
+Stating clearly in the README **which version it was verified on** is far more honest than writing a fake semver range. For this project:
 
-> 在 dsh `0.1.6-alpha.1` 上开发并验证。
+> Developed and verified on dsh `0.1.6-alpha.1`.
 
-同时列出**用到了哪些 API**，这样升级 dsh 时别人能自己判断是否还兼容：
+Also list **which APIs are used**, so that when dsh is upgraded others can judge for themselves whether it is still compatible:
 
-- `ctx.systemPrompt.section()` / `PromptSection.text` 支持函数
+- `ctx.systemPrompt.section()` / `PromptSection.text` supports functions
 - `ctx.tools.register(definition)`
 - `ctx.webServer.register({ kind, path, handler })`
-- 客户端种子模块表里的 `react`
+- `react` in the client seed module table
 
-## 修改 client.js 之后
+## After modifying client.js
 
-改 `editor/client.js` **不需要重启，也不需要刷新页面**：`dsh-client-hmr` 每 ~500ms stat 轮询
-bundle 文件，约 1 秒后把插件原地换掉（实测证据见 [`ARCHITECTURE.md`](ARCHITECTURE.md) §10）。
+Changing `editor/client.js` **needs neither a restart nor a page refresh**: `dsh-client-hmr` stats and polls the
+bundle file every ~500ms, and replaces the plugin in place after about 1 second (for the measured evidence, see [`ARCHITECTURE.md`](ARCHITECTURE.md) §10).
 
-只有改**宿主半**（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）才需要重启 ——
-它们是主进程里的行，只在启动装配期进入组合树。
+Only changes to the **host half** (`index.mjs`, `composition.mjs`, `meta.mjs`, `paths.mjs`) need a restart —
+they are rows in the main process and only enter the composition tree during startup assembly.
 
-> 这里曾写「改完 client.js 必须重启，刷新页面不够」，那是错的，跟 ARCHITECTURE §10 的实测
-> 结论直接矛盾。以 §10 为准。
+> This once said "after changing client.js you must restart; refreshing the page is not enough", which is wrong and directly contradicts the measured
+> conclusion in ARCHITECTURE §10. §10 is authoritative.
 
-## GitHub 仓库本身的装修
+## Decorating the GitHub repository itself
 
-代码之外，仓库页面上还有几处是别人第一眼会看的。这些只能在网页或 API 上设置，值先记在这里：
+Beyond the code, there are a few places on the repository page that others look at first. These can only be set on the web or via the API, so the values are recorded here:
 
 **About → Description**
 
 ```
-DSH 自定义模式：系统提示词变成可热改的文件，逐行控制插件挂载，模式可改名
+DSH custom mode: the system prompt becomes a hot-editable file, control plugin mounting line by line, modes can be renamed
 ```
 
-**About → Topics**（小写、连字符，每个不超过 50 字符）
+**About → Topics** (lowercase, hyphens, each no more than 50 characters)
 
 ```
 dsh  deepseek-harness  agent-preset  system-prompt  cordis  plugin  prompt-engineering
 ```
 
-**About → 勾选 Issues**，并把本仓库 **Pin** 到个人主页（第一个公开项目值得钉住）。
-Wikis / Discussions 用不上就别开——空着的入口只会让人觉得项目烂尾。
+**About → tick Issues**, and **Pin** this repository to the personal profile (the first public project is worth pinning).
+If Wikis / Discussions are of no use, do not enable them — empty entry points only make a project look abandoned.
 
-**Social preview**：用 `docs/images/01-mode-switch.png`（Settings → Social preview 上传）。
-默认的灰底卡片在分享链接时很难看。
+**Social preview**: use `docs/images/01-mode-switch.png` (Settings → Social preview upload).
+The default gray-background card looks bad when sharing a link.
 
-**Release**：`v0.1.6-alpha.1`（tag 名与插件版本一致，理由见 README「版本号跟随官方」）。
+**Release**: `v0.1.6-alpha.1` (the tag name matches the plugin version; for the reason see README "version numbers follow the official one").
 
 ```sh
 git checkout main && git merge --ff-only review/2026-09-fixes
@@ -239,6 +241,6 @@ git tag -a v0.1.6-alpha.1 -m "dsh-custom-mode 0.1.6-alpha.1"
 git push && git push --tags
 ```
 
-Release 正文直接用 [`CHANGELOG.md`](../CHANGELOG.md) 里对应那一节，**并勾选 "Set as a pre-release"**
-（这是个 alpha 版本）。如果这一版包含安全修复，正文里要**明确写出受影响版本与缓解方式**，
-而不是只写"修复了一些问题"——从 `SECURITY.md` 里复制那段即可。
+For the Release body, use the corresponding section of [`CHANGELOG.md`](../CHANGELOG.md) directly, **and tick "Set as a pre-release"**
+(this is an alpha version). If this release contains security fixes, the body must **state explicitly the affected versions and the mitigation**,
+rather than only writing "fixed some issues" — copying that paragraph from `SECURITY.md` is enough.

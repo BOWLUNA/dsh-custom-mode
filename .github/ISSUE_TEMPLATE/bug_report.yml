@@ -1,22 +1,24 @@
-name: Bug 报告
-description: 装上之后哪里不对（起不来、页面不出现、模式不见了、开了关不了……）
+name: Bug report
+description: Something is wrong after installing (dsh will not start, the page never appears, the mode is missing, a switch does nothing…)
 title: '[bug] '
 labels: ['bug']
 body:
   - type: markdown
     attributes:
       value: |
-        先花一分钟看 [`docs/TROUBLESHOOTING.md`](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md)：
-        那里记的都是**实测复现过**的失败，装完 dsh 起不来、页面不出现、模式从选择器消失、保存被拒等
-        都已有现成答案和自救命令。
+        Spend a minute on [`docs/TROUBLESHOOTING.md`](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md)
+        first: it documents the failures that were actually reproduced — a dsh that will not start after
+        installing, a settings page that never appears, a mode missing from the picker, a rejected save —
+        each with a cause and a way out.
 
-        本插件的失败模式大多**静默**（不报错、只是不生效），所以下面几项信息几乎决定了能不能定位问题。
+        Most failures here are **silent** (no error, the change just does not take effect), so the
+        details below are what decides whether the report can be diagnosed at all.
 
   - type: input
     id: dsh-version
     attributes:
-      label: DSH 版本
-      description: '`dsh --version` 的输出'
+      label: DSH version
+      description: 'the output of `dsh --version`'
       placeholder: 0.1.6-alpha.1
     validations:
       required: true
@@ -24,39 +26,39 @@ body:
   - type: input
     id: plugin-version
     attributes:
-      label: 本插件版本 / commit
-      description: '`editor/package.json` 的 version，或 `git rev-parse --short HEAD`'
-      placeholder: 0.1.6-alpha.1 / 0f05a31
+      label: Plugin version / commit
+      description: 'the `version` in `editor/package.json`, or `git rev-parse --short HEAD`'
+      placeholder: 0.1.6-alpha.1 / ec34aa6
     validations:
       required: true
 
   - type: dropdown
     id: profile
     attributes:
-      label: 用的是哪个 profile
+      label: Which profile
       options:
         - web
         - tui
-        - 其他（在「现象」里说明）
+        - other (explain under "What happens")
     validations:
       required: true
 
   - type: textarea
     id: symptom
     attributes:
-      label: 现象
-      description: 看到什么、期望什么。有报错原文就直接贴。
+      label: What happens
+      description: What you see, and what you expected. Paste error text verbatim if there is any.
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: 复现步骤
+      label: Steps to reproduce
       placeholder: |
         1. ./install.sh
-        2. 重启 dsh
-        3. 打开 设置 → 自定义模式
+        2. restart dsh
+        3. open Settings → 自定义模式
         4. …
     validations:
       required: true
@@ -64,10 +66,10 @@ body:
   - type: textarea
     id: dump-config
     attributes:
-      label: 组合树自检输出
+      label: Composition self-check
       description: |
-        这一条能区分「装上了但没生效」和「根本没装上」，也是判断基础 bundle 是否丢失的直接证据。
-        正常应有**上百行**。
+        This is what separates "installed but inert" from "not installed at all", and it is the direct
+        evidence for whether the base bundles are still present. Expect **hundreds** of lines.
       render: shell
       value: |
         $ dsh --profile web --dump-config | wc -l
@@ -78,10 +80,11 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: 启动日志 / 浏览器 Console
+      label: Startup log / browser console
       description: |
-        宿主半的诊断都以 `custom-mode:` 开头；浏览器 Console 里的报错同样以它开头
-        （这一页的失败策略是「宁可整页不出现，也绝不把页面搞崩」，所以它只会往 Console 说话）。
+        Host-half diagnostics all start with `custom-mode:`; browser-side errors do too. This page's
+        failure policy is "rather not appear at all than take the page down", so it only speaks to the
+        console.
       render: shell
     validations:
       required: false
@@ -89,7 +92,7 @@ body:
   - type: input
     id: os
     attributes:
-      label: 操作系统
+      label: Operating system
       placeholder: Ubuntu 24.04 / WSL2 / macOS 15 / Windows 11
     validations:
       required: true

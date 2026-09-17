@@ -1,61 +1,73 @@
 # AGENTS.md
 
-给在这个仓库里工作的编码智能体的说明。人看的版本见 [`CONTRIBUTING.md`](CONTRIBUTING.md)。
+Instructions for coding agents working in this repository. The human-facing version is
+[`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-## 这是什么
+## What this is
 
-给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的「自定义模式」。
-它刻意是**两个产物**，因为能挂载它们的平面不同（原因见 `docs/ARCHITECTURE.md` §1）：
+A custom mode for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh). It is
+deliberately **two artifacts**, because they are mounted on different planes (see
+`docs/ARCHITECTURE.md` §1):
 
-| 产物 | 是什么 | 装在哪 |
+| Artifact | What it is | Where it goes |
 | --- | --- | --- |
-| `preset/` | agent preset（**文件目录**，不是 npm 包） | `$DSH_HOME/.agent-presets/custom/` |
-| `editor/` | 设置页插件（npm 包 + profile bundle） | `dsh plugin --profile web add ./editor` |
+| `preset/` | an agent preset (**a directory of files**, not an npm package) | `$DSH_HOME/.agent-presets/custom/` |
+| `editor/` | the settings-page plugin (npm package + profile bundle) | `dsh plugin --profile web add ./editor` |
 
-## 常用命令
+## Commands
 
 ```sh
-node test/run.mjs                                  # 七个套件 301 项；自己解析出厂 preset 目录
-node tools/verify-translation-pairing.mjs          # 双语配对一致性（CI 跑的就是它）
-bash -n install.sh && bash -n uninstall.sh         # 两个脚本的语法
+node test/run.mjs                                  # 7 suites, 301 checks; resolves the shipped presets itself
+node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
+bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
-# 对着真实 harness 试：一定用一次性 DSH_HOME，别碰在用的那份
+# Against a real harness: always use a throwaway DSH_HOME, never the one in use
 DSH_HOME=/tmp/dsh-dev ./install.sh
 DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open
-DSH_HOME=/tmp/dsh-dev dsh --profile web --dump-config | wc -l      # 上百行 = 健康
+DSH_HOME=/tmp/dsh-dev dsh --profile web --dump-config | wc -l      # hundreds of lines = healthy
 
-# 截图（真的会点、会保存、会切主题与语言），见 tools/screenshots/README.md
+# Screenshots (it really clicks, saves, and switches theme and language), see tools/screenshots/README.md
 DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?token=…" docs/images
 ```
 
-## 不能破坏的东西
+## What must not break
 
-1. **未触碰的行逐字节不变**（保留 `!!js` 平台条件与出厂 `disabled`）。`composition.mjs` 做的是
-   文本手术，不是 YAML 往返 —— 别把它"简化"成解析再序列化。
-2. **开关是三态**：未触碰 / 显式开 / 显式关。`undefined` 与 `false` 是两件事。
-3. **设置页路由必须先过 `ctx.connection.requestRejection(req)`**，且该服务缺失时**失败关闭**。
-   裸 `webServer` 注册在平台信任栅栏之外（实测：未授权可读走提示词、可改写 `prompt.md`）。
-4. **等服务的写法属于作用域化 `ctx.inject(deps, cb)`**，不能写进行级 `inject`：否则没有
-   `webServer` 的 profile（如 tui）会打印与"安装损坏"一字不差的 `pending` 警告。
-5. **两份 `{{…}}` 校验同步**（`editor/index.mjs` ↔ `preset/prompt-tool.mjs`），有测试比对判定。
-6. **`client.js` 的词典与 `locales.mjs` 同步**，有测试抽取比对。
-7. **`preset/prompt.md` 与 `preset/preset.yml` 是用户数据。** 测试要写到临时目录
-   （`DSH_CUSTOM_PROMPT_PATH`，或把模块复制到临时目录再 import）。
-8. **版本号只跟随 DSH**：小改动不提版本，只有官方发新版并重新适配才换。
+1. **Untouched rows stay byte-identical** (keeping `!!js` platform conditions and shipped `disabled`
+   state). `composition.mjs` does text surgery, not a YAML round-trip — do not "simplify" it into
+   parse-and-reserialise.
+2. **The switch is tri-state**: untouched / explicitly on / explicitly off. `undefined` and `false`
+   are two different things.
+3. **The settings route must run `ctx.connection.requestRejection(req)` first**, and must fail
+   **closed** when that service is missing. A route registered on the raw `webServer` table is
+   outside the platform's browser-trust fence (measured: the prompt could be read and `prompt.md`
+   rewritten without authentication).
+4. **Waiting for services belongs in a scoped `ctx.inject(deps, cb)`**, never in the row's own
+   `inject`: otherwise a profile without a web server (tui) prints the same `pending` warning a
+   broken installation does.
+5. **The two copies of the `{{…}}` validator stay in step** (`editor/index.mjs` ↔
+   `preset/prompt-tool.mjs`); a test compares their verdicts.
+6. **The dictionary in `client.js` stays in step with `locales.mjs`**; a test extracts both and diffs them.
+7. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
+   (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
+8. **The version number follows dsh only**: small changes do not bump it; it changes when upstream
+   releases a new version and this plugin is re-adapted.
 
-## 已知的坑（都实测过）
+## Known traps (all measured)
 
-- `agent-presets` **只存在于 web 组合**；tui/headless 里没有，所以那里「自定义模式」选不到。
-- `dsh --profile headless` 明确拒绝运行带 preset 的会话（`the one-shot runner does not compose`），
-  端到端验证只能走 web 实例。
-- `agent-presets.default` 在组合里写死为 `standard`，`settings.yaml` 的同名键是**运行时覆盖**。
-- pnpm 可能把插件软链留在 `node_modules`（`uninstall.sh` 已专门清理）。
-- WSL 下若 PATH 里是 Windows 版 pnpm，`dsh plugin add` 会以 `current dir is an absolute path with
-  drive letter` panic；用 Linux 版（`corepack enable pnpm`）。
+- `agent-presets` exists **only in the web profile composition**; tui and headless do not have it, so
+  the custom mode cannot even be selected there.
+- `dsh --profile headless` refuses to run a session that uses an agent preset
+  (`the one-shot runner does not compose`), so end-to-end verification has to go through a web instance.
+- `agent-presets.default` is hard-coded to `standard` in the composition; the same key in
+  `settings.yaml` is a **runtime override**. They are not the same thing.
+- pnpm can leave the plugin symlink behind in `node_modules` (`uninstall.sh` cleans it up).
+- Under WSL, if the `pnpm` on PATH is the Windows build, `dsh plugin add` panics with
+  `current dir is an absolute path with drive letter`; use the Linux build (`corepack enable pnpm`).
 
-## 判断"做完没有"
+## Knowing when you are done
 
-- 改代码：`node test/run.mjs` 全绿；改了文档：`node tools/verify-translation-pairing.mjs` 通过
-  （两侧都要改，然后 `--write` 重新记录）。
-- 改行为：在一次性 `DSH_HOME` 里真跑一遍，并把观察到的输出写进 `docs/MEASUREMENTS.md` ——
-  这个仓库的传统是**结论带命令与原始输出**，不是"应该没问题"。
+- Code: `node test/run.mjs` is green. Docs: `node tools/verify-translation-pairing.mjs` passes
+  (both sides of a pair must be edited, then re-recorded with `--write`).
+- Behaviour: run it for real under a throwaway `DSH_HOME` and write the observed output into
+  `docs/MEASUREMENTS.md` — this repository's convention is that a conclusion comes with the command
+  and its raw output, not with "should be fine".

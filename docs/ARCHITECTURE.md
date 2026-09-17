@@ -1,80 +1,80 @@
-# 架构与踩坑记录
+# Architecture and Pitfalls
 
-这份文档记录的是**实测结论**，不是设计偏好。每条都对应一次运行时验证，写下来是因为它们决定了这个项目为什么长成现在这样。
+This document records **measured conclusions**, not design preferences. Each entry corresponds to one runtime verification; they are written down because they determine why this project looks the way it does.
 
-## 1. 为什么设置页必须拆成独立插件，不能写成 preset 的一行
+## 1. Why the settings page must be split into a standalone plugin and cannot be written as one row of a preset
 
-这是整个项目最重要的一条约束。
+This is the single most important constraint in the whole project.
 
-一个 agent preset 的组成文件（`agent.cordis.yml`）里，**可以**写一行引用自带模块：
+In an agent preset's composition file (`agent.cordis.yml`), a row **may** reference a bundled module:
 
 ```yaml
 - id: persona
   name: './prompt-reader.mjs'
 ```
 
-因为 preset 的相对路径按 preset 目录解析（`dsh-agent-presets` 的 `classifyRowSpecifier` 把 `./x` 归为 `preset` 类型，用 `Include` 重写过 baseUrl 的子树来 import）。
+That works because a preset's relative paths are resolved against the preset directory (`dsh-agent-presets`'s `classifyRowSpecifier` classifies `./x` as the `preset` type, and imports it through the `Include` subtree whose baseUrl has been rewritten).
 
-**但浏览器半不行。** web 客户端的模块扫描器（`@deepseek-ai/dsh-client-modules`）：
+**But the browser half does not.** The web client's module scanner (`@deepseek-ai/dsh-client-modules`):
 
-- 在**启动装配期**运行 —— 构造函数里 `for (const entry of ctx.loader.entries()) this.dirty.add(entry.options.name)`；
-- 只读**根 loader 的条目**；
-- 命中失败会 `throw new ClientPackageCompositionError`，**整个 boot 失败**。
+- runs during **startup assembly** — in its constructor, `for (const entry of ctx.loader.entries()) this.dirty.add(entry.options.name)`;
+- reads only the **root loader's entries**;
+- on a miss it does `throw new ClientPackageCompositionError`, and **the entire boot fails**.
 
-而 agent preset 的行是由 `dsh-agent-presets` 通过 `Include` 子树的 `PresetTree`、**按会话作用域在运行时挂载**的，**不在根 loader 里**。
+Meanwhile, an agent preset's rows are mounted by `dsh-agent-presets` through the `Include` subtree's `PresetTree`, **scoped per session at runtime**, and are **not in the root loader**.
 
-实测数据（在真实运行中查的）：
+Measured data (queried in a real run):
 
 ```
 root loader entries:      161
-client graph entries:      56   ← 其中没有 preset 的行
+client graph entries:      56   ← none of them are preset rows
 ```
 
-所以写在 preset 里的浏览器半**永远不会被发现**，只会变成死代码。能挂载浏览器半的平面只有**根平面**（profile）。
+So a browser half written inside a preset is **never discovered** and only becomes dead code. The only plane that can mount a browser half is the **root plane** (the profile).
 
-**结论**：拆成两个产物 —— preset（文件）+ 设置页插件（profile bundle）。
+**Conclusion**: split into two artifacts — a preset (files) + a settings-page plugin (profile bundle).
 
-## 2. bundle 插件怎么被装配
+## 2. How a bundle plugin gets assembled
 
-设置页插件是一个 **bundle**：`package.json` 声明 `dsh.bundle.patch`，profile 的 `dsh.profile.bundles` 列出它。
+The settings-page plugin is a **bundle**: `package.json` declares `dsh.bundle.patch`, and the profile's `dsh.profile.bundles` lists it.
 
-组合顺序（`composeProfile`）：
+Composition order (`composeProfile`):
 
 ```
 bundlePatches → profile.cordis.patch.yml → $DSH_HOME/cordis.patch.yml → --patch overlays
 ```
 
-两个易错点：
+Two easy-to-get-wrong points:
 
-- **bundle 补丁用 `- insert:` 新增行**，而 **profile 自己的 `cordis.patch.yml` 只能替换已存在的行**（新增会报 `entry not found`）。第一版我把新行写在 profile 补丁里，直接被拒。
-- 包解析先试 `INSTALL_ANCHOR`（dsh 安装目录），失败后**回退到 profile 目录**：
+- **A bundle patch adds rows with `- insert:`**, whereas **the profile's own `cordis.patch.yml` can only replace rows that already exist** (adding one reports `entry not found`). In the first version the new rows were written into the profile patch and were rejected outright.
+- Package resolution first tries `INSTALL_ANCHOR` (the dsh install directory), and on failure **falls back to the profile directory**:
 
 ```js
 for (const anchor of [installAnchor, join(profileDir, "package.json")]) { … }
 ```
 
-所以 `dsh plugin --profile <p> add ./editor` 装进 profile 的包能被解析到，不需要装进 dsh 安装目录。
+So a package installed into the profile by `dsh plugin --profile <p> add ./editor` can be resolved, without needing to be installed into the dsh install directory.
 
-## 3. `dsh.client.inject` 必须声明（这个 bug 让页面一开始没出现）
+## 3. `dsh.client.inject` must be declared (this bug kept the page from appearing at first)
 
-浏览器半要读服务：
+The browser half needs to read a service:
 
 ```js
 const slots = ctx.get("slots")
 ```
 
-**只这样写不行。** 客户端注册表会守卫服务读取，官方每个 settings 插件都额外导出：
+**That alone does not work.** The client registry guards service reads, and every official settings plugin additionally exports:
 
 ```js
 exports.apply = apply
 exports.inject = inject     // inject = ["slots"]
 ```
 
-症状很隐蔽：客户端图里**有条目、有正确的 rev、bundle 也被服务**，但页面就是不出现——因为 `apply` 被守卫拒绝，注册从未发生。加上 `exports.inject` 后立即正常。
+The symptom is subtle: the client graph **has an entry, with the correct rev, and the bundle is served**, yet the page simply never appears — because `apply` was rejected by the guard and registration never happened. Adding `exports.inject` fixed it immediately.
 
-## 4. 浏览器半的手写 bundle
+## 4. The browser half's hand-written bundle
 
-本包的 `client.js` 是**手写**的，不是构建产物。格式：
+This package's `client.js` is **hand-written**, not a build artifact. Format:
 
 ```js
 window.__ModuleLoader__.load({
@@ -82,7 +82,7 @@ window.__ModuleLoader__.load({
   factory: (require) => {
     var module = { exports: {} }
     var exports = module.exports
-    const react = require("react")       // ← 从「种子模块表」解析
+    const react = require("react")       // ← resolved from the "seed module table"
     function apply(ctx) { … }
     exports.apply = apply
     exports.inject = ["slots"]
@@ -91,7 +91,7 @@ window.__ModuleLoader__.load({
 })
 ```
 
-种子模块表由 web 前端提供，0.1.6 里包含：
+The seed module table is provided by the web frontend; in 0.1.6 it contains:
 
 ```
 react, react/jsx-runtime, react-dom, react-dom/client,
@@ -100,198 +100,198 @@ react, react/jsx-runtime, react-dom, react-dom/client,
 @deepseek-ai/dsh-client-ui-dockkit
 ```
 
-所以 `require("react")` 可以工作，**不需要打包器、不需要安装依赖**。
+So `require("react")` works, **with no bundler and no installed dependencies needed**.
 
-整个 `load()` 调用外面包了 `try/catch`，避免这个包把页面搞崩——最坏情况只是这一页不出现。
+The whole `load()` call is wrapped in `try/catch`, so this package cannot crash the page — the worst case is that this one page does not appear.
 
-## 5. 与宿主通信：私有 HTTP 路由
+## 5. Talking to the host: a private HTTP route
 
-浏览器半边没有 `host.call`（那是动态 Cordis 包的专用通道），静态加载的插件走的是 `ctx.remote.<namespace>`——那需要宿主注册 Remote 命名空间和类型化契约，重且易错。
+The browser half has no `host.call` (that is the channel reserved for dynamic Cordis packages); a statically loaded plugin goes through `ctx.remote.<namespace>` — which requires the host to register a Remote namespace and a typed contract, and is heavy and error-prone.
 
-本项目改用**一条私有 HTTP 路由**：
+This project instead uses **one private HTTP route**:
 
-- 宿主半 `ctx.webServer.register({ kind: "exact", path: "/custom-mode", handler })`
-- 浏览器半 `fetch("/custom-mode", { method: "GET" | "POST" })`
+- host half: `ctx.webServer.register({ kind: "exact", path: "/custom-mode", handler })`
+- browser half: `fetch("/custom-mode", { method: "GET" | "POST" })`
 
-优点：完全自包含，不占用任何 Cordis 服务名，不可能和别人冲突；也不需要理解 Remote 生成机制。
+Advantages: fully self-contained, it occupies no Cordis service name and cannot collide with anyone else, and there is no need to understand the Remote generation mechanism.
 
-### 5.1 但裸路由**不在**平台的浏览器信任栅栏里（实测，已修）
+### 5.1 But a bare route is **not** inside the platform's browser trust fence (measured, since fixed)
 
-上面这个写法有个当时没意识到的后果。`ctx.webServer` 是**裸 HTTP 表**；平台的
-Host/Origin 栅栏 + 浏览器鉴权是 `@deepseek-ai/dsh-client-connection` 挂在**它自己挂载的
-channel**（`/`、`/api`…）上的，直接在 `webServer` 上注册的路由**不经过**它。
+The approach above had a consequence that was not realized at the time. `ctx.webServer` is a **bare HTTP table**; the platform's
+Host/Origin fence plus browser authentication are attached by `@deepseek-ai/dsh-client-connection` to the
+channel **it mounts itself** (`/`, `/api`…), and a route registered directly on `webServer` **does not pass through** it.
 
-实测（0.1.6-alpha.1，本插件修复前）：
+Measured (0.1.6-alpha.1, before this plugin was fixed):
 
 ```sh
-# 未授权 GET：把整份系统提示词交出去
+# Unauthorized GET: hands over the entire system prompt
 curl http://127.0.0.1:3081/custom-mode
 → 200 {"ok":true,...,"prompt":"You are a coding agent powered by ..."}
 
-# 未授权 POST：直接改写 prompt.md
+# Unauthorized POST: rewrites prompt.md directly
 curl -X POST http://127.0.0.1:3081/custom-mode \
      -H 'content-type: text/plain' --data '{"mode":"standard","overrides":{},"prompt":"PWNED"}'
-→ 200 {"ok":true,...}         # 文件真的被改了
+→ 200 {"ok":true,...}         # the file really was modified
 
-# 同一台机器上，官方路由的表现
+# The official routes on the same machine, for comparison
 curl http://127.0.0.1:3081/                → 401
 curl http://127.0.0.1:3081/api/settings    → 401
 ```
 
-`content-type: text/plain` 这一点让它不只是「本机进程能改」：**普通表单式跨站请求不需要预检**，
-所以用户访问的任意网页都能朝这个端口 POST，把 agent 的系统提示词改成攻击者想要的内容
-（响应读不到，但写入已经发生）。对一个手里有 Shell 与文件工具的 agent 来说，这是实打实的
-提示词注入通道。
+The `content-type: text/plain` part makes it more than "any local process can write": **an ordinary form-style cross-site request needs no preflight**,
+so any web page the user visits can POST to this port and change the agent's system prompt to whatever the attacker wants
+(the response cannot be read, but the write has already happened). For an agent holding Shell and file tools, this is a genuine
+prompt-injection channel.
 
-**修法**：把平台自己的裁决接到这条路由上 —— `ctx.connection.requestRejection(req)`
-（Host/Origin 栅栏 + 浏览器会话校验），和 `/api` 拿到的是同一个判定：
+**The fix**: wire the platform's own verdict into this route — `ctx.connection.requestRejection(req)`
+(the Host/Origin fence + browser session validation), which yields the same decision `/api` gets:
 
 ```js
 const rejection = ctx.get('connection').requestRejection(req)   // 403 / 401 / undefined
 if (rejection !== undefined) { res.writeHead(rejection); res.end(); return }
 ```
 
-修完的实测结果：
+Measured results after the fix:
 
 ```
-未授权 GET                              → 401 unauthorized
-未授权 POST (text/plain)                → 401，文件未被改写
+Unauthorized GET                        → 401 unauthorized
+Unauthorized POST (text/plain)          → 401, file not modified
 POST + Origin: https://evil.example
      + Sec-Fetch-Site: cross-site       → 403 forbidden
-带合法 dsh-auth-* cookie（浏览器会话）   → 200（功能照旧）
+With a valid dsh-auth-* cookie (browser session) → 200 (works as before)
 ```
 
-**两条可复用的结论**：
+**Two reusable conclusions**:
 
-- 插件在 `ctx.webServer` 上注册路由 = 自己负责安全。需要浏览器访问的，一律先过
-  `connection.requestRejection`；只给本机进程用的，也要意识到它是**任何**本机进程都能调的。
-- `connection` 服务在 bundle 行的 `apply()` 执行时**还没就绪**（实测：写进 `inject` 会让插件
-  停在 `pending`），所以要在**请求时**惰性取 `ctx.get('connection')`，并在取不到时**失败关闭**。
+- A plugin registering a route on `ctx.webServer` = it owns its own security. Anything that needs browser access must first pass
+  `connection.requestRejection`; for routes meant only for local processes, be aware that **any** local process can call them.
+- The `connection` service is **not ready yet** when a bundle row's `apply()` runs (measured: putting it in `inject` leaves the plugin
+  stuck at `pending`), so `ctx.get('connection')` must be fetched lazily **at request time**, and must **fail closed** when unavailable.
 
-## 6. 为什么不用 `dsh-settings` 的 API
+## 6. Why the `dsh-settings` API is not used
 
-社区插件 `dsh-session-prompt` 的宿主半是：
+The host half of the community plugin `dsh-session-prompt` is:
 
 ```js
 import { installSettingsSection, settingsNamespace } from "@deepseek-ai/dsh-settings";
 ```
 
-在 dsh `0.1.6-alpha.1` 上，`dsh-settings` 的**实际导出**只有：
+On dsh `0.1.6-alpha.1`, the **actual exports** of `dsh-settings` are only:
 
 ```
 SettingsConflictError, SettingsProvider, default, redactSecrets
 ```
 
-那两个函数**在整个 0.1.6 代码库里都不存在**。因为它是 bundle 层，宿主半 import 失败会让 boot 挂掉。
+Those two functions **do not exist anywhere in the 0.1.6 codebase**. Because this is the bundle layer, a failed import in the host half takes down the boot.
 
-本项目因此**完全不使用** `dsh-settings`：提示词存在普通文件里，设置页自己读写。
+This project therefore **does not use** `dsh-settings` at all: the prompt lives in an ordinary file, and the settings page reads and writes it itself.
 
-## 7. 校验 `{{…}}`：把一个本地错误变成模式级故障
+## 7. Validating `{{…}}`: turning a local error into a mode-level failure
 
-`@deepseek-ai/dsh-system-prompt` 的渲染规则：
+`@deepseek-ai/dsh-system-prompt`'s rendering rules:
 
 ```js
 const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
-// 完整 {{x}} 组：名字必须合法且已注册，否则 throw
-// 不闭合的单个 {{ ：视为字面量
+// a complete {{x}} group: the name must be valid and registered, otherwise throw
+// an unclosed single {{ : treated as a literal
 ```
 
-抛错的后果不是「这句不生效」，而是**该模式每个请求都失败**。所以两条写入路径都在落盘前校验，只放行 `model` / `cwd` / `provider`（`dsh-agent-loop` 注册的三个）。
+The consequence of throwing is not "this sentence has no effect" but **every request in that mode fails**. So both write paths validate before writing to disk, and only let through `model` / `cwd` / `provider` (the three registered by `dsh-agent-loop`).
 
-校验逻辑在 `preset/prompt-tool.mjs` 与 `editor/index.mjs` 里**各有一份**，是有意重复：这样 preset 不必依赖编辑器的安装位置，编辑器的路径也可配置。
+The validation logic exists as **one copy each** in `preset/prompt-tool.mjs` and `editor/index.mjs`, and the duplication is intentional: this way the preset does not have to depend on the editor's install location, and the editor's path stays configurable.
 
-## 8. 调试方法（下次改这个插件时有用）
+## 8. Debugging methods (useful next time this plugin is changed)
 
-- **确认行进了组合树**：`dsh --profile <p> --dump-config | grep <package>`
-- **确认客户端模块能被发现**：挂一个动态 Cordis 插件，`ctx.get('clientModules').graph().entries` 里找自己的包 id。有条目 = 组合成功；没有 = 发现环节失败。
-- **确认浏览器半真的跑了**：在 `apply` 里 `console.log`，看浏览器 Console。
-- **`ctx.loader.entries()` 只有根平面的条目**，别用它验证 preset 的行。
-- 改 `client.js` 内容后**不用重启**：HMR 会重建客户端图（见下方 §10）；只有改宿主半才需要重启。
+- **Confirm a row made it into the composition tree**: `dsh --profile <p> --dump-config | grep <package>`
+- **Confirm a client module can be discovered**: mount a dynamic Cordis plugin and look for your own package id in `ctx.get('clientModules').graph().entries`. An entry = composition succeeded; no entry = discovery failed.
+- **Confirm the browser half actually ran**: `console.log` inside `apply`, and watch the browser Console.
+- **`ctx.loader.entries()` contains only root-plane entries**, so do not use it to verify a preset's rows.
+- After changing the contents of `client.js`, **no restart is needed**: HMR rebuilds the client graph (see §10 below); only changes to the host half need a restart.
 
-## 9. 一句话总结
+## 9. One-sentence summary
 
-> preset 管**提示词内容**（每步重新求值），profile bundle 管**编辑界面**（启动装配期发现）。
-> 两者唯一的契约是**同一个文件路径**。
+> The preset manages **prompt content** (re-evaluated on every step); the profile bundle manages **the editing UI** (discovered during startup assembly).
+> The only contract between the two is **the same file path**.
 
-## 10. 客户端热重载实测可用（改界面不用重启）
+## 10. Client hot reload is measured to work (no restart needed to change the UI)
 
-`dsh-client-hmr` 的宿主半每 `pollIntervalMs`（默认 500ms）**stat 轮询**每个客户端插件的 bundle 文件；`mtimeMs`/`size` 一变就调用 `clientModules.rebuilt(id)` → 重建客户端图 → 通过 `/plugins/events` 的 SSE 推给页面 → 浏览器半 `reload(id, rev)`：
+`dsh-client-hmr`'s host half **stat-polls** every client plugin's bundle file every `pollIntervalMs` (500ms by default); as soon as `mtimeMs`/`size` changes it calls `clientModules.rebuilt(id)` → rebuilds the client graph → pushes it to the page over the `/plugins/events` SSE → the browser half does `reload(id, rev)`:
 
 ```
 modLoader.invalidate(id, rev)
 await modLoader.prefetch(id)
 await tearDownEntryFiber(entry)
-removeOwnedStyles(id)        // 删掉该插件自己的 <style data-plugin="<id>">
-await entry.refresh()        // 重新执行 bundle → 重新 apply
+removeOwnedStyles(id)        // remove that plugin's own <style data-plugin="<id>">
+await entry.refresh()        // re-execute the bundle → apply again
 ```
 
-**手写 bundle 同样适用**：不需要构建产物，只要 `dsh.client` + `exports["./client"]` 就位。实测证据（改文件后不刷新页面）：
+**The same applies to a hand-written bundle**: no build artifact is needed, only `dsh.client` + `exports["./client"]` in place. Measured evidence (changing the file without refreshing the page):
 
 ```
 graph rev    726f30aa8dd9 → 74bc149b2eca
 entry rev    345c0f1330e41a14-47 → 50e01f6dc101
-页面表现      紫色测试竖条自行消失，bundle 执行计数 1 → 2
+page behavior the purple test bar disappears on its own, bundle execution count 1 → 2
 ```
 
-两个可复用的结论：
+Two reusable conclusions:
 
-- **`/plugins/events` 返回 200 不能证明路由存在**——SPA 兜底也会 200。要看 `content-type`：真实的 SSE 路由返回 `text/event-stream`。用 `Accept: text/event-stream` 请求才能分辨。
-- **验证「浏览器那一跳」不需要 DevTools**：在 `apply()` 里对 `window` 上的计数器自增，并把它渲染到页面上。计数增长即证明 bundle 被重新执行；这是插件自杀式重启之外唯一能远程看到浏览器状态的办法。
+- **A 200 from `/plugins/events` does not prove the route exists** — the SPA fallback also returns 200. Look at `content-type`: a real SSE route returns `text/event-stream`. Only a request with `Accept: text/event-stream` can tell them apart.
+- **Verifying "the browser hop" does not need DevTools**: in `apply()`, increment a counter on `window` and render it onto the page. A growing count proves the bundle was re-executed; apart from the plugin suicidally restarting itself, this is the only way to see browser state remotely.
 
-### 开发循环因此改变
+### The development loop changes accordingly
 
-改 `editor/client.js` → **约 1 秒后页面自己更新**，不需要重启 `dsh web`，不需要刷新。只有改动**宿主半**（`index.mjs`/`composition.mjs`/`meta.mjs`）才需要重启——那是主进程里的行。
+Change `editor/client.js` → **the page updates by itself about 1 second later**, with no need to restart `dsh web` and no need to refresh. Only changes to the **host half** (`index.mjs`/`composition.mjs`/`meta.mjs`) need a restart — those are rows in the main process.
 
-## 11. 一个把我坑了很久的路径陷阱
+## 11. A path trap that cost a great deal of time
 
-`install.sh` 把编辑器包**链接到仓库目录**：
+`install.sh` **links the editor package to the repository directory**:
 
 ```
 profiles/web/node_modules/dsh-custom-mode -> <repo>/editor
 ```
 
-所以**仓库就是活跃代码**。曾经存在的 `$DSH_HOME/custom-mode/` 是早期布局的**陈旧副本**；往那里写文件不会有任何效果（客户端 bundle 的 `artifactBaseline` 报的是另一份的 size）。该目录已删除，避免继续误导。
+So **the repository is the live code**. The `$DSH_HOME/custom-mode/` that once existed was a **stale copy** of an earlier layout; writing files there has no effect whatsoever (the client bundle's `artifactBaseline` reports the size of the other copy). That directory has been deleted to avoid further misleading.
 
-排查这类问题的办法：读 `clientModules.artifactBaseline(id)`，它给出的 `path` 就是真正被监视/服务的那一份。
+The way to diagnose this class of problem: read `clientModules.artifactBaseline(id)`; the `path` it returns is the copy actually being watched/served.
 
-## 12. 行级 `inject` 会把整行卡死；要等服务的正确写法是作用域化的 `ctx.inject`
+## 12. A row-level `inject` deadlocks the whole row; the correct way to wait for a service is a scoped `ctx.inject`
 
-这条是实测撞出来的，教训比结论值钱。
+This one was hit in a real run, and the lesson is worth more than the conclusion.
 
-**起因**：`install.sh --help` 与两份 README 都写了 `--profile tui`，而设置页插件当时在包级导出
-`inject = ['webServer', 'agentPresets']`。tui 组合里这两个服务都不存在，于是每次启动 tui 都会打印：
+**The cause**: `install.sh --help` and both READMEs said `--profile tui`, while the settings-page plugin at the time exported
+`inject = ['webServer', 'agentPresets']` at package level. Neither service exists in the tui composition, so every tui startup printed:
 
 ```
 dsh: warning: 1 entry did not activate
 custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
 ```
 
-**为什么这不能接受**：这一行与 [§5.1] 里那个"装完 dsh 变砖"的报错**完全相同**。一个正常的
-"装错 profile"于是看起来和一次灾难性损坏没有区别 —— 这等于在教用户忽略唯一重要的那条警告。
+**Why this is unacceptable**: this line is **identical** to the "installing dsh bricks it" error in [§5.1]. A normal
+"wrong profile installed" then looks indistinguishable from catastrophic corruption — which amounts to teaching users to ignore the one warning that matters.
 
-**机制**：Cordis 的 `inject` 是**硬依赖**——名字在 `inject` 里，fiber 就一直等到它出现。没有
-"可选依赖"这个形态（`cordis/src/registry.ts` 里 `inject` 只有必填语义）。
+**The mechanism**: Cordis's `inject` is a **hard dependency** — if the name is in `inject`, the fiber waits until it appears. There is no
+"optional dependency" form (`inject` has only required semantics in `cordis/src/registry.ts`).
 
-**正确写法**：让整行正常激活，把"需要服务的那部分"放进一个作用域化的子 fiber：
+**The correct way**: let the whole row activate normally, and put "the part that needs the service" into a scoped child fiber:
 
 ```js
 export function apply(ctx) {
   ctx.inject(['webServer', 'agentPresets'], (scope) => {
-    // 只有两个服务都在时才会走到这里
+    // execution only reaches here when both services exist
     scope.effect(() => scope.webServer.register({ kind: 'exact', path: ROUTE_PATH, handler }), '…')
   })
 }
 ```
 
-`ctx.inject(deps, callback)` 就是 `ctx.plugin({ inject: deps, apply: callback })` 的语法糖
-（`registry.ts` 里 "Start a callback once the requested dependencies are available"），
-所以它是**同一个声明的动态形态**，而不是绕开依赖系统。
+`ctx.inject(deps, callback)` is just sugar for `ctx.plugin({ inject: deps, apply: callback })`
+("Start a callback once the requested dependencies are available" in `registry.ts`),
+so it is the **dynamic form of the same declaration**, not a way around the dependency system.
 
-**实测结果**：tui 有 TTY 启动也不再出现那行警告，web 里设置页照常（`401` 未授权 / `200` 带会话）。
+**Measured result**: tui startup with a TTY no longer prints that warning, and the settings page in web works as usual (`401` unauthorized / `200` with a session).
 
-**可复用的两条**：
+**Two reusable points**:
 
-- 插件只要有一半功能依赖某个服务，就别把那个服务写进行级 `inject` —— 否则那半边不适用时，
-  整行都会变成一条看起来像故障的警告。
-- 反过来，**绝不能**为了躲开 `pending` 就完全不声明依赖、在 `apply` 里 `ctx.get()` 猜服务在不在：
-  在 web 里 `apply` 可能先于 `webServer` 就绪，那样设置页会静默地不注册。等待要用 `ctx.inject`。
+- If only half of a plugin's functionality depends on some service, do not put that service in a row-level `inject` — otherwise, when that
+  half does not apply, the whole row becomes a warning that looks like a failure.
+- Conversely, **never** drop dependency declarations entirely and guess in `apply` with `ctx.get()` whether a service is present, just to avoid
+  `pending`: in web, `apply` may run before `webServer` is ready, in which case the settings page would silently fail to register. Use `ctx.inject` to wait.

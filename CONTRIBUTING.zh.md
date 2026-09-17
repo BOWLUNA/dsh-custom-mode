@@ -11,7 +11,7 @@ Node ES 模块。保持这样是设计的一部分，不是巧合。
 ## 提 issue 之前
 
 这里的大多数失败都是**静默**的 —— 模式就是不出现，或者保存了没生效。先看
-[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md)：里面记的都是真机上复现过的失败，每条都有
+[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.zh.md)：里面记的都是真机上复现过的失败，每条都有
 症状、原因和出路。然后请用 issue 模板，它要的那两项信息正好区分"装上了但没生效"和"根本没装上"。
 
 ## 不写代码也能帮上忙

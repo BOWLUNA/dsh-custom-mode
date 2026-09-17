@@ -1,86 +1,95 @@
-# 截图怎么来的
+# Screenshots
 
-`docs/images/` 里的 6 张图不是手拍的，也不是拼的：它们由本目录的脚本驱动一个**真实运行的
-dsh 实例**拍下来，同时把当时观察到的状态写进 [`observed.json`](observed.json)。
+All four images are captured by driving a **real running dsh instance** — none of them is hand-drawn
+or stitched together. The script also writes down the state it observed, into
+[`observed.json`](observed.json).
 
-这样做的理由很实际：手拍的截图会随 UI 改版过期，而没人知道它是什么时候、在哪个版本上拍的。
-有脚本就有一条可重跑、可核对的路径。
+That is the point: a hand-taken screenshot silently goes stale, and nobody can tell when or on which
+version it was taken. A script gives a path that can be re-run and checked.
 
-## 需要什么
+## What you need
 
-1. 一个装好本插件、正在运行的 dsh web 实例（`DSH_HOME` 随便，本机默认 `~/.dsh`）；
-2. 带 DevTools 端口启动的 Chrome/Chromium：
+1. A running dsh web instance with this plugin installed (`DSH_HOME` does not matter; the default
+   `~/.dsh` is fine).
+2. Chrome/Chromium started with a DevTools port:
 
    ```sh
    # Linux/macOS
    chrome --headless=new --remote-debugging-port=9222 --user-data-dir=/tmp/dsh-shots about:blank
-   # Windows（WSL 的 mirrored 网络模式下，WSL 里可以直接连 127.0.0.1:9222）
+   # Windows (under WSL with mirrored networking, WSL can reach 127.0.0.1:9222 directly)
    "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new \
      --remote-debugging-port=9222 --user-data-dir=C:\tmp\dsh-shots about:blank
    ```
 
-3. 运行实例的带 token URL（`dsh web` 启动时会在日志里打印）。
+3. The instance's token URL (`dsh web` prints it in its log when it starts).
 
-## 怎么跑
+## Running it
 
 ```sh
-# 推荐：包装脚本会先把 preset 还原成出厂状态（若设置了 DSH_HOME），再拍照
+# Recommended: the wrapper restores the preset to its shipped state first (when DSH_HOME is set)
 DSH_HOME=~/.dsh ./tools/screenshots/run-shots.sh "http://127.0.0.1:3080/?token=<token>" docs/images
 
-# 或者直接调拍照脚本（第二参是输出目录，默认 docs/images）
+# Or call the capture script directly (second argument is the output directory)
 node tools/screenshots/screenshots.mjs "http://127.0.0.1:3080/?token=<token>" docs/images
-CDP_PORT=9222 CDP_HOST=127.0.0.1 node tools/screenshots/screenshots.mjs ...   # 端口可覆盖
+CDP_PORT=9222 CDP_HOST=127.0.0.1 node tools/screenshots/screenshots.mjs ...   # port overrides
 ```
 
-脚本做的事（全部是真实交互，没有任何 DOM 注入式伪造）：
+What the script does — every step is a real interaction, nothing is faked by touching the DOM:
 
-1. 打开应用，通过**界面自己的控件**切到浅色主题；
-2. 进设置 →「自定义模式」，读取插件自己的 `GET /custom-mode` 并把结果打进日志；
-3. 拍 `01`、`02`；
-4. **真的**把「网页检索与抓取」那一行拨掉，再**真的**点保存，读回状态栏文案；
-5. 拍 `03`；
-6. 通过界面自己的语言控件切 English，确认导航项变成 `Custom mode`、小节标题全变英文，拍 `06`；
-7. 切回中文 + 深色，拍 `05`；
-8. 关闭设置面板，打开新建会话的模式选择器，确认列表里有「自定义模式」，拍 `04`；
-9. 把上面每一步观察到的值写进 `observed.json`。
+1. Opens the app and switches to the light theme **through the app's own control**.
+2. Opens Settings →「自定义模式」and reads the plugin's own `GET /custom-mode`, logging the result.
+3. Captures `01` and `02`.
+4. **Really** flips the「网页检索与抓取」row off and **really** clicks save, then reads the status line back.
+5. Captures `03`.
+6. Switches the UI to English through the app's language control and asserts the nav entry becomes
+   `Custom mode` and the section headings turn English.
+7. Switches to dark and asserts the theme change.
+8. Closes the panel, opens the new-session mode picker, confirms「自定义模式」is in the list, captures `04`.
+9. Writes every observed value into `observed.json`.
 
-要重复运行得到**同一套叙事**（"拨了一行 → 保存"），先把 preset 还原成出厂状态：
+To get the **same narrative** on a re-run ("toggled a row → saved"), restore the preset first:
 
 ```sh
 cp preset/agent.cordis.yml preset/preset.yml "$DSH_HOME/.agent-presets/custom/"
 cp preset/prompt.md "$DSH_HOME/.agent-presets/custom/prompt.md"
 ```
 
-## 图的尺寸约定
+## Image conventions
 
-四张 README 图都是 **800x800、PNG、scale 1**，因为：
+The four README images are **800x800, PNG, scale 1**, for three reasons:
 
-- **统一**：都裁到设置弹窗的大小（1440x900 视口下弹窗正好 800x800），README 里排列整齐，
-  不会出现"这张长那张宽"；
-- **小**：scale 1 而不是 2。GitHub 会把正文里的图缩到栏宽，2 倍图只是让体积翻两番。
-  实测：同样四张图从 ~750 KB 降到 ~223 KB，文字依然清楚（800 宽的图按原尺寸显示，不会被缩）；
-- **少**：只产出 README 真正要用的四张。深色与英文界面**仍然真的切换并断言**（观察值写进
-  `observed.json`），但不再各存一张图——那是重复画面，不值得让读者多下载几百 KB。
+- **Uniform**: each is cropped to the settings dialog, which is exactly 800x800 at a 1440x900
+  viewport, so the README grid lines up instead of mixing tall and wide images.
+- **Small**: scale 1 rather than 2. GitHub scales images down to the content column, so a 2x capture
+  only multiplies the file size — measured, the same four images went from ~750 KB to ~223 KB, and an
+  800px-wide image is displayed at its native size, so the text is if anything clearer.
+- **Few**: it captures only the four images the README uses. The dark theme and the English UI are
+  still switched to and asserted (the observations go into `observed.json`) but they are not saved as
+  separate pictures — that would be a duplicate screen, not worth several hundred KB of downloads.
 
-重跑时 `01`/`03` 是固定裁窗，应当得到同一张图；`02`/`04` 取决于滚动位置与下拉框几何，
-可能差一两个像素——叙事一致，像素不保证完全一致。
+On a re-run, `01`/`03` are fixed crops and should come out identical; `02`/`04` depend on scroll
+position and dropdown geometry and may differ by a pixel or two.
 
-## 另一张「不是界面截图」的图
+## The one image that is not a UI screenshot
 
-`live-hot-reload.mjs` 在真实会话里做一次「改提示词 → 下一步生效」的实验（两轮之间改后端那个
-`prompt.md`），并把最后那一屏截到你指定的路径。它**不产出仓库里的四张图**，那张会话截图也**不随
-仓库发布** —— 实验的命令与原始输出在 `docs/MEASUREMENTS.md` §0，够复现了。
+`live-hot-reload.mjs` runs the "edit the prompt → it takes effect on the next step" experiment against
+a real session (it rewrites the backend `prompt.md` between the two turns) and captures the final
+screen to a path of your choice. It does **not** produce the four repository images, and that session
+screenshot is **not shipped with the repository** — the commands and raw output are in
+`docs/MEASUREMENTS.md` §0, which is enough to reproduce it.
 
 ```sh
-node tools/screenshots/live-hot-reload.mjs "<带 token 的 URL>" "$DSH_HOME/.agent-presets/custom/prompt.md"
+node tools/screenshots/live-hot-reload.mjs "<token URL>" "$DSH_HOME/.agent-presets/custom/prompt.md"
 ```
 
-**注意它会花模型额度**（两个来回，实测约 17K token），并且会**覆盖那个 `prompt.md`** ——
-它先把文件设成带 `MARK-ONE` 的验证提示词，中途再改成 `MARK-TWO`。只在你自己的测试实例上跑。
+**It spends model quota** (two turns, about 17K tokens in practice) and it **overwrites that
+`prompt.md`**: it first writes a verification prompt containing `MARK-ONE`, then changes it to
+`MARK-TWO`. Run it only against your own test instance.
 
-## 为什么不用 Playwright
+## Why not Playwright
 
-本目录的 `cdp.mjs` 是一个约 300 行的手写 CDP 客户端（Node 24 自带 `WebSocket`，零依赖）。
-截图这件事只需要 goto / evaluate / 鼠标事件 / captureScreenshot 四个动作，为此装一个浏览器
-自动化框架（连同它自己下载的一份 Chromium）不值得。想用 Playwright 也完全可以，脚本里跟
-浏览器交互的部分是独立的。
+`cdp.mjs` in this directory is a ~300-line hand-written CDP client (Node 24 ships a global
+`WebSocket`, so it has no dependencies). Taking a screenshot needs four actions — goto, evaluate, a
+mouse event, captureScreenshot — and installing a browser-automation framework (plus its own
+downloaded Chromium) for that is not worth it. Playwright would work just as well; the part of the
+script that talks to the browser is self-contained.

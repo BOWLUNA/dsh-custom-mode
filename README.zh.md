@@ -73,11 +73,11 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 ## 文档
 
-- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) —— 在真机上复现过的失败，含症状、原因与自救方法。
-- [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) —— 每条结论背后的命令与原始输出。
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 为什么必须是两个产物，以及依赖了哪些宿主 API。
-- [`docs/PUBLISHING.md`](docs/PUBLISHING.md) —— npm 包的发布方式。
-- [`CHANGELOG.md`](CHANGELOG.md) · [`SECURITY.md`](SECURITY.md) · [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)
+- [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.zh.md) —— 在真机上复现过的失败，含症状、原因与自救方法。
+- [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.zh.md) —— 每条结论背后的命令与原始输出。
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.zh.md) —— 为什么必须是两个产物，以及依赖了哪些宿主 API。
+- [`docs/PUBLISHING.md`](docs/PUBLISHING.zh.md) —— npm 包的发布方式。
+- [`CHANGELOG.md`](CHANGELOG.zh.md) · [`SECURITY.md`](SECURITY.zh.md) · [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)
 
 ## 开发
 
@@ -85,7 +85,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 node test/run.mjs        # 7 个套件、301 项；自己解析出厂 preset 目录
 ```
 
-改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。
+改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。
 
 ## License
 

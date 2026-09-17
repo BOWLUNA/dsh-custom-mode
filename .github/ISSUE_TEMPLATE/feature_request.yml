@@ -1,33 +1,34 @@
-name: 功能建议
-description: 想要这个模式多点什么、少点什么
+name: Feature request
+description: Something this mode should do, or should stop doing
 title: '[feature] '
 labels: ['enhancement']
 body:
   - type: markdown
     attributes:
       value: |
-        这个插件深度依赖 DSH 的内部 API（README 里有一张「耦合点清单」），
-        所以请顺带说明你的需求是否只靠**现有 API** 就能做 —— 这能省掉一轮可行性来回。
+        This plugin leans on dsh-internal APIs (the README has a coupling-point table), so it helps to
+        say whether the request is doable with the **existing APIs** — that saves a round of
+        feasibility back-and-forth.
 
   - type: textarea
     id: need
     attributes:
-      label: 你想要什么
-      description: 用一两句话描述结果，不用先想实现。
+      label: What you want
+      description: Describe the outcome in a sentence or two; no need to design the implementation.
     validations:
       required: true
 
   - type: textarea
     id: why
     attributes:
-      label: 为什么现在做不到
-      description: 你现在是怎么绕的？绕不过去的地方在哪？
+      label: Why it is not possible today
+      description: How do you work around it now, and where does the workaround break down?
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: 你想过或试过的替代方案
+      label: Alternatives you considered or tried
     validations:
       required: false

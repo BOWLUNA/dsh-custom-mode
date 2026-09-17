@@ -23,6 +23,13 @@ const REPO = dirname(dirname(fileURLToPath(import.meta.url)))
 const PAIRS = [
   { record: 'README.i18n.yaml', files: ['README.md', 'README.zh.md'] },
   { record: 'CONTRIBUTING.i18n.yaml', files: ['CONTRIBUTING.md', 'CONTRIBUTING.zh.md'] },
+  { record: 'SECURITY.i18n.yaml', files: ['SECURITY.md', 'SECURITY.zh.md'] },
+  { record: 'CHANGELOG.i18n.yaml', files: ['CHANGELOG.md', 'CHANGELOG.zh.md'] },
+  { record: 'docs/ARCHITECTURE.i18n.yaml', files: ['docs/ARCHITECTURE.md', 'docs/ARCHITECTURE.zh.md'] },
+  { record: 'docs/TROUBLESHOOTING.i18n.yaml', files: ['docs/TROUBLESHOOTING.md', 'docs/TROUBLESHOOTING.zh.md'] },
+  { record: 'docs/MEASUREMENTS.i18n.yaml', files: ['docs/MEASUREMENTS.md', 'docs/MEASUREMENTS.zh.md'] },
+  { record: 'docs/PUBLISHING.i18n.yaml', files: ['docs/PUBLISHING.md', 'docs/PUBLISHING.zh.md'] },
+  { record: 'test/README.i18n.yaml', files: ['test/README.md', 'test/README.zh.md'] },
 ]
 
 /** git 的 blob 哈希：sha1("blob <len>\0" + content)。与 `git hash-object` 一致。 */

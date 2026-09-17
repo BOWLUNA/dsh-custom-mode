@@ -1,29 +1,31 @@
 <!--
-改动这个仓库时，最容易出的不是"写不出来"，而是"写出来了但静默改坏了别的东西"：
-未触碰的行丢了平台条件、分组开关打到子行上、两种语言只剩一种、
-改了一处文案忘了另一处副本、新增的行没有词典。
-下面的清单就是针对这些失败模式的。
+The easiest way to break this repository is not "failing to write something", it is writing something
+that silently breaks something else: an untouched row losing its platform condition, a group switch
+landing on a child row, one language updated and the other left behind, one copy of a string changed
+while its twin in another file stays stale, a new row added without a dictionary entry.
+The checklist below exists for exactly those failure modes.
 -->
 
-## 这个 PR 做了什么
+## What this PR does
 
-<!-- 一两句话。若修的是 bug，贴出复现命令与修复前后的输出。 -->
+<!-- One or two sentences. If it fixes a bug, paste the reproduction command and the before/after output. -->
 
-## 自查
+## Self-check
 
-- [ ] `node test/run.mjs` 七个套件全绿（63 + 26 + 15 + 37 + 45 + 50 + 65 = 301）
-- [ ] 改了 `editor/client.js` 的文案 → 同步改了 `editor/locales.mjs`（第 6 节会抓漂移）
-- [ ] 改了 `editor/index.mjs` 里那条私有路由 → 仍然先过 `ctx.connection.requestRejection(req)`，且取不到服务时**失败关闭**
-- [ ] 改了 `composition.mjs` 的文本手术 → 未触碰的行仍然逐字节保持出厂状态（含 `!!js` 条件与默认关闭行）
-- [ ] 新增了组合行 → `composition.mjs` 的 `ROW_META` 与 `locales.mjs` 的 `row.<id>.label` 都有对应项（缺了会显示裸 id）
-- [ ] 文档里没有互相矛盾的结论（例如"改 client.js 要不要重启"），没有过期路径
-- [ ] 截图若与界面不符 → 用 `tools/screenshots/` 重拍，不要手改文档里的图
+- [ ] `node test/run.mjs` is green across all 7 suites (63 + 26 + 15 + 37 + 45 + 50 + 65 = 301)
+- [ ] Changed a string in `editor/client.js` → also changed `editor/locales.mjs` (section 6 catches drift)
+- [ ] Changed the private route in `editor/index.mjs` → it still runs `ctx.connection.requestRejection(req)` first, and still fails **closed** when that service is missing
+- [ ] Changed the text surgery in `composition.mjs` → untouched rows are still byte-identical to the shipped ones (including `!!js` conditions and rows that ship disabled)
+- [ ] Added a composition row → `ROW_META` in `composition.mjs` and `row.<id>.label` in `locales.mjs` both cover it (otherwise the row renders as a bare id)
+- [ ] Documentation has no contradicting statements (for example whether editing `client.js` needs a restart) and no stale paths
+- [ ] Screenshots no longer match the UI → re-capture with `tools/screenshots/` instead of editing the images by hand
+- [ ] Both sides of every translation pair were updated, then `node tools/verify-translation-pairing.mjs --write`
 
-## 兼容性
+## Compatibility
 
-- [ ] 没有引入新的 DSH 内部 API；**如果引入了**，已加进 README 的「耦合点清单」（那条表的用处就是断裂时能逐个核对）
-- [ ] `editor/package.json` 的 `version` 仍与所适配的 DSH 版本一致
+- [ ] No new dsh-internal API is introduced; **if one is**, it was added to the coupling-point table in the README (that table exists so an upgrade can be checked off)
+- [ ] `editor/package.json`'s `version` still matches the dsh release this plugin is adapted to
 
-## 说明
+## Notes
 
-<!-- 需要 reviewer 特别注意的取舍、已知未覆盖的情况、后续想做的事。 -->
+<!-- Trade-offs a reviewer should know about, known gaps, and follow-ups. -->

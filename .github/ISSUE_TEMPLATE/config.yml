@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 先看故障排查（多数问题已有答案）
+  - name: Read the troubleshooting guide first (most problems are already answered)
     url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md
-    about: 装完 dsh 起不来、WSL 下 pnpm 报错、设置页不出现、模式从选择器消失、保存被拒——每条都有症状、原因与自救命令。
-  - name: 结论是怎么来的（实测记录）
+    about: A dsh that will not start after installing, pnpm failing under WSL, a settings page that never appears, a mode missing from the picker, a rejected save — each with symptoms, cause and a way out.
+  - name: Where the conclusions come from (measurement log)
     url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/MEASUREMENTS.md
-    about: 安装、安全、保存链路、热更新、双语的原始命令与输出，可以直接复跑核对。
+    about: The raw commands and output behind the install, security, save-path, hot-reload and i18n claims, ready to re-run.
+  - name: 中文文档
+    url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/README.zh.md
+    about: Every document in this repository also has a Chinese twin — README.zh.md, docs/ARCHITECTURE.zh.md, docs/TROUBLESHOOTING.zh.md, docs/MEASUREMENTS.zh.md, docs/PUBLISHING.zh.md.

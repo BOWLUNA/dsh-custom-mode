@@ -1,21 +1,22 @@
-# 截图
+# Screenshots
 
-四张图都由脚本驱动真实运行的实例拍摄，统一 **800x800、PNG**（每张 44–76 KB）：
+Four images, all captured by driving a real running instance, all **800x800 PNG** (44–76 KB each):
 
 ```
-01-mode-switch.png      设置 →「自定义模式」上段：模式名称 + 基础模式
-02-plugin-switches.png  插件开关：分组与子行的缩进、三态开关的徽标
-03-system-prompt.png    系统提示词文本框 + 保存栏
-04-preset-picker.png    新建会话的模式选择器，列表里有「自定义模式」
+01-mode-switch.png      Settings →「自定义模式」, upper part: mode name + base mode
+02-plugin-switches.png  Plugin switches: group and child indentation, tri-state badges
+03-system-prompt.png    The system prompt editor and the save bar
+04-preset-picker.png    The new-session mode picker, with「自定义模式」in the list
 ```
 
+How they are captured, what they need, and how to re-run them:
+[`../../tools/screenshots/README.md`](../../tools/screenshots/README.md). The
+[`observed.json`](../../tools/screenshots/observed.json) written next to the capture script records
+the state it verified (theme, language, what the save returned, the mode list), which is what makes
+these images evidence rather than decoration.
 
-拍摄方式、依赖与如何重跑见 [`../../tools/screenshots/README.md`](../../tools/screenshots/README.md)。
-同目录下的 [`observed.json`](../../tools/screenshots/observed.json) 是拍摄时脚本核对到的实际状态
-（主题、语言、保存返回、模式列表等），可以当作这些图确实来自真实运行实例的证据。
-
-README 引用这些文件名，**改名要同步改文档**：
+The READMEs reference these file names, so **renaming one means updating the docs**:
 
 ```markdown
-![基础模式与模式名称](docs/images/01-mode-switch.png)
+![Mode name and base mode](docs/images/01-mode-switch.png)
 ```

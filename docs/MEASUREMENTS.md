@@ -1,23 +1,25 @@
-# 实测记录
+# Measurement Log
 
-> 文件名用英文（`MEASUREMENTS.md`）是为了与 `docs/` 下其它文档一致；正文为中文。
+English | [中文](MEASUREMENTS.zh.md)
 
-这份文档记录**在真机上跑出来的结果**，不是设计说明。每条都给出命令与当时的输出，便于复跑核对。
-环境：dsh `0.1.6-alpha.1`、Node 24.21.0、WSL2（mirrored 网络模式）、全新 `DSH_HOME`
-（不碰开发机上正在用的那个实例）。
+> The file name is English (`MEASUREMENTS.md`) because this is the default document and it matches the other files under `docs/`; the Chinese twin is `MEASUREMENTS.zh.md`.
 
-复跑方式见每节的命令；`$REPO` 指本仓库，`$H` 指一个独立的 `DSH_HOME`。
+This document records **results obtained by running things on a real machine**, not design notes. Every entry gives the command and the output at the time, so it can be re-run and checked.
+Environment: dsh `0.1.6-alpha.1`, Node 24.21.0, WSL2 (mirrored networking mode), a fresh `DSH_HOME`
+(the instance in use on the development machine is not touched).
+
+For how to re-run, see the commands in each section; `$REPO` means this repository, `$H` means a separate `DSH_HOME`.
 
 ---
 
-## 0. 端到端：改提示词 → **下一步就生效**（真实会话，两个来回）
+## 0. End to end: edit the prompt → **it takes effect on the very next step** (real session, two turns)
 
-整个项目就立在这一句话上，而它此前只有"读取函数会被重新求值"的单元测试，没有"agent loop
-真的每一步都调它"的端到端证据。这一节补的就是它。
+The whole project rests on this one sentence, and until now it had only a unit test that "the read function is re-evaluated", with no
+end-to-end evidence that "the agent loop really calls it on every step". That is what this section supplies.
 
-**为什么要用「标记」而不是让它复述系统提示词**：直接要求模型复述系统提示词会被拒绝
-（实测：`我不能复述系统提示词的内容` —— 这是合理的安全行为，不是 bug）。所以改成在提示词里
-植入一条**格式规则**，看模型的实际行为是否跟着文件走：
+**Why a "marker" is used instead of asking the model to recite the system prompt**: asking the model directly to recite the system prompt is refused
+(measured: `我不能复述系统提示词的内容` —— this is reasonable safety behaviour, not a bug). So instead a **format rule** is
+planted in the prompt, and whether the model's actual behaviour follows the file is observed:
 
 ```
 【格式规则，每次回答都必须遵守】
@@ -26,10 +28,10 @@
 MARK-ONE
 ```
 
-**做法**：在真实运行的 web 实例里开一个会话，问一句 → 回答后**不重启、不刷新、不新建会话**，
-只把 `prompt.md` 里的 `MARK-ONE` 改成 `MARK-TWO`，再在**同一个会话**里问第二句。
+**Procedure**: open a session in a real running web instance and ask one question → after the answer, **without restarting, refreshing, or creating a new session**,
+change only `MARK-ONE` in `prompt.md` to `MARK-TWO`, then ask a second question **in the same session**.
 
-**实测结果**（同一个浏览器页面，同一个 session）：
+**Measured result** (same browser page, same session):
 
 ```
 第 1 轮：1+1 等于几？   →  MARK-ONE  2          （用量 8.1K tok）
@@ -37,30 +39,30 @@ MARK-ONE
 第 2 轮：2+2 等于几？   →  MARK-TWO  4          （用量 9.3K tok）
 ```
 
-判定：
+Verdict:
 
 ```json
 {
  "turn1_hasMarkOne": true,
  "turn2_hasMarkTwo": true,
  "turn2_stillOnlyMarkOne": false,
- "文件当前内容标记": "MARK-TWO"
+ "finalPromptMarker": "MARK-TWO"
 }
 ```
 
-也就是说：**编辑文件 → 下一步模型调用就用新文本**，成立；不需要重启，也不需要新建会话。
-（`prompt-reader.mjs` 的单元测试还证明了稳态下不会重复读盘：一个 `stat` 与尺寸比对。）
+In other words: **editing the file → the next model call uses the new text** holds; no restart is needed, and no new session is needed.
+(The unit tests for `prompt-reader.mjs` also prove that in the steady state the disk is not re-read repeatedly: one `stat` plus a size comparison.)
 
-两轮之间，界面里会出现一行「**系统提示词更新**」—— 那是 dsh 自己标的，说明它检测到系统提示词在会话中途变了。
+Between the two turns, a line "**系统提示词更新**" appears in the interface —— that is marked by dsh itself, showing that it detected the system prompt changing mid-session.
 
-驱动脚本的思路见下：先用 CDP 把工作区选好、把问题打进 composer，再轮询页面文本直到标记出现。
+The idea behind the driving script is given below: first use CDP to choose the workspace and type the question into the composer, then poll the page text until the marker appears.
 
-> **一条走不通的路，记下来省得再试**：`dsh --profile headless`（单轮 CLI）**不能**用来测这个。
-> 它明确拒绝运行带 agent preset 的会话，源码里写着：
-> `session "…" runs under agent preset "…", which the one-shot runner does not compose`。
-> 所以端到端只能用 web 实例跑。
+> **One path that does not work, noted here so it is not tried again**: `dsh --profile headless` (the one-shot CLI) **cannot** be used to test this.
+> It explicitly refuses to run a session with an agent preset, and the source says:
+> `session "…" runs under agent preset "…", which the one-shot runner does not compose`.
+> So end-to-end testing can only be done with a web instance.
 
-### 0.1 顺带验证：`agent-presets.default` 是运行时设置项，不是组合里的值
+### 0.1 Incidentally verified: `agent-presets.default` is a runtime setting, not a value in the composition
 
 ```sh
 DSH_HOME=$H dsh --profile web --dump-config | grep -A3 'id: agent-presets'
@@ -68,12 +70,12 @@ DSH_HOME=$H dsh --profile web --dump-config | grep -A3 'id: agent-presets'
 #     default: standard          ← 组合里写死的默认值
 ```
 
-而 `$H/settings.yaml` 里的 `agent-presets: { default: custom }` 会在运行时覆盖它（首页的模式
-选择器随即显示「自定义模式」）。这两处不是同一个东西，排查"为什么默认模式没变"时容易搞混。
+Whereas `agent-presets: { default: custom }` in `$H/settings.yaml` overrides it at runtime (the mode
+selector on the home page then shows "自定义模式"). These two places are not the same thing, and they are easy to confuse when investigating "why hasn't the default mode changed".
 
 ---
 
-## 1. 全新环境安装：会用旧版 `install.sh` 踩到的那个坑
+## 1. Installing into a fresh environment: the pitfall hit with an old `install.sh`
 
 ```sh
 rm -rf "$H" && mkdir -p "$H"
@@ -81,7 +83,7 @@ cp ~/.dsh/.credentials.yaml "$H/"          # 只要能启动就行，不涉及�
 DSH_HOME="$H" ./install.sh                  # ← 修复前的版本
 ```
 
-修复前输出：
+Output before the fix:
 
 ```
 ==> 2/2 安装设置页插件 "dsh-custom-mode" 到 profile "web"
@@ -90,9 +92,9 @@ DSH_HOME="$H" ./install.sh                  # ← 修复前的版本
 安装完成。          ← 退出码 0，用户看不出任何异常
 ```
 
-`$H/profiles/web/package.json` 的 bundles 从
-`["@deepseek-ai/dsh-base","@deepseek-ai/dsh-web-app"]` 变成 `["dsh-custom-mode"]`，
-于是：
+The bundles in `$H/profiles/web/package.json` go from
+`["@deepseek-ai/dsh-base","@deepseek-ai/dsh-web-app"]` to `["dsh-custom-mode"]`,
+and therefore:
 
 ```sh
 DSH_HOME="$H" dsh --profile web --dump-config
@@ -107,14 +109,14 @@ DSH_HOME="$H" dsh web --port 3081 --no-open
 # ↑ 服务永远等不到：没有界面、没有 agent
 ```
 
-**触发条件**（实测两种顺序）：
+**Trigger conditions** (two orders measured):
 
-| 顺序 | 结果 |
+| Order | Result |
 | --- | --- |
-| 全新 `DSH_HOME` → 直接 `./install.sh` | **踩中** |
-| 全新 `DSH_HOME` → 先启动过一次 `dsh web` → `./install.sh` | 不踩中：启动会把 harness 依赖填充进 `profiles/node_modules`，旧探测路径因此命中 |
+| Fresh `DSH_HOME` → `./install.sh` directly | **hit** |
+| Fresh `DSH_HOME` → start `dsh web` once first → `./install.sh` | not hit: starting populates the harness dependencies into `profiles/node_modules`, so the old detection path matches |
 
-修复后（`==> 3/3 安装后自检`）：
+After the fix (`==> 3/3 安装后自检`):
 
 ```
     安装前 bundles: []
@@ -123,7 +125,7 @@ DSH_HOME="$H" dsh web --port 3081 --no-open
     组合树 158 行，dsh-custom-mode 已就位
 ```
 
-护栏本身也验证过：手工把 profile 改成 bug 后的状态再跑，它以非 0 退出：
+The guard itself was verified as well: manually change the profile back to its post-bug state and run it, and it exits non-zero:
 
 ```
     自检失败: 组合树只有 1 行，基础 bundle 疑似丢失（正常应有上百行）。
@@ -134,9 +136,9 @@ DSH_HOME="$H" dsh web --port 3081 --no-open
 
 ---
 
-## 2. 设置页路由的未授权读写（安全）
+## 2. Unauthorized reads and writes on the settings-page route (security)
 
-修复前（实例跑在 3081）：
+Before the fix (the instance runs on 3081):
 
 ```sh
 curl http://127.0.0.1:3081/custom-mode
@@ -155,16 +157,16 @@ curl -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3081/api/settings
 # 401
 ```
 
-修复后：
+After the fix:
 
-| 请求 | 结果 |
+| Request | Result |
 | --- | --- |
-| 未授权 GET | `401 unauthorized` |
-| 未授权 POST（`text/plain`） | `401`，文件未被改写 |
+| Unauthorized GET | `401 unauthorized` |
+| Unauthorized POST (`text/plain`) | `401`, the file is not rewritten |
 | POST + `Origin: https://evil.example` + `Sec-Fetch-Site: cross-site` | `403 forbidden` |
-| 带合法 `dsh-auth-*` cookie（浏览器会话） | `200`，功能照旧 |
+| With a valid `dsh-auth-*` cookie (browser session) | `200`, functionality as before |
 
-复跑：
+Re-run:
 
 ```sh
 # 未授权
@@ -178,15 +180,15 @@ curl -s -b /tmp/cj -o /dev/null -w 'AUTH %{http_code}\n' "http://127.0.0.1:3081/
 
 ---
 
-## 3. 功能链路：拨开关 → 保存 → 磁盘上的实际结果
+## 3. Feature chain: toggle a switch → save → the actual result on disk
 
-在设置页把「网页检索与抓取」拨掉并点保存，页面状态栏返回：
+Toggle "网页检索与抓取" off on the settings page and click save, and the page status bar returns:
 
 ```
 已保存（基础模式：standard）。新建会话即生效，当前会话保持原配置。
 ```
 
-磁盘上（`$H/.agent-presets/custom/agent.cordis.yml`）：
+On disk (`$H/.agent-presets/custom/agent.cordis.yml`):
 
 ```yaml
 # 本文件由「自定义模式」设置页生成，请勿手工编辑——下次保存会覆盖。
@@ -202,19 +204,19 @@ curl -s -b /tmp/cj -o /dev/null -w 'AUTH %{http_code}\n' "http://127.0.0.1:3081/
   disabled: !!js process.platform === 'win32'
 ```
 
-两件事同时得到证明：显式开关生效；**未触碰的行保持出厂状态**（这是这个项目正确性的核心，
-也是 `composition.test.mjs` 那 63 项在防的东西）。
+Two things are proved at the same time: the explicit toggle takes effect; and **untouched rows keep their factory state** (this is the core of the project's correctness,
+and it is also what the 63 checks in `composition.test.mjs` guard against).
 
-页面另一处可以立刻看出平台表达式确实在宿主端求值：在 Linux 上，`Shell（pwsh）` 显示
-「已停用 / 跟随平台」，而 `Shell（bash）` 是「已启用 / 跟随平台」——两者在 YAML 里都带
-`!!js` 条件。
+Another place on the page shows immediately that the platform expressions really are evaluated on the host side: on Linux, `Shell（pwsh）` shows
+"已停用 / 跟随平台", while `Shell（bash）` shows "已启用 / 跟随平台" —— both carry a
+`!!js` condition in the YAML.
 
 ---
 
-## 4. 热更新契约：改文件 → 下一次求值就是新文本
+## 4. Hot-update contract: edit the file → the next evaluation is the new text
 
-真会话里的端到端演示需要模型调用；不依赖模型的等价证据是直接驱动 `prompt-reader.mjs`：
-按注册表的方式取出 persona section 的 `text` provider 并调用它。
+The end-to-end demonstration in a real session requires model calls; the equivalent evidence that does not depend on a model drives `prompt-reader.mjs` directly:
+fetch the persona section's `text` provider the way the registry does and call it.
 
 ```sh
 node test/prompt-reader.test.mjs
@@ -231,21 +233,21 @@ PASS  complete: true 时不再注册 suffix
 
 ---
 
-## 5. 双语与深浅色
+## 5. Bilingual and dark/light
 
-不是"看代码觉得应该没问题"，而是通过**界面自己的控件**切换后截图核对：
+Rather than "reading the code and thinking it should be fine", the controls **of the interface itself** were used to switch, and the result checked with screenshots:
 
-| 动作 | 观察到的结果 |
+| Action | Observed result |
 | --- | --- |
-| 语言 → English | 导航项自动变成 `Custom mode`；小节标题变成 `Mode name` / `Base mode` / `Plugin switches` / `System prompt` |
-| 外观 → 深色 | 整页跟随（含卡片、徽标、输入框），无硬编码色值 |
+| Language → English | The navigation item automatically becomes `Custom mode`; the section titles become `Mode name` / `Base mode` / `Plugin switches` / `System prompt` |
+| Appearance → Dark | The whole page follows (including cards, badges, input fields), with no hard-coded colour values |
 
-这两条现在不再各配一张图（重复画面不值得让读者多下载几百 KB）：切换是**真的做了**，
-断言与观察值写在 `tools/screenshots/observed.json` 里，拍摄脚本见 `tools/screenshots/`。
+These two no longer each come with an image (duplicate images are not worth making the reader download several hundred KB more): the switching was **really
+performed**, and the assertions and observed values are written in `tools/screenshots/observed.json`; the capture script is in `tools/screenshots/`.
 
 ---
 
-## 6. 测试与 CI
+## 6. Tests and CI
 
 ```sh
 node test/run.mjs
@@ -260,41 +262,41 @@ node test/run.mjs
 7 个套件全部通过
 ```
 
-解析链在两种布局下都验证过：
+The resolution chain was verified under both layouts:
 
-| 布局 | 命中的来源 |
+| Layout | Source matched |
 | --- | --- |
-| 本机装了 dsh | `$DSH_HOME/profiles/node_modules` |
-| 干净目录里 `npm install @deepseek-ai/dsh@0.1.6-alpha.1`（CI 的做法） | 从本文件做 Node 解析 |
+| dsh installed locally | `$DSH_HOME/profiles/node_modules` |
+| `npm install @deepseek-ai/dsh@0.1.6-alpha.1` in a clean directory (what CI does) | Node resolution from this file |
 
-CI 用 npm 上那份 dsh 自带的 presets，与本机逐字节相同（`diff -rq` 无差异），所以 CI 的结论是
-真结论，而不是拿自造 fixture 跑出来的。
+CI uses the presets shipped with the dsh on npm, which are byte-for-byte identical to the local ones (`diff -rq` reports no differences), so CI's conclusions are
+real conclusions, not ones produced by running against a self-made fixture.
 
 ---
 
-## 7. 装到非 web profile：哪些能用、哪些不能（实测）
+## 7. Installing into a non-web profile: what works and what does not (measured)
 
-`install.sh --help` 与两份 README 都写了 `--profile tui`，但**实测**要分清两个层次：
+`install.sh --help` and both READMEs mention `--profile tui`, but **measurement** requires distinguishing two levels:
 
-| profile | 组合里有没有 `agent-presets` | 组合里有没有 `webServer` | 结果 |
+| profile | whether the composition has `agent-presets` | whether the composition has `webServer` | Result |
 | --- | --- | --- | --- |
-| `web` | 有 | 有 | 模式可选 + 设置页可用（全功能） |
-| `tui` | **没有** | **没有** | 模式**无法被选中**；设置页也不存在 |
-| `headless` | 没有（且即使补上也会被拒绝，见 §0） | 没有 | 同上 |
+| `web` | yes | yes | mode selectable + settings page available (full functionality) |
+| `tui` | **no** | **no** | the mode **cannot be selected**; the settings page does not exist either |
+| `headless` | no (and it would still be refused even if added, see §0) | no | the same as above |
 
-`agent-presets` 只在 web 组合里出现（`dsh --profile web --dump-config | grep agent-presets` 有输出，
-tui/headless 都是 0 行），而「自定义模式」这个 preset 正是由它挂载的——**所以在 tui 里它不是"设置页
-看不到"，而是这个模式根本不存在**。
+`agent-presets` appears only in the web composition (`dsh --profile web --dump-config | grep agent-presets` has output,
+tui/headless are both 0 lines), and the "自定义模式" preset is exactly what it mounts —— **so in tui it is not that "the settings page
+cannot see it", but that the mode does not exist at all**.
 
-修复前，每次启动 tui 都会打印这一行（与 §1 那个"装完 dsh 变砖"的报错一模一样，纯误导）：
+Before the fix, every tui start printed this line (identical to the "installing dsh bricks it" error in §1, purely misleading):
 
 ```
 dsh: warning: 1 entry did not activate
 custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
 ```
 
-修复后不再 pending（插件改成作用域内等待服务），`install.sh` 也会**按 profile 分别说明**——
-这里刻意不写成"模式本身仍可用"，因为在 tui 上那句话不成立：
+After the fix it is no longer pending (the plugin was changed to wait for services within a scope), and `install.sh` also **explains each profile separately** ——
+deliberately not phrased as "the mode itself is still usable", because on tui that sentence does not hold:
 
 ```
     注意: profile "tui" 里这个插件只有一部分能生效。
@@ -306,12 +308,12 @@ custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPr
             ./install.sh --profile web
 ```
 
-web profile 上同一段自检不打印任何提示（实测出现次数 0），收尾说明也照常给出
-"新会话选「自定义模式」"。
+On the web profile the same self-check prints no hint at all (measured occurrence count 0), and the closing note is given as usual:
+"新会话选「自定义模式」".
 
 ---
 
-## 8. 卸载往返：`uninstall.sh` 曾留下一个软链
+## 8. Uninstall round trip: `uninstall.sh` used to leave a symlink behind
 
 ```sh
 DSH_HOME=$H ./install.sh >/dev/null          # 装上
@@ -321,11 +323,11 @@ ls "$H/profiles/web/node_modules" | grep custom
 # 修复后：（无输出）
 ```
 
-`package.json` 的 `dependencies` 与 `dsh.profile.bundles` 当时都已经清干净了，只有 pnpm 留下的
-软链还在（pnpm 12.4.2 上复现）。它不影响 dsh 装配（装配只看 bundles），但 uninstall 就该不留
-痕迹——尤其是随后删掉仓库时它会变成断链。现在只删这一个包名。
+At the time, `dependencies` in `package.json` and `dsh.profile.bundles` were both already cleaned up; only the
+symlink left by pnpm remained (reproduced on pnpm 12.4.2). It does not affect dsh assembly (assembly only looks at bundles), but uninstall should leave no
+trace —— especially since deleting the repository afterwards turns it into a broken link. Now only this one package name is deleted.
 
-卸载后的完整状态（实测）：
+The complete state after uninstall (measured):
 
 ```
 bundles:      ["@deepseek-ai/dsh-base","@deepseek-ai/dsh-web-app"]   ← 回到模板原样
@@ -334,5 +336,5 @@ preset 目录:  保留（提示词也保留，符合默认行为）
 组合树:       157 行（= 装上时的 158 行减去本插件那一行）
 ```
 
-另外验证了二次安装的幂等性：装上 → 手工改 `prompt.md` → 再装一次，脚本保留用户提示词，
-只更新模式文件（`检测到已存在的 prompt.md，保留它（只更新模式文件）`）。
+The idempotence of a second install was verified as well: install → manually edit `prompt.md` → install again; the script keeps the user prompt and
+only updates the mode file (`检测到已存在的 prompt.md，保留它（只更新模式文件）`).
