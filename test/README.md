@@ -1,13 +1,38 @@
 # 测试
 
 ```sh
-# 从仓库直接跑（出厂预设不在仓库里，需要指向已安装的 dsh）
-DSH_SHIPPED_PRESETS_DIR=/usr/lib/node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/dsh-agent-presets/presets \
-  node test/composition.test.mjs
+node test/run.mjs
 ```
 
-装进 profile 之后，`editor/composition.mjs` 能自己从 `dsh-agent-presets` 定位出厂预设，
-那时不需要环境变量。
+一个入口跑两个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
+`@deepseek-ai/dsh-agent-presets`）：
+
+```
+出厂 preset 目录: /…/dsh-agent-presets/presets
+（来源：$DSH_HOME/profiles/node_modules）
+──────── composition.test.mjs ────────
+… 结果: 63 通过, 0 失败
+──────── locales.test.mjs ────────
+… 结果: 65 通过, 0 失败
+```
+
+解析链有三条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析
+（CI 里 npm 装的 dsh 走这条）→ `$DSH_HOME/profiles/node_modules`（本机装了 dsh 走这条）。
+三条全断时它会打印**试过哪些路**，而不是丢一个 `ENOENT`。手工指定：
+
+```sh
+DSH_SHIPPED_PRESETS_DIR=/path/to/dsh-agent-presets/presets node test/run.mjs
+```
+
+也可以单独跑某一个：
+
+```sh
+node test/composition.test.mjs   # 需要上面那个目录能解析到
+node test/locales.test.mjs       # 不需要出厂 preset，纯词典/文案
+```
+
+CI（`.github/workflows/test.yml`）在每次 push 时 `npm install @deepseek-ai/dsh@<适配版本>`，
+再跑 `node test/run.mjs` —— 测的是**真实的出厂文本**，不是自造的 fixture。
 
 ## 这些测试在防什么
 
@@ -20,3 +45,8 @@ DSH_SHIPPED_PRESETS_DIR=/usr/lib/node_modules/@deepseek-ai/dsh/node_modules/@dee
 - **空区间必须返回空串**——否则每个分组首行前会多一个空行。
 
 历史上这五个 bug 都真实出现过，测试是在它们出现之后补的。
+
+`locales.test.mjs` 另外防一类**最难发现**的漂移：`editor/locales.mjs` 是文案的单一事实来源，
+但浏览器半不能 import 它（手写 bundle、没有打包器），所以 `client.js` 里是**手抄的一份副本**。
+它现在会从 `client.js` 里把两份字典抽出来跟 `locales.mjs` 逐条比对 —— 只改一边会在 CI 直接失败，
+而不是等某个语言的用户看到旧文案。
