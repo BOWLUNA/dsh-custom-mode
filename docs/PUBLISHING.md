@@ -14,8 +14,8 @@ agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` �
 别人：
 
 ```sh
-git clone https://github.com/<you>/dsh-editable-prompt
-cd dsh-editable-prompt
+git clone https://github.com/BOWLUNA/dsh-custom-mode
+cd dsh-custom-mode
 ./install.sh
 ```
 
@@ -33,7 +33,7 @@ npm publish --access public
 别人：
 
 ```sh
-dsh plugin --profile web add dsh-editable-prompt-editor
+dsh plugin --profile web add dsh-custom-prompt-editor
 ```
 
 前提是 editor 已发布且包名未被占用。
@@ -77,7 +77,7 @@ bundle 层，宿主半 import 失败会让 **boot 挂掉**，不是只坏一个�
 
 ## 让别人更容易装：可选的一键安装器
 
-如果以后想要 `npx dsh-editable-prompt` 这种体验，做一个 `cli.cjs`：
+如果以后想要 `npx dsh-custom-mode` 这种体验，做一个 `cli.cjs`：
 
 1. 定位 `$DSH_HOME`；
 2. 把 `preset/` 复制到 `.agent-presets/custom/`；

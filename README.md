@@ -1,4 +1,6 @@
-# dsh-editable-prompt
+# dsh-custom-mode
+
+中文说明 · [English](README.en.md)
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的「**自定义模式**」：一个能力等同标准模式的 agent 模式，**系统提示词是一个普通文件，可以在 Web 设置页里随时改、保存后下一步就生效**。
 
@@ -13,7 +15,7 @@ dsh 的系统提示词在 preset 的 `cordis.yml` 里写死，改它要编辑 YA
 ## 结构
 
 ```
-dsh-editable-prompt/
+dsh-custom-mode/
 ├── preset/                      # agent preset（文件产物，复制到 dsh home 即可）
 │   ├── agent.cordis.yml         # 标准模式全部行 + 替换后的 persona 行
 │   ├── preset.yml               # 显示名「自定义模式」
@@ -35,8 +37,8 @@ dsh-editable-prompt/
 ## 安装
 
 ```sh
-git clone https://github.com/<you>/dsh-editable-prompt
-cd dsh-editable-prompt
+git clone https://github.com/BOWLUNA/dsh-custom-mode
+cd dsh-custom-mode
 ./install.sh
 ```
 
