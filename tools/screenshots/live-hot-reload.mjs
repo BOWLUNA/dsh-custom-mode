@@ -106,9 +106,9 @@ console.log('--- 第 2 轮回答片段 ---')
 console.log(answer2 ?? '(没等到 MARK-TWO)')
 
 const outcome = {
-  第一轮_出现MARK_ONE: text1.includes('MARK-ONE'),
-  第二轮_出现MARK_TWO: text2.includes('MARK-TWO'),
-  第二轮_仍只有MARK_ONE: text2.includes('MARK-ONE') && !text2.includes('MARK-TWO'),
+  turn1_hasMarkOne: text1.includes('MARK-ONE'),
+  turn2_hasMarkTwo: text2.includes('MARK-TWO'),
+  turn2_stillOnlyMarkOne: text2.includes('MARK-ONE') && !text2.includes('MARK-TWO'),
   文件当前内容标记: readFileSync(promptPath, 'utf8').includes('MARK-TWO') ? 'MARK-TWO' : 'MARK-ONE',
 }
 console.log('\n=== 判定 ===')

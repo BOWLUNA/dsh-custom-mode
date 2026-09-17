@@ -26,12 +26,12 @@ One section is added to the settings panel — four pictures, one per page:
 
 Light/dark and both languages were verified the same way (official theme tokens and the `locale`
 service throughout) — they get no separate pictures; the captured observations are in
-[`docs/实测记录.md`](docs/实测记录.md) §5.
+[`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) §5.
 
 The core claim — edit the file, and it takes effect on the **next step** — has one screenshot from a
 real session: [`docs/images/05-hot-reload-in-session.png`](docs/images/05-hot-reload-in-session.png)
 (the "系统提示词更新" line between the two turns is dsh's own marker, not something we drew).
-Commands and raw output: [`docs/实测记录.md`](docs/实测记录.md) §0.
+Commands and raw output: [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) §0.
 
 ## The problem it solves
 
@@ -143,7 +143,7 @@ The compiler tests assert **properties, not bytes**: the shipped text changes be
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — the measured findings: why the settings page **cannot** be a row of the preset, why `dsh.client.inject` is required, why a route registered on the raw `webServer` table is **outside** the platform's browser-trust fence (with the measured 401/403 evidence), and how to verify the browser hop without DevTools.
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — failures reproduced on a real machine: a dsh that no longer boots after install, pnpm panicking under WSL, the settings page not appearing, the mode vanishing from the picker, rejected saves.
-- [`docs/实测记录.md`](docs/实测记录.md) — the commands and raw output behind each claim (install, security, the save path, hot reload, i18n, tests).
+- [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) — the commands and raw output behind each claim (install, security, the save path, hot reload, i18n, tests).
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) — how to publish, and three hard lessons from surveying the existing plugin ecosystem.
 - [`CHANGELOG.md`](CHANGELOG.md) — version history; [`SECURITY.md`](SECURITY.md) — known security issues and how to report one.
 

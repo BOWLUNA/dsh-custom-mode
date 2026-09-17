@@ -36,7 +36,7 @@ Host/Origin 栅栏与浏览器会话鉴权只作用在 Connection 服务挂载�
 之下会显著放大影响，请不要那样部署旧版本。
 
 修复前后的完整实测（含 401/403 对照）见
-[`docs/实测记录.md`](docs/实测记录.md) 第 2 节与 [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) 第 9 节。
+[`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) 第 2 节与 [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) 第 9 节。
 
 ## 设计上的边界
 

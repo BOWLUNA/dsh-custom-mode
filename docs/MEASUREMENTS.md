@@ -1,8 +1,10 @@
 # 实测记录
 
-这份文档记录**在真机上跑出来的结果**，不是设计说明。每条都给出命令与当时的输出，方便你（或
-以后的我）复跑核对。环境：dsh `0.1.6-alpha.1`、Node 24.21.0、WSL2（mirrored 网络模式）、
-全新 `DSH_HOME`（不碰开发机上正在用的那个实例）。
+> 文件名用英文（`MEASUREMENTS.md`）是为了与 `docs/` 下其它文档一致；正文为中文。
+
+这份文档记录**在真机上跑出来的结果**，不是设计说明。每条都给出命令与当时的输出，便于复跑核对。
+环境：dsh `0.1.6-alpha.1`、Node 24.21.0、WSL2（mirrored 网络模式）、全新 `DSH_HOME`
+（不碰开发机上正在用的那个实例）。
 
 复跑方式见每节的命令；`$REPO` 指本仓库，`$H` 指一个独立的 `DSH_HOME`。
 
@@ -39,9 +41,9 @@ MARK-ONE
 
 ```json
 {
- "第一轮_出现MARK_ONE": true,
- "第二轮_出现MARK_TWO": true,
- "第二轮_仍只有MARK_ONE": false,
+ "turn1_hasMarkOne": true,
+ "turn2_hasMarkTwo": true,
+ "turn2_stillOnlyMarkOne": false,
  "文件当前内容标记": "MARK-TWO"
 }
 ```
@@ -323,7 +325,7 @@ ls "$H/profiles/web/node_modules" | grep custom
 
 `package.json` 的 `dependencies` 与 `dsh.profile.bundles` 当时都已经清干净了，只有 pnpm 留下的
 软链还在（pnpm 12.4.2 上复现）。它不影响 dsh 装配（装配只看 bundles），但 uninstall 就该不留
-痕迹——尤其当你接着要删掉这个仓库时，它会变成断链。现在只删我们自己那一个包名。
+痕迹——尤其是随后删掉仓库时它会变成断链。现在只删这一个包名。
 
 卸载后的完整状态（实测）：
 

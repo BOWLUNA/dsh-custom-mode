@@ -27,6 +27,10 @@ asks for the two things that separate "installed but inert" from "not installed 
 
 ## Development loop
 
+Prerequisites: Node.js ≥ 20, `git`, and a `dsh` matching the version in
+`editor/package.json` (currently `0.1.6-alpha.1`; if it differs, check the README's coupling-point
+table first).
+
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode
 cd dsh-custom-mode
@@ -92,6 +96,6 @@ plugin is re-adapted. See the "Versioning" section of the README.
 
 - Plain JavaScript ES modules — no TypeScript, no bundler, no new dependencies.
 - Comments explain *why*, and measured facts beat opinions: if you write "this is how dsh behaves",
-  say how you checked. `docs/实测记录.md` is where that kind of evidence lives.
+  say how you checked. `docs/MEASUREMENTS.md` is where that kind of evidence lives.
 - Keep the tests' assertions precise. A loose regex that passes for the wrong reason is worse than no
   test — two of the tests in this repository were written wrong first and had to be fixed.

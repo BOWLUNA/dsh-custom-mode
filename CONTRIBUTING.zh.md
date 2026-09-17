@@ -24,6 +24,9 @@ Node ES 模块。保持这样是设计的一部分，不是巧合。
 
 ## 开发循环
 
+前提：Node.js ≥ 20、`git`，以及与 `editor/package.json` 同版本的 `dsh`
+（当前 `0.1.6-alpha.1`；版本不一致先看 README 的「耦合点清单」）。
+
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode
 cd dsh-custom-mode
@@ -81,6 +84,6 @@ node tools/verify-translation-pairing.mjs --write   # 两侧都跟上之后再�
 
 - 普通 JavaScript ES 模块 —— 不要 TypeScript、不要打包器、不要新增依赖。
 - 注释解释**为什么**；实测事实胜过意见：如果你写"dsh 的行为是这样"，请说明你是怎么验的。
-  这类证据放在 `docs/实测记录.md`。
+  这类证据放在 `docs/MEASUREMENTS.md`。
 - 测试断言要精确。一个因为错误原因而通过的宽松正则比没有测试更糟 —— 本仓库里就有两个测试第一版
   写错了、后来才修正。

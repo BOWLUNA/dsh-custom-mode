@@ -9,7 +9,7 @@
 04-preset-picker.png      新建会话的模式选择器，列表里有「自定义模式」
 05-hot-reload-in-session.png
                           真机会话：改 prompt.md 前后各问一句，回答从 MARK-ONE 变 MARK-TWO
-                          （只给 docs/实测记录.md 用，不进 README）
+                          （只给 docs/MEASUREMENTS.md 用，不进 README）
 ```
 
 前四张是 README 的展示图，统一 **800x800、PNG、scale 1**（约 44–76 KB 一张）。

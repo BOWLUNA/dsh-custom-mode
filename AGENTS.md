@@ -57,5 +57,5 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
 
 - 改代码：`node test/run.mjs` 全绿；改了文档：`node tools/verify-translation-pairing.mjs` 通过
   （两侧都要改，然后 `--write` 重新记录）。
-- 改行为：在一次性 `DSH_HOME` 里真跑一遍，并把观察到的输出写进 `docs/实测记录.md` ——
+- 改行为：在一次性 `DSH_HOME` 里真跑一遍，并把观察到的输出写进 `docs/MEASUREMENTS.md` ——
   这个仓库的传统是**结论带命令与原始输出**，不是"应该没问题"。

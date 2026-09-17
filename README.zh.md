@@ -25,12 +25,12 @@
 | **系统提示词**：底部状态栏说明何时生效、写进了哪个文件 | **新建会话**：它在模式选择器里是一个真实存在的模式 |
 
 深浅色与中英双语都是实测过的（全部走官方主题 token 与 `locale` 服务）——这两项不再单独配图，
-它们的实测记录与截图脚本断言见 [`docs/实测记录.md`](docs/实测记录.md) §5。
+它们的实测记录与截图脚本断言见 [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) §5。
 
 核心主张「改文件 → **下一步**就生效」有一张真机会话的实证图：
 [`docs/images/05-hot-reload-in-session.png`](docs/images/05-hot-reload-in-session.png)
-（两轮之间那行「系统提示词更新」是 dsh 自己标的，不是我们画的）——
-实验命令与原始输出见 [`docs/实测记录.md`](docs/实测记录.md) §0。
+（两轮之间那行「系统提示词更新」是 dsh 自己标的，不是手工绘制的）——
+实验命令与原始输出见 [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) §0。
 
 ## 它解决什么问题
 
@@ -67,7 +67,7 @@ dsh-custom-mode/
 └── docs/
     ├── ARCHITECTURE.md          # 为什么必须拆成两个产物（踩坑记录）
     ├── TROUBLESHOOTING.md       # 10 类实测复现过的失败 + 自救命令
-    ├── 实测记录.md               # 每条结论背后的命令与原始输出
+    ├── MEASUREMENTS.md               # 每条结论背后的命令与原始输出
     └── PUBLISHING.md            # 发布到 npm / 别人怎么装
 ```
 
@@ -218,7 +218,7 @@ CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) —— 为什么必须拆成两个产物；`dsh.client.inject` 为什么必须声明；私有 HTTP 路由为什么**必须**过平台鉴权（含实测证据）。
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) —— 实测复现过的失败：装完 dsh 起不来、WSL 下 pnpm panic、页面不出现、模式不见了、保存被拒。
-- [`docs/实测记录.md`](docs/实测记录.md) —— 每条结论背后的命令与原始输出（安装、安全、保存链路、热更新、双语、测试）。
+- [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) —— 每条结论背后的命令与原始输出（安装、安全、保存链路、热更新、双语、测试）。
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) —— 发布到 npm、别人如何安装。
 - [`CHANGELOG.md`](CHANGELOG.md) —— 版本变更；[`SECURITY.md`](SECURITY.md) —— 已知安全问题与报告渠道。
 
