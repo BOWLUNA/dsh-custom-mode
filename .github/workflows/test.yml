@@ -53,6 +53,11 @@ jobs:
           bash -n install.sh
           bash -n uninstall.sh
 
+      # README.md / README.zh.md（以及 CONTRIBUTING 那一对）权威相同：
+      # 改了一侧忘了另一侧，这里直接失败，而不是等有人切语言才发现。
+      - name: 双语配对一致性
+        run: node tools/verify-translation-pairing.mjs
+
       # 发布包最容易踩的坑不是"多打了文件"，而是**少打了**：dsh.bundle.patch 指向的补丁、
       # 或浏览器半的 client.js 一旦被 files 白名单漏掉，npm 上的包装了也没用，
       # 而且要等到有人装完才发现。这里对着真实的 packlist 断言。

@@ -1,0 +1,14 @@
+# 统一走 LF：这个仓库的产物里，preset 的组成文件与提示词都是按行做文本手术的，
+# CRLF 会让 diff 变吵，也容易让手工编辑过文件的用户踩到意外行为。
+* text=auto eol=lf
+
+# 脚本必须保持 LF，否则在 Linux/macOS 上会以 "bad interpreter" 失败
+*.sh text eol=lf
+
+# 二进制：别做行尾转换，也让 GitHub 知道它们不是文本
+*.png binary
+*.jpg binary
+*.gif binary
+
+# 截图是"跑出来的证据"，不是代码产物：折叠在 diff 里，避免统计噪音
+docs/images/*.png binary -diff

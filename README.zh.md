@@ -1,10 +1,6 @@
 # dsh-custom-mode
 
-[![test](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
-![DSH](https://img.shields.io/badge/dsh-0.1.6--alpha.1-blue)
-![license](https://img.shields.io/badge/license-MIT-green)
-
-中文说明 · [English](README.en.md)
+[English](README.md) | 中文
 
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的「**自定义模式**」：一个能力等同标准模式的 agent 模式，**系统提示词是一个普通文件，可以在 Web 设置页里随时改、保存后下一步就生效**。
 
@@ -66,7 +62,7 @@ dsh-custom-mode/
 │   ├── meta.mjs / paths.mjs     # preset.yml 读写 / 路径解析
 │   ├── cordis.patch.yml         # bundle 补丁：insert 插件行
 │   └── package.json             # 含 files 白名单（CI 会断言打包内容）
-├── test/                        # 五个套件共 225 项，用 node test/run.mjs 跑
+├── test/                        # 七个套件共 301 项，用 node test/run.mjs 跑
 │   ├── composition.test.mjs     # 63 项：文本手术是否无损、开关语义、平台条件
 │   ├── prompt-reader.test.mjs   # 15 项：热更新契约
 │   └── locales.test.mjs         # 65 项：双语键集 + client.js 副本不漂移
@@ -198,11 +194,13 @@ MIT
 node test/run.mjs
 ```
 
-一个入口跑五个套件，并自己解析「出厂 preset 目录」（三条回退，解析不到会打印试过哪些路）：
+一个入口跑七个套件，并自己解析「出厂 preset 目录」（三条回退，解析不到会打印试过哪些路）：
 
 | 套件 | 项数 | 测什么 |
 | --- | --- | --- |
 | `test/composition.test.mjs` | 63 | 组成文件编译器：文本手术是否无损、开关语义、平台条件、分组缩进 |
+| `test/composition-edge.test.mjs` | 26 | 编译器面对出厂文件今天没有的输入：CRLF、末行无换行、缺 `name:` 的行、更深的缩进、重复 id |
+| `test/editor-route.test.mjs` | 50 | 宿主半的 HTTP 路由 —— 栅栏**优先**、**失败关闭**，以及每条分支：401/403/503、GET、POST、405、坏 JSON、坏模式、拒绝的插值、超大请求体 |
 | `test/prompt-reader.test.mjs` | 15 | 热更新契约：改文件后下一次求值必须是新文本、读失败不得把身份变成空串 |
 | `test/prompt-tool.test.mjs` | 37 | `custom_prompt` 工具（无浏览器时的编辑通道）+ 两份 `{{变量}}` 校验不许漂移 |
 | `test/meta.test.mjs` | 45 | `preset.yml` 往返：引号/反斜杠/冒号/换行/emoji 写入后必须原样读回 |
@@ -211,7 +209,7 @@ node test/run.mjs
 编译器那 63 项测的是**属性不是字节**（出厂文本会随 dsh 版本变，但"什么都不改就什么都不变"必须永远成立）。开发过程中它抓到了 6 个真 bug，其中 3 个会导致静默错误行为（平台条件丢失、关闭分组无效、开关语义反向）。
 
 CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek-ai/dsh@0.1.6-alpha.1`，
-再跑这五个套件 —— 测的是**真实的出厂文本**，不是自造的 fixture。
+再跑这七个套件 —— 测的是**真实的出厂文本**，不是自造的 fixture。
 
 ## 文档
 
@@ -229,7 +227,7 @@ CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek
 - [x] 兼容：客户端 HMR（实测可用：改界面约 1 秒后页面自更新，无需重启/刷新）
 - [x] 兼容：别人改过 UI 布局/装饰时的兜底（不假定 DOM 结构，只用声明式插槽；窄面板自适应；三条回退解析）
 - [x] 安全：设置页路由过平台的 Host/Origin 栅栏与浏览器鉴权（修复前的未授权读写见 `docs/TROUBLESHOOTING.md` §9）
-- [x] 工程化：CI（五个套件对着真实出厂 preset 跑）+ 统一测试入口 + 安装后自检
+- [x] 工程化：CI（七个套件对着真实出厂 preset 跑）+ 统一测试入口 + 安装后自检
 - [x] 文档：中英文说明书 + 界面截图 + 故障排查
 - [ ] 工程化：发布到 npm（`editor/` 已备好元数据，删掉 `private: true` 即可）
 
@@ -237,12 +235,19 @@ CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek
 
 ## 版本号跟随官方
 
-本插件的版本号**与所适配的 DSH 版本一致**（当前 `0.1.6-alpha.1`）。官方发新版时：
+本插件的版本号**就是它所适配的 DSH 版本**（当前 `0.1.6-alpha.1`），规则只有两条：
 
-1. 把 `editor/package.json` 的 `version` 改成官方版本号；
-2. 跑两个测试（见下方「测试」）；
-3. 按下面的**耦合点清单**逐个核对是否仍然存在；
-4. 在真机上切一次模式、关几行、保存、新建会话验证。
+- **只有官方 DSH 发新版本、本项目重新适配之后，才换版本号**；
+- 这中间本仓库自己的修复、新增测试、文档改动都**累积在同一个版本号下**，不单独提版本。
+
+（`CHANGELOG.md` 因此通常只有一个版本段落。）
+
+官方发新版时的动作：
+
+1. 把 `editor/package.json` 的 `version` 改成官方版本号，并跑 `node test/run.mjs`（七个套件）；
+2. 按下面的**耦合点清单**逐个核对是否仍然存在；
+3. 在真机上切一次模式、关几行、保存、新建会话验证；
+4. 在 `CHANGELOG.md` 里新增一个版本段落（上一段落冻结）。
 
 这样做的理由：本插件深度依赖 DSH 内部 API（下面列了全部），**语义化版本在这里是假的精确**——真正决定兼容性的是那几处 API 是否还在，而不是补丁号。版本号对齐官方，至少让「我这份是给哪个 DSH 用的」一眼可见。
 

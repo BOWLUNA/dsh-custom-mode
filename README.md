@@ -1,10 +1,6 @@
 # dsh-custom-mode
 
-[![test](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
-![DSH](https://img.shields.io/badge/dsh-0.1.6--alpha.1-blue)
-![license](https://img.shields.io/badge/license-MIT-green)
-
-[中文说明](README.md) · English
+English | [中文](README.zh.md)
 
 A **custom mode** for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh): an agent mode whose **system prompt is a plain file you can edit from the Web settings page**, plus a switch for every plugin row it mounts and a picker for which official mode it is built on.
 
@@ -124,6 +120,8 @@ and it prints which paths it tried when it fails):
 | Suite | Checks | What it protects |
 | --- | --- | --- |
 | `test/composition.test.mjs` | 63 | the compiler: lossless text surgery, switch semantics, platform conditions, group indentation |
+| `test/composition-edge.test.mjs` | 26 | the compiler on input the shipped files do not contain today: CRLF, no trailing newline, a row with no `name:`, deeper indentation, duplicate ids |
+| `test/editor-route.test.mjs` | 50 | the host-half HTTP route — the fence runs **first**, fails **closed**, and every branch: 401/403/503, GET, POST, 405, bad JSON, bad mode, rejected interpolation, oversized body |
 | `test/prompt-reader.test.mjs` | 15 | the hot-reload contract: an edit must be visible on the next evaluation, and a read failure must never blank the prompt |
 | `test/prompt-tool.test.mjs` | 37 | the `custom_prompt` tool (the no-browser editing path), plus a drift guard on the two copies of the `{{…}}` validator |
 | `test/meta.test.mjs` | 45 | `preset.yml` round-trip: quotes, backslashes, colons, newlines and emoji must read back exactly |
