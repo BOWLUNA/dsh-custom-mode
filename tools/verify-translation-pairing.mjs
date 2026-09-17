@@ -92,7 +92,19 @@ for (const pair of PAIRS) {
     console.error('    node tools/verify-translation-pairing.mjs --write')
     failures += 1
   } else {
-    console.log(`✓ ${pair.record} 两侧与记录一致`)
+    // 哈希一致只说明"两侧都没被改过"，不说明它们互相指得到对方。
+    // 漏掉语言切换行正是这样发生的：两份都记了哈希、却从任何一侧都点不到另一侧。
+    const missingLink = pair.files.filter((file) => {
+      const partner = pair.files.find((other) => other !== file)
+      return !readFileSync(join(REPO, file), 'utf8').includes(partner.split('/').pop())
+    })
+    if (missingLink.length > 0) {
+      console.error(`✗ ${pair.record}: 这些文件里找不到指向对方语言的链接 → ${missingLink.join('、')}`)
+      console.error('  每一侧都应有一行 `English | [中文](X.zh.md)` / `[English](X.md) | 中文`。')
+      failures += 1
+    } else {
+      console.log(`✓ ${pair.record} 两侧与记录一致，且互相有语言入口`)
+    }
   }
 }
 

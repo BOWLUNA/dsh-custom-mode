@@ -1,5 +1,7 @@
 # Troubleshooting
 
+English | [中文](TROUBLESHOOTING.zh.md)
+
 Everything in this document is a **failure that was reproduced by actual testing**, and each entry has symptoms, cause, and a self-recovery procedure. Every command can be copied and run directly.
 
 First, remember one general self-check command — it distinguishes "not installed at all" from "installed but not taking effect":

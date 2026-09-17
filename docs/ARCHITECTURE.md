@@ -1,5 +1,7 @@
 # Architecture and Pitfalls
 
+English | [中文](ARCHITECTURE.zh.md)
+
 This document records **measured conclusions**, not design preferences. Each entry corresponds to one runtime verification; they are written down because they determine why this project looks the way it does.
 
 ## 1. Why the settings page must be split into a standalone plugin and cannot be written as one row of a preset
