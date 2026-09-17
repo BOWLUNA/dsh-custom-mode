@@ -12,6 +12,16 @@
  * it stays independent of the settings API whose helper names differ between dsh
  * releases (see docs/ARCHITECTURE.md).
  *
+ * A route registered on the raw `webServer` table is however OUTSIDE the
+ * platform's browser-trust fence, which only guards the channels the Connection
+ * service mounts (`/`, `/api`, …). Measured on 0.1.6-alpha.1: an unauthenticated
+ * POST with `content-type: text/plain` rewrote `prompt.md`, while every official
+ * route answered 401 — and a cross-site form post needs no preflight, so any page
+ * the user visited could have rewritten their agent's system prompt. The route
+ * therefore runs the platform's own check first, via
+ * `ctx.connection.requestRejection(req)` (Host/Origin fence + browser auth),
+ * which is the same verdict `/api` gets.
+ *
  * Storage is deliberately file-only and stateless: the composition file IS the
  * saved state, so no second document can drift from it. The page derives which
  * rows the user changed by diffing against the same shipped base mode.
@@ -222,6 +232,46 @@ async function readBody(req) {
 /** Both are hard dependencies: webServer carries the route, agentPresets locates the shipped modes. */
 export const inject = ['webServer', 'agentPresets']
 
+/**
+ * Rejection status for one request, or undefined when it may proceed.
+ *
+ * The platform's fence is verified through the Connection service, which is where
+ * the Host/Origin check and the browser-session check live:
+ *
+ *  - Host must be loopback (or a declared trusted authority) → defeats DNS
+ *    rebinding, where the socket reaches this server but the Host names the
+ *    attacker's domain;
+ *  - `Sec-Fetch-Site: cross-site` and a mismatching `Origin` are refused → defeats
+ *    a malicious page posting to this local port (a simple form post needs no
+ *    preflight, so CORS alone would not have stopped it);
+ *  - the signed `dsh-auth-*` cookie must be present → without the browser session
+ *    that the launch URL establishes, the route is closed.
+ *
+ * The service is resolved lazily, per request, and NOT through `inject`: measured
+ * on 0.1.6-alpha.1, `connection` is provided after this bundle row's `apply` runs,
+ * so an `inject` here would park the plugin in `pending` for no reason — while by
+ * request time the service is always there.
+ *
+ * When the service is absent the route FAILS CLOSED. A dead settings page is a
+ * visible, honest failure; an unauthenticated write path that rewrites the agent's
+ * system prompt is a silent one.
+ */
+let warnedMissingConnection = false
+function connectionRejection(ctx, req) {
+  const connection = ctx.get('connection')
+  if (connection !== undefined && typeof connection.requestRejection === 'function') {
+    return connection.requestRejection(req)
+  }
+  if (!warnedMissingConnection) {
+    warnedMissingConnection = true
+    console.error(
+      'custom-prompt-editor: connection 服务不可用（DSH 版本不匹配？），已拒绝该设置页的所有请求以保守处理。' +
+        'prompt.md 与 custom_prompt 工具不受影响。',
+    )
+  }
+  return 503
+}
+
 export function apply(ctx) {
   // Compatibility guard: this plugin reads three host APIs that a future DSH
   // release could reshape. Check them once and say so plainly, instead of
@@ -258,6 +308,14 @@ export function apply(ctx) {
 
   const handler = async (req, res) => {
     try {
+      // The fence comes first, before any method dispatch: the GET leaks the whole
+      // system prompt and the POST rewrites it, so neither may run unauthenticated.
+      const rejection = connectionRejection(ctx, req)
+      if (rejection !== undefined) {
+        res.writeHead(rejection, { 'content-type': 'text/plain; charset=utf-8' })
+        res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
+        return
+      }
       if (req.method === 'GET') {
         await ensureShipped()
         sendJson(res, 200, readState())
