@@ -7,6 +7,31 @@
 
 ## [0.1.6-alpha.1]
 
+### 已验证兼容 dsh `0.1.6-alpha.2`（版本号暂未跟进，原因见下）
+
+- **官方每个模式都多了一行**（`tool-plugin-manager`，即 `@deepseek-ai/dsh-plugin-manager/tools`）。
+  为此**不需要改代码**：编译器运行时读出厂组成文件，重新生成时会自动带上新行——它只是缺一个显示
+  标签，现已补齐中英两份。
+- **新增漂移警报**：`composition.test.mjs` 断言出厂每一行都能查到 `ROW_META` 条目。以后官方
+  新增行时，CI 会变红，而不是在界面上静默显示成裸 id。
+- **设置页的 slot 契约未变**：`settings.section` 仍是 `kind: list`、`scope: root`，且
+  `dsh-client-ui-slots@0.1.6-alpha.2` 仍然保留 `locale:` 注册选项（它提供绑定的 `t`），
+  所以设置页的形态不变。
+- 八个套件在 `0.1.6-alpha.2` 的 preset 上**全部通过**。
+- **`test/seed.test.mjs` 不再用 `chmod 0o500` 伪造不可写目录**。root 会绕过权限位，导致三条断言
+  在 CI 上绿、在本地以 root 跑时红——一个「结果取决于谁在跑」的测试。现在改用普通文件阻断路径，
+  任何用户下都返回 `ENOTDIR`。
+- **新增 `tools/sync-client-dictionaries.mjs`**：从 `locales.mjs` 重新生成 `client.js` 里内联的
+  词典（支持 `--check`）。bundle 不能 import，所以那两份是手抄的——这正是本次新增词条一开始没进
+  bundle 的原因。
+
+### 待办：升级版本号需要改工作流文件
+
+要升到 `0.1.6-alpha.2`，必须**在同一个提交里**同时改 `editor/package.json` 与
+`.github/workflows/test.yml` 里钉住的 `@deepseek-ai/dsh@…`；只改一处会被
+`tools/verify-version-consistency.mjs` 拦下。该工作流文件需要 `workflow` 权限，所以这一步留给
+持有该权限的人。在那之前项目停在 `0.1.6-alpha.1`，而上面的测试结果就是「升级是安全的」的证据。
+
 适配 dsh `0.1.6-alpha.1`。按主题分组，组内不保证时间顺序。
 
 ### 生态上架准备

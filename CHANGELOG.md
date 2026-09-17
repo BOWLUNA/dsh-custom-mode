@@ -11,6 +11,34 @@ see the "Versioning" section of the README.
 
 Adapted to dsh `0.1.6-alpha.1`. Grouped by theme; order within a group is not chronological.
 
+### Verified against dsh `0.1.6-alpha.2` (version not moved yet, see Pending)
+
+- **Every shipped mode gained one row upstream** (`tool-plugin-manager`,
+  `@deepseek-ai/dsh-plugin-manager/tools`). Nothing had to change for it: the compiler reads the
+  shipped composition at runtime, so a regenerated composition picks the new row up by itself — it
+  only lacked a display label, which is now supplied in both languages.
+- **New drift guard**: `composition.test.mjs` asserts every shipped row id has a `ROW_META` entry.
+  An upstream release that adds a row now turns CI red instead of silently rendering a bare id.
+- **The settings-page slot contract is unchanged.** `settings.section` is still `kind: list`,
+  `scope: root`, and `dsh-client-ui-slots@0.1.6-alpha.2` still documents the `locale:` registration
+  option that supplies the bound `t` seat — so the page does not change shape.
+- All eight suites pass against the `0.1.6-alpha.2` presets.
+- **`test/seed.test.mjs` no longer fakes an unwritable directory with `chmod 0o500`.** Root bypasses
+  permission bits, so three assertions were green on CI and red for anyone running as root — a test
+  whose result depended on who ran it. The path is now blocked by a regular file, which fails with
+  `ENOTDIR` for every user.
+- **`tools/sync-client-dictionaries.mjs`** regenerates the dictionaries inlined in `client.js` from
+  `locales.mjs` (with `--check`). The bundle cannot import, so those copies were hand-written — which
+  is exactly how this release's new entries went missing from the bundle at first.
+
+### Pending: the version bump needs a workflow edit
+
+Moving to `0.1.6-alpha.2` means changing `editor/package.json` **and** the pinned
+`@deepseek-ai/dsh@…` in `.github/workflows/test.yml` in the same commit;
+`tools/verify-version-consistency.mjs` fails when only one moves. That workflow file needs the
+`workflow` token scope, so the bump is left to an operator holding it. Until then the project stays on
+`0.1.6-alpha.1`, and the run above is the evidence that the bump is safe.
+
 ### Marketplace install
 
 - **The npm package now carries the preset, and the host half seeds it on activation.** A storefront

@@ -10,7 +10,7 @@
  * presets are not beside this module there).
  */
 
-import { renderComposition, collectRows, readBaseComposition, BASE_MODES, shippedPresetsDir, modeOf, overridesOf } from '../editor/composition.mjs'
+import { renderComposition, collectRows, readBaseComposition, BASE_MODES, shippedPresetsDir, modeOf, overridesOf, ROW_META } from '../editor/composition.mjs'
 
 let passed = 0
 let failed = 0
@@ -209,6 +209,32 @@ console.log('=== 9. 开关状态可往返（保存后重读一致） ===')
   check('codex 已被显式打开', byId.get('tool-subagent-codex')?.disabled === false)
   check('未触碰的行仍未关闭', byId.get('tool-fs')?.disabled === false)
   check('delegation 子行仍未关闭', byId.get('tool-workflow')?.disabled === false)
+}
+
+console.log()
+console.log('=== 10. 出厂每一行都有显示标签（升级 DSH 时的漂移警报）===')
+{
+  // 为什么要有这一条：出厂 preset 会随 DSH 版本新增行（例如 0.1.6-alpha.2 新增了
+  // tool-plugin-manager）。编译器是运行时读出厂文件的，所以它会自动带上新行——
+  // 但 ROW_META 里没有标签时，界面上会显示成裸 id。
+  // 这条断言把「升级后有个新行没人管」从"用户看到怪东西"提前成"CI 变红"。
+  // 处理方式就是给 ROW_META 和 locales.mjs 各补一条（两侧键集必须同时加）。
+  const unlabeled = []
+  for (const mode of BASE_MODES) {
+    const walk = (rows) => {
+      for (const row of rows) {
+        if (ROW_META[row.id] === undefined) unlabeled.push(`${mode.id}:${row.id}`)
+        walk(row.children)
+      }
+    }
+    walk(collectRows(readBaseComposition(mode.id)))
+  }
+  const unique = [...new Set(unlabeled)]
+  check(
+    '每个出厂行都能查到标签',
+    unique.length === 0,
+    unique.length === 0 ? '' : `缺标签: ${unique.join(', ')} —— 请补 ROW_META 与 locales.mjs（中英都要）`,
+  )
 }
 
 console.log()

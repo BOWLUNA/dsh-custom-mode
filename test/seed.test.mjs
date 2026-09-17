@@ -113,13 +113,15 @@ console.log()
 console.log('=== 6. 只读目录：不抛异常（启动不能因此挂掉）===')
 {
   const root = mkdtempSync(join(tmpdir(), 'dsh-seed-ro-'))
-  const locked = join(root, 'locked')
-  mkdirSync(locked, { recursive: true })
-  chmodSync(locked, 0o500) // r-x：可以进入，不能创建
+  // 用一个「普通文件」当父目录：mkdir -p 在任何权限下都会 ENOTDIR。
+  // 这里不能用 chmod 0o500 模拟只读目录——root 会绕过权限位，于是播种照样成功，
+  // 这几条断言在本地（root）恒假红、在 CI（非 root）恒真绿，测出的东西取决于跑测试的人。
+  const blocker = join(root, 'not-a-dir')
+  writeFileSync(blocker, 'x')
   let threw = false
   let result
   try {
-    result = seedPreset(join(locked, 'custom'))
+    result = seedPreset(join(blocker, 'custom'))
   } catch (error) {
     threw = true
     result = { errors: [String(error)] }
@@ -127,7 +129,6 @@ console.log('=== 6. 只读目录：不抛异常（启动不能因此挂掉）===
   check('没有抛出异常', threw === false)
   check('记录了错误', result.errors.length > 0, JSON.stringify(result))
   check('没有假装成功', result.created.length === 0, JSON.stringify(result.created))
-  chmodSync(locked, 0o700)
   rmSync(root, { recursive: true, force: true })
 }
 
@@ -145,15 +146,13 @@ console.log('=== 7. 日志只在该说话的时候说话 ===')
   seedPresetWithLog(target, (m) => logs2.push(m), (m) => infos2.push(m))
   check('第二次完全安静（不刷启动日志）', infos2.length === 0 && logs2.length === 0, JSON.stringify({ infos2, logs2 }))
 
-  // 真的造一个不可写的父目录，否则 mkdir -p 会轻松成功，这一条就测了个寂寞
-  const locked = join(root, 'locked')
-  mkdirSync(locked, { recursive: true })
-  chmodSync(locked, 0o500)
+  // 同上：用普通文件阻断，而不是靠权限位（root 下权限位不起作用）
+  const blocker = join(root, 'not-a-dir')
+  writeFileSync(blocker, 'x')
   const infos3 = []
   const logs3 = []
-  seedPresetWithLog(join(locked, 'custom'), (m) => logs3.push(m), (m) => infos3.push(m))
+  seedPresetWithLog(join(blocker, 'custom'), (m) => logs3.push(m), (m) => infos3.push(m))
   check('失败时给出可读日志', logs3.length > 0 && logs3[0].includes('custom-mode:'), JSON.stringify(logs3))
-  chmodSync(locked, 0o700)
   void infos3
   rmSync(root, { recursive: true, force: true })
 }

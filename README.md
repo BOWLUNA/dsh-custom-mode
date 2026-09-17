@@ -48,6 +48,18 @@ not.
 Only `{{model}}`, `{{cwd}}` and `{{provider}}` are interpolated. An unknown `{{…}}` is rejected when
 saved: the renderer throws on it, which would fail every request in that mode.
 
+### How this differs from the built-in Plugins page
+
+From dsh `0.1.6-alpha.2` the harness ships a Plugins page that can enable and disable plugins live.
+It and this mode's per-row switches act at **different levels**:
+
+| | Built-in Plugins page | This mode's per-row switches |
+| --- | --- | --- |
+| Scope | **The whole profile** — what this machine has installed | **One agent mode** — which rows its composition mounts |
+| Typical use | Turn a plugin off globally | Keep Standard fully loaded and trim this mode to what it needs |
+
+They coexist: the harness decides what the machine has, this mode decides which of it the mode uses.
+
 ## How it works
 
 dsh normally takes the system prompt from a preset's YAML, and `@deepseek-ai/dsh-persona` resolves its

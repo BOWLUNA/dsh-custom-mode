@@ -118,6 +118,10 @@ export const ROW_META = {
   'tool-skill': { label: '技能工具' },
   'skill-filesystem': { label: '技能发现' },
   'tool-cordis': { label: 'Cordis 运行时工具', note: '可读写 harness 运行时' },
+  'tool-plugin-manager': {
+    label: '插件管理（安装 / 启停）',
+    note: '模型侧可安装与启停插件；0.1.6-alpha.2 起出厂模式自带这一行',
+  },
   'tool-presentation': { label: 'PTC 工具呈现' },
   present: { label: '交付文件（present）' },
   'custom-prompt-tool': { label: 'custom_prompt 工具', note: '关掉后无法用对话改提示词（设置页仍可用）' },
