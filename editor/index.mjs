@@ -337,8 +337,11 @@ export function apply(ctx) {
         // system prompt and the POST rewrites it, so neither may run unauthenticated.
         const rejection = connectionRejection(scope, req)
         if (rejection !== undefined) {
+          // 401/403 与平台对 /api 的措辞一致；503 是"我们自己保守关闭"（connection 服务
+          // 取不到），它既不是未授权也不是被禁止，别把响应体写成 forbidden 误导排查的人。
+          const reason = rejection === 401 ? 'unauthorized' : rejection === 403 ? 'forbidden' : 'unavailable'
           res.writeHead(rejection, { 'content-type': 'text/plain; charset=utf-8' })
-          res.end(rejection === 401 ? 'unauthorized' : 'forbidden')
+          res.end(reason)
           return
         }
         if (req.method === 'GET') {
