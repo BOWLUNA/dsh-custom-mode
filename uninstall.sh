@@ -16,7 +16,7 @@ while [ $# -gt 0 ]; do
     --profile) PROFILE="${2:?}"; shift 2 ;;
     --preset-id) PRESET_ID="${2:?}"; shift 2 ;;
     --purge) PURGE=1; shift ;;
-    -h|--help) sed -n '2,7p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
     *) echo "未知参数: $1" >&2; exit 2 ;;
   esac
 done
