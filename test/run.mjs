@@ -107,7 +107,13 @@ console.log(`出厂 preset 目录: ${found.dir}`)
 console.log(`（来源：${found.label}）`)
 console.log('')
 
-const suites = ['composition.test.mjs', 'prompt-reader.test.mjs', 'locales.test.mjs']
+const suites = [
+  'composition.test.mjs',
+  'prompt-reader.test.mjs',
+  'prompt-tool.test.mjs',
+  'meta.test.mjs',
+  'locales.test.mjs',
+]
 const env = { ...process.env, DSH_SHIPPED_PRESETS_DIR: found.dir }
 let failed = 0
 for (const suite of suites) {

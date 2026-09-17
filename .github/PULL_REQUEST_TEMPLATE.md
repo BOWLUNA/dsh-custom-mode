@@ -11,7 +11,7 @@
 
 ## 自查
 
-- [ ] `node test/run.mjs` 三个套件全绿（63 + 15 + 65）
+- [ ] `node test/run.mjs` 五个套件全绿（63 + 15 + 37 + 45 + 65）
 - [ ] 改了 `editor/client.js` 的文案 → 同步改了 `editor/locales.mjs`（第 6 节会抓漂移）
 - [ ] 改了 `editor/index.mjs` 里那条私有路由 → 仍然先过 `ctx.connection.requestRejection(req)`，且取不到服务时**失败关闭**
 - [ ] 改了 `composition.mjs` 的文本手术 → 未触碰的行仍然逐字节保持出厂状态（含 `!!js` 条件与默认关闭行）

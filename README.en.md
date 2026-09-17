@@ -106,16 +106,18 @@ Changes to the browser half (`editor/client.js`) are picked up by `@deepseek-ai/
 node test/run.mjs
 ```
 
-One entry point for three suites; it resolves the shipped-preset directory itself (three fallbacks,
+One entry point for five suites; it resolves the shipped-preset directory itself (three fallbacks,
 and it prints which paths it tried when it fails):
 
 | Suite | Checks | What it protects |
 | --- | --- | --- |
 | `test/composition.test.mjs` | 63 | the compiler: lossless text surgery, switch semantics, platform conditions, group indentation |
 | `test/prompt-reader.test.mjs` | 15 | the hot-reload contract: an edit must be visible on the next evaluation, and a read failure must never blank the prompt |
+| `test/prompt-tool.test.mjs` | 37 | the `custom_prompt` tool (the no-browser editing path), plus a drift guard on the two copies of the `{{…}}` validator |
+| `test/meta.test.mjs` | 45 | `preset.yml` round-trip: quotes, backslashes, colons, newlines and emoji must read back exactly |
 | `test/locales.test.mjs` | 65 | zh/en key parity, plus the **hand-copied dictionary** in `client.js` not drifting from `locales.mjs` |
 
-CI (`.github/workflows/test.yml`) installs `@deepseek-ai/dsh@0.1.6-alpha.1` and runs all three, so the
+CI (`.github/workflows/test.yml`) installs `@deepseek-ai/dsh@0.1.6-alpha.1` and runs all five, so the
 tests always run against the **real shipped text** rather than a fixture of our own making.
 
 The compiler tests assert **properties, not bytes**: the shipped text changes between dsh versions, but "changing nothing changes nothing" must always hold. During development they caught six real bugs, three of which were silent misbehaviour (lost platform conditions, ineffective group toggles, inverted switch semantics).
