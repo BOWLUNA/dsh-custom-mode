@@ -285,7 +285,30 @@ custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPr
 
 ---
 
-## 11. 一次性验证清单（改完之后照着跑）
+## 11. 设置页说找不到组成文件
+
+从 npm 装（`dsh plugin --profile web add dsh-custom-mode`）之后，页面报
+
+```
+{"ok":false,"error":"找不到组成文件：/…/.agent-presets/custom/agent.cordis.yml"}
+```
+
+插件会在激活时播种 preset，所以这说明播种没有发生或没能写入。先看启动日志里有没有 `custom-mode:` 开头的行：
+
+- **日志里什么都没有** —— 插件那一行压根没激活，见 §4。
+- `custom-mode: preset 播种未完成 —— 无法创建 … EACCES` —— 运行 dsh 的用户对 `$DSH_HOME`（或 preset
+  目录）没有写权限。这种情况只会报告并继续启动，坏的只有设置页。修权限、跑一次 `./install.sh`，
+  或者手工把文件放进去：
+
+  ```sh
+  ls "$DSH_HOME/.agent-presets/custom"    # 应有 agent.cordis.yml、preset.yml、prompt.md、
+                                          # prompt-reader.mjs、prompt-tool.mjs
+  ```
+
+播种每次激活只跑一次，而且只补缺失的文件 —— 它不会覆盖你写的 `prompt.md`，也不会覆盖设置页生成过的
+`agent.cordis.yml`。所以如果某个文件补了又没，说明有别的什么东西在两次激活之间删掉了它。
+
+## 12. 一次性验证清单（改完之后照着跑）
 
 ```sh
 # 1. 两个测试套件（其中 63 项是组成文件编译器）

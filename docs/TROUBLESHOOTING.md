@@ -284,7 +284,32 @@ states on the spot, right after installing, that no settings page is available i
 
 ---
 
-## 11. One-shot verification checklist (run through it after making changes)
+## 11. The settings page says it cannot find the composition file
+
+Installed from npm (`dsh plugin --profile web add dsh-custom-mode`) and the page reports
+
+```
+{"ok":false,"error":"找不到组成文件：/…/.agent-presets/custom/agent.cordis.yml"}
+```
+
+The plugin seeds the preset when it activates, so this means seeding did not run or could not write.
+Check the startup log for a line beginning with `custom-mode:`:
+
+- **Nothing in the log at all** — the plugin row never activated. See §4.
+- `custom-mode: preset 播种未完成 —— 无法创建 … EACCES` — `$DSH_HOME` (or the preset directory) is not
+  writable by the user running dsh. Seeding reports this and lets dsh start anyway; the settings page
+  is the only thing that breaks. Fix the permissions, or run `./install.sh`, or write the files by hand:
+
+  ```sh
+  ls "$DSH_HOME/.agent-presets/custom"    # expect agent.cordis.yml, preset.yml, prompt.md,
+                                          # prompt-reader.mjs, prompt-tool.mjs
+  ```
+
+Seeding runs once per activation and only fills in what is missing — it never overwrites a `prompt.md`
+you wrote or an `agent.cordis.yml` the settings page generated. So a missing file that keeps coming
+back means something is deleting it between activations.
+
+## 12. One-shot verification checklist (run through it after making changes)
 
 ```sh
 # 1. The two test suites (63 of those items are the composition-file compiler)

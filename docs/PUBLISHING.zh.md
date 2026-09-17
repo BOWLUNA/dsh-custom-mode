@@ -147,6 +147,24 @@ ls -la "$H/profiles/web/node_modules/dsh-custom-mode"      # 应是目录，不�
 DSH_HOME=$H dsh --profile web --dump-config | grep -A1 'id: custom-mode'
 ```
 
+### 包版本的修订后缀（`0.1.6-alpha.1.rev1`）
+
+包版本通常是它所适配的 DSH 版本。npm 不允许同版本重发，所以**包本身**变了（`files` 里多了文件、
+元数据修正）时，用 `<DSH 版本>.revN` 发出去。`tools/verify-version-consistency.mjs` 接受这个后缀、
+拒绝别的写法，因此后缀不会变成偏离"CI 真正测过的版本"的缺口。
+
+### peer 范围与预发布版本
+
+不带显式预发布比较符的范围会静默排除 harness 的所有预发布版本：node-semver 只有在范围里某个比较符
+与该版本的 `major.minor.patch` 完全一致、且自身带预发布标签时，才会放行预发布版本。
+
+```jsonc
+"peerDependencies": { "@deepseek-ai/dsh": ">=0.1.2-alpha.1" }   // 永远匹配不到 0.1.6-alpha.1
+"peerDependencies": { "@deepseek-ai/dsh": ">=0.1.6-alpha.1" }   // 比较符落在 0.1.6 这个元组上
+```
+
+`engines.dsh` 用同样的形态，理由相同。
+
 ### 三条硬经验（踩过坑，务必遵守）
 
 **1. 不要钉死 peerDependencies 的精确版本。**

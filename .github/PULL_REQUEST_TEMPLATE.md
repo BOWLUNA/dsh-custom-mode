@@ -12,7 +12,7 @@ The checklist below exists for exactly those failure modes.
 
 ## Self-check
 
-- [ ] `node test/run.mjs` is green across all 7 suites (63 + 26 + 15 + 37 + 45 + 50 + 65 = 301)
+- [ ] `node test/run.mjs` is green across all 8 suites (63 + 26 + 15 + 37 + 45 + 51 + 31 + 65 = 333)
 - [ ] Changed a string in `editor/client.js` → also changed `editor/locales.mjs` (section 6 catches drift)
 - [ ] Changed the private route in `editor/index.mjs` → it still runs `ctx.connection.requestRejection(req)` first, and still fails **closed** when that service is missing
 - [ ] Changed the text surgery in `composition.mjs` → untouched rows are still byte-identical to the shipped ones (including `!!js` conditions and rows that ship disabled)

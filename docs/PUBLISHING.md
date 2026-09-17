@@ -147,6 +147,26 @@ ls -la "$H/profiles/web/node_modules/dsh-custom-mode"      # should be a directo
 DSH_HOME=$H dsh --profile web --dump-config | grep -A1 'id: custom-mode'
 ```
 
+### Version suffixes on the package (`0.1.6-alpha.1.rev1`)
+
+The package version is normally the DSH version it was adapted to. npm refuses to republish a version,
+so a change to the *package itself* — new files in `files`, a metadata fix — goes out as
+`<dsh version>.revN`. `tools/verify-version-consistency.mjs` accepts that suffix and rejects anything
+else, so the suffix cannot become a way to drift away from the version CI actually tested.
+
+### Peer ranges and prereleases
+
+A range without an explicit prerelease comparator silently excludes every prerelease of the harness:
+node-semver only lets a prerelease satisfy a range when some comparator shares its exact
+`major.minor.patch` **and** carries a prerelease tag.
+
+```jsonc
+"peerDependencies": { "@deepseek-ai/dsh": ">=0.1.2-alpha.1" }   // never matches 0.1.6-alpha.1
+"peerDependencies": { "@deepseek-ai/dsh": ">=0.1.6-alpha.1" }   // comparator on the 0.1.6 tuple
+```
+
+`engines.dsh` uses the same shape, for the same reason.
+
 ### Three hard-won lessons (learned the hard way; be sure to follow them)
 
 **1. Do not pin exact versions in peerDependencies.**

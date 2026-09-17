@@ -338,3 +338,43 @@ preset 目录:  保留（提示词也保留，符合默认行为）
 
 The idempotence of a second install was verified as well: install → manually edit `prompt.md` → install again; the script keeps the user prompt and
 only updates the mode file (`检测到已存在的 prompt.md，保留它（只更新模式文件）`).
+
+---
+
+## 9. Marketplace install: seeding a fresh `DSH_HOME`
+
+A storefront install is one command, so the package has to be enough on its own. Measured on a fresh
+`DSH_HOME` (only credentials copied), installing the packed tarball and booting:
+
+```
+$ DSH_HOME=$H dsh plugin --profile web add dsh-custom-mode-0.1.6-alpha.1.rev1.tgz
++ dsh-custom-mode file:/tmp/dsh-custom-mode-0.1.6-alpha.1.rev1.tgz
+
+$ ls $H/.agent-presets/custom        # before boot: nothing, seeding happens on activation
+  (absent)
+
+$ DSH_HOME=$H dsh web --port 3082 --no-open
+custom-mode: 已播种 preset 到 …/.agent-presets/custom（新建 5 个文件: agent.cordis.yml, preset.yml,
+prompt.md, prompt-reader.mjs, prompt-tool.mjs）
+dsh web: http://127.0.0.1:3082/?token=…
+```
+
+The mode is then selectable in the new-session picker (read with the same CDP driver the screenshots
+use — the list contained `Standard mode / PTC mode / Minimal mode / Creator mode / 自定义模式`), and the
+settings page answers with the full state:
+
+```
+GET /custom-mode (session cookie) → 200 {"ok":true,"mode":"standard",…19 rows…}
+GET /custom-mode (no cookie)      → 401
+```
+
+The rest of the acceptance run:
+
+| What | Result |
+| --- | --- |
+| Second boot | no `已播种` line at all — it writes nothing when the preset is complete |
+| A `prompt.md` already present before boot | byte-identical afterwards (`md5` unchanged); the other four files were filled in |
+| Read-only `$DSH_HOME/.agent-presets` | dsh starts normally; log: `preset 播种未完成 —— 无法创建 … EACCES`, and the settings page returns `{"ok":false,"error":"找不到组成文件：…"}` |
+| Rename + switch base mode through the page's own route | `preset.yml` → `name: "My Renamed Mode"`, composition header `# 基础模式: minimal`, row count 19 → 3, prompt rewritten |
+| Full UI pass on the seeded instance | the screenshot driver read the state, toggled a row, saved (`已保存（基础模式：standard）…`), switched language and theme |
+

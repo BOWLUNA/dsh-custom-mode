@@ -13,21 +13,25 @@
 
 ## 安装
 
-```sh
-git clone https://github.com/BOWLUNA/dsh-custom-mode
-cd dsh-custom-mode
-./install.sh
-```
-
-`install.sh` 把 `preset/` 复制到 `$DSH_HOME/.agent-presets/custom/`（agent preset 是**目录**，不是 npm 包），并把设置页插件装进 `web` profile。装完重启 dsh，新建会话时选「自定义模式」。卸载用 `./uninstall.sh`（默认保留你写的提示词，`--purge` 一并删除）。
-
-设置页插件也在 npm 上，可以单独更新：
+一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
 dsh plugin --profile web add dsh-custom-mode
 ```
 
-模式本身只在带 `agent-presets` 的 profile 里可用（`web` 有；`tui`、`headless` 没有）。
+装完重启 dsh，新建会话时选「自定义模式」。preset 会被写到 `$DSH_HOME/.agent-presets/custom/`；
+**那里已有的文件一律不动**，所以你自己写过的 `prompt.md` 不会被覆盖。
+
+想同时留下源码（或者不用 npm 安装），就 clone 下来跑脚本，它把同样两件事显式做一遍：
+
+```sh
+git clone https://github.com/BOWLUNA/dsh-custom-mode
+cd dsh-custom-mode
+./install.sh            # 复制 preset/ 到 $DSH_HOME/.agent-presets/custom/，并安装插件
+./uninstall.sh          # 卸载插件；默认保留你的提示词，加 --purge 一并删除
+```
+
+模式需要带 `agent-presets` 的 profile：`web` 有，`tui` 与 `headless` 没有。
 
 ## 使用
 
@@ -82,7 +86,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 ## 开发
 
 ```sh
-node test/run.mjs        # 7 个套件、301 项；自己解析出厂 preset 目录
+node test/run.mjs        # 8 个套件、333 项；自己解析出厂 preset 目录
 ```
 
 改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。

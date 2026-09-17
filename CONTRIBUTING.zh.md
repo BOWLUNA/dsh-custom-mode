@@ -30,7 +30,7 @@ Node ES 模块。保持这样是设计的一部分，不是巧合。
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode
 cd dsh-custom-mode
-node test/run.mjs          # 七个套件共 301 项；它会自己解析出厂 preset 目录
+node test/run.mjs          # 八个套件共 333 项；它会自己解析出厂 preset 目录
 ```
 
 想对着真实 harness 试，请装进一个**一次性**的 `DSH_HOME`，别碰你自己的安装：

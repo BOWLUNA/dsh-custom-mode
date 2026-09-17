@@ -6,7 +6,7 @@ English | [中文](README.zh.md)
 node test/run.mjs
 ```
 
-One entry point runs all seven suites and resolves the "shipped presets directory" itself (it is not
+One entry point runs all eight suites and resolves the "shipped presets directory" itself (it is not
 in this repository; it comes from the installed `@deepseek-ai/dsh-agent-presets`):
 
 ```
@@ -23,13 +23,15 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 ──────── meta.test.mjs ────────
 … result: 45 passed, 0 failed
 ──────── editor-route.test.mjs ────────
-… result: 50 passed, 0 failed
+… result: 51 passed, 0 failed
+──────── seed.test.mjs ────────
+… result: 31 passed, 0 failed
 ──────── locales.test.mjs ────────
 … result: 65 passed, 0 failed
-all 7 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 8 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-**301 checks** in total. Only `composition.test.mjs` needs that shipped directory; the other six bring
+**333 checks** in total. Only `composition.test.mjs` needs that shipped directory; the other seven bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 There are three resolution paths, and any one of them hitting is enough: the
@@ -52,6 +54,7 @@ node test/prompt-tool.test.mjs   # no dsh needed: copies the tool module to a te
 node test/meta.test.mjs          # no dsh needed: redirects the write location with DSH_CUSTOM_PROMPT_PATH
 node test/composition-edge.test.mjs  # no dsh needed: the shipped preset uses self-built fixtures
 node test/editor-route.test.mjs      # no dsh needed: stubs ctx / req / res, drives the real handler
+node test/seed.test.mjs              # no dsh needed: builds its own source and target directories
 ```
 
 CI (`.github/workflows/test.yml`) runs `npm install @deepseek-ai/dsh@<the adapted version>` on every
@@ -112,3 +115,10 @@ easy to write backwards by assumption, and are worth recording separately:
 - **"Explicitly turning on a row that is already enabled on this platform" is a no-op**, and must not
   be recorded as an override when the switch is inferred back — this is a necessary consequence of the
   tri-state semantics, not a defect.
+
+`seed.test.mjs` covers the preset seeding a one-command install depends on: a storefront installs a
+plugin with a single command, and the npm package is all that command carries. It asserts that missing
+files are created, that an existing `prompt.md` or a generated `agent.cordis.yml` is **never**
+overwritten, that a second activation writes nothing, that an unwritable home is reported instead of
+thrown, and — because the package necessarily holds a second copy of the preset — that
+`editor/preset/` stays byte-identical to `preset/`.

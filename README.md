@@ -15,25 +15,29 @@ The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouche
 
 ## Install
 
-```sh
-git clone https://github.com/BOWLUNA/dsh-custom-mode
-cd dsh-custom-mode
-./install.sh
-```
-
-`install.sh` copies `preset/` into `$DSH_HOME/.agent-presets/custom/` — an agent preset is a
-**directory**, not an npm package — and installs the settings-page plugin into your `web` profile.
-Restart dsh afterwards, then choose「自定义模式」for a new session. Remove it with `./uninstall.sh`
-(keeps your prompt; `--purge` removes it too).
-
-The settings-page plugin is also on npm, for updating it on its own:
+One command installs everything — the settings-page plugin, and the preset it seeds on first
+activation:
 
 ```sh
 dsh plugin --profile web add dsh-custom-mode
 ```
 
-The mode itself is only available in a profile that ships `agent-presets` (the `web` profile does;
-`tui` and `headless` do not).
+Restart dsh afterwards, then choose「自定义模式」for a new session. The preset is written to
+`$DSH_HOME/.agent-presets/custom/`; anything already there is left alone, so a `prompt.md` you wrote
+yourself is never overwritten.
+
+To keep the sources around as well — or to install without npm — clone and run the script, which does
+the same two things explicitly:
+
+```sh
+git clone https://github.com/BOWLUNA/dsh-custom-mode
+cd dsh-custom-mode
+./install.sh            # copies preset/ into $DSH_HOME/.agent-presets/custom/ and installs the plugin
+./uninstall.sh          # removes the plugin; keeps your prompt unless you pass --purge
+```
+
+The mode needs a profile that ships `agent-presets` — the `web` profile does, `tui` and `headless` do
+not.
 
 ## Usage
 
@@ -99,7 +103,7 @@ APIs below still exist, not a patch number of our own.
 ## Development
 
 ```sh
-node test/run.mjs        # 7 suites, 301 checks; resolves the shipped presets itself
+node test/run.mjs        # 8 suites, 333 checks; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the

@@ -338,3 +338,42 @@ preset 目录:  保留（提示词也保留，符合默认行为）
 
 另外验证了二次安装的幂等性：装上 → 手工改 `prompt.md` → 再装一次，脚本保留用户提示词，
 只更新模式文件（`检测到已存在的 prompt.md，保留它（只更新模式文件）`）。
+
+---
+
+## 9. 市场安装：全新 `DSH_HOME` 上的播种
+
+市场的安装是一条命令，所以这个包必须自己就够用。在一个全新 `DSH_HOME`（只复制了凭据）上装打包好的
+tarball 再启动，实测：
+
+```
+$ DSH_HOME=$H dsh plugin --profile web add dsh-custom-mode-0.1.6-alpha.1.rev1.tgz
++ dsh-custom-mode file:/tmp/dsh-custom-mode-0.1.6-alpha.1.rev1.tgz
+
+$ ls $H/.agent-presets/custom        # 启动前：没有，播种发生在激活时
+  （不存在）
+
+$ DSH_HOME=$H dsh web --port 3082 --no-open
+custom-mode: 已播种 preset 到 …/.agent-presets/custom（新建 5 个文件: agent.cordis.yml, preset.yml,
+prompt.md, prompt-reader.mjs, prompt-tool.mjs）
+dsh web: http://127.0.0.1:3082/?token=…
+```
+
+之后新建会话的模式选择器里就能选到它（用拍摄脚本同一套 CDP 驱动读的列表：`Standard mode / PTC mode /
+Minimal mode / Creator mode / 自定义模式`），设置页也能读到完整状态：
+
+```
+GET /custom-mode（带会话 cookie） → 200 {"ok":true,"mode":"standard",…19 行…}
+GET /custom-mode（不带 cookie）   → 401
+```
+
+验收其余各项：
+
+| 项目 | 结果 |
+| --- | --- |
+| 第二次启动 | 完全没有 `已播种` 日志 —— preset 完整时一个字都不写 |
+| 启动前已存在的 `prompt.md` | 事后逐字节相同（`md5` 未变）；另外四个文件被补齐 |
+| `$DSH_HOME/.agent-presets` 只读 | dsh 照常启动；日志 `preset 播种未完成 —— 无法创建 … EACCES`，设置页返回 `{"ok":false,"error":"找不到组成文件：…"}` |
+| 走设置页自己的路由改名 + 切基础模式 | `preset.yml` → `name: "My Renamed Mode"`，组成文件表头 `# 基础模式: minimal`，行数 19 → 3，提示词被重写 |
+| 在播种出来的实例上跑完整 UI 流程 | 拍摄脚本读到状态、拨掉一行、保存成功（`已保存（基础模式：standard）…`）、切换语言与主题 |
+

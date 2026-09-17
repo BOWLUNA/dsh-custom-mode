@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 7 suites, 301 checks; resolves the shipped presets itself
+node test/run.mjs                                  # 8 suites, 333 checks; resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
@@ -47,10 +47,18 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
 5. **The two copies of the `{{…}}` validator stay in step** (`editor/index.mjs` ↔
    `preset/prompt-tool.mjs`); a test compares their verdicts.
 6. **The dictionary in `client.js` stays in step with `locales.mjs`**; a test extracts both and diffs them.
-7. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
+7. **`editor/preset/` is a packaging copy of `preset/`, not a second source.** npm can only ship
+   files inside the package, so the five preset files exist twice; `test/seed.test.mjs` asserts they
+   stay byte-identical. Edit `preset/`, copy, or the test fails.
+8. **Seeding never overwrites.** `editor/seed.mjs` fills in only missing files at activation, so a
+   storefront install (`dsh plugin add <pkg>`) is complete on its own, and a user's `prompt.md` or a
+   generated `agent.cordis.yml` survives. It must not throw either: an unwritable `DSH_HOME` is
+   reported and the boot continues.
+9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-8. **The version number follows dsh only**: small changes do not bump it; it changes when upstream
-   releases a new version and this plugin is re-adapted.
+10. **The version number follows dsh only**: small changes do not bump it; it changes when upstream
+   releases a new version and this plugin is re-adapted. A repackaged build may append `.revN`, which
+   `tools/verify-version-consistency.mjs` accepts and nothing else.
 
 ## Known traps (all measured)
 

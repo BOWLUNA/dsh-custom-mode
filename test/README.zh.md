@@ -6,7 +6,7 @@
 node test/run.mjs
 ```
 
-一个入口跑七个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
+一个入口跑八个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
 `@deepseek-ai/dsh-agent-presets`）：
 
 ```
@@ -23,13 +23,15 @@ node test/run.mjs
 ──────── meta.test.mjs ────────
 … 结果: 45 通过, 0 失败
 ──────── editor-route.test.mjs ────────
-… 结果: 50 通过, 0 失败
+… 结果: 51 通过, 0 失败
+──────── seed.test.mjs ────────
+… 结果: 31 通过, 0 失败
 ──────── locales.test.mjs ────────
 … 结果: 65 通过, 0 失败
-7 个套件全部通过（presets 来源：$DSH_HOME/profiles/node_modules）
+8 个套件全部通过（presets 来源：$DSH_HOME/profiles/node_modules）
 ```
 
-合计 **301 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余六个自带夹具、临时目录与桩，
+合计 **333 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余七个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 解析链有三条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析
@@ -50,6 +52,7 @@ node test/prompt-tool.test.mjs   # 不需要 dsh：把工具模块复制到临�
 node test/meta.test.mjs          # 不需要 dsh：用 DSH_CUSTOM_PROMPT_PATH 重定向写入位置
 node test/composition-edge.test.mjs  # 不需要 dsh：出厂 preset 用自己搭的夹具
 node test/editor-route.test.mjs      # 不需要 dsh：桩出 ctx / req / res，驱动真实 handler
+node test/seed.test.mjs              # 不需要 dsh：自己搭源目录与目标目录
 ```
 
 CI（`.github/workflows/test.yml`）在每次 push 时 `npm install @deepseek-ai/dsh@<适配版本>`，
@@ -95,3 +98,8 @@ handler，断言的第一条就是**被拒的请求不能产生任何副作用**
   输入是 CRLF 时输出是混合行尾；
 - **"显式打开一个在本平台本来就启用的行"是无操作**，反推开关时不该记成 override ——
   这是三态语义的必然结果，不是缺陷。
+
+`seed.test.mjs` 覆盖一键安装所依赖的 preset 播种：市场装插件只有一条命令，而那条命令能带上的只有
+npm 包。它断言缺失的文件会被补上、已存在的 `prompt.md` 与设置页生成过的 `agent.cordis.yml` **绝不**
+被覆盖、第二次激活不写任何东西、不可写的 home 只报告不抛异常；并且——因为包里必然存在第二份预设——
+`editor/preset/` 必须与 `preset/` 逐字节一致。
