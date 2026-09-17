@@ -157,6 +157,19 @@ API 是否还在，而不是本仓库的补丁号 —— 在这里摆一个自�
   `dependencies` 里是真实版本号、`node_modules` 里是真目录（不是软链）、组合树里出现
   `id: custom-mode` / `name: dsh-custom-mode` 两行、8 个发布文件齐全。
 
+### 已就绪、待随下一个版本发布
+
+npm 上的 `0.1.6-alpha.1` 是**不可变**的（同一个版本号不能重发），下面这些改动已经在本仓库里，
+但要等官方 DSH 更迭、版本号跟着换过之后再发出去：
+
+- `editor/README.md` —— 发布包里原本没有 README，所以 npm 页面只有元数据。这份 README 是包的
+  落地页：说明这个包**只是设置页那一半**、preset 来自仓库、以及怎么装。
+- `peerDependenciesMeta` 把 `@deepseek-ai/dsh` 标成 `optional` —— 否则用户从 registry 装完，
+  第一眼是一条 `[WARN] Issues with peer dependencies found`。
+- `editor/package.json` 的 `description` 改成英文，与英文为主的仓库一致。
+
+判断"该发新版了"的信号只有一个：**官方 DSH 发新版本**（见 README「版本策略」）。
+
 ### 功能
 
 - **系统提示词是一个文件**（`prompt.md`），每步模型调用前重新读取 → 保存后下一步即生效，
