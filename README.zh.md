@@ -160,5 +160,9 @@ MIT
 | --- | --- |
 | 模型 | DeepSeek V4.1 Flash（`deepseek-v4-flash`，provider `deepseek-official`） |
 | 运行时 | DeepSeek Harness **0.1.6-alpha.2**（`@deepseek-ai/dsh`，预览版） |
+| 未缓存输入 | 224,058 tok |
+| 缓存读取 | 125,638,016 tok |
+| 输出 | 425,539 tok |
 
-整个项目（含调研与返工）由 DSH 客户端统计消耗 111,406,700 token，缓存命中率 98%，其中输出约 306k。
+整个项目（含调研与返工）由 DSH 客户端统计：**126,287,613 tok**，缓存命中率 **99.8%**
+（缓存读取 ÷ 全部输入 125,862,074）。

@@ -211,6 +211,9 @@ MIT
 | --- | --- |
 | Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
 | Runtime | DeepSeek Harness **0.1.6-alpha.2** (`@deepseek-ai/dsh`, preview) |
+| Uncached input | 224,058 tok |
+| Cache reads | 125,638,016 tok |
+| Output | 425,539 tok |
 
-The whole project, research and dead ends included, cost the DSH client 111,406,700 tokens at a 98%
-cache hit rate — about 306k of them output.
+The whole project, research and dead ends included, cost the DSH client **126,287,613 tokens** at a
+**99.8%** cache hit rate (cache reads ÷ all input, 125,862,074).
