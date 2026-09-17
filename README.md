@@ -13,6 +13,11 @@ The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouche
 | ![Mode name and base mode](docs/images/01-mode-switch.png) | ![Plugin switches](docs/images/02-plugin-switches.png) |
 | ![System prompt](docs/images/03-system-prompt.png) | ![Mode picker](docs/images/04-preset-picker.png) |
 
+The current page (the assistant manager, captured on a real instance by
+`tools/browser-verify.mjs`):
+
+![Assistant manager](docs/images/05-assistant-manager.png)
+
 ## Install
 
 One command installs everything — the settings-page plugin, and the preset it seeds on first
@@ -57,12 +62,45 @@ not.
 
 ## Usage
 
-- **Settings page** — rename the mode, pick a base mode, toggle plugin rows one by one, edit the prompt.
-- **Ask the agent** — the mode ships a `custom_prompt` tool, so a session can read or rewrite the prompt.
-- **Edit the file** — `$DSH_HOME/.agent-presets/custom/prompt.md` is the single source of truth.
+The settings page (Settings → "Custom mode") is an **assistant manager**: the top of the page lists
+every custom mode you have — create, switch, delete — and the four blocks below (name, base mode,
+plugin switches, system prompt) edit **whichever one is selected**.
+
+- **Ordering** — "Move up / Move down" writes the order into each assistant's `preset.yml` (`order`,
+  the roster's own sort key), so it survives a restart and the new-session picker follows it.
+- **Import / export a prompt** — "Export prompt" saves the current text as a `.md`; "Import prompt"
+  reads a file into the **editor** (nothing is written until you save), so an import goes through the
+  same `{{…}}` validation as anything typed.
+- **New assistant** — type a name and click "New assistant". It is seeded from the packaged template:
+  the full Standard row set plus a starter prompt, selectable in a new session as soon as you save it.
+- **Duplicate** — copies the selected assistant's prompt, base mode and row switches into a new one;
+  the two are independent afterwards.
+- **Each assistant is independent** — its prompt, base mode and row switches are its own; changing one
+  leaves the others alone.
+- **Switching assistants never discards drafts** — each keeps its own unsaved edits, marked
+  "Unsaved" in the list; the only path that throws edits away is the reload button, which renames
+  itself to say so.
+- **Delete** — the shell's own risk-confirmation dialog, which requires ticking an acknowledgement.
+  Deletion only removes the mode directory from disk: **sessions already using it keep running** (their
+  composition was read when they started), and new sessions no longer offer it.
+- **Ask the agent** — every assistant ships a `custom_prompt` tool, so a session can read or rewrite
+  **its own** prompt.
+- **Edit the file** — `$DSH_HOME/.agent-presets/<assistant id>/prompt.md` is that assistant's single
+  source of truth.
 
 Only `{{model}}`, `{{cwd}}` and `{{provider}}` are interpolated. An unknown `{{…}}` is rejected when
 saved: the renderer throws on it, which would fail every request in that mode.
+
+Every control (buttons, inputs, switches, tags, the confirmation dialog, icons) comes from the
+shell's own `@deepseek-ai/dsh-client-ui-primitives`, so theme, light/dark and future restyling reach
+this page automatically; a shell that does not provide those atoms falls back to built-in plain
+controls with the same behaviour.
+
+An "assistant" is **one directory** under the user preset root (default `$DSH_HOME/.agent-presets/`),
+and its directory name is its internal id. The page manages only **presets this tool created** — the
+test is that the directory carries `prompt.md` and that its composition injects identity through
+`prompt-reader.mjs`. Any other hand-authored preset is neither listed nor touched: the page
+regenerates a composition from a base mode, and doing that to a hand-written one would destroy it.
 
 ### How this differs from the built-in Plugins page
 
@@ -102,9 +140,16 @@ its `!!js` platform condition and its shipped `disabled` state; an explicit on/o
 condition with a boolean. Platform expressions are evaluated on the host, so the page shows the state
 actually in force on this machine rather than whether a key exists.
 
+Several assistants need no new mechanism: `dsh-agent-presets` already scans **every** directory under
+the user preset root, and re-reads those roots on each roster call, so a directory created just now is
+selectable the next time a session is started. Each assistant's `prompt-reader.mjs` / `prompt-tool.mjs`
+resolves `prompt.md` relative to **its own module location**, so N copies are N independent prompts.
+Creation seeds the packaged template; deletion goes through the platform's `agentPresets.remove()`,
+which refuses a shipped preset and re-checks that the directory really lives under the writable root.
+
 ## Versioning
 
-Developed and verified on dsh **`0.1.6-alpha.1`**. The version number mirrors the DSH release this
+Developed and verified on dsh **`0.1.6-alpha.2`**. The version number mirrors the DSH release this
 plugin was adapted to and is **not bumped per change** — fixes and docs accumulate under it until
 upstream releases a new DSH and the plugin is re-adapted. What decides compatibility is whether the
 APIs below still exist, not a patch number of our own.
@@ -118,10 +163,15 @@ APIs below still exist, not a patch number of our own.
 | `agentPresets` remounts on composition `mtimeMs`+`size` | switches need a process restart to apply |
 | `ctx.tools.register()` | loses the `custom_prompt` tool |
 | `ctx.webServer.register({ kind, path, handler })` | settings page is blank |
+| `kind: 'prefix'` matching both `path` and `path/…` | only the list opens; `/state`, `/create`, `/delete` all 404 |
+| `agentPresets.list()` rows carrying `id` / `trust` / `path`, with `preset.yml` supplying `name` / `description` | the assistant list is empty or unrecognisable |
+| `agentPresets.remove(id)`, refusing `trust: 'system'` | deletion fails (the page shows the platform's reason) |
 | `ctx.connection.requestRejection(req)` | settings page fails closed (503) instead of serving |
 | `ctx.inject(deps, cb)` (scoped wait) | the row parks in `pending` in profiles without a web server |
 | `dsh.client` + `exports["./client"]`, client bundle id == package name | the browser half is not discovered |
-| `settings.section` slot with `locale` | page placement / translated labels |
+| `settings.section` slot (`id` / `order` / `label`) | page placement and label |
+| **`settings.section` no longer takes `locale:`** (since 0.1.6-alpha.2) | the shell does not hand over a `t` bound to this namespace; the page carries its own dictionaries as a floor — see ARCHITECTURE §15 |
+| `preset.yml`'s `order` participating in the roster sort | move up/down stops working |
 | `ctx.locale.register/bind` | falls back to Chinese |
 | shipped layout `<presets>/<id>/agent.cordis.yml` and row text shape | base-mode switching breaks |
 | `!!js` platform expressions | platform rows display the wrong state |
@@ -134,6 +184,8 @@ APIs below still exist, not a patch number of our own.
 - [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) — the commands and raw output behind each claim.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — why this is two artifacts, and which host APIs it depends on.
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) — how the npm package is published.
+- [`AGENTS.md`](AGENTS.md) — agent-facing notes, including the full recipe for verifying the UI in a
+  real browser on the lab (`tools/browser-verify.mjs`).
 - [`CHANGELOG.md`](CHANGELOG.md) · [`SECURITY.md`](SECURITY.md) · [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Development
@@ -158,7 +210,7 @@ MIT
 | | |
 | --- | --- |
 | Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
-| Runtime | DeepSeek Harness **0.1.6-alpha.1** (`@deepseek-ai/dsh`, preview) |
+| Runtime | DeepSeek Harness **0.1.6-alpha.2** (`@deepseek-ai/dsh`, preview) |
 
 The whole project, research and dead ends included, cost the DSH client 111,406,700 tokens at a 98%
 cache hit rate — about 306k of them output.

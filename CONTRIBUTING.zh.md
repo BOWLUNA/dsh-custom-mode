@@ -25,7 +25,7 @@ Node ES 模块。保持这样是设计的一部分，不是巧合。
 ## 开发循环
 
 前提：Node.js ≥ 20、`git`，以及与 `editor/package.json` 同版本的 `dsh`
-（当前 `0.1.6-alpha.1`；版本不一致先看 README 的「耦合点清单」）。
+（当前 `0.1.6-alpha.2`；版本不一致先看 README 的「耦合点清单」）。
 
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode

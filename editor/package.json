@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "0.1.6-alpha.1.rev2",
+  "version": "0.1.6-alpha.2",
   "description": "Settings page for the dsh-custom-mode agent preset: base-mode switching, per-row plugin switches, an editable system prompt, and mode renaming. Follows the DSH version.",
   "license": "MIT",
   "type": "module",
@@ -36,6 +36,7 @@
   },
   "files": [
     "index.mjs",
+    "assistants.mjs",
     "seed.mjs",
     "client.js",
     "composition.mjs",

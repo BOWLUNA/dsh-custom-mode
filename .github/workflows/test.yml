@@ -35,7 +35,7 @@ jobs:
       # 只为了拿它自带的 @deepseek-ai/dsh-agent-presets/presets。
       # --no-save：仓库不因为 CI 多出一个 lockfile / package.json。
       - name: 安装 DSH（只为取出厂 preset）
-        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.1
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
 
       - name: 语法检查
         run: |

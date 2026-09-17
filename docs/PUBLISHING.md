@@ -227,7 +227,7 @@ Point 5 matters: changing a user's profile without giving them an uninstall path
 
 Stating clearly in the README **which version it was verified on** is far more honest than writing a fake semver range. For this project:
 
-> Developed and verified on dsh `0.1.6-alpha.1`.
+> Developed and verified on dsh `0.1.6-alpha.2`.
 
 Also list **which APIs are used**, so that when dsh is upgraded others can judge for themselves whether it is still compatible:
 

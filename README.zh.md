@@ -11,6 +11,10 @@
 | ![模式名称与基础模式](docs/images/01-mode-switch.png) | ![插件开关](docs/images/02-plugin-switches.png) |
 | ![系统提示词](docs/images/03-system-prompt.png) | ![模式选择器](docs/images/04-preset-picker.png) |
 
+当前界面（多助手管理器，真机截图，由 `tools/browser-verify.mjs` 产出）：
+
+![助手管理器](docs/images/05-assistant-manager.png)
+
 ## 安装
 
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
@@ -49,11 +53,25 @@ cd dsh-custom-mode
 
 ## 使用
 
-- **设置页** —— 改模式名、选基础模式、逐行拨插件开关、编辑提示词。
-- **直接对 agent 说** —— 模式自带 `custom_prompt` 工具，会话里可以读取或改写提示词。
-- **直接改文件** —— `$DSH_HOME/.agent-presets/custom/prompt.md` 是唯一事实来源。
+设置页（设置 → 「自定义模式」）是一个**助手管理器**：上面列出你所有的自定义模式，可以新增、切换、删除，下面四个区块（模式名称 / 基础模式 / 插件开关 / 系统提示词）编辑的是**当前选中的那一个**。
+
+- **排序** —— 选中助手后「上移 / 下移」，顺序写在每个助手的 `preset.yml` 里（`order`，也就是 roster 自己的排序键），所以重启后仍然生效，新建会话的选择器按这个顺序排列。
+- **导入 / 导出提示词** —— 「导出提示词」把当前文本存成 `.md`；「导入提示词」把文件读进**编辑器**（不会直接落盘，仍需点保存），因此导入同样要过 `{{…}}` 校验。
+- **新增助手** —— 填个名字点「新增助手」。新助手从模板生成：标准模式的全部行 + 一份默认提示词，写好后在新建会话的选择器里就能选到它。
+- **复制一份** —— 把当前助手的提示词、基础模式、逐行开关整个复制到新助手，之后各改各的。
+- **每个助手各自独立** —— 提示词、基础模式、逐行开关都属于它自己，改一个不影响别的。
+- **切换助手不会丢草稿** —— 每个助手各自留着未保存的修改，列表上用「未保存」标出来；唯一会放弃修改的是「放弃修改并重新读取」（有草稿时按钮会改名说明）。
+- **删除** —— 用壳自己的风险确认弹窗，需要勾选「我明白……会被永久删除」。删除只移除磁盘上的模式目录：**正在使用它的会话不受影响**（组成在会话创建时就已读取），新建会话时不再出现。
+- **直接对 agent 说** —— 每个助手都自带 `custom_prompt` 工具，会话里可以读取或改写**它自己**的提示词。
+- **直接改文件** —— `$DSH_HOME/.agent-presets/<助手 id>/prompt.md` 是那个助手的唯一事实来源。
 
 插值变量只有 `{{model}}`、`{{cwd}}`、`{{provider}}`。出现未知的 `{{…}}` 会在保存时被拒绝：渲染器对它抛错，那会让该模式每个请求都失败。
+
+界面控件（按钮、输入框、开关、标签、确认弹窗、图标）全部来自壳自己的
+`@deepseek-ai/dsh-client-ui-primitives`，因此主题、深浅色与后续改版都会自动作用到本页；老壳没有提供这组
+原子组件时会退回内置的朴素控件，功能不变。
+
+「助手」= 用户预设根目录（默认 `$DSH_HOME/.agent-presets/`）下的**一个目录**，目录名就是它的内部 id。设置页只管理**本工具创建的模式**（判据：目录里有 `prompt.md`，且组成文件用 `prompt-reader.mjs` 注入身份）。手工编写的其它 preset 不会被列进来，更不会被改写 —— 页面会按基础模式重新生成组成文件，对一份手写的组成文件做这件事等于毁掉它。
 
 ### 与官方「插件管理」页的分工
 
@@ -83,9 +101,11 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 行开关是三态。没碰过的行与出厂行逐字节相同，包括 `!!js` 平台条件与出厂 `disabled`；显式开或关才会把那个条件替换成布尔值。平台表达式在宿主端求值，所以页面显示的是这台机器上实际生效的状态，而不是"有没有这个键"。
 
+多助手不需要机制上的新能力：`dsh-agent-presets` 本来就会扫描用户预设根目录下的**每一个**目录，而且每次读 roster 都重新扫盘，所以一个刚建的目录在下一次选会话时就可见。每个助手的 `prompt-reader.mjs` / `prompt-tool.mjs` 都是按**自己模块位置**解析 `prompt.md` 的，N 份拷贝等于 N 套互不干扰的提示词。新增用包内模板播种，删除交给平台的 `agentPresets.remove()`（它会拒绝删出厂 preset，并再确认目录确实在可写根目录下）。
+
 ## 版本
 
-在 dsh **`0.1.6-alpha.1`** 上开发并验证。版本号镜像所适配的 DSH 版本，**不按改动递增** —— 修复与文档都累积在同一个版本号下，直到官方发新版本、本插件重新适配。决定兼容性的是下面这些 API 是否还在，而不是本插件自己的补丁号。
+在 dsh **`0.1.6-alpha.2`** 上开发并验证。版本号镜像所适配的 DSH 版本，**不按改动递增** —— 修复与文档都累积在同一个版本号下，直到官方发新版本、本插件重新适配。决定兼容性的是下面这些 API 是否还在，而不是本插件自己的补丁号。
 
 <details>
 <summary>耦合点清单（升级 dsh 时逐个核对）</summary>
@@ -96,10 +116,15 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 | `agentPresets` 依据组成文件的 `mtimeMs`+`size` 重挂载 | 开关要重启进程才生效 |
 | `ctx.tools.register()` | 失去 `custom_prompt` 工具 |
 | `ctx.webServer.register({ kind, path, handler })` | 设置页空白 |
+| `kind: 'prefix'` 同时匹配 `path` 与 `path/…` | 只有列表能打开，`/state`、`/create`、`/delete` 全部 404 |
+| `agentPresets.list()` 行里有 `id` / `trust` / `path`，`preset.yml` 提供 `name` / `description` | 助手列表为空或认不出助手 |
+| `agentPresets.remove(id)`，且拒绝 `trust: 'system'` | 删除失败（页面会显示平台给的原因） |
 | `ctx.connection.requestRejection(req)` | 设置页失败关闭（503），不再提供服务 |
 | `ctx.inject(deps, cb)`（作用域化等待） | 在没有 web 服务器的 profile 里，整行会停在 `pending` |
 | `dsh.client` + `exports["./client"]`，且客户端 bundle id 等于包名 | 浏览器半不会被发现 |
-| `settings.section` 插槽与 `locale` | 页面位置 / 翻译标签 |
+| `settings.section` 插槽（`id` / `order` / `label`） | 设置项位置与标签 |
+| **`settings.section` 不再提供 `locale:`**（0.1.6-alpha.2 起） | 壳不会递进绑定到本命名空间的 `t`；页面自带词典兜底，见 ARCHITECTURE §15 |
+| `preset.yml` 的 `order` 参与 roster 排序 | 「上移 / 下移」不生效 |
 | `ctx.locale.register/bind` | 回退中文 |
 | 出厂布局 `<presets>/<id>/agent.cordis.yml` 与行的文本形状 | 基础模式切换失效 |
 | `!!js` 平台表达式 | 平台行显示错误状态 |
@@ -112,6 +137,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 - [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.zh.md) —— 每条结论背后的命令与原始输出。
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.zh.md) —— 为什么必须是两个产物，以及依赖了哪些宿主 API。
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.zh.md) —— npm 包的发布方式。
+- [`AGENTS.md`](AGENTS.md) —— 给 agent 的工作说明，含「实验机上做真浏览器验证」的完整配方（`tools/browser-verify.mjs`）。
 - [`CHANGELOG.md`](CHANGELOG.zh.md) · [`SECURITY.md`](SECURITY.zh.md) · [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)
 
 ## 开发
@@ -133,6 +159,6 @@ MIT
 | | |
 | --- | --- |
 | 模型 | DeepSeek V4.1 Flash（`deepseek-v4-flash`，provider `deepseek-official`） |
-| 运行时 | DeepSeek Harness **0.1.6-alpha.1**（`@deepseek-ai/dsh`，预览版） |
+| 运行时 | DeepSeek Harness **0.1.6-alpha.2**（`@deepseek-ai/dsh`，预览版） |
 
 整个项目（含调研与返工）由 DSH 客户端统计消耗 111,406,700 token，缓存命中率 98%，其中输出约 306k。

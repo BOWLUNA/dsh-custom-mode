@@ -7,6 +7,133 @@ upstream ships a new release and this project is re-adapted; in between, fixes a
 changes accumulate under the same version number and are not released on their own. For the reasoning,
 see the "Versioning" section of the README.
 
+## [0.1.6-alpha.2]
+
+### Version number follows dsh `0.1.6-alpha.2`
+
+- The version moves from `0.1.6-alpha.1.rev2` to **`0.1.6-alpha.2`**, and the `@deepseek-ai/dsh@<version>`
+  pinned in CI moves with it: `tools/verify-version-consistency.mjs` asserts the two agree, which is what
+  stops "CI green on the old runtime while the published package claims a version it never saw".
+- The previous section's "Pending: the version bump needs a workflow edit" and "Pending release with the
+  next version number" are both resolved by this release.
+- Every conclusion was re-measured on dsh `0.1.6-alpha.2`: the unit gate, and the **real-browser
+  verification** on the lab.
+
+### Several assistants: one settings page managing many custom modes
+
+- The settings page grew from "one mode" into an **assistant manager**: it lists every custom mode with
+  **create / switch / delete**, and the four blocks below (name, base mode, plugin switches, system
+  prompt) edit whichever one is selected.
+- **Each assistant's system prompt is independent.** One assistant is one directory under the user
+  preset root, and its `prompt-reader.mjs` / `prompt-tool.mjs` resolve `prompt.md` relative to **their
+  own module location**, so N copies are N independent prompts. The `custom_prompt` tool edits only its
+  own file too.
+- **Creation** seeds the packaged template (`editor/assistants.mjs`): a fresh Standard-based composition
+  plus the starter prompt. A name that is already a legal id (an English word) becomes the directory
+  name; anything else falls back to `custom`, `custom-2`, …
+- **Deletion** goes through the platform's `agentPresets.remove(id)`: a shipped preset is refused by the
+  platform, and so is a directory outside the writable root. Deletion affects **new sessions only**;
+  sessions already using it keep running (their composition was read when they started).
+- **Only presets this tool created are managed.** The test is that the directory carries `prompt.md` and
+  that its composition injects identity through `prompt-reader.mjs`. A hand-authored preset is neither
+  listed nor touched — a save regenerates the composition from a base mode, and doing that to a
+  hand-written file would destroy it.
+- **A deleted assistant does not come back.** The first-run seed happens only on a genuine first run
+  (recorded by a `.custom-mode.json` marker under the root). Every activation still repairs all managed
+  directories by filling in MISSING files only, which rescues the case where a composition row names a
+  deleted module and the whole mode reads as broken and vanishes from the picker.
+- The route changed from one `exact` path to one **`prefix`** path covering `GET /custom-mode` (the
+  list), `GET /custom-mode/state?id=`, and `POST /custom-mode/state|create|delete`, with a per-path
+  method table (`GET /custom-mode/create` is a 405 — a prefetched link must not create an assistant).
+- The `custom_prompt` description now names **its own** assistant (the composition row's
+  `config.modeName`, falling back to the `preset.yml` beside the module). An older assistant's older
+  module ignores that key — deliberately, since the module lives in the user's directory and activation
+  must not overwrite their files; `./install.sh` refreshes the modules and keeps `prompt.md`.
+
+### Interface and ergonomics (second pass)
+
+- **Controls now come from the shell's own atoms**: `Button` / `Input` / `Switch` / `Tag` / `Pill` /
+  `RiskConfirmation` and the icons all come from `@deepseek-ai/dsh-client-ui-primitives`. It sits in
+  the shell's **seed table** beside `react`, so it is a plain `require` — no bundler, and no
+  `dsh.client.external` declaration. The payoff: theme, light/dark, density and future restyling apply
+  automatically, instead of a hand-copied visual spec that is guaranteed to go stale.
+- **Degrade, don't blank**: with no atom module (an older shell) the page falls back to built-in plain
+  controls with the **same prop contract**; with no `RiskConfirmation`, deletion falls back to a
+  native `confirm` rather than losing the guardrail.
+- **Switching assistants no longer discards drafts**: each assistant keeps its own unsaved edits
+  (`entries[id]`), marked 「未保存」 in the list. The only path that throws edits away is the reload
+  button, which renames itself to say so while a draft exists.
+- **New "Duplicate"**: copies the source's prompt, base mode and row switches into a new assistant;
+  the two are independent afterwards.
+- **Deletion moved to `RiskConfirmation`**: permanently deleting the user's own prompt deserves an
+  explicit acknowledgement, not a second click next to the primary button.
+- **Base mode is now a pill selector**, with the selected mode's description on its own line.
+- **An assistant with a broken composition** is flagged in the list (the roster's `broken`) instead of
+  being a mode that simply refuses to open.
+- Added a route-constant drift guard (the browser and host halves each hard-code the path) and tested
+  `client.js`'s atom probe along both branches — atoms present and atoms missing.
+
+### Interface fixes and ergonomics (third pass)
+
+- **Fixed "the whole page renders raw keys" (`assistant.heading`, `btn.create`)** — a failure observed in
+  the field. The cause: dsh `0.1.6-alpha.2`'s `settings.section` contract **no longer has a `locale:`
+  option**, so the shell does not hand over a `t` bound to this namespace; the nav label went through the
+  page's own `locale.bind()`, which could not resolve either. The shell's `t` is still preferred when it
+  answers, and **the bundle's own zh/en dictionaries are now the floor** — a key that is in the table can
+  never render raw; language switches re-render through `locale.subscribe()`. A test builds a shell whose
+  `t` echoes the key and drives this path, verified to go red against the old code.
+- **A failed registration is no longer silent.** `ctx.effect` swallows exceptions thrown by its callback
+  (measured), so "registration failed" and "everything is fine" looked identical from outside — page
+  present, console quiet, all copy raw. Registration now catches, warns with the reason, and re-reads once
+  to tell "refused" apart from "registered but the host cannot see it".
+- **Assistant ordering**: "Move up / Move down" writes the position into each `preset.yml` (`order`, the
+  roster's own sort key), so it survives a restart, is visible in the file, and has no second copy to
+  drift from; a rename preserves it.
+- **Prompt import / export**: export saves the current text as `.md`; import reads a file into the
+  **editor** rather than straight onto disk, so it goes through the same `{{…}}` validation; 1 MB cap,
+  empty files refused.
+- **Two UI gaps closed**: `Switch`'s `label` is its `aria-label` only (no visible text), so the row title
+  is rendered here — otherwise every switch was nameless; `Input`'s wrap is `inline-flex`, so full-width
+  fields need an explicit class.
+
+### Real-browser verification (fourth pass)
+
+- **New `tools/browser-verify.mjs`**: drives a real browser over a CDP port and asserts that no raw
+  translation keys are visible, that the copy is translated, that every switch has a visible row
+  title, that the nav entry is not a raw key, and that a full 「create → appears → risk confirmation
+  → acknowledge → delete permanently → gone」 round trip works in the browser.
+- **The page it renders has now been seen**: on the lab (with dsh upgraded to
+  `0.1.6-alpha.2`) it reports **21/21 passed**, and the screenshot was inspected by eye. That closes
+  the long-standing blind spot of "every suite green, nobody ever looked" — which is exactly what
+  produced the wall of raw keys in `docs/ARCHITECTURE.md` §15.
+- The two traps the verifier hit are recorded too: the settings panel is itself `[role=dialog]` (so
+  a confirmation must be found by content among all dialogs), and `RiskConfirmation`'s tick and click
+  must be two ticks apart.
+- The assistant list container gained a `.cpfe-assistants` class: self-describing DOM, and it lets the
+  verifier tell those pills apart from the base-mode selector.
+- **Working guides**: `~/.dsh/AGENTS.md` (global, every session) and the workspace `AGENTS.md` now
+  carry the machine inventory, the lab recipe, the npm-tag trap for upgrading dsh, and the rule that
+  the session machine's dsh is never restarted.
+
+### Tests
+
+Eleven suites with **520 checks** in total (the previous release had eight suites and 333 checks). Two
+suites are new and three existing ones grew:
+
+- `assistants` (68) — the multi-assistant core: which directories count as "this tool's" (the narrow
+  test is a safety boundary), id allocation, creating from the template, first-run seeding and adoption,
+  "deleting everything does not resurrect anything on restart", and reordering including its refusals.
+- `client-bundle` (32) — the browser half's registration contract, previously untested: it loads the
+  bundle the way the client module loader does and runs `apply` against a stand-in `ctx`, asserting the
+  bundle id equals the package name, that `exports.inject` carries `slots`/`locale`, every field of the
+  `settings.section` registration, and the failure policy — along both degradation paths, "the shell's
+  dictionary cannot be found" and "the shell has no shared atom library".
+- `editor-route` (45 → 112) — from one `exact` route to five endpoints (list / read / save / create /
+  delete / reorder), the per-path method table, a guard against the browser and host halves drifting on
+  the route constant, duplicating an assistant, plus the original fence and validation branches.
+- `meta` (45 → 53) — `order` round trips, and "a rename must preserve it".
+- `manifests` (13 → 16) — "npm's `files` whitelist must cover every module the runtime imports" (a
+  measured lesson: miss one file, notice nothing locally, and the published package fails on activation).
 ## [0.1.6-alpha.1]
 
 Adapted to dsh `0.1.6-alpha.1`. Grouped by theme; order within a group is not chronological.

@@ -16,11 +16,12 @@ conditions, and the fixed version, and to publish details only after the fix is 
 
 This plugin's version number **follows the DSH version it is adapted to** (see README, "Version
 Policy and Compatibility"), so "which version is supported" is equivalent to "which DSH version it
-has been verified against". Development and verification currently cover only the row below:
+has been verified against". Development and verification cover the rows below; the newest row is the current target:
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `0.1.6-alpha.1` (including commits after this repository's `review/2026-09-fixes` branch) | `0.1.6-alpha.1` | Supported |
+| `0.1.6-alpha.2` | `0.1.6-alpha.2` | **Supported (current development and verification target)** |
+| `0.1.6-alpha.1` (including commits after this repository's `review/2026-09-fixes` branch) | `0.1.6-alpha.1` | Supported (previous) |
 | `0.1.6-alpha.1` earlier than the above branch (i.e. the initial commit) | `0.1.6-alpha.1` | **Affected by the problem described below; upgrading is recommended** |
 
 ## Known Problems and Fixes
