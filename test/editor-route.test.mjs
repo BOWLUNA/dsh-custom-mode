@@ -295,11 +295,14 @@ console.log('=== 5. 其他方法与异常输入 ===')
 console.log()
 console.log('=== 6. 缺文件时的行为（不能崩） ===')
 {
+  // 注意顺序：`apply()` 现在会播种缺失的 preset（这样 `dsh plugin add <pkg>` 一条命令
+  // 就是完整安装），所以"文件不见了"这个场景必须是**激活之后**才发生的——删在前会被补回来。
   const saved = readFileSync(compositionPath, 'utf8')
-  rmSync(compositionPath, { force: true })
   route = mount({ rejection: undefined })
+  rmSync(compositionPath, { force: true })
   const res = await call(makeReq('GET', {}))
   check('缺组合文件 → 200 且 ok:false + 明确错误', res.statusCode === 200 && JSON.parse(res.body).ok === false, res.body.slice(0, 90))
+  check('缺文件时说明是哪个文件', String(JSON.parse(res.body).error).includes(compositionPath), res.body.slice(0, 140))
   writeFileSync(compositionPath, saved, 'utf8')
 }
 

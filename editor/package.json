@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "0.1.6-alpha.1",
+  "version": "0.1.6-alpha.1.rev1",
   "description": "Settings page for the dsh-custom-mode agent preset: base-mode switching, per-row plugin switches, an editable system prompt, and mode renaming. Follows the DSH version.",
   "license": "MIT",
   "type": "module",
@@ -36,18 +36,20 @@
   },
   "files": [
     "index.mjs",
+    "seed.mjs",
     "client.js",
     "composition.mjs",
     "meta.mjs",
     "paths.mjs",
     "locales.mjs",
-    "cordis.patch.yml"
+    "cordis.patch.yml",
+    "preset/"
   ],
   "scripts": {
     "test": "node ../test/run.mjs"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh": ">=0.1.2-alpha.1"
+    "@deepseek-ai/dsh": ">=0.1.6-alpha.1"
   },
   "publishConfig": {
     "access": "public",
@@ -57,5 +59,8 @@
     "@deepseek-ai/dsh": {
       "optional": true
     }
+  },
+  "engines": {
+    "dsh": ">=0.1.6-alpha.1"
   }
 }

@@ -40,6 +40,7 @@ import {
   setShippedPresetsDir,
 } from './composition.mjs'
 import { readPresetMeta, writePresetMeta, PRESET_META_PATH } from './meta.mjs'
+import { seedPresetWithLog } from './seed.mjs'
 
 export { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR, PRESET_META_PATH }
 
@@ -292,6 +293,16 @@ function connectionRejection(ctx, req) {
 const WEB_SERVICES = ['webServer', 'agentPresets']
 
 export function apply(ctx) {
+  // Before anything else: make sure the preset exists on disk.
+  //
+  // A storefront install is a single command (`dsh plugin --profile web add
+  // dsh-custom-mode`), and the npm package is all that command carries. Without this,
+  // such an install produces a settings page whose composition file does not exist: the
+  // page opens on an error and the mode cannot even be picked for a new session.
+  // Idempotent, never overwrites an existing file (see seed.mjs), and silent once the
+  // preset is complete.
+  seedPresetWithLog(PRESET_DIR)
+
   ctx.inject(WEB_SERVICES, (scope) => {
     // Compatibility guard: this plugin reads host APIs that a future DSH release could
     // reshape. Check them once and say so plainly, instead of letting every request

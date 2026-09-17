@@ -114,6 +114,7 @@ const suites = [
   'prompt-tool.test.mjs',
   'meta.test.mjs',
   'editor-route.test.mjs',
+  'seed.test.mjs',
   'locales.test.mjs',
 ]
 const env = { ...process.env, DSH_SHIPPED_PRESETS_DIR: found.dir }
