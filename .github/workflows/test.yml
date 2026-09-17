@@ -53,6 +53,11 @@ jobs:
           bash -n install.sh
           bash -n uninstall.sh
 
+      # 包版本必须等于 CI 钉住并测试的 dsh 版本（允许 .revN 修订后缀）。
+      # 只改一处会让 CI 在旧运行时上通过，而发布的包声称适配了没测过的版本。
+      - name: 版本一致性
+        run: node tools/verify-version-consistency.mjs
+
       # README.md / README.zh.md（以及 CONTRIBUTING 那一对）权威相同：
       # 改了一侧忘了另一侧，这里直接失败，而不是等有人切语言才发现。
       - name: 双语配对一致性

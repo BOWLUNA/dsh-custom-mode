@@ -35,7 +35,18 @@ if (pinned === null) {
 
 const tested = pinned[1]
 
-if (claimed !== tested) {
+/**
+ * The claimed version, or a revision of it.
+ *
+ * The package version is the DSH version it was adapted to. A change to the *package* — new
+ * files in `files`, a metadata fix — cannot be published under the same version, because npm
+ * refuses to republish a version, so it goes out as `<dsh version>.revN`. That is still the
+ * same adaptation: the revision suffix must not become a way to drift away from the DSH
+ * version, which is why only `<tested>.` is accepted and anything else fails.
+ */
+const isSameAdaptation = claimed === tested || claimed.startsWith(`${tested}.`)
+
+if (!isSameAdaptation) {
   console.error('版本不一致：')
   console.error(`  editor/package.json       ${claimed}   ← 对外声称适配的版本`)
   console.error(`  CI 实际安装并测试的 DSH    ${tested}   ← 真正跑过测试的版本`)
@@ -44,7 +55,10 @@ if (claimed !== tested) {
   console.error('  1. editor/package.json 的 version')
   console.error('  2. .github/workflows/test.yml 里的 @deepseek-ai/dsh@<version>')
   console.error('否则 CI 会在旧版本上通过，而发布的包声称适配了未测过的新版本。')
+  console.error('')
+  console.error(`（允许 ${tested}.revN 这种修订后缀：包内容变了而要重发时必须换版本号，`)
+  console.error('  但适配的 DSH 版本没变。除了这个后缀，版本号必须与 CI 钉的版本一致。）')
   process.exit(1)
 }
 
-console.log(`版本一致性: OK —— 声称适配 ${claimed}，CI 也正是在 ${tested} 上测试。`)
+console.log(`版本一致性: OK —— 适配自 ${tested}（包版本 ${claimed}），CI 也正是在 ${tested} 上测试。`)

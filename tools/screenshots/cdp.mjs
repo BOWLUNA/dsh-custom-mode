@@ -324,19 +324,32 @@ class Session {
     })
   }
 
-  /** Capture an arbitrary viewport-relative box. */
+  /**
+   * Capture an arbitrary viewport-relative box.
+   *
+   * A long-lived headless browser occasionally stalls on `Page.captureScreenshot` (seen on a
+   * Chrome instance that had been open for a while and accumulated page targets). Retrying
+   * once is enough in practice and keeps a screenshot run from dying at the last step.
+   */
   async screenshotBox(file, box) {
-    const result = await this.send('Page.captureScreenshot', {
-      format: 'png',
-      captureBeyondViewport: false,
-      clip: {
-        x: Math.max(0, Math.round(box.x)),
-        y: Math.max(0, Math.round(box.y)),
-        width: Math.round(box.width),
-        height: Math.round(box.height),
-        scale: 1,
-      },
-    })
+    const clip = {
+      x: Math.max(0, Math.round(box.x)),
+      y: Math.max(0, Math.round(box.y)),
+      width: Math.round(box.width),
+      height: Math.round(box.height),
+      scale: 1,
+    }
+    let result
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        result = await this.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false, clip })
+        break
+      } catch (error) {
+        if (attempt >= 3) throw error
+        console.warn(`  （截图失败，重试 ${attempt}/2: ${String((error && error.message) || error)}）`)
+        await this.sleep(2000)
+      }
+    }
     const { writeFileSync } = await import('node:fs')
     writeFileSync(file, Buffer.from(result.data, 'base64'))
     return file
