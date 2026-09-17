@@ -49,14 +49,25 @@ dsh-custom-mode/
 │   ├── prompt-reader.mjs        # 读文件 → 注册为身份段
 │   └── prompt-tool.mjs          # custom_prompt 工具（无浏览器时的编辑通道）
 ├── editor/                      # 设置页插件（npm 包 + profile bundle）
-│   ├── index.mjs                # 宿主半：私有路由 /custom-prompt-editor
-│   ├── client.js                # 浏览器半：设置页（手写 bundle）
+│   ├── index.mjs                # 宿主半：私有路由 /custom-prompt-editor（带平台鉴权栅栏）
+│   ├── client.js                # 浏览器半：设置页（手写 bundle，无打包器）
+│   ├── composition.mjs          # 组成文件编译器（文本手术，保留 !!js 与出厂注释）
+│   ├── locales.mjs              # 中英词典（单一事实来源；client.js 里是它的副本）
+│   ├── meta.mjs / paths.mjs     # preset.yml 读写 / 路径解析
 │   ├── cordis.patch.yml         # bundle 补丁：insert 插件行
-│   └── package.json
-├── install.sh                   # 安装 preset + 插件
+│   └── package.json             # 含 files 白名单（CI 会断言打包内容）
+├── test/                        # 三个套件共 143 项，用 node test/run.mjs 跑
+│   ├── composition.test.mjs     # 63 项：文本手术是否无损、开关语义、平台条件
+│   ├── prompt-reader.test.mjs   # 15 项：热更新契约
+│   └── locales.test.mjs         # 65 项：双语键集 + client.js 副本不漂移
+├── tools/screenshots/           # 截图的拍摄脚本（手写 CDP 客户端，零依赖）
+├── install.sh                   # 安装 preset + 插件（含前置自检与安装后自检）
 ├── uninstall.sh
+├── .github/                     # CI + issue 表单 + PR 模板
 └── docs/
     ├── ARCHITECTURE.md          # 为什么必须拆成两个产物（踩坑记录）
+    ├── TROUBLESHOOTING.md       # 10 类实测复现过的失败 + 自救命令
+    ├── 实测记录.md               # 每条结论背后的命令与原始输出
     └── PUBLISHING.md            # 发布到 npm / 别人怎么装
 ```
 
@@ -196,6 +207,7 @@ CI（`.github/workflows/test.yml`）在每次 push 时先 `npm install @deepseek
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) —— 实测复现过的失败：装完 dsh 起不来、WSL 下 pnpm panic、页面不出现、模式不见了、保存被拒。
 - [`docs/实测记录.md`](docs/实测记录.md) —— 每条结论背后的命令与原始输出（安装、安全、保存链路、热更新、双语、测试）。
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) —— 发布到 npm、别人如何安装。
+- [`CHANGELOG.md`](CHANGELOG.md) —— 版本变更；[`SECURITY.md`](SECURITY.md) —— 已知安全问题与报告渠道。
 
 # 路线图
 

@@ -130,6 +130,7 @@ The compiler tests assert **properties, not bytes**: the shipped text changes be
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — failures reproduced on a real machine: a dsh that no longer boots after install, pnpm panicking under WSL, the settings page not appearing, the mode vanishing from the picker, rejected saves.
 - [`docs/实测记录.md`](docs/实测记录.md) — the commands and raw output behind each claim (install, security, the save path, hot reload, i18n, tests).
 - [`docs/PUBLISHING.md`](docs/PUBLISHING.md) — how to publish, and three hard lessons from surveying the existing plugin ecosystem.
+- [`CHANGELOG.md`](CHANGELOG.md) — version history; [`SECURITY.md`](SECURITY.md) — known security issues and how to report one.
 
 ## License
 

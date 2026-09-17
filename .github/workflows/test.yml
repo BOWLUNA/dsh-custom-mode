@@ -48,3 +48,27 @@ jobs:
         run: |
           bash -n install.sh
           bash -n uninstall.sh
+
+      # 发布包最容易踩的坑不是"多打了文件"，而是**少打了**：dsh.bundle.patch 指向的补丁、
+      # 或浏览器半的 client.js 一旦被 files 白名单漏掉，npm 上的包装了也没用，
+      # 而且要等到有人装完才发现。这里对着真实的 packlist 断言。
+      - name: npm 打包自检（发布包里不能少文件）
+        working-directory: editor
+        run: |
+          npm pack --dry-run --json > /tmp/pack.json
+          node -e '
+            const fs = require("fs");
+            const files = JSON.parse(fs.readFileSync("/tmp/pack.json", "utf8"))[0].files.map((f) => f.path);
+            const need = ["index.mjs", "client.js", "composition.mjs", "meta.mjs", "paths.mjs", "cordis.patch.yml", "package.json"];
+            const missing = need.filter((name) => !files.includes(name));
+            const stray = files.filter((path) => /^(test|tools|docs)\//.test(path));
+            console.log("打包内容:", files.join(", "));
+            if (missing.length > 0) {
+              console.error("打包缺文件:", JSON.stringify(missing));
+              process.exit(1);
+            }
+            if (stray.length > 0) {
+              console.error("打包混入了非运行时文件:", JSON.stringify(stray));
+              process.exit(1);
+            }
+          '

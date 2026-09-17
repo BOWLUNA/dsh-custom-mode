@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 先看故障排查（多数问题已有答案）
+    url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md
+    about: 装完 dsh 起不来、WSL 下 pnpm 报错、设置页不出现、模式从选择器消失、保存被拒——每条都有症状、原因与自救命令。
+  - name: 结论是怎么来的（实测记录）
+    url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/%E5%AE%9E%E6%B5%8B%E8%AE%B0%E5%BD%95.md
+    about: 安装、安全、保存链路、热更新、双语的原始命令与输出，可以直接复跑核对。

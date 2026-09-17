@@ -35,6 +35,15 @@
       "platform": "web"
     }
   },
+  "files": [
+    "index.mjs",
+    "client.js",
+    "composition.mjs",
+    "meta.mjs",
+    "paths.mjs",
+    "locales.mjs",
+    "cordis.patch.yml"
+  ],
   "scripts": {
     "test": "node ../test/run.mjs"
   },

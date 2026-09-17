@@ -47,6 +47,27 @@ dsh plugin --profile web add dsh-custom-prompt-editor
 - [ ] `exports["./client"]` 指向浏览器半。
 - [ ] `private` 字段删掉（`editor/package.json` 里现在是 `true`，那是本地开发用的）。
 
+`files` 白名单已经写好了，而且这件事**不能靠肉眼核对**——最容易踩的坑是"少打了文件"，
+而那要等到有人装完才发现。CI（`.github/workflows/test.yml`）里有一条对着真实 packlist 的断言，
+本地也可以随时跑同一件事：
+
+```sh
+cd editor
+npm pack --dry-run --json | node -e '
+  const files = JSON.parse(require("fs").readFileSync(0, "utf8"))[0].files.map((f) => f.path);
+  const need = ["index.mjs", "client.js", "composition.mjs", "meta.mjs", "paths.mjs", "cordis.patch.yml", "package.json"];
+  const missing = need.filter((name) => !files.includes(name));
+  console.log(files.join(", "));
+  if (missing.length > 0) { console.error("缺:", missing); process.exit(1); }
+'
+```
+
+当前应输出（`locales.mjs` 是文档里那份"单一事实来源"，随包发出以免读者找不到它）：
+
+```
+client.js, composition.mjs, cordis.patch.yml, index.mjs, locales.mjs, meta.mjs, package.json, paths.mjs
+```
+
 ### 三条硬经验（踩过坑，务必遵守）
 
 **1. 不要钉死 peerDependencies 的精确版本。**
@@ -110,3 +131,37 @@ bundle 文件，约 1 秒后把插件原地换掉（实测证据见 [`ARCHITECTU
 
 > 这里曾写「改完 client.js 必须重启，刷新页面不够」，那是错的，跟 ARCHITECTURE §10 的实测
 > 结论直接矛盾。以 §10 为准。
+
+## GitHub 仓库本身的装修
+
+代码之外，仓库页面上还有几处是别人第一眼会看的。这些只能在网页或 API 上设置，值先记在这里：
+
+**About → Description**
+
+```
+DSH 自定义模式：系统提示词变成可热改的文件，逐行控制插件挂载，模式可改名
+```
+
+**About → Topics**（小写、连字符，每个不超过 50 字符）
+
+```
+dsh  deepseek-harness  agent-preset  system-prompt  cordis  plugin  prompt-engineering
+```
+
+**About → 勾选 Issues**，并把本仓库 **Pin** 到个人主页（第一个公开项目值得钉住）。
+Wikis / Discussions 用不上就别开——空着的入口只会让人觉得项目烂尾。
+
+**Social preview**：用 `docs/images/01-mode-switch.png`（Settings → Social preview 上传）。
+默认的灰底卡片在分享链接时很难看。
+
+**Release**：`v0.1.6-alpha.1`（tag 名与插件版本一致，理由见 README「版本号跟随官方」）。
+
+```sh
+git checkout main && git merge --ff-only review/2026-09-fixes
+git tag -a v0.1.6-alpha.1 -m "dsh-custom-mode 0.1.6-alpha.1"
+git push && git push --tags
+```
+
+Release 正文直接用 [`CHANGELOG.md`](../CHANGELOG.md) 里对应那一节，**并勾选 "Set as a pre-release"**
+（这是个 alpha 版本）。如果这一版包含安全修复，正文里要**明确写出受影响版本与缓解方式**，
+而不是只写"修复了一些问题"——从 `SECURITY.md` 里复制那段即可。
