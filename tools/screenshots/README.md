@@ -65,10 +65,11 @@ cp preset/prompt.md "$DSH_HOME/.agent-presets/custom/prompt.md"
 重跑时 `01`/`03` 是固定裁窗，应当得到同一张图；`02`/`04` 取决于滚动位置与下拉框几何，
 可能差一两个像素——叙事一致，像素不保证完全一致。
 
-## 另外两张「不是界面截图」的图
+## 另一张「不是界面截图」的图
 
-`live-hot-reload.mjs` 拍的是 **05-hot-reload-in-session.png**（只给文档用，不进 README）：它在真实会话里做一次
-「改提示词 → 下一步生效」的实验（两轮之间改 `/custom-mode` 后端那个 `prompt.md`）。
+`live-hot-reload.mjs` 在真实会话里做一次「改提示词 → 下一步生效」的实验（两轮之间改后端那个
+`prompt.md`），并把最后那一屏截到你指定的路径。它**不产出仓库里的四张图**，那张会话截图也**不随
+仓库发布** —— 实验的命令与原始输出在 `docs/MEASUREMENTS.md` §0，够复现了。
 
 ```sh
 node tools/screenshots/live-hot-reload.mjs "<带 token 的 URL>" "$DSH_HOME/.agent-presets/custom/prompt.md"
