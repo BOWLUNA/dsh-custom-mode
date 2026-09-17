@@ -97,3 +97,29 @@ The compiler tests assert **properties, not bytes**: the shipped text changes be
 ## License
 
 MIT
+
+---
+
+# Project information
+
+## Built with
+
+| | |
+| --- | --- |
+| Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
+| Runtime | DeepSeek Harness **0.1.6-alpha.1** (`@deepseek-ai/dsh`, preview) |
+| Target version | The same; this plugin mirrors the official version number |
+
+## What it cost to build
+
+As reported by the DSH client, for the whole project — research, measurements, dead ends and rework included:
+
+| Metric | Value |
+| --- | --- |
+| Total tokens | **111,406,700** |
+| Cache hit rate | **98%** |
+| Uncached input | 2,603,266 |
+| Cache read | 108,497,408 |
+| Output | 306,026 |
+
+Only ~306k tokens came out, against ~111M read in — **98% of it served from cache**. The ratio is the argument for the parts that look like overhead: running the tests, reading the runtime's own source, and checking every API against it. Those steps are what kept a wrong assumption from being written down as fact.
