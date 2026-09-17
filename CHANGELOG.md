@@ -27,6 +27,14 @@ Adapted to dsh `0.1.6-alpha.1`. Grouped by theme; order within a group is not ch
   permission bits, so three assertions were green on CI and red for anyone running as root — a test
   whose result depended on who ran it. The path is now blocked by a regular file, which fails with
   `ENOTDIR` for every user.
+- **A storefront install from the repository URL used to be a silent no-op.** The new Plugins page
+  accepts a package name, a repository URL, or a local directory. Pasting the repository URL installed
+  the whole repository — whose **root manifest had no `dsh` field at all** — so pnpm reported success,
+  no bundle row was inserted, the host half never ran, and the setup silently did nothing. The root
+  manifest now declares `main`, `exports["./client"]` and `dsh.bundle.patch` pointing into `editor/`,
+  which makes all three inputs work; `test/manifests.test.mjs` asserts the two manifests agree on
+  name, version and every declared path. Measured before the fix: the two versions had already drifted
+  (`0.1.6-alpha.1` vs `0.1.6-alpha.1.rev2`) with nobody noticing.
 - **The new row ships disabled in `standard`/`ptc`** (only `cordis` enables it), so the existing
   "rows that ship disabled stay disabled until touched" test now covers it — and the per-row switch is
   the only way to turn it on inside a Standard-based mode, since upstream keeps agent-preset rows

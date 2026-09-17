@@ -116,6 +116,7 @@ const suites = [
   'editor-route.test.mjs',
   'seed.test.mjs',
   'locales.test.mjs',
+  'manifests.test.mjs',
 ]
 const env = { ...process.env, DSH_SHIPPED_PRESETS_DIR: found.dir }
 let failed = 0

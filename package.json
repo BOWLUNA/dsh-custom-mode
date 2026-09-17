@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "0.1.6-alpha.1",
+  "version": "0.1.6-alpha.1.rev2",
   "private": true,
   "description": "A custom agent mode for DeepSeek Harness (dsh): an editable system prompt that takes effect on the next step, per-row plugin switches, and a settings page.",
   "license": "MIT",
@@ -26,5 +26,19 @@
   "scripts": {
     "test": "node test/run.mjs",
     "verify-translation-pairing": "node tools/verify-translation-pairing.mjs"
+  },
+  "main": "./editor/index.mjs",
+  "exports": {
+    ".": "./editor/index.mjs",
+    "./client": "./editor/client.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./editor/cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
   }
 }

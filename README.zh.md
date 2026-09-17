@@ -22,6 +22,20 @@ dsh plugin --profile web add dsh-custom-mode
 装完重启 dsh，新建会话时选「自定义模式」。preset 会被写到 `$DSH_HOME/.agent-presets/custom/`；
 **那里已有的文件一律不动**，所以你自己写过的 `prompt.md` 不会被覆盖。
 
+### 图形界面安装（不用终端）
+
+dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插件**。它接受三种输入，本插件对应如下：
+
+| 输入 | 填什么 | 说明 |
+| --- | --- | --- |
+| **包名** | `dsh-custom-mode` | 最省事 |
+| **GitHub 仓库地址** | `https://github.com/BOWLUNA/dsh-custom-mode` | 指向**仓库根**即可 |
+| **本地插件目录** | `<你 clone 的路径>/editor` | 注意要指向 `editor/`，不是仓库根 |
+
+三条都可用，因为**仓库根的 `package.json` 声明了指向 `editor/` 的 `dsh.bundle` / `main` / `exports["./client"]`**。
+根清单与 `editor/package.json` 必须描述同一个插件，`test/manifests.test.mjs` 会断言它们的名字、版本与
+声明的路径全部一致——两个清单写同一件事是漂移风险，所以用测试盯住，而不是靠记性。
+
 想同时留下源码（或者不用 npm 安装），就 clone 下来跑脚本，它把同样两件事显式做一遍：
 
 ```sh

@@ -26,6 +26,22 @@ Restart dsh afterwards, then choose「自定义模式」for a new session. The p
 `$DSH_HOME/.agent-presets/custom/`; anything already there is left alone, so a `prompt.md` you wrote
 yourself is never overwritten.
 
+### Installing from the interface (no terminal)
+
+From dsh `0.1.6-alpha.2` there is a Plugins page: **sidebar → Plugins → Add plugin**. It takes three
+kinds of input, and all three work here:
+
+| Input | What to paste |
+| --- | --- |
+| **Package name** | `dsh-custom-mode` |
+| **GitHub repository URL** | `https://github.com/BOWLUNA/dsh-custom-mode` (the repository root) |
+| **Local plugin directory** | `<your clone>/editor` — note `editor/`, not the repository root |
+
+They work because the repository's **root** `package.json` declares `dsh.bundle`, `main` and
+`exports["./client"]` pointing into `editor/`. The root and `editor/package.json` must describe one
+plugin, so `test/manifests.test.mjs` asserts they agree on name, version and every declared path —
+two manifests describing one thing is a drift hazard, and a test is cheaper than remembering.
+
 To keep the sources around as well — or to install without npm — clone and run the script, which does
 the same two things explicitly:
 
