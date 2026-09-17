@@ -44,13 +44,13 @@
   `locales.mjs` 自己。现在会从 `client.js` 抽出字典逐条比对（反向验证过能抓到漂移）。
 - 新增 `test/run.mjs` 统一入口：自己解析出厂 preset 目录（三条回退），解析不到时打印试过哪些路。
   此前三份文档给了三套不同写法，其中两处硬编码路径在别人机器上必然不成立。
-- 合计 143 项检查（63 + 15 + 65），在"本机装过 dsh"与"干净目录里 npm 装 dsh"两种布局下都验证过。
+- 合计 225 项检查（63 + 15 + 37 + 45 + 65），在"本机装过 dsh"与"干净目录里 npm 装 dsh"两种布局下都验证过。
 
 ### 持续集成
 
 - 新增 `.github/workflows/test.yml`：push/PR 时 `npm install @deepseek-ai/dsh@0.1.6-alpha.1`
   （npm 上那份自带的 presets 与本机逐字节相同，所以测的是真实出厂文本而非自造 fixture），
-  跑三个套件，顺带 `node --check` 全部源文件、`bash -n` 两个脚本、`npm pack --dry-run` 校验发布包内容。
+  跑五个套件，顺带 `node --check` 全部源文件、`bash -n` 两个脚本、`npm pack --dry-run` 校验发布包内容。
 
 ### 文档
 
@@ -71,6 +71,48 @@
   脚本会真的拨开关、真的点保存、真的切主题与语言，并把观察到的状态写进 `observed.json`，
   使截图可重跑、可核对。
 - 新增 issue 表单、PR 模板、`SECURITY.md`。
+
+### 第二轮 · 修复（实测挖出来的）
+
+- **装进 tui / headless 之类的 profile 不再打印假警报。** 包级 `inject = ['webServer', 'agentPresets']`
+  是硬依赖，而 tui 组合里这两个服务都不存在，于是每次启动都打印
+  `1 entry did not activate … pending (waiting for services: webServer, agentPresets)` —— 与"装完 dsh
+  变砖"的报错**完全相同**。改成作用域化的 `ctx.inject(deps, cb)` 之后，整行正常激活，只有那条路由
+  等服务；实测 tui 有 TTY 启动也不再出现该警告，web 里设置页行为不变（401 / 200 照旧）。
+- `install.sh` 装完会说明目标 profile 里有没有 web 服务器。实测：`agent-presets` 只在 web 组合里
+  存在，所以装进 tui 时**「自定义模式」根本选不到**（不只是没有设置页）。
+- **`uninstall.sh` 不再留下软链。** `dsh plugin remove` 会清掉 `package.json` 的依赖与 `bundles` 条目，
+  但 pnpm 可能在 `node_modules` 里留下指向仓库的软链（pnpm 12.4.2 上复现）。它不影响装配，但
+  uninstall 就该不留痕迹——尤其随后要删掉仓库时它会变成断链。
+
+### 第二轮 · 测试
+
+- 新增 `test/prompt-tool.test.mjs`（37 项）：`custom_prompt` 工具此前**一个测试都没有**，而它是
+  没有浏览器时的**持久**编辑通道（设置页是 bundle 提供的 Web UI，进程重启后未必还在）。
+  覆盖读取/写入/缺文件/空内容，以及全部 `{{…}}` 拒绝与接受分支。它还把模块复制到临时目录再
+  import，因此写入落在临时目录，永不碰仓库里的 `preset/prompt.md`。
+- 这条套件带一个**漂移守卫**：`{{变量}}` 校验在 `editor/index.mjs`（设置页写入）与
+  `preset/prompt-tool.mjs`（工具写入）里各有一份（有意重复）。它会从后者源码里抽出函数，对同一张
+  18 项输入表比对两边判定——分叉意味着一条路径会接受渲染器会抛错的写法，也就是那个模式**每个请求
+  都失败**。这和 `client.js` 的词典漂移是同一类风险，后果更重。
+- 新增 `test/meta.test.mjs`（45 项）：README 一直写着 `preset.yml`「**且有往返测试**」，但没有任何
+  测试 import 过 `meta.mjs`。现在覆盖引号、反斜杠、冒号、井号、前导短横、换行压平、emoji、
+  `"true"`/`"null"` 这类 YAML 字面量、空名字拒绝，以及文件缺失/只有单个键时的读取行为。
+  写入位置用 `DSH_CUSTOM_PROMPT_PATH` 重定向到临时目录。
+- 合计 **225 项**（63 + 15 + 37 + 45 + 65），全部通过。
+
+### 第二轮 · 实测
+
+- **端到端验证了项目的核心主张**「编辑文件 → 下一步生效，不需要重启、不需要新建会话」：
+  在提示词里植入格式规则（第一行必须是 `MARK-ONE`），在真实 web 会话里问一句；**不重启、不刷新、
+  不新建会话**，只把文件改成 `MARK-TWO`，再在同一个会话里问第二句 —— 回答变成 `MARK-TWO`。
+  此前只有"读取函数会被重新求值"的单元测试，没有"agent loop 每一步真的会调它"的证据。
+  命令与原始输出见 `docs/实测记录.md` §0。
+- 记录两条**走不通的路**，省得再试：`dsh --profile headless`（单轮 CLI）明确拒绝运行带 agent preset
+  的会话（源码：`the one-shot runner does not compose`）；`agent-presets.default` 在组合里是写死的
+  `standard`，`settings.yaml` 的同名键是运行时覆盖，两者不是一回事。
+- 安装/卸载往返、二次安装幂等性、tui 安装、非 web profile 的行为，逐条实测并留档
+  （`docs/实测记录.md` §7 §8）。
 
 ## [0.1.6-alpha.1] — 2026-09-17
 
