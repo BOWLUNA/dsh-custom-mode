@@ -24,6 +24,10 @@ dsh 实例**拍下来，同时把当时观察到的状态写进 [`observed.json`
 ## 怎么跑
 
 ```sh
+# 推荐：包装脚本会先把 preset 还原成出厂状态（若设置了 DSH_HOME），再拍照
+DSH_HOME=~/.dsh ./tools/screenshots/run-shots.sh "http://127.0.0.1:3080/?token=<token>" docs/images
+
+# 或者直接调拍照脚本（第二参是输出目录，默认 docs/images）
 node tools/screenshots/screenshots.mjs "http://127.0.0.1:3080/?token=<token>" docs/images
 CDP_PORT=9222 CDP_HOST=127.0.0.1 node tools/screenshots/screenshots.mjs ...   # 端口可覆盖
 ```
