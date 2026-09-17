@@ -1,0 +1,50 @@
+# 每次 push / PR 都对着**真实的出厂 preset** 跑一遍编译器测试。
+#
+# 为什么 CI 里要装一遍 dsh：`composition.mjs` 做的是对官方 preset 文本的手术，
+# 出厂文本本身不在本仓库里。装了 dsh 才能拿到那份文本，测出来的才是真结论 ——
+# 否则 CI 只能跑一个自己构造的假 fixture，等于什么都没测。
+#
+# 版本与 `editor/package.json` 的 version 保持一致；升 dsh 时这里也要改。
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 20 是保守下限（只用标准库），24 是当前开发版本。
+        node-version: ['20', '24']
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # 只为了拿它自带的 @deepseek-ai/dsh-agent-presets/presets。
+      # --no-save：仓库不因为 CI 多出一个 lockfile / package.json。
+      - name: 安装 DSH（只为取出厂 preset）
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.1
+
+      - name: 语法检查
+        run: |
+          for f in editor/*.mjs editor/client.js preset/*.mjs test/*.mjs; do
+            node --check "$f"
+          done
+
+      # 两个套件：组成文件编译器 63 项 + 词典 65 项。
+      # run.mjs 自己解析出厂 preset 目录，解析不到会以退出码 2 明确报错。
+      - name: 测试
+        run: node test/run.mjs
+
+      - name: install.sh 自身可解析（bash -n）
+        run: |
+          bash -n install.sh
+          bash -n uninstall.sh
