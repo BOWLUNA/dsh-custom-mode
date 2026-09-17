@@ -102,5 +102,11 @@ bundle 层，宿主半 import 失败会让 **boot 挂掉**，不是只坏一个�
 
 ## 修改 client.js 之后
 
-bundle 内容**只在启动装配期进入客户端图**，之后只通过 HMR 重建。所以改完
-`editor/client.js` 必须**重启 dsh**，刷新页面是不够的。
+改 `editor/client.js` **不需要重启，也不需要刷新页面**：`dsh-client-hmr` 每 ~500ms stat 轮询
+bundle 文件，约 1 秒后把插件原地换掉（实测证据见 [`ARCHITECTURE.md`](ARCHITECTURE.md) §10）。
+
+只有改**宿主半**（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）才需要重启 ——
+它们是主进程里的行，只在启动装配期进入组合树。
+
+> 这里曾写「改完 client.js 必须重启，刷新页面不够」，那是错的，跟 ARCHITECTURE §10 的实测
+> 结论直接矛盾。以 §10 为准。
