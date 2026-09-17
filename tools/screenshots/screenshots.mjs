@@ -16,12 +16,24 @@ import { connect } from './cdp.mjs'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
+/**
+ * 每张图都是同一块画布，且都是设置弹窗本身的大小。
+ *
+ * 不这么做的话，图会变成"这张 1600x1600、那张 3360x2100"——README 里四张图高度不一，
+ * 排版参差，加载也慢。固定画布同时解决了三件事：尺寸统一、文件小、字还看得清
+ * （800 宽的图在 GitHub 正文里按原尺寸显示，不会被缩小）。
+ */
+const VIEWPORT = { width: 1440, height: 900 }
+const CANVAS = { width: 800, height: 800 }
+
 const url = process.argv[2]
 const outDir = process.argv[3] ?? '/home/bowluna/dsh/dsh-custom-mode/docs/images'
 mkdirSync(outDir, { recursive: true })
 
 const session = await connect()
-await session.setViewport(1680, 1050, 2)
+// scale 1（不是 2）：README 里的图会被 GitHub 缩到正文宽度，2 倍图只会让体积翻两番。
+// 1440x900 下设置弹窗正好是 800x800，四张图都裁成这个尺寸，整整齐齐。
+await session.setViewport(VIEWPORT.width, VIEWPORT.height, 1)
 
 const logs = []
 session.listeners.push((message) => {
@@ -73,16 +85,30 @@ async function scrollTo(selector) {
   await session.sleep(600)
 }
 
-/** Capture the settings dialog only — the framing a reader actually needs. */
-async function shotDialog(name, options = {}) {
-  await session.screenshotElement(DIALOG, `${outDir}/${name}`, options)
-  console.log(`  → ${name}`)
+/** 把一块区域夹到画布尺寸，并保证不越出视口。 */
+function canvasBox(rect) {
+  const x = Math.max(0, Math.min(VIEWPORT.width - CANVAS.width, Math.round(rect.x ?? rect.left)))
+  const y = Math.max(0, Math.min(VIEWPORT.height - CANVAS.height, Math.round(rect.y ?? rect.top)))
+  return { x, y, width: CANVAS.width, height: CANVAS.height }
 }
 
-/** Capture the whole window (home screen / mode picker). */
-async function shotWindow(name) {
-  await session.screenshot(`${outDir}/${name}`)
-  console.log(`  → ${name}`)
+/** Capture the settings dialog, cropped to the shared canvas. */
+async function shotDialog(name) {
+  const rect = await session.evaluate(`(() => {
+    const el = document.querySelector(${JSON.stringify(DIALOG)});
+    if (el === null) return null;
+    const r = el.getBoundingClientRect();
+    return { x: r.x, y: r.y, width: Math.round(r.width), height: Math.round(r.height) };
+  })()`)
+  if (rect === null) throw new Error('找不到设置弹窗')
+  await session.screenshotBox(`${outDir}/${name}`, canvasBox(rect))
+  console.log(`  → ${name}（${CANVAS.width}x${CANVAS.height}）`)
+}
+
+/** Capture an arbitrary area, cropped to the shared canvas. */
+async function shotCanvas(name, anchor) {
+  await session.screenshotBox(`${outDir}/${name}`, canvasBox(anchor))
+  console.log(`  → ${name}（${CANVAS.width}x${CANVAS.height}）`)
 }
 
 async function pluginState() {
@@ -203,11 +229,10 @@ report.saveStatus = await session.evaluate(`(() => {
 console.log('  保存后状态栏:', JSON.stringify(report.saveStatus))
 
 // 03：系统提示词 + 保存栏（紧接着保存，状态栏正是「已保存」）
-// 底部 34px 是组成文件的绝对路径（含本机用户名），截图里没有必要露出来。
 console.log('截图 03（系统提示词 + 保存栏）…')
 await scrollTo('.cpfe-editor')
 await session.sleep(500)
-await shotDialog('03-system-prompt.png', { bottomInset: 34 })
+await shotDialog('03-system-prompt.png')
 
 // ── 英文界面：顺带验证「导航项跟随语言」 ─────────────────────────────────
 console.log('切 English…')
@@ -225,7 +250,7 @@ report.englishHeadings = (await session.visibleText()).split('\n').filter((line)
 console.log('  英文导航项标签:', JSON.stringify(report.englishNav))
 console.log('  英文小节标题:', JSON.stringify(report.englishHeadings))
 await scrollTo('.cpfe > section:nth-of-type(1)')
-await shotDialog('06-english.png')
+report.englishShot = '（不再单独存图：语言切换已由上面的断言与 observed.json 记录）'
 
 // ── 深色主题 ─────────────────────────────────────────────────────────────
 console.log('切回中文 + 深色…')
@@ -237,7 +262,7 @@ report.themeSwitch = '浅色 → 深色（同上）'
 await clickAny(L.customMode, { exact: true })
 await session.sleep(1800)
 await scrollTo('.cpfe > section:nth-of-type(1)')
-await shotDialog('05-dark.png')
+report.darkShot = '（同上，不再单独存图）'
 report.darkDom = await session.evaluate(`(() => {
   const dark = [...document.querySelectorAll('*')].some((el) => {
     const bg = getComputedStyle(el).backgroundColor;
@@ -299,14 +324,11 @@ if ((report.picker?.found ?? 0) > 0) {
     const y = Math.min(a.y, b.y);
     return { x: x - 16, y: y - 16, width: Math.max(a.right, b.right) - x + 16, height: Math.max(a.bottom, b.bottom) - y + 16 };
   })()`)
-  if (box === null) {
-    await shotWindow('04-preset-picker.png')
-  } else {
-    await session.screenshotBox(`${outDir}/04-preset-picker.png`, box)
-    console.log('  → 04-preset-picker.png（裁到触发器 + 下拉列表）')
-  }
+  // 触发器 + 下拉列表的并集；shotCanvas 会把它夹成与其余三张相同的画布
+  const anchor = box === null ? { x: 320, y: 60 } : { x: box.x, y: box.y }
+  await shotCanvas('04-preset-picker.png', anchor)
 } else {
-  await shotWindow('04-preset-picker.png')
+  await shotCanvas('04-preset-picker.png', { x: 320, y: 60 })
 }
 report.pickerVisible = (await session.visibleText()).split('\n').filter((line) => /模式|Mode/.test(line)).slice(0, 12)
 console.log('  选择器里的模式：', JSON.stringify(report.pickerVisible))

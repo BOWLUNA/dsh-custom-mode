@@ -12,31 +12,25 @@
 
 ## 界面
 
-设置面板里多出一节「自定义模式」，四块内容：
+设置面板里多出一节「自定义模式」——四张图，每张一个页面：
 
 |  |  |
 | --- | --- |
-| ![基础模式](docs/images/01-mode-switch.png) | ![插件开关](docs/images/02-plugin-switches.png) |
+| ![模式名称与基础模式](docs/images/01-mode-switch.png) | ![插件开关](docs/images/02-plugin-switches.png) |
 | **模式名称 + 基础模式**：改显示名，选标准 / PTC / 极简 / Cordis 作底子 | **插件开关**：一行一个三态开关；分组（含 `isolate realm`）带子行缩进，未触碰的行标「跟随平台」 |
+
+|  |  |
+| --- | --- |
 | ![系统提示词](docs/images/03-system-prompt.png) | ![模式选择器](docs/images/04-preset-picker.png) |
 | **系统提示词**：底部状态栏说明何时生效、写进了哪个文件 | **新建会话**：它在模式选择器里是一个真实存在的模式 |
 
-深浅色与中英双语都是实测过的（全部走官方主题 token 与 `locale` 服务）：
+深浅色与中英双语都是实测过的（全部走官方主题 token 与 `locale` 服务）——这两项不再单独配图，
+它们的实测记录与截图脚本断言见 [`docs/实测记录.md`](docs/实测记录.md) §5。
 
-|  |  |
-| --- | --- |
-| ![深色模式](docs/images/05-dark.png) | ![English](docs/images/06-english.png) |
-| 深色模式 | English 界面（导航项会跟随语言） |
-
-### 核心主张的实证：改文件 → 下一步就生效
-
-下面这张是**真机实测**（不是示意）：在提示词里植入一条格式规则（回答第一行必须是 `MARK-ONE`），
-在会话里问一句；**不重启、不刷新、不新建会话**，只把 `prompt.md` 改成 `MARK-TWO`，再问第二句：
-
-![改提示词后下一步生效](docs/images/07-hot-reload-in-session.png)
-
-注意两轮之间那一行「**系统提示词更新**」—— 那是 dsh 自己标出来的：它检测到系统提示词在会话中途
-变了。命令与原始输出见 [`docs/实测记录.md`](docs/实测记录.md) §0。
+核心主张「改文件 → **下一步**就生效」有一张真机会话的实证图：
+[`docs/images/05-hot-reload-in-session.png`](docs/images/05-hot-reload-in-session.png)
+（两轮之间那行「系统提示词更新」是 dsh 自己标的，不是我们画的）——
+实验命令与原始输出见 [`docs/实测记录.md`](docs/实测记录.md) §0。
 
 ## 它解决什么问题
 

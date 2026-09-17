@@ -51,12 +51,23 @@ cp preset/agent.cordis.yml preset/preset.yml "$DSH_HOME/.agent-presets/custom/"
 cp preset/prompt.md "$DSH_HOME/.agent-presets/custom/prompt.md"
 ```
 
-`01`/`03`/`05`/`06` 是固定裁到设置弹窗，重跑应当是同一张图；`02`/`04` 取决于滚动位置与
-下拉框几何，重跑可能差一两个像素——叙事一致，像素不保证完全一致。
+## 图的尺寸约定
+
+四张 README 图都是 **800x800、PNG、scale 1**，因为：
+
+- **统一**：都裁到设置弹窗的大小（1440x900 视口下弹窗正好 800x800），README 里排列整齐，
+  不会出现"这张长那张宽"；
+- **小**：scale 1 而不是 2。GitHub 会把正文里的图缩到栏宽，2 倍图只是让体积翻两番。
+  实测：同样四张图从 ~750 KB 降到 ~223 KB，文字依然清楚（800 宽的图按原尺寸显示，不会被缩）；
+- **少**：只产出 README 真正要用的四张。深色与英文界面**仍然真的切换并断言**（观察值写进
+  `observed.json`），但不再各存一张图——那是重复画面，不值得让读者多下载几百 KB。
+
+重跑时 `01`/`03` 是固定裁窗，应当得到同一张图；`02`/`04` 取决于滚动位置与下拉框几何，
+可能差一两个像素——叙事一致，像素不保证完全一致。
 
 ## 另外两张「不是界面截图」的图
 
-`live-hot-reload.mjs` 拍的是 **07-hot-reload-in-session.png**：它在真实会话里做一次
+`live-hot-reload.mjs` 拍的是 **05-hot-reload-in-session.png**（只给文档用，不进 README）：它在真实会话里做一次
 「改提示词 → 下一步生效」的实验（两轮之间改 `/custom-mode` 后端那个 `prompt.md`）。
 
 ```sh

@@ -22,7 +22,9 @@
     "Plugin switches",
     "System prompt"
   ],
+  "englishShot": "（不再单独存图：语言切换已由上面的断言与 observed.json 记录）",
   "themeSwitch": "浅色 → 深色（同上）",
+  "darkShot": "（同上，不再单独存图）",
   "darkDom": {
     "foundKnownDarkBackground": false,
     "bodyClass": ""
@@ -31,8 +33,8 @@
   "picker": {
     "found": 1,
     "text": "创造模式",
-    "x": 689,
-    "y": 476
+    "x": 645.796875,
+    "y": 401
   },
   "pickerVisible": [
     "创造模式",

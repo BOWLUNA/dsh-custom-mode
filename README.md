@@ -12,33 +12,26 @@ The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouche
 
 ## Screens
 
-The settings panel gains one section, in four parts:
+One section is added to the settings panel — four pictures, one per page:
 
 |  |  |
 | --- | --- |
-| ![Base mode](docs/images/01-mode-switch.png) | ![Plugin switches](docs/images/02-plugin-switches.png) |
+| ![Mode name and base mode](docs/images/01-mode-switch.png) | ![Plugin switches](docs/images/02-plugin-switches.png) |
 | **Mode name + base mode**: rename it, build on standard / PTC / minimal / Cordis | **Plugin switches**: one tri-state switch per row; groups (those carrying an `isolate realm`) indent their children, and untouched rows read "follows platform" |
+
+|  |  |
+| --- | --- |
 | ![System prompt](docs/images/03-system-prompt.png) | ![Mode picker](docs/images/04-preset-picker.png) |
 | **System prompt**: the status bar says when a save takes effect and which file it wrote | **New session**: it is a real, selectable mode |
 
-Light/dark and both languages were verified the same way (official theme tokens and the `locale` service throughout):
+Light/dark and both languages were verified the same way (official theme tokens and the `locale`
+service throughout) — they get no separate pictures; the captured observations are in
+[`docs/实测记录.md`](docs/实测记录.md) §5.
 
-|  |  |
-| --- | --- |
-| ![Dark mode](docs/images/05-dark.png) | ![English](docs/images/06-english.png) |
-| Dark mode | English UI (the nav entry follows the language) |
-
-### The core claim, measured
-
-The frame below is a real run (not a mock-up): a formatting rule was planted in the prompt (the first
-line of every answer must be `MARK-ONE`), a question was asked, and then — **without restarting,
-refreshing or starting a new session** — `prompt.md` was changed to `MARK-TWO` and a second question
-was asked in the same session:
-
-![Editing the prompt takes effect on the next step](docs/images/07-hot-reload-in-session.png)
-
-Note the **系统提示词更新** (system prompt updated) divider between the two turns: dsh itself flags
-that the system prompt changed mid-session. Commands and raw output: [`docs/实测记录.md`](docs/实测记录.md) §0.
+The core claim — edit the file, and it takes effect on the **next step** — has one screenshot from a
+real session: [`docs/images/05-hot-reload-in-session.png`](docs/images/05-hot-reload-in-session.png)
+(the "系统提示词更新" line between the two turns is dsh's own marker, not something we drew).
+Commands and raw output: [`docs/实测记录.md`](docs/实测记录.md) §0.
 
 ## The problem it solves
 
