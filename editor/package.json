@@ -3,6 +3,7 @@
   "version": "0.1.6-alpha.1",
   "private": true,
   "description": "自定义模式 settings page: base-mode switching, per-row plugin switches, editable system prompt, custom mode name. Follows the DSH version.",
+  "license": "MIT",
   "type": "module",
   "main": "./index.mjs",
   "exports": {
@@ -10,6 +11,22 @@
     "./client": "./client.js",
     "./package.json": "./package.json"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BOWLUNA/dsh-custom-mode.git",
+    "directory": "editor"
+  },
+  "homepage": "https://github.com/BOWLUNA/dsh-custom-mode#readme",
+  "bugs": {
+    "url": "https://github.com/BOWLUNA/dsh-custom-mode/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "agent-preset",
+    "system-prompt",
+    "plugin"
+  ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
@@ -19,7 +36,7 @@
     }
   },
   "scripts": {
-    "test": "node test/composition.test.mjs"
+    "test": "node ../test/run.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh": ">=0.1.2-alpha.1"

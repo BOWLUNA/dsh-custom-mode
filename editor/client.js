@@ -600,7 +600,6 @@ try {
       }
 
       function apply(ctx) {
-        console.log("dsh-custom-prompt-editor: apply() entered")
         try {
           ensureStyles()
           const locale = ctx.get("locale")
@@ -615,7 +614,6 @@ try {
             return
           }
           slots.inject("settings.section", () => {
-            console.log("dsh-custom-prompt-editor: registering settings.section")
             // `locale: NS` is the shipped contract: the shell then hands the
             // component a bound `t` in props.
             return slots.register(
