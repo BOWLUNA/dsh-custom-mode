@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 12 suites, 588 checks; resolves the shipped presets itself
+node test/run.mjs                                  # 13 suites, 630 checks; resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
@@ -152,6 +152,13 @@ fresh `--user-data-dir` and hard-killing the previous one.
 
 - Code: `node test/run.mjs` is green. Docs: `node tools/verify-translation-pairing.mjs` passes
   (both sides of a pair must be edited, then re-recorded with `--write`).
+- **A real session's tool calls**: `node tools/session-trace.mjs [--home …] [--session …] [--summary]` reads
+  `session.v3.jsonl.zstd` directly and prints the call sequence plus a per-tool tally. Session logs are
+  **multi-frame** Zstandard and Node's one-shot decoder returns only the first frame *without an error*, so the
+  reader scans frame magics and decodes each one (dsh's own reader uses a private stream handle; this stays on
+  public API). Run it before writing any "the model did X once / twice" sentence — it has already caught one
+  wrong claim of exactly that shape. It reads session *content*: prefer `--summary` (counts only) when the log
+  is not yours.
 - Behaviour: run it for real under a throwaway `DSH_HOME` and write the observed output into
   `docs/MEASUREMENTS.md` — this repository's convention is that a conclusion comes with the command
   and its raw output, not with "should be fine".

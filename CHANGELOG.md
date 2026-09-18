@@ -8,6 +8,24 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.5.1]
+
+### New: `tools/session-trace.mjs` — a session's tool calls in one command
+
+Measurements in this repository often take the shape of "the model called this tool once / twice", and until
+now the only way to read that was to open the trajectory tab in a browser and look. That gap let a wrong claim
+through: a CHANGELOG line said "one tool call" while the session had two.
+
+- Reads `$DSH_HOME/sessions/**/session.v3.jsonl.zstd` directly and prints each call (turn/step, tool,
+  arguments, ok/denied) plus a per-tool tally, with `--summary` (counts only), `--json` and `--session`.
+- Session logs are **multi-frame** Zstandard: Node's one-shot decoder returns the *first* frame and silently
+  ignores the rest, which is exactly why a naive read looks like an empty session. The reader scans the frame
+  magic and decodes from every candidate (false magics fail to decode and are skipped). Measured on a 9.3 MB
+  log with 5,722 frames: all frames decoded, all 8,915 lines parsed, ~0.5 s.
+- Undecodable input exits 2 with a message instead of pretending the session was empty.
+- A test builds multi-frame logs itself, including a **stray frame magic** between two real frames, and pins
+  the tally/denial classification and the CLI's exit code.
+
 ## [1.5.0]
 
 ### `custom_prompt` can append, and both writing actions are gated

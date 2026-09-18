@@ -1020,6 +1020,10 @@ click 「拒绝」     → prompt.md md5 unchanged (fb6bdc8c…), the file was n
 The browser verification (`tools/browser-verify.mjs`) covers the settings-page side separately; this chain
 needs a real session, which is why it is recorded here.
 
+The sequence above was read by hand from the trajectory tab; `tools/session-trace.mjs` (added after this run)
+turns the same evidence into one command — `node tools/session-trace.mjs --home <that home> [--summary]` — and
+prints the per-tool tally that shows, for example, whether an agent needed one call or two.
+
 ---
 
 ## 18. Model-in-the-loop deep test (0.1.6-alpha.2, test-account token, throwaway instance)
