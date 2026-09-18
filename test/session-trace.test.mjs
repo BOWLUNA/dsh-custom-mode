@@ -79,6 +79,31 @@ console.log('=== 2. 摘要：工具 + action 计数、被拒归类 ===')
 }
 
 console.log()
+console.log('=== 2.5 真实日志的形状：arguments 是 JSON 字符串，不是对象 ===')
+{
+  // 实测（真机会话）：`tool/call` 的 data.arguments 是 "{\"action\": \"read\"}" 这样的字符串。
+  // 只认对象的读取器会静默丢掉 action，于是把 custom_prompt(read) 报成 custom_prompt —— 断言就永远不会成立。
+  const stringArgs = [
+    { type: 'session', id: 'session-real-shape' },
+    { type: 'tool/call', seq: 1, data: { turn: 0, step: 0, callId: 'c1', name: 'custom_prompt', arguments: '{"action": "read"}' } },
+    { type: 'tool/result', seq: 2, data: { turn: 0, step: 0, message: { text: 'ok' } }, sourceEventSeqs: [1] },
+    { type: 'tool/call', seq: 3, data: { turn: 0, step: 1, callId: 'c2', name: 'custom_prompt', arguments: '{"action":"append","text":"x"}' } },
+    { type: 'tool/result', seq: 4, data: { turn: 0, step: 1, message: { text: 'ok' } }, sourceEventSeqs: [3] },
+  ]
+  const trace = summarize(parseRecords(decodeSessionLog(Buffer.concat(stringArgs.map(frameOf)))))
+  check(
+    'JSON 字符串参数也能取出 action',
+    JSON.stringify(trace.totals) === JSON.stringify([
+      { key: 'custom_prompt(append)', count: 1 },
+      { key: 'custom_prompt(read)', count: 1 },
+    ]),
+    JSON.stringify(trace.totals),
+  )
+  check('展示时用解析后的对象', trace.calls[0]?.args?.action === 'read', JSON.stringify(trace.calls[0]?.args))
+  check('非 JSON 的字符串参数不会崩', summarize(parseRecords('{"type":"tool/call","seq":1,"data":{"name":"bash","arguments":"--flag"}}\n')).calls[0]?.name === 'bash')
+}
+
+console.log()
 console.log('=== 3. 假魔数：压缩数据里出现 28 B5 2F FD 时不能重复也不能丢 ===')
 {
   // 故意在两帧之间插一段裸魔数：它不是帧起点，解码必然失败，必须被跳过。
@@ -121,6 +146,57 @@ console.log('=== 5. CLI：真跑一遍（合成日志写进一次性 home）==='
   }
   check('找不到日志时以退出码 2 结束（不是静默成功）', exitCode === 2, String(exitCode))
   rmSync(home, { recursive: true, force: true })
+}
+
+console.log()
+console.log('=== 6. 把"模型只调了一次"变成检查：--expect / --compare / --grep / --denied ===')
+{
+  const homeA = mkdtempSync(join(tmpdir(), 'dsh-traceA-'))
+  const homeB = mkdtempSync(join(tmpdir(), 'dsh-traceB-'))
+  const writeHome = (home, list) => {
+    const dir = join(home, 'sessions', '--p--', 'session-x')
+    execFileSync('mkdir', ['-p', dir])
+    writeFileSync(join(dir, 'session.v3.jsonl.zstd'), Buffer.concat(list.map(frameOf)))
+  }
+  // A：read + append（append 被拒）；B：只 read —— 用来验对比与筛选。
+  writeHome(homeA, records)
+  writeHome(homeB, records.slice(0, 3))
+
+  const run = (args, expectFail = false) => {
+    try {
+      return { out: execFileSync(process.execPath, ['tools/session-trace.mjs', ...args], { encoding: 'utf8' }), status: 0 }
+    } catch (error) {
+      if (expectFail !== true) throw error
+      return { out: String(error.stdout ?? '') + String(error.stderr ?? ''), status: error.status }
+    }
+  }
+
+  const pass = run(['--home', homeA, '--expect', 'custom_prompt(read)=1', '--expect', 'custom_prompt(append)=1'])
+  check('--expect 全部成立 → 退出码 0 且报 ✓', pass.status === 0 && pass.out.includes('✓'), pass.out.slice(-80))
+  const fail = run(['--home', homeA, '--expect', 'custom_prompt(append)=2'], true)
+  check('--expect 不成立 → 退出码 1 且指出期望与实际', fail.status === 1 && /期望 2，实际 1/.test(fail.out), fail.out.slice(-120))
+  const absent = run(['--home', homeA, '--expect', 'custom_prompt(write)=1'], true)
+  check('从未出现的调用按 0 计（不是"找不到就跳过"）', absent.status === 1 && /实际 0/.test(absent.out), absent.out.slice(-100))
+  const malformed = run(['--home', homeA, '--expect', 'nonsense'], true)
+  check('--expect 写法错误会被指出', malformed.status === 1 && /写法/.test(malformed.out), malformed.out.slice(-100))
+
+  const compared = run(['--compare', homeA, homeB])
+  check('--compare 给出两边总数与差值', /A .*3 次调用/.test(compared.out) && /B .*1 次调用/.test(compared.out) && /Δ 总调用数：-2/.test(compared.out), compared.out.slice(0, 200))
+  // 排序是「按 |Δ| 降序，其次按名字」：append 与 bash 都是 -1，read 是 0 → read 必须排在两者之后。
+  check('--compare 按差值排序（Δ=0 的排在后面）', compared.out.indexOf('custom_prompt(read)') > compared.out.indexOf('bash'), compared.out.slice(0, 400))
+  const comparedJson = JSON.parse(run(['--compare', homeA, homeB, '--json']).out)
+  check('--compare --json 可程序消费', comparedJson.a.callCount === 3 && comparedJson.b.callCount === 1)
+
+  const grepped = run(['--home', homeA, '--grep', 'append'])
+  // 汇总行本来就会列出全部工具，所以看的是**调用行**里有没有 read 的那次。
+  check('--grep 只保留命中的调用行', grepped.out.includes('"action":"append"') && grepped.out.includes('"action":"read"') === false, grepped.out.slice(-200))
+  const denied = run(['--home', homeA, '--denied'])
+  check('--denied 只列被拒的那次', denied.out.includes('append') && /共 3 次工具调用/.test(denied.out), denied.out.slice(-200))
+
+  const broken = run(['--compare', homeA, join(homeA, 'nope')], true)
+  check('--compare 的来源读不到 → 退出码 2（不是静默成功）', broken.status === 2, String(broken.status))
+  rmSync(homeA, { recursive: true, force: true })
+  rmSync(homeB, { recursive: true, force: true })
 }
 
 console.log()

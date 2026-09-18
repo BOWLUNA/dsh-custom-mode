@@ -1037,3 +1037,33 @@ ask-probe：改系统提示词前需要你确认          ← 我们给的理由
 
 另外这也解释了 `/custom_prompt` 工具的 write 为什么必须**只改草稿/落盘而不动会话**：热生效由平台在下一步重读
 系统提示词来完成，插件不需要（也不应该）去插手会话状态。
+
+
+---
+
+## 19. 从一次真实会话，到一条会失败的检查（0.1.6-alpha.2，真实会话）
+
+轨迹读取器的存在，是为了让"模型调了这个工具一次／两次"**可被核对**而不是只能被声明。把这条环路在真机上跑通时，
+它又暴露了读取器自己的一个 bug —— 这正是"要用真实日志跑，而不是只跑合成数据"的意义。
+
+```text
+$ node tools/session-trace.mjs --home /tmp/dsh-exp-… --expect 'custom_prompt(read)=1'   # 第一次：假失败
+会话 session-6f22e6f7-…：1 次工具调用
+     1 × custom_prompt
+  ✗ custom_prompt(read)：期望 1，实际 0
+
+# 原因：真实日志里 data.arguments 是 **JSON 字符串**（"{\"action\": \"read\"}"），不是对象。
+# 读取器只认对象 → 静默丢掉 action → 计数键退化成 custom_prompt（合成测试用的是对象，所以没暴露）。
+
+$ node tools/session-trace.mjs --home /tmp/dsh-exp-… --expect 'custom_prompt(read)=1'   # 修好之后
+会话 session-6f22e6f7-…：1 次工具调用
+     1 × custom_prompt(read)
+  ✓ 1 条期望都成立        （退出码 0；写错成 =2 时退出码 1）
+
+$ node tools/session-trace.mjs --home /tmp/dsh-exp-…
+工具调用（按时间）：
+  t1/s1  custom_prompt {"action":"read"}
+```
+
+`--compare <A> <B>` 是同一件事的横向版本：两边各读一次，输出按 |Δ| 排序的差值表（例如换实现后
+"总调用数 +0，custom_prompt(append) 1 → 1"）。

@@ -6,6 +6,19 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.6.0]
+
+### 轨迹读取器现在能**断言**：`--expect`、`--compare`、`--grep`、`--denied`
+
+把一句话变成一条检查。`--expect 'custom_prompt(read)=1'` 会比较计数，不匹配就以退出码 1 结束 —— 于是"模型只用了
+一次调用"不再是 changelog 里的一句话，而是评审或 CI 能重跑的东西。`--compare <A> <B>` 读两次会话（或两个 home
+各自的最新会话），输出按 |Δ| 排序的差值表，正好回答 append 那件事背后的问题："这次改动让 agent 多了还是少了步骤"。
+另有 `--grep` 与 `--denied` 两个筛选项。
+
+在真实会话上端到端实测（见 `docs/MEASUREMENTS.md` §19），也正是这次实测暴露了读取器自己的一个 bug：
+**真实日志里 `data.arguments` 是 JSON 字符串**而不是对象，于是 action 被静默丢掉，工具把
+`custom_prompt(read)` 报成 `custom_prompt` —— 合成日志（用的是对象）没能发现这一点。已修，并把真实形状写进了测试。
+
 ## [1.5.1]
 
 ### 新增：`tools/session-trace.mjs` —— 一条命令读出某次会话的工具调用

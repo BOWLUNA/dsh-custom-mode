@@ -8,6 +8,21 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.6.0]
+
+### The trace reader can now *assert*: `--expect`, `--compare`, `--grep`, `--denied`
+
+Turned a claim into a check. `--expect 'custom_prompt(read)=1'` compares the tally and exits 1 on any
+mismatch, so "the model needed one call" is no longer a sentence in a changelog but something a reviewer or CI
+can re-run. `--compare <A> <B>` reads two sessions (or two homes' latest) and prints a difference table sorted
+by |Δ|, which answers "did this change make the agent take more or fewer steps?" — the question behind the
+append work. `--grep` and `--denied` filter the listing.
+
+Measured end to end on a real session (`docs/MEASUREMENTS.md` §19), which is also where the reader's own bug
+turned up: **a real log stores `data.arguments` as a JSON string**, not an object, so the action suffix was
+being dropped and the tool reported `custom_prompt` instead of `custom_prompt(read)` — synthetic logs (which
+used objects) had not caught it. Fixed, and the real shape is now pinned by a test.
+
 ## [1.5.1]
 
 ### New: `tools/session-trace.mjs` — a session's tool calls in one command

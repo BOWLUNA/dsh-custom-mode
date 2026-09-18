@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 13 suites, 630 checks; resolves the shipped presets itself
+node test/run.mjs                                  # 13 suites, 643 checks; resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
@@ -158,7 +158,8 @@ fresh `--user-data-dir` and hard-killing the previous one.
   reader scans frame magics and decodes each one (dsh's own reader uses a private stream handle; this stays on
   public API). Run it before writing any "the model did X once / twice" sentence — it has already caught one
   wrong claim of exactly that shape. It reads session *content*: prefer `--summary` (counts only) when the log
-  is not yours.
+  is not yours. `--expect 'custom_prompt(read)=1'` turns such a sentence into a **check** (exit 1 on mismatch),
+  and `--compare <homeA> <homeB>` answers "did this change make the agent take more or fewer steps?".
 - Behaviour: run it for real under a throwaway `DSH_HOME` and write the observed output into
   `docs/MEASUREMENTS.md` — this repository's convention is that a conclusion comes with the command
   and its raw output, not with "should be fine".

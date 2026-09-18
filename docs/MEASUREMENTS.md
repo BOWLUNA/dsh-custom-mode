@@ -1080,3 +1080,34 @@ be imitation.
 This also explains why the `custom_prompt` tool's write must only touch the file and not the session: the
 platform re-reads the system prompt on the next step, so the plugin neither needs nor should poke at session
 state.
+
+---
+
+## 19. From a real session to a check that can fail (0.1.6-alpha.2, real session)
+
+The trace reader existed so that "the model called this tool once / twice" could be verified instead of
+asserted. Closing that loop on reality also found a bug in the reader itself — which is the point of running it
+against real logs rather than only synthetic ones.
+
+```text
+$ node tools/session-trace.mjs --home /tmp/dsh-exp-… --expect 'custom_prompt(read)=1'   # 第一次：假失败
+会话 session-6f22e6f7-…：1 次工具调用
+     1 × custom_prompt
+  ✗ custom_prompt(read)：期望 1，实际 0
+
+# 原因：真实日志里 data.arguments 是 **JSON 字符串**（"{\"action\": \"read\"}"），不是对象。
+# 读取器只认对象 → 静默丢掉 action → 计数键退化成 custom_prompt（合成测试用的是对象，所以没暴露）。
+
+$ node tools/session-trace.mjs --home /tmp/dsh-exp-… --expect 'custom_prompt(read)=1'   # 修好之后
+会话 session-6f22e6f7-…：1 次工具调用
+     1 × custom_prompt(read)
+  ✓ 1 条期望都成立        （退出码 0；写错成 =2 时退出码 1）
+
+$ node tools/session-trace.mjs --home /tmp/dsh-exp-…
+工具调用（按时间）：
+  t1/s1  custom_prompt {"action":"read"}
+```
+
+`--compare <A> <B>` 是同一件事的横向版本：两边各读一次，输出按 |Δ| 排序的差值表（例如换实现后
+"总调用数 +0，custom_prompt(append) 1 → 1"）。
+
