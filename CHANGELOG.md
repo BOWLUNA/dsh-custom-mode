@@ -8,6 +8,20 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.4.1]
+
+### The stable line ships a row the preview line does not — and the new CI matrix caught it
+
+`0.1.5-rc.2` has a `workflow-worker-thread` row inside the delegation group
+(`@deepseek-ai/dsh-workflow-worker-thread`, `provider: spawn`) that `0.1.6-alpha.2` no longer ships. Our row
+label table had no entry for it, so the check "every shipped row can be looked up" failed on the stable line —
+in CI, within minutes of the matrix gaining that line, and **not** in the manual stable-line pass I had run
+before (which exercised install, the API and the browser, but not label coverage over every shipped row).
+
+Added the label and its note (both languages), and re-ran the whole suite against **both** lines' shipped
+presets before pushing (`DSH_SHIPPED_PRESETS_DIR=<stable>/… node test/run.mjs`). That command is the local
+equivalent of what the matrix now does in CI.
+
 ## [1.4.0]
 
 ### Supports both dsh lines: the latest stable and the latest preview

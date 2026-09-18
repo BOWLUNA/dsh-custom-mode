@@ -112,6 +112,9 @@ export const ROW_META = {
   'tool-subagent-codex': { label: 'Codex 子代理', note: '默认关闭：需要先安装对应 Bundle' },
   'tool-subagent-claude-code': { label: 'Claude Code 子代理', note: '默认关闭：需要先安装对应 Bundle' },
   'workflow-ptc': { label: '工作流引擎' },
+  // 只出现在**稳定线**（0.1.5-rc.2）的委派分组里；预览线没有这一行。CI 的稳定线任务抓到了它
+  // 缺标签（"每个出厂行都能查到标签"），这正是双线矩阵的价值。
+  'workflow-worker-thread': { label: '工作流 Worker 线程', note: '把工作流跑在独立的 worker 线程里' },
   'tool-workflow': { label: '工作流工具' },
   'tool-ralph': { label: 'Ralph 工作流', note: '默认关闭' },
   'tool-web': { label: '网页检索与抓取' },
