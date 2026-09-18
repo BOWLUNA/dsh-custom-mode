@@ -75,6 +75,54 @@ check('输出 schema 是 string', definition?.output?.schema?.type === 'string')
 check('execute 是函数', typeof definition?.execute === 'function')
 
 console.log()
+console.log('=== 1.5 审批闸门：改写提示词必须过平台的审批缝 ===')
+{
+  // 真机实测（0.1.6-alpha.2）：返回 {kind:'ask'} 后，审批策略为 ask 时会弹「拒绝 / 允许一次」，
+  // 允许则工具执行；策略为 never 时**不弹窗、直接判为拒绝**。所以这条闸门最坏是"改不成"。
+  const handlers = []
+  const warnings = []
+  const originalError = console.error
+  console.error = (...args) => warnings.push(args.join(' '))
+  let ctx = {
+    effect: (fn) => fn(),
+    on: (event, handler) => { handlers.push({ event, handler }); return () => {} },
+    tools: { register: () => () => {} },
+  }
+  tool.apply(ctx)
+  console.error = originalError
+
+  check('注册了一个 tools/pre-execute 监听', handlers.length === 1 && handlers[0].event === 'tools/pre-execute', JSON.stringify(handlers.map((h) => h.event)))
+  const gate = handlers[0].handler
+  const next = async () => ({ kind: 'gate-passed-through' })
+
+  const writeVerdict = await gate({ name: 'custom_prompt', arguments: { action: 'write', text: '第一行内容\n第二行' } }, next)
+  check('write → ask（交给审批策略）', writeVerdict?.kind === 'ask', JSON.stringify(writeVerdict))
+  check('理由里带上将被写入的内容预览', typeof writeVerdict?.reason === 'string' && writeVerdict.reason.includes('第一行内容'), String(writeVerdict?.reason))
+  check('理由里带上目标文件路径', String(writeVerdict?.reason).includes('prompt.md'), String(writeVerdict?.reason))
+  check('理由里带上字符数', /\d+ 字符/.test(String(writeVerdict?.reason)), String(writeVerdict?.reason))
+
+  const longText = 'x'.repeat(500)
+  const longVerdict = await gate({ name: 'custom_prompt', arguments: { action: 'write', text: longText } }, next)
+  check('超长内容只截断展示（不把整段塞进审批理由）', String(longVerdict?.reason).length < 200, String(String(longVerdict?.reason).length))
+
+  check('read → 放行（改不了东西的调用不弹窗）', (await gate({ name: 'custom_prompt', arguments: { action: 'read' } }, next))?.kind === 'gate-passed-through')
+  check('未指定 action → 放行（工具按 read 处理）', (await gate({ name: 'custom_prompt', arguments: {} }, next))?.kind === 'gate-passed-through')
+  check('别的工具 → 放行', (await gate({ name: 'tool-bash', arguments: { command: 'ls' } }, next))?.kind === 'gate-passed-through')
+  check('参数不是对象也不崩', (await gate({ name: 'custom_prompt', arguments: null }, next))?.kind === 'gate-passed-through')
+
+  // 工具名漂移 = 闸门静默失效，所以钉住它。
+  check('闸门用的名字与工具定义里的名字一致', definition?.name === 'custom_prompt')
+
+  // 宿主没有这个事件时：工具照常注册，但必须**明确**说一声（不许静默降级）。
+  const quiet = []
+  const originalError2 = console.error
+  console.error = (...args) => quiet.push(args.join(' '))
+  tool.apply({ effect: (fn) => fn(), tools: { register: () => () => {} } })
+  console.error = originalError2
+  check('宿主无 tools/pre-execute 时明确告警', quiet.some((line) => line.includes('审批闸门') && line.includes('未启用')), JSON.stringify(quiet.slice(0, 1)))
+}
+
+console.log()
 console.log('=== 2. 缺文件时的读取：给出可读提示，而不是空串 ===')
 {
   rmSync(promptPath, { force: true })

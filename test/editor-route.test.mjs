@@ -322,6 +322,33 @@ console.log('=== 4. GET /custom-mode/state：一个助手的完整状态 ===')
   check('带路径信息（页面底部显示）', state.compositionPath === compositionPath, String(state.compositionPath))
   check('平台条件在宿主端求值为"已停用"（Linux 上 pwsh）', state.rows.find((row) => row.id === 'tool-pwsh')?.disabledExpression !== null)
 
+  // 「配置了却不生效」的告警码：这里的状态是出厂种子（有名字、有描述、身份行开着），
+  // 所以一条都不该报 —— 误报比不报更糟（用户会学会忽略它）。
+  // 这个夹具的 preset.yml 没写描述，所以「没有描述」这一条是**正确**的告警；
+  // 关键是"身份行开着 + 提示词非空"时**不许**报"提示词不生效"。
+  check(
+    '默认状态只报无害项（没写描述），不误报提示词不生效',
+    JSON.stringify(state.warnings) === '["noDescription"]',
+    JSON.stringify(state.warnings),
+  )
+
+  // 关掉身份行（系统提示词）：此时 prompt.md 根本不会被注入 —— 必须主动点名。
+  const personaOff = await call(post('/custom-mode/state', {
+    id: 'custom', mode: 'standard', prompt: '我写的提示词\n', overrides: { persona: false },
+  }))
+  check('保存成功（关掉身份行，准备阶段）', personaOff.statusCode === 200, personaOff.body.slice(0, 80))
+  const warned = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check(
+    '关掉身份行 + 有提示词 → 报「提示词不生效」',
+    warned.warnings.includes('personaOffWithPrompt'),
+    JSON.stringify(warned.warnings),
+  )
+  // 把提示词清空就说不上"不生效"了 —— 告警必须跟着条件消失，否则用户会学会忽略它。
+  const cleared = await call(post('/custom-mode/state', {
+    id: 'custom', mode: 'standard', prompt: '还是有点内容\n', overrides: { persona: false },
+  }))
+  check('仍然开着时依旧报警', cleared.statusCode === 200 && JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body).warnings.includes('personaOffWithPrompt'))
+
   // 「恢复出厂提示词」的数据来源：宿主必须把出厂模板一起给页面，否则那个按钮只能置灰。
   check(
     'state 带出厂提示词（新建助手时得到的那一份）',

@@ -82,6 +82,14 @@ plugin switches, system prompt) edit **whichever one is selected**.
 - **Import / export a prompt** — "Export prompt" saves the current text as a `.md`; "Import prompt"
   reads a file into the **editor** (nothing is written until you save), so an import goes through the
   same `{{…}}` validation as anything typed.
+- **Asking the agent to change its own prompt requires your approval.** The in-session `custom_prompt`
+  tool goes through the platform's approval seam (`tools/pre-execute` returning `ask`), so the request waits
+  for an explicit「允许一次」and shows what would be written and where. Measured: with the `ask` approval
+  policy the panel appears and approving really writes; with `never` (full access) nothing prompts and the
+  call is **denied**. The worst case is therefore "the change does not happen", never "it happened quietly".
+- **配置了却不生效会被点名** — the page warns when a setting cannot take effect: the「身份（系统提示词）」
+  row is off while `prompt.md` still has content (so your prompt is silently ignored), the `custom_prompt`
+  tool row is off, the assistant has no name or no description (the picker shows the bare id /「暂无描述」).
 - **Change history** — every save, *and* any change made outside this page (the in-session
   `custom_prompt` tool, a hand edit of `prompt.md`), leaves a version in the history list under the
   prompt box, labelled with when and where it came from. Loading one only edits the draft: nothing is
@@ -221,7 +229,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 12 suites, 572 checks; resolves the shipped presets itself
+node test/run.mjs        # 12 suites, 588 checks; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the

@@ -92,6 +92,10 @@ try {
         "msg.reorderFailed": "调整顺序失败",
         "msg.imported": "已导入到编辑器（还没有保存）：检查后点「保存」。",
         "msg.importFailed": "导入失败",
+        "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 你写的提示词现在不起作用。要么打开这一行，要么清空提示词。",
+        "warn.toolOff": "「custom_prompt 工具」这一行是关的：会话里无法让 agent 改提示词，只能在本页改。",
+        "warn.noDescription": "没有描述：新建会话的模式选择器里会显示成「暂无描述」。",
+        "warn.noName": "没有名字：模式选择器里会显示成目录 id（例如 custom）。",
         "history.label": "改动历史",
         "history.pick": "选择要载入的版本…",
         "history.load": "载入这一版",
@@ -231,6 +235,10 @@ try {
         "msg.reorderFailed": "Could not reorder",
         "msg.imported": "Imported into the editor (not saved yet) — review it, then click Save.",
         "msg.importFailed": "Import failed",
+        "warn.personaOffWithPrompt": "The \"Identity (system prompt)\" row is off, so prompt.md is never injected — the prompt you wrote has no effect. Turn the row on, or clear the prompt.",
+        "warn.toolOff": "The \"custom_prompt tool\" row is off: the agent cannot change the prompt from inside a session, only this page can.",
+        "warn.noDescription": "No description: the new-session mode picker will show it as \"no description yet\".",
+        "warn.noName": "No name: the mode picker will show the directory id (e.g. custom).",
         "history.label": "Change history",
         "history.pick": "Pick a version to load…",
         "history.load": "Load this version",
@@ -612,6 +620,8 @@ try {
           // 改动历史：列表来自 state（只有元数据），正文点「载入这一版」时按需取。
           history: Array.isArray(state.history) ? state.history : [],
           historyPick: "",
+          // 「配置了却不生效」的告警码；文案按当前语言渲染。
+          warnings: Array.isArray(state.warnings) ? state.warnings : [],
         }
       }
 
@@ -1402,6 +1412,18 @@ try {
           { className: "cpfe" },
           assistantList,
           react.createElement("p", { className: "cpfe-note" }, t("assistant.switchHint")),
+          // 配了却不生效的项：主动点名，而不是让用户对着"我明明写了"发呆。
+          // `draft` 在没选中任何助手时是 null（列表还没加载完 / 一个都没有）—— 这里必须先守卫，
+          // 否则整块设置页崩掉（实测：浏览器验收当场报 Cannot read properties of null）。
+          draft === null || draft.warnings === undefined || draft.warnings.length === 0
+            ? null
+            : react.createElement(
+                "div",
+                { className: "cpfe-warns" },
+                ...draft.warnings.map((code) =>
+                  react.createElement("p", { key: code, className: "cpfe-warn" }, "⚠ " + t("warn." + code)),
+                ),
+              ),
           ...editorSections,
           react.createElement(
             "div",

@@ -211,6 +211,37 @@ function packagedPrompt() {
   return packagedPromptCache
 }
 
+/**
+ * 「配置了，但不生效」的告警码。
+ *
+ * 这一条借自同生态的 whale-persona：它会主动点名"配了却没起作用"的项。这里对应四种**静默**的
+ * 自相矛盾 —— 每一种此前都只会让人以为"我明明写了提示词/描述，怎么没效果"：
+ *
+ *   - `personaOffWithPrompt`：身份行被关掉，`prompt.md` 根本不会被注入（最坑的一种）；
+ *   - `toolOff`：`custom_prompt` 工具行关掉 → 会话内改提示词不可用（设置页照旧）；
+ *   - `noDescription`：描述为空 → 新建会话的模式选择器里显示「暂无描述」；
+ *   - `noName`：名字为空 → 选择器里显示成裸目录 id。
+ *
+ * 只返回**码**，文案由页面按语言渲染（双语文案的真值源在 locales.mjs 一处）。
+ *
+ * @param {string} text - the composition text.
+ * @param {string} prompt - the prompt file's content.
+ * @param {{name?: string, description?: string}} meta - `preset.yml`.
+ * @returns {string[]} warning codes, stable order.
+ */
+export function configWarnings(text, prompt, meta) {
+  const warnings = []
+  const rows = collectRows(text)
+  const find = (id) => rows.find((row) => row.id === id)
+  if (find('persona')?.disabled === true && typeof prompt === 'string' && prompt.trim() !== '') {
+    warnings.push('personaOffWithPrompt')
+  }
+  if (find('custom-prompt-tool')?.disabled === true) warnings.push('toolOff')
+  if (typeof meta?.description !== 'string' || meta.description.trim() === '') warnings.push('noDescription')
+  if (typeof meta?.name !== 'string' || meta.name.trim() === '') warnings.push('noName')
+  return warnings
+}
+
 export function readState(rows, id, options = {}) {
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
@@ -242,6 +273,8 @@ export function readState(rows, id, options = {}) {
     factoryPrompt: typeof options.factoryPrompt === 'string' ? options.factoryPrompt : null,
     // 改动历史（只有元数据，正文按需取：见 GET /custom-mode/history）。
     history: listHistory(directory),
+    // 「配置了却不生效」的告警码（文案在页面侧按语言渲染）。
+    warnings: configWarnings(text, prompt.ok === true ? prompt.text : '', meta),
   }
 }
 

@@ -965,3 +965,49 @@ POST /api/custom-mode/state             带会话                → 200 已保�
 代码侧的结构断言（`test/editor-route.test.mjs`）：5 条精确路径全部注册在 `connection.fetch` 上、
 `requestBody: 'buffered'`、`create`/`delete`/`reorder` 只声明 POST；并且源码里**不再有**
 `requestRejection(` 调用与 `webServer.register(`；等不到 `connection` 时**一条也不注册**。
+
+---
+
+## 17. 自我的提示词改写走平台审批缝（0.1.6-alpha.2，真实会话实测）
+
+用户提出的需求：会话内的 `custom_prompt` 工具能覆盖整个系统提示词，而调用它的可能是被注入的模型 ——
+这条路径此前没有任何门。做法是注册 `tools/pre-execute`（waterfall）并在 `action === "write"` 时返回
+`{kind:'ask'}`，由平台的审批策略决定后续。
+
+### 17.1 先探针，别照类型注释猜
+
+用一个 20 行探针插件（只注册监听、返回 `ask`）在一次性实例上跑真实会话：
+
+```text
+[ask-probe] 已注册 tools/pre-execute 监听
+$ 会话里：请用 custom_prompt 工具把系统提示词改成：审批测试第一版。只用一次工具调用。
+# 权限预设 = danger-full-access（approval: never）时：
+工具调用Error: the user rejected tool "custom_prompt"          ← 不弹窗，直接判为拒绝
+思考The user rejected the tool call. I should stop and explain.
+（prompt.md 未被修改）
+
+# 权限预设 = workspace-write（approval: ask）时：
+工具调用 custom_prompt · write
+等待审批
+ask-probe：改系统提示词前需要你确认          ← 我们给的理由被原样呈现
+[拒绝] [允许一次]
+# 点「允许一次」之后：
+已生效：系统提示词已改为 审批实测通过。
+（磁盘：/…/.agent-presets/custom/prompt.md 内容变成 审批实测通过）
+```
+
+**两条结论**：`ask` 会不会弹窗由**审批策略**决定（`never` → 不弹、直接拒绝；`ask` → 弹面板）；
+因此这条闸门的最坏情况是"改不成"，而不是"悄悄改成了"。
+
+### 17.2 换上我们自己的闸门后复验
+
+```text
+面板文案：等待审批
+          把「自定义模式」的系统提示词整体替换为 7 字符：审批实测通过。（写入 /tmp/…/prompt.md）
+          [拒绝] [允许一次]
+点「允许一次」 → 工具执行，磁盘变成 审批实测通过。（agent 也如实汇报了写入位置与影响范围）
+点「拒绝」     → prompt.md md5 前后一致（fb6bdc8c…），文件未被修改
+```
+
+浏览器验收（`tools/browser-verify.mjs`）另有 38 项覆盖设置页侧；审批这条链路必须真会话才能验，故记录在此。
+

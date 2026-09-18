@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 12 suites, 572 checks; resolves the shipped presets itself
+node test/run.mjs                                  # 12 suites, 588 checks; resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 

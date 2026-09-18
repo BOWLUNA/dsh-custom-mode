@@ -8,6 +8,31 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.3.0]
+
+### The agent's own prompt rewrite now goes through the platform's approval seam
+
+`custom_prompt`'s `write` action replaces the entire system prompt, and the caller can be an injected model —
+the path had no gate at all. It now registers `tools/pre-execute` and answers `ask` for that action, which
+hands the decision to the platform's approval policy. **Measured with a real model session** on
+`0.1.6-alpha.2` (raw output in `docs/MEASUREMENTS.md` §17):
+
+- approval policy `ask` (preset `workspace-write`): the panel 「等待审批」 appears with our reason — *what*
+  will be written (char count + first line) and *where* — and 「允许一次」 really writes the file;
+- approval policy `never` (preset `danger-full-access`): **no panel, the call is denied** and the file is
+  untouched. So the worst case is "the change does not happen", never "it happened quietly";
+- `read` and every other tool pass through untouched, so the gate cannot turn into wallpaper;
+- if a host lacks `tools/pre-execute`, the plugin says so loudly instead of degrading silently.
+
+### New: it points out settings that cannot take effect
+
+Borrowed in spirit from the persona engine `whale-persona`, which names configured-but-inactive items: the
+page now warns when 「身份（系统提示词）」 is off while `prompt.md` still has content (your prompt is being
+ignored — the worst kind of silent contradiction), when the `custom_prompt` tool row is off, and when the
+assistant has no name or description (the picker shows the bare id / 「暂无描述」). Warnings are returned as
+codes so the wording stays in the bilingual dictionaries, and a test asserts a healthy assistant produces
+**no** warnings — a false alarm teaches users to ignore the real ones.
+
 ## [1.2.0]
 
 ### New: change history for the system prompt

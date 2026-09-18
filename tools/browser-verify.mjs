@@ -381,6 +381,37 @@ try {
     const afterDelete = await assistantPills()
     check('删除后从列表消失', !afterDelete.some((text) => text.includes(created)), JSON.stringify(afterDelete))
 
+    // ── 「配置了却不生效」的主动告警 ──────────────────────────────────────
+    //
+    // 真场景：把「身份（系统提示词）」这一行关掉 —— 此时 prompt.md 根本不会被注入。
+    // 这是最坑的一种静默自相矛盾（用户只会想"我明明写了提示词"），必须主动点名；
+    // 恢复之后告警也必须消失 —— 误报一次，用户就学会忽略它了。
+    const togglePersonaRow = async (wantOn) => {
+      const outcome = await session.evaluate(`(() => {
+        const row = [...document.querySelectorAll('.cpfe-row')].find((el) => /身份（系统提示词）|Identity \\(system prompt\\)/.test(el.textContent));
+        if (row === undefined) return 'no-row';
+        const box = row.querySelector('[role=switch]');
+        if (box === null) return 'no-switch';
+        if ((box.getAttribute('aria-checked') === 'true') !== ${JSON.stringify(wantOn)}) box.click();
+        return 'ok';
+      })()`)
+      await session.sleep(600)
+      return outcome
+    }
+    const warningLines = () => session.evaluate(`(() => [...document.querySelectorAll('.cpfe-warn')].map((el) => (el.textContent || '').trim()))()`)
+
+    check('点得到身份行的开关', (await togglePersonaRow(false)) === 'ok')
+    await clickButton('保存')
+    await session.sleep(2800)
+    const warningsOff = await warningLines()
+    check('关掉身份行 → 主动点名「提示词不生效」', warningsOff.some((line) => line.includes('不起作用')), JSON.stringify(warningsOff))
+
+    check('点得到身份行的开关（恢复）', (await togglePersonaRow(true)) === 'ok')
+    await clickButton('保存')
+    await session.sleep(2800)
+    const warningsOn = await warningLines()
+    check('恢复后告警消失（不许误报）', warningsOn.every((line) => line.includes('不起作用') === false), JSON.stringify(warningsOn))
+
     // ── 4. 截图 ────────────────────────────────────────────────────────────
     if (out !== '') {
       await session.evaluate(`(() => {

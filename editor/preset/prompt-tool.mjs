@@ -40,6 +40,7 @@ const META_PATH = fileURLToPath(new URL('./preset.yml', import.meta.url))
 const MISSING = '（prompt.md 不存在，当前模式会退回上一次成功的提示词文本）'
 
 /** Name used when neither the composition nor `preset.yml` supplies one. */
+const TOOL_NAME = 'custom_prompt'
 const FALLBACK_MODE_NAME = '自定义模式'
 
 /**
@@ -201,12 +202,67 @@ function makeDefinition(modeName) {
   }
 }
 
+/**
+ * 自我改提示词的审批闸门。
+ *
+ * `action: "write"` 会**覆盖整个系统提示词**，而调用它的可能是模型自己 —— 一次提示词注入就足以
+ * 让它重写自己的身份。此前这条路径没有任何门：工具直接落盘。
+ *
+ * 现在它走平台的审批缝：`tools/pre-execute` 是一个 waterfall，返回 `{kind:'ask'}` 会由审批策略决定
+ * 怎么处理。**实测（0.1.6-alpha.2，一次性实例）**：
+ *
+ *   - 审批策略为 `ask`（权限预设 `workspace-write`）：页面出现「等待审批」行，带这里的 reason，
+ *     按钮为「拒绝 / 允许一次」；点「允许一次」后工具真的执行，prompt.md 变成写入的内容；
+ *   - 审批策略为 `never`（权限预设 `danger-full-access`）：**不弹窗，直接判为拒绝**
+ *     （轨迹里是 `Error: the user rejected tool "custom_prompt"`，文件未被修改）。
+ *
+ * 也就是说这条闸门**最坏情况是"改不成"而不是"悄悄改成了"** —— 与平台的默认语义一致
+ * （类型注释原话：missing approval support turns `ask` into denial）。
+ *
+ * 只拦 `write`：`read` 不改变任何东西，弹窗只会让人麻木。
+ *
+ * @param {object} ctx - the preset row's scope.
+ * @returns {boolean} whether a gate was registered.
+ */
+function registerApprovalGate(ctx) {
+  if (typeof ctx.on !== 'function') return false
+  ctx.effect(
+    () => ctx.on('tools/pre-execute', (exec, next) => {
+      if (exec === null || typeof exec !== 'object' || exec.name !== TOOL_NAME) return next()
+      const args = exec.arguments
+      const action = args !== null && typeof args === 'object' ? args.action : undefined
+      // 只拦写入；未指定 action 时工具按 read 处理，同样不拦。
+      if (action !== 'write') return next()
+      const text = typeof args.text === 'string' ? args.text : ''
+      const firstLine = text.split('\n').find((line) => line.trim() !== '') ?? ''
+      return {
+        kind: 'ask',
+        reason:
+          '把「' + resolveModeName(undefined) + '」的系统提示词整体替换为 ' + String(text.length) + ' 字符' +
+          (firstLine === '' ? '' : '：' + firstLine.trim().slice(0, 60)) +
+          '（写入 ' + PROMPT_PATH + '）',
+      }
+    }),
+    'custom-prompt.approval-gate',
+  )
+  return true
+}
+
 /** The tool registry is a hard dependency; without it there is no tool. */
 export const inject = ['tools']
 
 export function apply(ctx, config = {}) {
   const definition = makeDefinition(resolveModeName(config))
   ctx.effect(() => ctx.tools.register(definition), 'custom-prompt.tool')
+
+  // 审批闸门。宿主若不支持 `tools/pre-execute`（比本插件声明的下限还老的构建），这里会**明确**
+  // 说一声再继续 —— 降级是有的，但不许静默。
+  if (registerApprovalGate(ctx) !== true) {
+    console.error(
+      'custom-mode: 这个宿主没有 tools/pre-execute 事件，会话内改写系统提示词的审批闸门**未启用**' +
+        '（设置页不受影响）。请升级 DSH，或把「custom_prompt 工具」这一行关掉。',
+    )
+  }
 }
 
 /**
