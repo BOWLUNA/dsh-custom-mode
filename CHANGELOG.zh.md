@@ -6,6 +6,21 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.6.1]
+
+### 轨迹工具的两个可移植性 bug —— 都是 CI 抓到的
+
+- **`import` 这个工具会跑起 CLI 并调用 `process.exit`。** `main()` 原先在模块末尾无条件执行，于是"import 它的
+  测试"也把命令行跑了一遍 —— 在没有 `~/.dsh/sessions` 的机器上（也就是每个 CI runner）它会 `exit(2)`，在打印
+  任何一条断言之前就把测试进程带走。本机之所以是绿的，只是因为这台机器**有**会话库，`main()` 正常返回了。
+  现在只有"文件本身作为入口被运行"时才走 CLI（用 `realpath` 判定）。
+- **Node 20 没有 zstd**，于是模块导入直接报
+  `does not provide an export named 'zstdDecompressSync'`，把整个 Node 20 任务带走。现在工具以命名空间方式
+  导入 `node:zlib`，遇到没有 zstd 的运行时打印"这个 Node 没有 zstd 支持（v20.x）：需要 Node ≥ 22.15"并以
+  退出码 2 结束；套件会说明它为什么跳过与解压相关的检查，同时仍然验证不依赖 zstd 的提取逻辑 ——
+  "什么都没跑却算过"比"说清为什么跳过"更糟。
+- 测试里的 `execFileSync('mkdir', …)` 换成 `mkdirSync`（Windows 上没有 `mkdir` 这个命令）。
+
 ## [1.6.0]
 
 ### 轨迹读取器现在能**断言**：`--expect`、`--compare`、`--grep`、`--denied`

@@ -39,10 +39,11 @@
  * Exit codes: 0 on success, 1 when a `--expect` assertion fails, 2 when a source is missing or nothing could be
  * decoded (loud, never an empty success).
  */
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { zstdDecompressSync } from 'node:zlib'
+import { fileURLToPath } from 'node:url'
+import * as zlib from 'node:zlib'
 
 /** Zstandard frame magic: `28 B5 2F FD`. */
 const FRAME_MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd])
@@ -60,6 +61,11 @@ const ARG_LIMIT = 160
  * @returns {string} concatenated record text, in file order.
  */
 export function decodeSessionLog(buffer) {
+  // Node 22.15 / 23.8 才把 zstd 加进 `node:zlib`；更老的版本连导入符号都会失败，所以在这里显式检查，
+  // 让调用方拿到一句能读懂的话，而不是一个 "does not provide an export named" 的模块级崩溃。
+  if (typeof zlib.zstdDecompressSync !== 'function') {
+    throw new Error(`这个 Node 没有 zstd 支持（${process.version}）：需要 Node ≥ 22.15。`)
+  }
   const starts = []
   for (let index = 0; index + FRAME_MAGIC.length <= buffer.length; index += 1) {
     if (buffer.compare(FRAME_MAGIC, 0, FRAME_MAGIC.length, index, index + FRAME_MAGIC.length) === 0) starts.push(index)
@@ -69,7 +75,7 @@ export function decodeSessionLog(buffer) {
   for (const start of starts) {
     try {
       // Node stops at the frame boundary, so no end offset is needed; a false magic throws and is skipped.
-      text += zstdDecompressSync(buffer.subarray(start)).toString('utf8')
+      text += zlib.zstdDecompressSync(buffer.subarray(start)).toString('utf8')
     } catch {
       continue
     }
@@ -233,7 +239,12 @@ function resolveSource(spec) {
 
 /** Read and summarise one source, or fail loudly. */
 function readSource(source) {
-  const text = decodeSessionLog(readFileSync(source.log))
+  let text
+  try {
+    text = decodeSessionLog(readFileSync(source.log))
+  } catch (error) {
+    return { ok: false, reason: String(error?.message ?? error) }
+  }
   const records = parseRecords(text)
   if (records.length === 0) return { ok: false, reason: `日志解出来是空的：${source.log}` }
   return { ok: true, trace: summarize(records), source }
@@ -334,7 +345,13 @@ function main() {
     process.exit(2)
   }
 
-  const text = decodeSessionLog(readFileSync(chosen.log))
+  let text
+  try {
+    text = decodeSessionLog(readFileSync(chosen.log))
+  } catch (error) {
+    console.error(String(error?.message ?? error))
+    process.exit(2)
+  }
   const records = parseRecords(text)
   if (records.length === 0) {
     // 空集必须报错：解不出来和"这次会话没有记录"是两件事，静默返回空会让人以为会话是空的。
@@ -395,4 +412,9 @@ function main() {
   printTally(trace)
 }
 
-main()
+// 只有"被当作脚本直接运行"时才走 CLI。
+// **实测代价**：这段曾经是无条件 `main()` —— 测试 import 本模块时 CLI 也跟着跑，在没有 ~/.dsh/sessions
+// 的 CI 上 `process.exit(2)` 直接把测试进程带走；本机因为会话库存在（main 正常返回）所以看不出来。
+const invokedDirectly =
+  process.argv[1] !== undefined && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))
+if (invokedDirectly) main()

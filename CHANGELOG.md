@@ -8,6 +8,23 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.6.1]
+
+### Two portability bugs in the trace tool, both found by CI
+
+- **`import`ing the tool ran the CLI and called `process.exit`.** `main()` was invoked unconditionally at module
+  scope, so a test that imported `decodeSessionLog` also ran the command line — which, on a machine without
+  `~/.dsh/sessions` (i.e. every CI runner), exited 2 and killed the test process before a single check printed.
+  It passed locally only because this machine *does* have a session store, so `main()` returned normally. The
+  CLI now runs only when the file is the entry point (resolved through `realpath`).
+- **Node 20 has no zstd**, so importing the module failed with
+  `does not provide an export named 'zstdDecompressSync'` and took the whole Node 20 job down. The tool now
+  imports `node:zlib` as a namespace, reports "this Node has no zstd support (v20.x): Node ≥ 22.15 required"
+  and exits 2 instead of crashing at import; the suite prints why it is skipping the frame-based checks and
+  still exercises the extraction logic that does not need zstd — a suite that silently passes by doing nothing
+  would be worse than one that says why.
+- `execFileSync('mkdir', …)` in the test became `mkdirSync` (there is no `mkdir` binary on Windows).
+
 ## [1.6.0]
 
 ### The trace reader can now *assert*: `--expect`, `--compare`, `--grep`, `--denied`

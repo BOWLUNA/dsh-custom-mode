@@ -14,11 +14,11 @@
  *   - **the summary**: calls paired with results, denials classified, tool+action counted;
  *   - **loud failure**: undecodable input yields an empty string (so the CLI exits 2) instead of "".
  */
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
-import { zstdCompressSync, zstdDecompressSync } from 'node:zlib'
+import * as zlib from 'node:zlib'
 import { decodeSessionLog, parseRecords, summarize } from '../tools/session-trace.mjs'
 
 let passed = 0
@@ -33,8 +33,16 @@ const check = (label, condition, detail = '') => {
   }
 }
 
+/**
+ * Whether this Node can do zstd at all (22.15 / 23.8+). On older runtimes the frame-based checks are skipped
+ * with a printed reason, but the plaintext paths are still exercised — a suite that silently passes by doing
+ * nothing would be worse than one that says why it skipped.
+ */
+const hasZstd = typeof zlib.zstdDecompressSync === 'function' && typeof zlib.zstdCompressSync === 'function'
+
 /** One append like dsh writes it: a single frame per record. */
-const frameOf = (record) => zstdCompressSync(Buffer.from(JSON.stringify(record) + '\n', 'utf8'))
+const frameOf = (record) => zlib.zstdCompressSync(Buffer.from(JSON.stringify(record) + '\n', 'utf8'))
+const zstdDecompressSync = (...args) => zlib.zstdDecompressSync(...args)
 
 const records = [
   { type: 'session', version: 3, id: 'session-test-0000', createdAt: 0, cwd: '/tmp' },
@@ -45,6 +53,27 @@ const records = [
   { type: 'tool/call', seq: 5, time: 5, data: { turn: 0, step: 2, callId: 'c3', name: 'bash', arguments: { command: 'ls' } } },
   { type: 'tool/result', seq: 6, time: 6, data: { turn: 0, step: 2, message: { text: 'ok' } }, sourceEventSeqs: [5] },
 ]
+
+// Node 20 没有 zstd（22.15 / 23.8+ 才有）。这时**不能**让套件崩掉，但也不能"什么都没跑就算过"：
+// 打印原因，仍然验证不依赖 zstd 的提取逻辑，然后正常退出。
+if (hasZstd !== true) {
+  console.log(`=== 当前 Node（${process.version}）没有 zstd：与解压/CLI 相关的检查跳过 ===`)
+  const plain = [
+    { type: 'session', id: 'session-plain' },
+    { type: 'tool/call', seq: 1, data: { turn: 0, step: 0, name: 'custom_prompt', arguments: '{"action":"read"}' } },
+    { type: 'tool/result', seq: 2, data: { turn: 0, step: 0, message: { text: 'ok' } }, sourceEventSeqs: [1] },
+    { type: 'tool/call', seq: 3, data: { turn: 0, step: 1, name: 'bash', arguments: '{"command":"ls"}' } },
+    { type: 'tool/result', seq: 4, data: { turn: 0, step: 1, message: { error: 'the user rejected tool "bash"' } }, sourceEventSeqs: [3] },
+  ]
+  const trace = summarize(plain)
+  check('（无 zstd 分支）仍然统计工具调用', trace.callCount === 2 && trace.sessionId === 'session-plain', JSON.stringify({ n: trace.callCount }))
+  check('（无 zstd 分支）JSON 字符串参数仍能取出 action', trace.totals.some((t) => t.key === 'custom_prompt(read)'), JSON.stringify(trace.totals))
+  check('（无 zstd 分支）被拒的调用仍被归类', trace.calls.filter((c) => c.outcome === 'denied').length === 1, JSON.stringify(trace.calls.map((c) => c.outcome)))
+  check('（无 zstd 分支）坏行仍被跳过', parseRecords('{"a":1}\n坏\n{"b":2}\n').length === 2)
+  console.log()
+  console.log(`结果: ${String(passed)} 通过, ${String(failed)} 失败（zstd 部分已跳过）`)
+  process.exit(failed === 0 ? 0 : 1)
+}
 
 console.log('=== 1. 多帧解码：一次解压只给第一帧，逐帧扫描才能拿全 ===')
 const multiFrame = Buffer.concat(records.map(frameOf))
@@ -128,7 +157,7 @@ console.log('=== 5. CLI：真跑一遍（合成日志写进一次性 home）==='
 {
   const home = mkdtempSync(join(tmpdir(), 'dsh-trace-'))
   const dir = join(home, 'sessions', '--project--', 'session-abc')
-  execFileSync('mkdir', ['-p', dir])
+  mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'session.v3.jsonl.zstd'), multiFrame)
   const out = execFileSync(process.execPath, ['tools/session-trace.mjs', '--home', home], { encoding: 'utf8' })
   check('CLI 打出汇总行', /汇总：共 3 次工具调用/.test(out), out.slice(-160))
@@ -155,7 +184,7 @@ console.log('=== 6. 把"模型只调了一次"变成检查：--expect / --compar
   const homeB = mkdtempSync(join(tmpdir(), 'dsh-traceB-'))
   const writeHome = (home, list) => {
     const dir = join(home, 'sessions', '--p--', 'session-x')
-    execFileSync('mkdir', ['-p', dir])
+    mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, 'session.v3.jsonl.zstd'), Buffer.concat(list.map(frameOf)))
   }
   // A：read + append（append 被拒）；B：只 read —— 用来验对比与筛选。
