@@ -8,6 +8,29 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.0.1]
+
+### Discoverability: how people find this plugin
+
+- **npm metadata**: the package description no longer claims "follows the DSH version" (untrue since `1.0.0`),
+  and `keywords` went from 5 to 14 — npm search reads them, and they only reach npm with a new version.
+- **Repository**: description rewritten with the words people actually type; topics grew to 17, all of them
+  honest (`custom-prompt`, `prompt-editor`, `agent-modes`, `multi-mode`, `assistant-manager`, …) plus the
+  mandatory `dsh-plugin`.
+- **README / npm landing page**: both now say in one line what this is and list the synonyms people search
+  for ("custom prompt", "system-prompt editor", 多助手／多模式), because on GitHub and npm the page text is
+  the index.
+- **Social preview image** (1280×640) is generated and committed as `docs/images/social-preview.png`; the
+  upload step is web-UI-only, and `docs/PUBLISHING.md` now documents it — it was previously recorded in a
+  commit message and never actually applied.
+
+### Fixed in the npm landing page (`editor/README.md`)
+
+- It told first-time users to clone the repository — untrue since `0.1.6-alpha.1`, when the npm package started
+  carrying the preset and seeding it on activation.
+- The peer range was stated as `>=0.1.2-alpha.1` while the package declares `>=0.1.6-alpha.1`.
+- The Measurements link pointed at the renamed `实测记录.md`, i.e. it was broken.
+
 ## [1.0.0]
 
 ### Versioning: the package gets its own line

@@ -1,41 +1,43 @@
 # dsh-custom-mode
 
-The **settings-page half** of [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode): a Web UI
-for a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) agent preset whose
-**system prompt is a plain file you can edit, taking effect on the next model step** — no restart, no
-new session.
+The **settings-page half** of [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode) — a Web UI for
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) agent modes: choose a mode's base
+composition, toggle the plugin rows it mounts, and edit its **system prompt**, which is a plain file the
+agent loop re-reads before every model step — **a save applies on the next step, with no restart and no new
+session**. Several modes ("assistants") live side by side, each with its own prompt.
 
-![Settings → Custom mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png)
+Searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants ·
+自定义模式 · 自定义提示词 · 多助手／多模式.
 
-## What is in this package, and what is not
+![Assistant manager](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
 
-This package is **only the editor**: one private HTTP route plus the browser half that renders the
-settings section (base-mode picker, per-row plugin switches, prompt editor, mode rename).
+![Mode name and base mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png)
 
-The **agent preset itself is not an npm package** — it is a directory of files
-(`preset/agent.cordis.yml`, `prompt-reader.mjs`, `prompt-tool.mjs`, `prompt.md`) that dsh discovers
-under `$DSH_HOME/.agent-presets/<id>/`. It comes from the GitHub repository.
+![Plugin switches](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png)
 
-So:
+## Install
 
-- **First-time install** → clone the repository and run `./install.sh`. It copies the preset *and*
-  installs this package into your profile.
-- **Already have the preset, want to update the editor** → install this package directly:
+```sh
+dsh plugin --profile web add dsh-custom-mode
+```
 
-  ```sh
-  dsh plugin --profile web add dsh-custom-mode
-  ```
+**That one command is the whole install.** The package carries the agent preset, and the host half writes it
+into `$DSH_HOME/.agent-presets/` on first activation — filling in only what is missing, so a `prompt.md` you
+wrote yourself is never overwritten.
 
-- The mode is **web-profile only**: the `agent-presets` service, which mounts presets at all, ships
-  with dsh's `web` profile. In `tui` / `headless` this package activates but registers nothing.
+To keep the source around as well, clone the repository and run `./install.sh` instead; it does the same two
+things explicitly, and `./uninstall.sh` undoes them (keeping your prompt unless you pass `--purge`).
+
+The mode is **web-profile only**: `agent-presets`, the service that mounts presets at all, ships with dsh's
+`web` profile. In `tui` / `headless` this package activates but registers nothing.
 
 ## Requirements
 
-- `@deepseek-ai/dsh` `>=0.1.2-alpha.1` (declared as an *optional* peer: this package never imports it,
-  it only reads the host services dsh injects)
-- The version is this package's own line (`1.0.0`, `1.0.1`, …). Which DSH it supports is declared in
-  `engines.dsh` and the peer range above; see the repository README's "Versioning" section.
-- Source is published as-is: **no build step, no dependencies** beyond Node's standard library.
+- **dsh `>=0.1.6-alpha.1`** — declared in `engines.dsh` and as an *optional* peer range. This package never
+  imports `@deepseek-ai/dsh`; it only reads the host services dsh injects.
+- **No build step, no dependencies**: the source is published as-is and uses only Node's standard library.
+- The package version is its own line (`1.0.0`, `1.0.1`, …). Which dsh it supports is declared in
+  `engines.dsh`; see the repository README's "Versioning" section.
 
 ## Documentation
 
@@ -45,18 +47,18 @@ The full documentation is bilingual in the repository:
   [中文说明](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/README.zh.md)
 - [Troubleshooting](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md) —
   every failure that was actually reproduced, with symptoms, cause and a way out
-- [Measured behaviour](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/%E5%AE%9E%E6%B5%8B%E8%AE%B0%E5%BD%95.md) —
-  the commands and raw output behind every claim
-- [Architecture](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/ARCHITECTURE.md) — why
-  this had to be two artifacts, and how the host APIs it depends on can break
+- [Measurements](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/MEASUREMENTS.md) — the commands
+  and raw output behind every claim
+- [Architecture](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/ARCHITECTURE.md) — why this had
+  to be two artifacts, and which host APIs it depends on
 
 ## Security note
 
 The route this package serves runs the platform's own browser-trust check
 (`ctx.connection.requestRejection`) before anything else and **fails closed** when that service is
 unavailable. Before that check existed, the route could be read and written unauthenticated — see
-[SECURITY.md](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/SECURITY.md) for the affected
-range and the mitigation.
+[SECURITY.md](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/SECURITY.md) for the affected range and
+the mitigation.
 
 ## License
 

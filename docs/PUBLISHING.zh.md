@@ -256,6 +256,30 @@ bundle 文件，约 1 秒后把插件原地换掉（实测证据见 [`ARCHITECTU
 
 ## GitHub 仓库本身的装修
 
+### 可发现性：描述、topics、keywords、社交预览图
+
+别人靠**搜索**找到这个插件，入口就这四个；它们都很便宜，而且**没人检查就会静默过期**：
+
+- **仓库描述**（`gh repo edit --description`）：一句事实性的英文，带上关键词。GitHub 搜索与仓库列表显示的就是它。
+- **Topics**（`gh repo edit --add-topic`）：`dsh-plugin` 是必需的（按 topic 索引的市场靠它收录）；再加上别人
+  真会输入的词 —— `custom-mode`、`custom-prompt`、`prompt-editor`、`agent-modes`、`multi-mode`、
+  `assistant-manager`、`system-prompt`、`deepseek-harness`……
+- **npm 的 `keywords`**（写在 `editor/package.json`）：npm 搜索会读它，而且**只改元数据不会更新到 npm 上**
+  —— 必须发一个新版本，npm 页面才会变。
+- **社交预览图**（1280×640）：**只能在网页 UI 里设** —— Settings → Social preview。REST API 没有这个端点，
+  所以这是唯一无法脚本化、也最容易被忘掉的一步。核对方式：
+
+  ```sh
+  curl -sL https://github.com/BOWLUNA/dsh-custom-mode | grep -o 'og:image" content="[^"]*'
+  # 自定义 → repository-images.githubusercontent.com ；默认 → opengraph.githubassets.com
+  ```
+
+这张图也是"生成"的而不是画的：在浏览器里排版后按 1280×640 截屏，把 PNG 放进
+`docs/images/social-preview.png`，让真值留在仓库里。
+
+最后是措辞：README 首屏与 npm 落地页（`editor/README.md`）里应当出现人们会搜的说法 —— 包括同义词
+（"custom prompt"、"system-prompt editor"、多助手／多模式）—— 因为在 GitHub 和 npm 上，页面文本本身就是索引。
+
 代码之外，仓库页面上还有几处是别人第一眼会看的。这些只能在网页或 API 上设置，值先记在这里：
 
 **About → Description**

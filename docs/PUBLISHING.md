@@ -266,6 +266,34 @@ they are rows in the main process and only enter the composition tree during sta
 
 ## Decorating the GitHub repository itself
 
+### Discoverability: description, topics, keywords, social preview
+
+The four places someone can find this plugin by *searching* — all of them are cheap, and all of them go stale
+silently if nothing checks them:
+
+- **Repository description** (`gh repo edit --description`): one factual English sentence, keyword-bearing.
+  It is what GitHub search and the repository list show.
+- **Topics** (`gh repo edit --add-topic`): `dsh-plugin` is mandatory (the topic-driven marketplaces index by
+  it); add the terms people actually type — `custom-mode`, `custom-prompt`, `prompt-editor`, `agent-modes`,
+  `multi-mode`, `assistant-manager`, `system-prompt`, `deepseek-harness`, …
+- **npm `keywords`** in `editor/package.json`: npm search reads them, and they do **not** update on a
+  metadata-only change — a new version has to be published for them to appear on npm.
+- **Social preview image** (1280×640): **the web UI is the only way to set it** — Settings → Social preview.
+  The REST API has no endpoint for it, so this is the one step that cannot be scripted and the one that gets
+  forgotten. Verify with:
+
+  ```sh
+  curl -sL https://github.com/BOWLUNA/dsh-custom-mode | grep -o 'og:image" content="[^"]*'
+  # custom → repository-images.githubusercontent.com ; default → opengraph.githubassets.com
+  ```
+
+The image is generated, not hand-drawn: render the layout in a browser and capture it at 1280×640, then keep
+the PNG in `docs/images/social-preview.png` so the source of truth is in the repository.
+
+Finally, the wording matters: the README's first screen and the npm landing page (`editor/README.md`) should
+contain the phrases people search for — including the synonyms ("custom prompt", "system-prompt editor",
+多助手／多模式) — because for both GitHub and npm the page text is the index.
+
 Beyond the code, there are a few places on the repository page that others look at first. These can only be set on the web or via the API, so the values are recorded here:
 
 **About → Description**

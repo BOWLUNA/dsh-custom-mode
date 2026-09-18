@@ -1,7 +1,7 @@
 {
   "name": "dsh-custom-mode",
-  "version": "1.0.0",
-  "description": "Settings page for the dsh-custom-mode agent preset: base-mode switching, per-row plugin switches, an editable system prompt, and mode renaming. Follows the DSH version.",
+  "version": "1.0.1",
+  "description": "Custom modes and custom prompts for DeepSeek Harness (dsh): edit a mode's system prompt on the settings page (it takes effect on the next model step), choose its base mode, switch plugins row by row, and keep several assistants side by side.",
   "license": "MIT",
   "type": "module",
   "main": "./index.mjs",
@@ -22,9 +22,18 @@
   "keywords": [
     "dsh",
     "deepseek-harness",
+    "dsh-plugin",
+    "cordis",
     "agent-preset",
+    "agent-mode",
+    "custom-mode",
+    "multi-mode",
+    "assistant",
     "system-prompt",
-    "plugin"
+    "custom-prompt",
+    "prompt-editor",
+    "prompt-engineering",
+    "persona"
   ],
   "dsh": {
     "bundle": {

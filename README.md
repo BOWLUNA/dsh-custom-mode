@@ -6,6 +6,12 @@ A custom mode for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-har
 system prompt is a plain file you can edit on the Web settings page, and an edit takes effect on the
 **next model step** — no restart, no new session.
 
+In one line: **a settings page for dsh agent modes** — choose a mode's base composition, toggle the plugin
+rows it mounts, and edit its system prompt, which the agent loop re-reads before every model step. Several
+modes ("assistants") can live side by side, each with its own prompt.
+
+Also searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants.
+
 The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouched.
 
 |  |  |

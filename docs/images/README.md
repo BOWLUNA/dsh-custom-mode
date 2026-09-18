@@ -33,6 +33,15 @@ The [`observed.json`](../../tools/screenshots/observed.json) written next to the
 the state it verified (theme, language, what the save returned, the mode list, the toggle it flipped),
 which is what makes these images evidence rather than decoration.
 
+One file here is **not** shown in the READMEs: `social-preview.png` (1280×640). It is the GitHub repository's
+social preview image, and it can only be uploaded through the web UI (Settings → Social preview) — the REST API
+has no endpoint for it. It is generated the same way the others are: rendered in a browser and captured at
+1280×640, so the source of truth stays in the repository. Verify which one is live with:
+
+```sh
+curl -sL https://github.com/BOWLUNA/dsh-custom-mode | grep -o 'og:image" content="[^"]*'
+```
+
 The READMEs reference these file names, so **renaming one means updating the docs**:
 
 ```markdown

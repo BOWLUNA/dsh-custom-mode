@@ -6,6 +6,25 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.0.1]
+
+### 可发现性：别人怎么找到它
+
+- **npm 元数据**：包的描述里"跟随 DSH 版本"这句删掉了（自 `1.0.0` 起就不成立），`keywords` 从 5 个扩到 14 个
+  —— npm 搜索会读它们，而它们**只有发新版本才会到 npm 上**。
+- **仓库**：描述改写成人们真会输入的词；topics 增到 17 个，全部属实（`custom-prompt`、`prompt-editor`、
+  `agent-modes`、`multi-mode`、`assistant-manager`……），并保留必需的 `dsh-plugin`。
+- **README／npm 落地页**：都加了一句话说明"这是什么"，并列出人们会搜的同义词（"custom prompt"、
+  "system-prompt editor"、多助手／多模式）—— 因为在 GitHub 和 npm 上，页面文本本身就是索引。
+- **社交预览图**（1280×640）改为生成并入库 `docs/images/social-preview.png`；上传这一步只能在网页 UI 做，
+  现已写进 `docs/PUBLISHING.md` —— 此前它只出现在一个提交信息里，实际从未生效。
+
+### 修正 npm 落地页（`editor/README.md`）
+
+- 它让首次安装的人去 clone 仓库 —— 自 `0.1.6-alpha.1` 起就不对了（npm 包已自带 preset 并在激活时播种）。
+- peer 范围写的是 `>=0.1.2-alpha.1`，而包实际声明的是 `>=0.1.6-alpha.1`。
+- "实测记录"链接指向已改名的 `实测记录.md`，也就是个死链。
+
 ## [1.0.0]
 
 ### 版本策略：包走自己的线
