@@ -124,6 +124,20 @@ ssh "$LAB" 'cd /root/dsh-lab/dsh-custom-mode && CDP_PORT=9222 \
 scp "$LAB":/root/verify.png /tmp/verify.png               # then read the image
 ```
 
+**Never `taskkill /F /IM chrome.exe` on a machine where the user browses.** Measured the hard way: that
+kills the user's own browser windows too, and the symptom ("Chrome keeps dying and restarting, I never had
+this before") points at the wrong culprit for a long time. Kill only the headless instance *you* started, by
+matching its own profile directory:
+
+```sh
+powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" |
+  Where-Object { $_.CommandLine -like '*dsh-shots*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+```
+
+Also measured: `--headless=new` over CDP from WSL wedges after a handful of runs (`CDP timeout: Page.navigate`
+/ `Page.captureScreenshot`), and **reusing one profile + port across runs** is more stable than launching a
+fresh `--user-data-dir` and hard-killing the previous one.
+
 `pkill -f "some string"` over ssh matches **its own command line** and kills the session
 (`exit 255`); use the `[x]` trick. Long operations (an `npm i -g`) belong in a script behind
 `setsid nohup`, polled — not in a foreground `ssh`.
