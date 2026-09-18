@@ -27,6 +27,9 @@ const problems = []
 /** Run the suite and return the real totals. */
 function measure() {
   const output = execFileSync(process.execPath, [join(REPO, 'test', 'run.mjs')], { cwd: REPO, encoding: 'utf8' })
+  // Node < 22.15 没有 zstd，session-trace 套件会跳过一部分检查 —— 于是同一份代码在不同运行时上检查数不同。
+  // 文档写的是**完整运行时**的数字（那才是开发者会看到的），所以这里只在"跳过"时放宽下界并说明原因。
+  const skipped = output.includes('zstd 部分已跳过')
   let checks = 0
   const suites = []
   for (const line of output.split('\n')) {
@@ -37,7 +40,7 @@ function measure() {
     }
   }
   const files = readdirSync(join(REPO, 'test')).filter((name) => name.endsWith('.test.mjs'))
-  return { checks, suiteRuns: suites.length, suiteFiles: files.length, failed: /失败/.test(output) === false ? 0 : 1 }
+  return { checks, suiteRuns: suites.length, suiteFiles: files.length, skipped }
 }
 
 /**
@@ -47,19 +50,25 @@ function measure() {
  * @param {RegExp} pattern - must capture the number in group 1.
  * @param {string} what - label used in the failure message.
  * @param {number} expected - the real value.
+ * @param {boolean} [asUpperBound] - when the current runtime skipped checks, the documented figure (from a full
+ *   runtime) may exceed the measured one; require `documented >= measured` and a bounded gap instead of equality.
  */
-function checkCount(rel, pattern, what, expected) {
+function checkCount(rel, pattern, what, expected, asUpperBound = false) {
   const text = readFileSync(join(REPO, rel), 'utf8')
   text.split('\n').forEach((line, index) => {
     const match = pattern.exec(line)
     if (match === null) return
-    if (Number(match[1]) !== expected) {
-      problems.push(`${rel}:${String(index + 1)} 说 ${what} 是 ${match[1]}，实际是 ${String(expected)}\n    ${line.trim()}`)
+    const documented = Number(match[1])
+    const ok = asUpperBound ? documented >= expected && documented - expected <= 60 : documented === expected
+    if (ok === false) {
+      const expectation = asUpperBound ? `应 ≥ ${String(expected)}（本运行跳过了 zstd 相关检查）` : String(expected)
+      problems.push(`${rel}:${String(index + 1)} 说 ${what} 是 ${match[1]}，${asUpperBound ? '' : '实际是 '}${expectation}\n    ${line.trim()}`)
     }
   })
 }
 
 const real = measure()
+if (real.skipped === true) console.log(`注意：本运行缺少 zstd（Node ${process.version}），检查数比文档值少一部分；下界放宽并说明原因。`)
 if (real.suiteFiles !== real.suiteRuns) {
   problems.push(`test/ 下有 ${String(real.suiteFiles)} 个套件文件，但 run.mjs 只跑了 ${String(real.suiteRuns)} 个 —— 某个套件没被登记`)
 }
@@ -68,10 +77,10 @@ console.log(`实际：${String(real.suiteRuns)} 个套件，${String(real.checks
 // 1) 套件数与检查数
 for (const rel of ['README.md', 'AGENTS.md', 'CONTRIBUTING.md', 'test/README.md']) {
   checkCount(rel, /(\d+) suites?\b/, '套件数（suites）', real.suiteRuns)
-  checkCount(rel, /(\d+) checks?\b/, '检查数（checks）', real.checks)
+  checkCount(rel, /(\d+) checks?\b/, '检查数（checks）', real.checks, real.skipped === true)
 }
 checkCount('README.zh.md', /(\d+) 个套件/, '套件数', real.suiteRuns)
-checkCount('README.zh.md', /(\d+) 项检查/, '检查数', real.checks)
+checkCount('README.zh.md', /(\d+) 项检查/, '检查数', real.checks, real.skipped === true)
 
 // 2) 声明的 dsh 范围必须出现在包 README 与仓库 README 里
 const manifest = JSON.parse(readFileSync(join(REPO, 'editor', 'package.json'), 'utf8'))

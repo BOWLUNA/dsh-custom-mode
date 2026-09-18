@@ -128,9 +128,11 @@ console.log('=== 1.5 审批闸门：改写提示词必须过平台的审批缝 =
   const longVerdict = await gate({ name: 'custom_prompt', arguments: { action: 'write', text: longText } }, next)
   // 判据是"没有把整段塞进去"，而不是某个具体字数：理由是双语的（安全决策界面两种语言都要能读懂），
   // 所以上限跟着放宽，但仍然断言 500 字符的正文没有被整段带进面板。
+  // 判据必须与环境无关：理由里会带写入路径，Windows 上路径更长 —— 用"截断到 60 字"来断言，
+  // 而不是某个字数上限（那个上限在 Windows 上曾经误报过）。
   check(
     '超长内容只截断展示（不把整段塞进审批理由）',
-    String(longVerdict?.reason).includes('x'.repeat(100)) === false && String(longVerdict?.reason).length < 300,
+    String(longVerdict?.reason).includes('x'.repeat(100)) === false && String(longVerdict?.reason).includes('x'.repeat(60)) === true,
     String(String(longVerdict?.reason).length),
   )
 

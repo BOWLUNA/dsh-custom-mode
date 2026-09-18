@@ -8,6 +8,24 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.7.1]
+
+### Two of the checks added in 1.7.0 were environment-dependent
+
+Both failed in CI on the first run, on two different jobs, and both were my checks rather than the product:
+
+- **The documented count assumed a full runtime.** `test/README.md` says 662 checks; Node 20 has no zstd, so the
+  session-trace suite skips its frame-based section and the same code produces 632 — the numbers check then
+  correctly reported a drift that is not a drift. It now notices a skipped run, says why, and requires the
+  documented figure to be an upper bound within the skipped range instead.
+- **The approval-reason assertion had a length bound.** The reason carries the prompt path, so on Windows
+  (longer paths) the bilingual line reached 304 characters and tripped a `< 300` bound. The assertion is now
+  semantic and environment-independent: the 500-character body must not be embedded, and the 60-character
+  preview must be — which is what "truncated" means.
+
+Neither changed product behaviour. They are recorded because the point of the numbers tool is that a check
+which only passes on one machine is not a check.
+
 ## [1.7.0]
 
 ### Fixed: on the stable dsh line the mode had disappeared from every picker

@@ -31,7 +31,7 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 13 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-**662 checks** in total. Only `composition.test.mjs` needs that shipped directory; the other twelve bring
+**662 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other twelve bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 There are three resolution paths, and any one of them hitting is enough: the
