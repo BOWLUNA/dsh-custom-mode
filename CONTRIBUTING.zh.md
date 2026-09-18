@@ -77,8 +77,10 @@ node tools/verify-translation-pairing.mjs --write   # 两侧都跟上之后再�
 
 ## 版本号
 
-版本号镜像**本插件所适配的那个 DSH 版本**，不按改动次数递增：修复、测试、文档都累积在同一个版本号
-下，直到官方发布新的 DSH 且本插件重新适配。见 README 的「版本策略与兼容性」。
+包版本走**自己的线**（`1.0.0`、`1.0.1` ……），不镜像 DSH 的版本号。本插件支持哪些 dsh，由
+`editor/package.json` 的 `engines.dsh` 与 peer 范围声明；`tools/verify-version-consistency.mjs` 断言
+CI 实测的 dsh 版本落在这些范围内。每次发布都要换版本号（npm 不允许同版本重发），重新适配到更新的 dsh 时
+把范围放宽。见 README 的「版本」。
 
 ## 风格
 

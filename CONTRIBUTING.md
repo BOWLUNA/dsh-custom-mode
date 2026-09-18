@@ -88,9 +88,11 @@ same thing.
 
 ## Version numbers
 
-The version mirrors **the DSH release this plugin was adapted to** and is not bumped per change:
-fixes, tests and docs accumulate under the same version until upstream releases a new DSH and this
-plugin is re-adapted. See the "Versioning" section of the README.
+The package version is its **own line** (`1.0.0`, `1.0.1`, …), not a mirror of the DSH release.
+Which DSH this plugin supports is declared in `engines.dsh` and the peer range in
+`editor/package.json`; `tools/verify-version-consistency.mjs` asserts the DSH version CI tests falls
+inside them. Bump the version for every publish (npm refuses to republish one), and widen the ranges
+when you re-adapt to a newer DSH. See the "Versioning" section of the README.
 
 ## Style
 

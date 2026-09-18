@@ -149,10 +149,16 @@ which refuses a shipped preset and re-checks that the directory really lives und
 
 ## Versioning
 
-Developed and verified on dsh **`0.1.6-alpha.2`**. The version number mirrors the DSH release this
-plugin was adapted to and is **not bumped per change** — fixes and docs accumulate under it until
-upstream releases a new DSH and the plugin is re-adapted. What decides compatibility is whether the
-APIs below still exist, not a patch number of our own.
+The package version is its **own line** — `1.0.0`, then `1.0.1`, … It does not mirror the DSH release.
+What this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh` peer range in
+`editor/package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
+version CI installs and tests falls inside those ranges.
+
+Two reasons for the split. A bare `x.y.z` is what directories and markets require before they will
+auto-install a package — several resolve npm `latest` and reject anything carrying a prerelease tag.
+And a version string was never a checkable claim anyway: the declared range is, and it is the thing
+that goes stale when upstream moves. What decides compatibility in practice is still whether the APIs
+below exist, which is what the ranges are for.
 
 <details>
 <summary>Coupling points (check these when upgrading dsh)</summary>

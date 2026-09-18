@@ -33,12 +33,14 @@ command -v dsh >/dev/null 2>&1 || { echo "找不到 dsh CLI，请先安装 DeepS
 echo "==> 0/3 前置自检"
 
 DSH_VERSION="$(dsh --version 2>/dev/null | head -1 | tr -d '[:space:]')"
-PKG_VERSION="$(node -p "require('$ROOT/editor/package.json').version" 2>/dev/null || echo '?')"
-if [ "$DSH_VERSION" != "$PKG_VERSION" ]; then
-  echo "    警告: dsh 版本是 $DSH_VERSION，本插件针对 $PKG_VERSION 开发。"
-  echo "          本项目深度依赖 DSH 内部 API，版本不一致时请先核对 README 的「耦合点清单」。"
+# 兼容性由 editor/package.json 声明的范围定义（engines.dsh 与 peer 范围），包版本走自己的线，
+# 两者不再相等。判断逻辑只保留一份，就在那个脚本里。
+DECLARED="$(node -p "const p=require('$ROOT/editor/package.json'); [p.engines && p.engines.dsh, p.peerDependencies && p.peerDependencies['@deepseek-ai/dsh']].filter(Boolean).join(' / ')" 2>/dev/null || echo '?')"
+if node "$ROOT/tools/verify-version-consistency.mjs" --dsh "$DSH_VERSION" >/dev/null 2>&1; then
+  echo "    dsh 版本 $DSH_VERSION 在声明的兼容范围内（$DECLARED）"
 else
-  echo "    dsh 版本 $DSH_VERSION，与本插件适配版本一致"
+  echo "    警告: dsh 版本是 $DSH_VERSION，不在本插件声明的兼容范围内（$DECLARED）。"
+  echo "          本项目深度依赖 DSH 内部 API，请先核对 README 的「耦合点清单」。"
 fi
 
 # `dsh plugin` 是把参数转发给 PATH 上的 pnpm 的（spawnSync("pnpm", ...)）。WSL 里

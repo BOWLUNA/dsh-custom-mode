@@ -83,12 +83,13 @@ client.js, composition.mjs, cordis.patch.yml, index.mjs, locales.mjs, meta.mjs, 
 ```
 
 即"预发布不该占用 `latest`"这条惯例在这里没保住（首次发布时 registry 会给它补上 `latest`）。
-本项目接受这个状态，理由是**版本号策略决定了每一个版本都是预发布**——版本号跟随 DSH 的
-alpha/rc，不存在一个"稳定的替代版本"可供 `latest` 指向。所以：
+这在"版本号镜像 DSH"的时期是成立的：镜像一个 alpha 期的 DSH 版本，等于每个版本都是预发布，
+`latest` 也就没有稳定版本可指。自 **`1.0.0`** 起包走自己的稳定线，常规语义开始成立：
 
-- `dsh plugin --profile web add dsh-custom-mode` 直接可用（装到当前版本）；
-- 想钉死版本就写全 `dsh-custom-mode@0.1.6-alpha.1`；
-- 等哪天 DSH 发正式版、本插件跟着换成正式版本号时，`latest` 的语义才真正开始有意义。
+- `dsh plugin --profile web add dsh-custom-mode` 装到当前版本，`latest` 指向的是一个稳定版本 ——
+  这也正是目录与市场要求"裸 `x.y.z` 才自动安装"的那个条件；
+- 想钉死版本就写全 `dsh-custom-mode@1.0.0`；
+- `alpha` 仍指向旧镜像线的最后一个构建（`0.1.6-alpha.2`），供当初钉过它的人使用。
 
 **3）peer 依赖要标 `optional`，否则用户装完第一眼就是一条警告。**
 
@@ -129,14 +130,17 @@ pnpm 也会缓存解析出来的 `latest`：改动之前解析过的机器会一
 是 `0.1.6-alpha.1`；而显式给出精确版本时立刻就装到了 alpha.2。如果有用户说"它装的是旧版本"，原因就是
 这个；排查方法与两条出路见 `docs/TROUBLESHOOTING.zh.md` 的 §17。
 
-### 与"版本号只跟随 DSH"的张力
+### 版本号，以及"支持哪个 DSH"现在写在哪（2026-09-18 起）
 
-npm 要求每次发布的版本号唯一，而本项目的版本号只跟随 DSH。两者相遇时：
+npm 要求每次发布的版本号唯一，而本包的版本号现在是自己的稳定线（`1.0.0`、`1.0.1` ……），两者不再冲突：
 
-- **元数据/文档级别的小修正**：攒着，随下一个版本一起发（本项目选择这条）；
-- **必须立刻修的问题**（例如安全）：可以临时用 `0.1.6-alpha.1.1` 这类 npm 语义化后缀，
-  但要在 `CHANGELOG.md` 里写明原因，并在下一次 DSH 更迭时回归标准版本号；
-- **同一个版本号不能重发**：`npm publish` 会拒绝 `EPUBLISHCONFLICT`。
+- **每次发布都递增版本号。** 旧的 `.revN` 后缀（版本号必须镜像 DSH、而重打包又不能重用版本号时的产物）
+  取消。
+- **兼容性是"声明"出来的，不是编码在版本号里的。** 支持哪些 DSH，写在 `editor/package.json` 的
+  `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围里；`tools/verify-version-consistency.mjs`（CI 执行）
+  断言 CI 实际安装并测试的 DSH 版本落在这些范围内。重新适配到更新的 DSH 时，把范围放宽并同步 CI 里钉的
+  版本。
+- **同一个版本号仍然不能重发**：`npm publish` 会拒绝 `EPUBLISHCONFLICT`。
 
 ### 2FA
 
@@ -272,7 +276,7 @@ Wikis / Discussions 用不上就别开——空着的入口只会让人觉得项
 **Social preview**：用 `docs/images/05-assistant-manager.png`（Settings → Social preview 上传；01–04 早于助手管理器，不再适合当门面）。
 默认的灰底卡片在分享链接时很难看。
 
-**Release**：tag 名与插件版本一致（`v0.1.6-alpha.2`；理由见 README「版本号跟随官方」）。
+**Release**：tag 名与插件版本一致（`v1.0.0`；见 README「版本」）。
 
 ```sh
 git checkout main

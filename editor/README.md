@@ -33,8 +33,8 @@ So:
 
 - `@deepseek-ai/dsh` `>=0.1.2-alpha.1` (declared as an *optional* peer: this package never imports it,
   it only reads the host services dsh injects)
-- The version mirrors **the DSH release this plugin was adapted to** (`0.1.6-alpha.1`). It is not
-  bumped per change; see the repository README's "Versioning" section.
+- The version is this package's own line (`1.0.0`, `1.0.1`, …). Which DSH it supports is declared in
+  `engines.dsh` and the peer range above; see the repository README's "Versioning" section.
 - Source is published as-is: **no build step, no dependencies** beyond Node's standard library.
 
 ## Documentation

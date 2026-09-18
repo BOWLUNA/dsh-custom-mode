@@ -2,10 +2,29 @@
 
 English | [中文](CHANGELOG.zh.md)
 
-Version numbers **follow the DSH release this project is adapted to**: the number changes only after
-upstream ships a new release and this project is re-adapted; in between, fixes and documentation
-changes accumulate under the same version number and are not released on their own. For the reasoning,
-see the "Versioning" section of the README.
+The version number is this package's **own stable line** (`1.0.0`, `1.0.1`, …) and every publish gets
+a new one. Which DSH it supports is declared in `engines.dsh` + the `@deepseek-ai/dsh` peer range, and
+CI asserts the DSH version it actually installs and tests falls inside them — see the "Versioning"
+section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
+mirrored the DSH release) and are kept as history.
+
+## [1.0.0]
+
+### Versioning: the package gets its own line
+
+- The package version becomes **`1.0.0`** and no longer mirrors the DSH release. `0.1.6-alpha.2` and the
+  versions before it were the last of the mirroring line; the code in `1.0.0` is that code plus this
+  versioning change.
+- Why: several directories and markets only auto-install a **bare `x.y.z`** — one desktop market
+  resolves npm `latest` and rejects anything carrying a prerelease tag, and mirroring an alpha DSH
+  release made every version a prerelease. Compatibility is now stated where it can be checked:
+  `engines.dsh` and the peer range, both `>=0.1.6-alpha.1`.
+- `tools/verify-version-consistency.mjs` was rewritten to match: instead of asserting that the version
+  string equals the CI-pinned DSH version, it asserts that the **CI-pinned DSH version satisfies the
+  declared ranges**, and that the package version is a bare `x.y.z`. That is the claim worth checking;
+  the old check only proved two strings agreed.
+- The old `.revN` suffix (used when a repackaged build could not reuse a version number) is retired:
+  every publish bumps the version.
 
 ## [0.1.6-alpha.2]
 

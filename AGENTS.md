@@ -60,9 +60,11 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
    reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-10. **The version number follows dsh only**: small changes do not bump it; it changes when upstream
-   releases a new version and this plugin is re-adapted. A repackaged build may append `.revN`, which
-   `tools/verify-version-consistency.mjs` accepts and nothing else.
+10. **The version number is the package's own stable line** (`1.0.0`, `1.0.1`, …) — it does not mirror
+   dsh, and it must stay a bare `x.y.z` so directories and markets will auto-install it. Which dsh is
+   supported is declared in `engines.dsh` + the peer range, and
+   `tools/verify-version-consistency.mjs` asserts the CI-pinned dsh version falls inside them. Bump the
+   version for every publish; widen the ranges when re-adapting.
 
 ## Known traps (all measured)
 

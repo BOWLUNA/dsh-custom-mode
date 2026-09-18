@@ -14,12 +14,13 @@ conditions, and the fixed version, and to publish details only after the fix is 
 
 ## Support Scope
 
-This plugin's version number **follows the DSH version it is adapted to** (see README, "Version
-Policy and Compatibility"), so "which version is supported" is equivalent to "which DSH version it
-has been verified against". Development and verification cover the rows below; the newest row is the current target:
+Which DSH versions this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh` peer
+range in `editor/package.json` (see README, "Versioning"); the package version is its own line and no
+longer encodes it. Development and verification cover the rows below, newest first:
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
+| `1.0.0` | `0.1.6-alpha.2` | **Supported (current development and verification target)** |
 | `0.1.6-alpha.2` | `0.1.6-alpha.2` | **Supported (current development and verification target)** |
 | `0.1.6-alpha.1` (including commits after this repository's `review/2026-09-fixes` branch) | `0.1.6-alpha.1` | Supported (previous) |
 | `0.1.6-alpha.1` earlier than the above branch (i.e. the initial commit) | `0.1.6-alpha.1` | **Affected by the problem described below; upgrading is recommended** |

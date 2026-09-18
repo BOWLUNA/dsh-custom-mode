@@ -83,12 +83,15 @@ Measured result: `npm view dsh-custom-mode dist-tags` →
 ```
 
 That is, the convention that "a prerelease should not occupy `latest`" did not hold here (on the first publish the registry fills in `latest` for it).
-This project accepts that state, on the grounds that **the versioning policy dictates that every version is a prerelease** — version numbers follow DSH's
-alpha/rc, and there is no "stable alternative version" for `latest` to point at. Therefore:
+That was true while the version mirrored the DSH release: mirroring an alpha DSH release made every
+version a prerelease, so there was no stable version for `latest` to point at. Since **`1.0.0`** the
+package has its own stable line and the ordinary semantics apply:
 
-- `dsh plugin --profile web add dsh-custom-mode` works directly (installing the current version);
-- to pin an exact version, write the full `dsh-custom-mode@0.1.6-alpha.1`;
-- once DSH ships a stable release and this plugin follows it with a stable version number, the semantics of `latest` will only then start to be meaningful.
+- `dsh plugin --profile web add dsh-custom-mode` installs the current version, and `latest` names a
+  stable version — which is also what directories and markets require before they will auto-install it;
+- to pin an exact version, write the full `dsh-custom-mode@1.0.0`;
+- `alpha` is kept pointing at the last build of the old mirroring line (`0.1.6-alpha.2`) for anyone who
+  pinned it.
 
 **3) Peer dependencies must be marked `optional`, otherwise the first thing a user sees after installing is a warning.**
 
@@ -133,14 +136,19 @@ wrong with the registry, and `npm view` will happily show the new `latest`. Meas
 If a user reports "it installed the old one", that is the reason; §17 of `docs/TROUBLESHOOTING.md` has
 the check and the two ways out.
 
-### The tension with "version numbers follow DSH only"
+### Version numbers, and what "which DSH does it support" means (since 2026-09-18)
 
-npm requires the version number of every publish to be unique, while this project's version numbers follow DSH only. When the two meet:
+npm requires every publish to carry a unique version, and the package now has its own stable line
+(`1.0.0`, `1.0.1`, …), so that requirement no longer collides with anything:
 
-- **Small metadata/documentation-level fixes**: save them up and ship them with the next version (this project chooses this path);
-- **Problems that must be fixed immediately** (for example security): a temporary npm semver suffix such as `0.1.6-alpha.1.1` may be used,
-  but the reason must be stated in `CHANGELOG.md`, and the version number must return to the standard one at the next DSH update;
-- **The same version number cannot be republished**: `npm publish` will reject it with `EPUBLISHCONFLICT`.
+- **Every publish bumps the version.** The `.revN` suffix — invented when the version had to mirror the
+  DSH release and a repackaged build could not reuse a number — is retired.
+- **Compatibility is declared, not encoded.** `engines.dsh` and the `@deepseek-ai/dsh` peer range in
+  `editor/package.json` state which DSH releases this plugin supports, and
+  `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH version CI actually installs
+  and tests falls inside those ranges. When re-adapting to a newer DSH, widen the ranges and bump the
+  pin in the workflow.
+- **The same version number still cannot be republished**: `npm publish` rejects it with `EPUBLISHCONFLICT`.
 
 ### 2FA
 
@@ -279,8 +287,7 @@ If Wikis / Discussions are of no use, do not enable them — empty entry points 
 01–04 predate the assistant manager and no longer represent the project).
 The default gray-background card looks bad when sharing a link.
 
-**Release**: the tag name matches the plugin version (`v0.1.6-alpha.2`; for the reason see README
-"version numbers follow the official one").
+**Release**: the tag name matches the plugin version (`v1.0.0`; see README "Versioning").
 
 ```sh
 git checkout main
