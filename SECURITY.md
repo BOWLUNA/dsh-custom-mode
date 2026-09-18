@@ -52,6 +52,12 @@ For the full measurements before and after the fix (including the 401/403 compar
 
 ## Design Boundaries
 
+- The settings page's routes are registered on the platform's shared **`/api` channel**
+  (`ctx.connection.fetch.register`), so the carrier applies the loopback/`trustedHosts` Host check,
+  `Sec-Fetch-Site`/`Origin`, and the signed browser-session cookie **before** dispatching to them.
+  The plugin performs no authentication check of its own — that is the point: the fence is structural
+  rather than a rule to remember. (Before this, the route lived on the raw `webServer` table and had to
+  call `ctx.connection.requestRejection` itself; the version that forgot is documented above.)
 - This plugin **introduces no** outbound network requests and reads no credentials.
 - The settings page can write only the two files in the preset directory (`prompt.md`,
   `agent.cordis.yml`) and `preset.yml`; before writing it validates the prompt's interpolation

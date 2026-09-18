@@ -45,7 +45,9 @@ try {
 
       const react = require("react")
 
-      const ROUTE = "/custom-mode"
+      // 路由注册在平台的共享 `/api` 频道上（由载体在分发前施加信任与鉴权），
+      // 所以这里的路径必须带 `/api` 前缀。
+      const ROUTE = "/api/custom-mode"
 
       const NS = "settings.customMode"
 

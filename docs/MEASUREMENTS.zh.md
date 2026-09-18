@@ -893,3 +893,51 @@ GET /custom-mode（无 cookie） → 401
   `docs/images` 被创建在工具目录里而不是仓库里。现在先解析成绝对路径再 `cd`；用相对参数重跑验证过，
   图确实落在 `docs/images/`。
 
+---
+
+## 16. HTTP 路由迁移到平台的带围栏频道（0.1.6-alpha.2，一次性实例）
+
+一次外部的批判性审阅指出：本插件把路由注册在裸 `ctx.webServer` 表上，再自己调
+`ctx.connection.requestRejection`，而平台早已提供带围栏的替代。核实后成立，1.0.3 完成迁移。
+
+### 16.1 先写探针，实测 `/api` 的真实行为（不靠读代码推断）
+
+20 行探针插件（3 条 `/api` 路由，`methods`/`requestBody` 按官方包用法）装进一次性 `DSH_HOME`
+（端口 3094）后：
+
+```text
+GET  /api/rev-probe                   未授权                → 401 unauthorized
+GET  /api/rev-probe                   带会话 cookie          → 200 {"probe":"get-ok",...}
+GET  /api/rev-probe?x=1&y=2           带会话（query 可见）    → {"probe":"get-ok","query":"?x=1&y=2",...}
+POST /api/rev-probe-post              未授权                → 401
+POST /api/rev-probe-post              带会话 + JSON body     → 200 {"probe":"post-ok","got":{"a":1}}
+POST /api/rev-probe-post              带会话 + 坏 JSON       → 400（我们自己的 handler 给的消息）
+GET  /api/rev-probe   Origin: https://evil.example + Sec-Fetch-Site: cross-site → 403
+GET  /api/rev-probe   Host: evil.example                     → 403
+POST /api/rev-probe   （该路由只声明 GET）                    → 404（根本没进 handler）
+GET  /api/rev-probe/nope   未注册的子路径                     → 404
+GET  /rev-probe       （旧的裸路由风格）                      → 404
+```
+
+**两条容易踩错的事实**：注册的 `path` 必须**含 `/api` 前缀**（官方包传 `/api/present.host`、
+`/api/changes.summary`；类型注释那句 "below /api" 说的是 URL 空间 —— 我第一次写成 `/rev-probe`，
+拿到 404）；方法未声明时平台**不分发**，返回 404 而不是 405。
+
+### 16.2 迁移后（`/api/custom-mode*`，端口 3095）
+
+```text
+GET  /api/custom-mode                   未授权                → 401 unauthorized
+POST /api/custom-mode/state             未授权（JSON body）    → 401，prompt.md md5 未变
+GET  /api/custom-mode                   带会话                → 200 {"ok":true,"assistants":[…]}
+GET  /api/custom-mode                   带会话 + 跨站 Origin   → 403
+GET  /api/custom-mode                   Host: evil.example    → 403
+GET  /custom-mode                       （旧的裸路由）          → 404
+POST /api/custom-mode/state             带会话                → 200 已保存；prompt.md 与组成文件都写了
+```
+
+浏览器半（真浏览器 + CDP）：`tools/browser-verify.mjs` **21 通过 / 0 失败** —— 增删往返、风险确认弹窗、
+语言与主题切换在新路径下照常。
+
+代码侧的结构断言（`test/editor-route.test.mjs`）：5 条精确路径都注册在 `connection.fetch` 上、
+`requestBody: 'buffered'`、`create`/`delete`/`reorder` 只声明 POST；源码里**不再有**
+`requestRejection(` 调用与 `webServer.register(`；等不到 `connection` 时**一条也不注册**。

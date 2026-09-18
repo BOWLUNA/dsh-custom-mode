@@ -44,6 +44,10 @@ Host/Origin 栅栏与浏览器会话鉴权只作用在 Connection 服务挂载�
 
 ## 设计上的边界
 
+- 设置页的路由注册在平台的共享 **`/api` 频道**上（`ctx.connection.fetch.register`），因此载体在分发前
+  会施加 loopback/`trustedHosts` 的 Host 检查、`Sec-Fetch-Site`/`Origin` 判定与签名过的浏览器会话
+  cookie。插件自己不做鉴权检查 —— 这正是关键：围栏是**结构**，不是一条要记住的规矩。（在此之前，路由挂在
+  裸 `webServer` 表上、必须自己调 `ctx.connection.requestRejection`；忘记调的那个版本记录在上文。）
 - 本插件**不引入**任何网络出站请求，也不读凭据。
 - 设置页只能写 preset 目录下的两个文件（`prompt.md`、`agent.cordis.yml`）与 `preset.yml`；
   写入前会校验提示词的插值变量，避免把一个手误升级成"该模式每个请求都失败"。

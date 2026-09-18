@@ -110,14 +110,16 @@ The whole `load()` call is wrapped in `try/catch`, so this package cannot crash 
 
 The browser half has no `host.call` (that is the channel reserved for dynamic Cordis packages); a statically loaded plugin goes through `ctx.remote.<namespace>` — which requires the host to register a Remote namespace and a typed contract, and is heavy and error-prone.
 
-This project instead uses **one private HTTP route**:
+This project instead uses **five exact routes on the platform's shared `/api` channel**:
 
-- host half: `ctx.webServer.register({ kind: "exact", path: "/custom-mode", handler })`
-- browser half: `fetch("/custom-mode", { method: "GET" | "POST" })`
+- host half: `ctx.connection.fetch.register({ path: "/api/custom-mode/state", methods: ["GET", "POST"], requestBody: "buffered", fetch })` — one registration per path
+- browser half: `fetch("/api/custom-mode/state?id=…", { method: "GET" | "POST" })`
 
-Advantages: fully self-contained, it occupies no Cordis service name and cannot collide with anyone else, and there is no need to understand the Remote generation mechanism.
+Advantages: fully self-contained, it occupies no Cordis service name and cannot collide with anyone else, and there is no need to understand the Remote generation mechanism. And — the reason the channel is `/api` and not the bare `webServer` table — **the carrier that owns `/api` applies the platform's trust and authentication policy before dispatching to any route**, which makes the fence structural rather than a rule to remember (see §5.1).
 
-### 5.1 But a bare route is **not** inside the platform's browser trust fence (measured, since fixed)
+(One consequence of the exact-path registry: the registered `path` is the **absolute** path *including* `/api`, which is what the platform's own packages pass. And a method a route does not declare is never dispatched to it — a `GET` on a POST-only path gets the channel's 404, not a 405.)
+
+### 5.1 Why the route lives on `/api`: a bare route is **not** inside the platform's browser trust fence (measured, fixed in 1.0.3)
 
 The approach above had a consequence that was not realized at the time. `ctx.webServer` is a **bare HTTP table**; the platform's
 Host/Origin fence plus browser authentication are attached by `@deepseek-ai/dsh-client-connection` to the
@@ -169,6 +171,21 @@ With a valid dsh-auth-* cookie (browser session) → 200 (works as before)
   `connection.requestRejection`; for routes meant only for local processes, be aware that **any** local process can call them.
 - The `connection` service is **not ready yet** when a bundle row's `apply()` runs (measured: putting it in `inject` leaves the plugin
   stuck at `pending`), so `ctx.get('connection')` must be fetched lazily **at request time**, and must **fail closed** when unavailable.
+
+
+And after the fix (this plugin 1.0.3, dsh `0.1.6-alpha.2` — routes on `/api`, no hand-rolled check anywhere):
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3095/api/custom-mode                            → 401   (no cookie)
+curl -s -b "$JAR"  -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3095/api/custom-mode                 → 200
+curl -s -b "$JAR"  -o /dev/null -w '%{http_code}\n' -H 'Origin: https://evil.example' \
+     -H 'Sec-Fetch-Site: cross-site' http://127.0.0.1:3095/api/custom-mode                                 → 403
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: evil.example' http://127.0.0.1:3095/api/custom-mode     → 403
+curl -s -b "$JAR"  -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3095/custom-mode                      → 404   (the bare route no longer exists)
+```
+
+The same run also re-checked the write path: an unauthenticated `POST /api/custom-mode/state` answered 401 and left
+`prompt.md` untouched, while the authenticated call wrote both files. See `docs/MEASUREMENTS.md` §16.
 
 ## 6. Why the `dsh-settings` API is not used
 

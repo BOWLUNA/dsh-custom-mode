@@ -8,6 +8,39 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.0.3]
+
+### The HTTP surface moved onto the platform's fenced `/api` channel
+
+An external review pointed out that this plugin registered its routes on the raw `ctx.webServer` table and
+called `ctx.connection.requestRejection` itself, while the platform ships a fenced alternative
+(`ctx.connection.fetch.register`, used by four official packages). Verified, then migrated.
+
+- **Routes now go through `ctx.connection.fetch.register(...)`** — the shared `/api` channel, whose carrier
+  applies the loopback/`trustedHosts` Host check, `Sec-Fetch-Site`/`Origin`, and the browser-session cookie
+  **before** dispatching. The hand-rolled check is gone, so the fence is **structural**: a route cannot
+  exist without it. This is the same class of mistake that produced the pre-`1.0.1` vulnerability — the old
+  code had to *remember* to check.
+- **Five exact routes** (`/api/custom-mode`, `/api/custom-mode/state|c reate|delete|reorder`): the Fetch
+  registry matches exact paths, and the registered path includes the `/api` prefix (which is what the
+  platform's own packages pass). The method table moved into the registrations, which strengthens the old
+  guarantee — an undeclared method is never dispatched at all, so a `GET` on a POST-only path is a 404 from
+  the channel rather than a 405 from us.
+- The handler is Fetch-shaped (`(Request) => Response`), and every response carries
+  `cache-control: no-store` (the page displays this state; a cached `state` read would show stale rows).
+- Bodies use `requestBody: 'buffered'`, so the platform's configured JSON cap applies instead of our own
+  hand-rolled 4 MB check.
+- `test/editor-route.test.mjs` no longer simulates request-reading middleware. It asserts the **structure**:
+  all five registrations on `connection.fetch`, the method sets per path, that a method the route does not
+  declare never reaches a handler, and that the source contains no `requestRejection(` call and no
+  `webServer.register(`. It also asserts that a scoped `inject` which never receives `connection` registers
+  nothing at all.
+
+Measured on dsh `0.1.6-alpha.2` (see `docs/MEASUREMENTS.md` §16 for both the 20-line probe that established
+the API's real behaviour and the post-migration re-check): unauthenticated `401`, cross-site and
+host-spoofed `403`, with session `200`, the old bare path `404`, and an unauthenticated `POST` that leaves
+`prompt.md` untouched. Real-browser verification: **21/21**.
+
 ## [1.0.2]
 
 ### Fixed, after an external critical review (every item reproduced)

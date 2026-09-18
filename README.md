@@ -178,11 +178,11 @@ below exist, which is what the ranges are for.
 | `ctx.systemPrompt.section()` with a **function** `text` | the prompt stops hot-reloading — the point of the project |
 | `agentPresets` remounts on composition `mtimeMs`+`size` | switches need a process restart to apply |
 | `ctx.tools.register()` | loses the `custom_prompt` tool |
-| `ctx.webServer.register({ kind, path, handler })` | settings page is blank |
+| `ctx.connection.fetch.register({ path, methods, requestBody, fetch })` | settings page 404s — nothing is registered |
 | `kind: 'prefix'` matching both `path` and `path/…` | only the list opens; `/state`, `/create`, `/delete` all 404 |
 | `agentPresets.list()` rows carrying `id` / `trust` / `path`, with `preset.yml` supplying `name` / `description` | the assistant list is empty or unrecognisable |
 | `agentPresets.remove(id)`, refusing `trust: 'system'` | deletion fails (the page shows the platform's reason) |
-| `ctx.connection.requestRejection(req)` | settings page fails closed (503) instead of serving |
+| the `/api` channel's fence (Host/Origin + browser auth) | the page cannot authenticate at all; do **not** "fix" it by moving the route to the raw `webServer` table |
 | `ctx.inject(deps, cb)` (scoped wait) | the row parks in `pending` in profiles without a web server |
 | `dsh.client` + `exports["./client"]`, client bundle id == package name | the browser half is not discovered |
 | `settings.section` slot (`id` / `order` / `label`) | page placement and label |
@@ -207,7 +207,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 11 suites, 520 checks; resolves the shipped presets itself
+node test/run.mjs        # 11 suites, 517 checks; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the

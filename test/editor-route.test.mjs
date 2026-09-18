@@ -8,15 +8,20 @@
  * It had NO test at all — the fix was verified by hand with curl. A hand check proves the fix worked
  * once; it does not stop the fence from being moved, reordered or forgotten later.
  *
- * So this drives the real handler with a stand-in request/response pair and asserts:
+ * So this drives the real handler with real `Request`/`Response` objects and asserts:
  *
- *   - the fence runs FIRST, before any method dispatch (a rejected POST must not write files);
- *   - it FAILS CLOSED when the `connection` service is unavailable;
- *   - every endpoint: list / state read / state write / create / delete, including the
+ *   - **the fence is structural**: every route is registered through
+ *     `ctx.connection.fetch.register` (the platform's `/api` channel, whose carrier applies the
+ *     Host/Origin fence and browser auth before dispatch), and the source contains no hand-rolled
+ *     `requestRejection` and no raw `webServer.register` — the exact shape that once let an
+ *     unauthenticated caller read and rewrite the prompt;
+ *   - a scoped `inject` that never gets its services registers NOTHING (rather than registering
+ *     something unfenced, or parking the row in `pending`);
+ *   - every endpoint: list / state read / state write / create / delete / reorder, including the
  *     per-path method table (a GET must never reach `create`) and unknown sub-paths;
  *   - the validation branches: bad JSON, bad mode, empty prompt, rejected interpolation,
  *     oversized body, unknown assistant id;
- *   - what the client half depends on: path, `kind: prefix`, JSON + `no-store` headers.
+ *   - what the client half depends on: the `/api` prefix on both sides, and JSON responses.
  *
  * The roster stand-in below mirrors `@deepseek-ai/dsh-agent-presets` closely enough to matter:
  * every directory under the user root becomes a row (even one whose composition is missing, which
@@ -42,6 +47,7 @@ const check = (label, condition, detail = '') => {
   }
 }
 
+const registeredRoutes = []
 const dir = mkdtempSync(join(tmpdir(), 'dsh-custom-route-'))
 const shippedDir = join(dir, 'presets')
 const userRoot = join(dir, 'agent-presets')
@@ -111,7 +117,6 @@ writeFileSync(promptPath, 'PROMPT-ORIGINAL\n', 'utf8')
 writeFileSync(presetMetaPath, 'name: "自定义模式"\n', 'utf8')
 
 // ── 桩：ctx / req / res ─────────────────────────────────────────────────────
-const registeredRoutes = []
 
 /**
  * Mirror `agent-presets` discovery: every id-shaped directory under the root is a row, and the
@@ -138,13 +143,7 @@ function rosterRows() {
   return [...rows, ...user]
 }
 
-function makeCtx({ rejection, connectionAvailable = true } = {}) {
-  const webServer = {
-    register(route) {
-      registeredRoutes.push(route)
-      return () => {}
-    },
-  }
+function makeCtx({ connectionAvailable = true } = {}) {
   const agentPresets = {
     async list() {
       return rosterRows()
@@ -156,58 +155,42 @@ function makeCtx({ rejection, connectionAvailable = true } = {}) {
       rmSync(dirname(row.path), { recursive: true, force: true })
     },
   }
-  const ctx = {
+  const scope = {
+    // Cordis 的作用域上也有 effect：注册路由时用它，disposer 交给宿主。
     effect: (fn) => fn(),
-    // 作用域化的等待：真实 Cordis 会等服务就绪，测试里直接给。
-    inject: (deps, callback) => callback(ctx),
-    get: (name) =>
-      name === 'connection' && connectionAvailable
-        ? { requestRejection: () => rejection }
-        : undefined,
-    webServer,
     agentPresets,
+    connection: {
+      fetch: {
+        register(route) {
+          registeredRoutes.push(route)
+          return async () => {}
+        },
+      },
+    },
   }
-  return ctx
-}
-
-function makeRes() {
   return {
-    statusCode: undefined,
-    headers: undefined,
-    body: '',
-    writeHead(status, headers) {
-      this.statusCode = status
-      this.headers = headers
-    },
-    end(body) {
-      this.body = body ?? ''
+    effect: (fn) => fn(),
+    // 作用域化的等待：真实 Cordis 会等到服务就绪再回调；这里用 connectionAvailable 模拟"等不到"。
+    inject: (deps, callback) => {
+      if (connectionAvailable) callback(scope)
     },
   }
 }
 
+/** 请求描述（不是 node 的 req）：call() 会把它变成真正的 Request。 */
 function makeReq(method, { url, headers = {}, body } = {}) {
-  const req = { method, headers }
-  if (url !== undefined) req.url = url
-  if (body !== undefined) {
-    req[Symbol.asyncIterator] = async function* iterate() {
-      yield Buffer.from(body, 'utf8')
-    }
-  }
-  return req
+  return { method, url, headers, body }
 }
 
-/** 装一次插件，拿到它注册的那条路由。 */
-function mount(options) {
+/** 装一次插件，拿到它注册的全部 Fetch 路由。 */
+function mount(options = {}) {
   registeredRoutes.length = 0
   editor.apply(makeCtx(options))
-  return registeredRoutes[0]
+  return registeredRoutes
 }
 
-let route = mount({ rejection: undefined })
-check('注册了一条路由', route !== undefined)
-check('路径与浏览器半一致（/custom-mode）', route?.path === '/custom-mode', String(route?.path))
-check('kind 是 prefix（一条路由覆盖列表与三个子路径）', route?.kind === 'prefix', String(route?.kind))
-check('handler 是函数', typeof route?.handler === 'function')
+let mounted = mount()
+check('注册了路由', mounted.length > 0, String(mounted.length))
 
 console.log()
 console.log('=== 0. 浏览器半与宿主半的路由常量不许漂移 ===')
@@ -218,65 +201,89 @@ console.log('=== 0. 浏览器半与宿主半的路由常量不许漂移 ===')
   const match = /const ROUTE = "([^"]+)"/.exec(clientSource)
   check('能从 client.js 里读出 ROUTE', match !== null)
   check(
-    'client.js 的 ROUTE 与宿主半的 ROUTE_PATH 一致',
-    match !== null && match[1] === editor.ROUTE_PATH,
-    `${match === null ? '(none)' : match[1]} vs ${editor.ROUTE_PATH}`,
+    'client.js 的 ROUTE = /api + 宿主半的 ROUTE_PATH',
+    match !== null && match[1] === editor.API_PREFIX + editor.ROUTE_PATH,
+    `${match === null ? '(none)' : match[1]} vs ${editor.API_PREFIX + editor.ROUTE_PATH}`,
   )
 }
 
-/** 跑一次请求，返回 res。 */
+let handlerCalls = 0
+
+/**
+ * 跑一次请求：按"路径 + 方法"找到注册的路由，构造真正的 Request，返回 {statusCode, body}。
+ *
+ * 方法不匹配时**不调用 handler** 而是返回 404 —— 这正是平台的行为（Fetch 注册表按精确路径与方法
+ * 分发，未声明的方法根本到不了 handler）。实测：POST 打到 GET-only 路由 → 404。
+ */
 async function call(req) {
-  const res = makeRes()
-  await route.handler(req, res)
-  return res
+  const url = new URL(req.url ?? editor.ROUTE_PATH, 'http://127.0.0.1')
+  const path = editor.API_PREFIX + url.pathname
+  const route = registeredRoutes.find((entry) => entry.path === path && entry.methods.includes(req.method))
+  if (route === undefined) return { statusCode: 404, body: '', headers: {} }
+  handlerCalls += 1
+  const request = new Request(`http://127.0.0.1${route.path}${url.search}`, {
+    method: req.method,
+    headers: req.headers,
+    ...req.body === undefined ? {} : { body: req.body },
+  })
+  const response = await route.fetch(request)
+  return { statusCode: response.status, body: await response.text(), headers: Object.fromEntries(response.headers) }
 }
 
 const post = (path, payload) =>
   makeReq('POST', { url: path, headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
 
 console.log()
-console.log('=== 1. 栅栏优先：被拒的请求不能产生任何副作用 ===')
+console.log('=== 1. 结构：注册在平台带围栏的频道上，且源码里没有手搓围栏 ===')
 {
-  route = mount({ rejection: 401 })
-  const before = readFileSync(promptPath, 'utf8')
-  const getRes = await call(makeReq('GET', { headers: { host: '127.0.0.1:3080' } }))
-  check('GET 被拒时返回 401', getRes.statusCode === 401, String(getRes.statusCode))
-  check('401 的响应体是 unauthorized', getRes.body === 'unauthorized', getRes.body)
-  check('401 时没有泄露状态（不含 ok:true）', !getRes.body.includes('ok'), getRes.body.slice(0, 60))
+  mounted = mount()
+  const paths = mounted.map((entry) => entry.path).sort()
+  const expected = [
+    '/api/custom-mode',
+    '/api/custom-mode/create',
+    '/api/custom-mode/delete',
+    '/api/custom-mode/reorder',
+    '/api/custom-mode/state',
+  ]
+  check('注册了 5 条精确路径', mounted.length === 5, String(mounted.length))
+  check('路径集合正确（全部在 /api 之下）', JSON.stringify(paths) === JSON.stringify(expected), JSON.stringify(paths))
+  check('每条都声明了 requestBody: buffered', mounted.every((entry) => entry.requestBody === 'buffered'))
+  check('每条都有一个 fetch 函数', mounted.every((entry) => typeof entry.fetch === 'function'))
+  check(
+    'create / delete / reorder 只声明 POST（预取的 GET 不可能触发它们）',
+    ['/api/custom-mode/create', '/api/custom-mode/delete', '/api/custom-mode/reorder']
+      .every((path) => JSON.stringify(mounted.find((entry) => entry.path === path)?.methods) === JSON.stringify(['POST'])),
+  )
+  check(
+    'state 同时声明 GET 与 POST',
+    JSON.stringify(mounted.find((entry) => entry.path === '/api/custom-mode/state')?.methods) === JSON.stringify(['GET', 'POST']),
+  )
 
-  const postRes = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: 'PWNED' }))
-  check('POST 被拒时返回 401', postRes.statusCode === 401, String(postRes.statusCode))
-  check('被拒的 POST 没有改写 prompt.md', readFileSync(promptPath, 'utf8') === before)
-  check('被拒的 POST 没有改写组合文件', existsSync(compositionPath))
-
-  const createRes = await call(post('/custom-mode/create', { name: 'PWNED' }))
-  check('被拒的 create 返回 401', createRes.statusCode === 401, String(createRes.statusCode))
-  check('被拒的 create 没有建目录', !existsSync(join(userRoot, 'pwned')))
-
-  route = mount({ rejection: 403 })
-  const forbidden = await call(makeReq('GET', {}))
-  check('跨站/不可信来源返回 403', forbidden.statusCode === 403, String(forbidden.statusCode))
-  check('403 的响应体是 forbidden', forbidden.body === 'forbidden', forbidden.body)
+  // 结构断言：这两样东西的存在本身就是旧漏洞的成因，所以直接对源码断言。
+  const source = readFileSync(new URL('../editor/index.mjs', import.meta.url), 'utf8')
+  // 断言"没有调用"而不是"没有出现这个词"：注释里解释历史是应该的。
+  check('源码里不再调用手搓的 requestRejection()', !/requestRejection\s*\(/.test(source))
+  check('源码里不再注册裸 webServer 路由', !/webServer\s*\.\s*register/.test(source))
+  check('源码里确实用了 connection.fetch.register', source.includes('connection.fetch.register'))
 }
 
 console.log()
-console.log('=== 2. connection 服务缺失时失败关闭 ===')
+console.log('=== 2. 等不到 connection 时什么都不注册（不是"注册了但没鉴权"）===')
 {
-  route = mount({ connectionAvailable: false })
-  const res = await call(makeReq('GET', {}))
-  check('返回 503 而不是放行', res.statusCode === 503, String(res.statusCode))
-  check('响应体说明是 unavailable（不是 forbidden）', res.body === 'unavailable', res.body)
+  const routes = mount({ connectionAvailable: false })
+  check('没有注册任何路由', routes.length === 0, String(routes.length))
+  check('也没有抛异常', true)
 }
 
 console.log()
 console.log('=== 3. GET /custom-mode：助手列表 ===')
 {
-  route = mount({ rejection: undefined })
+  mounted = mount()
   const res = await call(makeReq('GET', { headers: { host: '127.0.0.1:3080' } }))
   check('200', res.statusCode === 200, String(res.statusCode))
   check('content-type 是 JSON', String(res.headers?.['content-type']).includes('application/json'), String(res.headers?.['content-type']))
   check('cache-control: no-store（保存后不能读回旧状态）', res.headers?.['cache-control'] === 'no-store', String(res.headers?.['cache-control']))
-  check('声明了 content-length', Number(res.headers?.['content-length']) === Buffer.byteLength(res.body, 'utf8'))
+  // content-length 由载体（平台）在序列化时补齐，不由我们声明 —— 这里只断言内容类型与禁用缓存。
 
   const payload = JSON.parse(res.body)
   check('ok: true', payload.ok === true)
@@ -288,7 +295,7 @@ console.log('=== 3. GET /custom-mode：助手列表 ===')
 console.log()
 console.log('=== 4. GET /custom-mode/state：一个助手的完整状态 ===')
 {
-  route = mount({ rejection: undefined })
+  mounted = mount()
   const res = await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))
   check('200', res.statusCode === 200, String(res.statusCode))
   const state = JSON.parse(res.body)
@@ -313,7 +320,7 @@ console.log('=== 4. GET /custom-mode/state：一个助手的完整状态 ===')
 console.log()
 console.log('=== 5. POST /custom-mode/state：写盘与校验 ===')
 {
-  route = mount({ rejection: undefined })
+  mounted = mount()
   const good = await call(
     post('/custom-mode/state', {
       id: 'custom',
@@ -370,7 +377,7 @@ console.log('=== 5. POST /custom-mode/state：写盘与校验 ===')
 console.log()
 console.log('=== 6. POST /custom-mode/create：从模板建一个助手 ===')
 {
-  route = mount({ rejection: undefined })
+  mounted = mount()
   const empty = await call(post('/custom-mode/create', { name: '   ' }))
   check('空名字 → 400', empty.statusCode === 400, String(empty.statusCode))
   check('空名字的说明要用户起名', /名字/.test(empty.body), empty.body.slice(0, 80))
@@ -427,7 +434,7 @@ console.log('=== 6. POST /custom-mode/create：从模板建一个助手 ===')
 console.log()
 console.log('=== 7. POST /custom-mode/reorder：顺序即 roster 的 order ===')
 {
-  route = mount({ rejection: undefined })
+  mounted = mount()
   const before = JSON.parse((await call(makeReq('GET', { url: '/custom-mode' }))).body).assistants.map((item) => item.id)
   check('排序前已有多个助手', before.length >= 3, JSON.stringify(before))
 
@@ -449,14 +456,19 @@ console.log('=== 7. POST /custom-mode/reorder：顺序即 roster 的 order ===')
   const badDirection = await call(post('/custom-mode/reorder', { id: second, direction: 'sideways' }))
   check('未知方向 → 400', badDirection.statusCode === 400, String(badDirection.statusCode))
 
+  const callsBefore = handlerCalls
   const getReorder = await call(makeReq('GET', { url: '/custom-mode/reorder' }))
-  check('GET reorder → 405（顺序不能被预取链接改动）', getReorder.statusCode === 405, String(getReorder.statusCode))
+  check(
+    'GET reorder → 404，且根本没进 handler（顺序不能被预取链接改动）',
+    getReorder.statusCode === 404 && handlerCalls === callsBefore,
+    `${getReorder.statusCode} handlerCalls=${handlerCalls - callsBefore}`,
+  )
 }
 
 console.log()
 console.log('=== 8. POST /custom-mode/delete：只能删自己管理的模式 ===')
 {
-  route = mount({ rejection: undefined })
+  mounted = mount()
   const system = await call(post('/custom-mode/delete', { id: 'standard' }))
   check('删出厂模式 → 400', system.statusCode === 400, String(system.statusCode))
   check('说明里点出「找不到助手」而不是笼统失败', /找不到助手/.test(system.body), system.body.slice(0, 90))
@@ -474,17 +486,17 @@ console.log('=== 8. POST /custom-mode/delete：只能删自己管理的模式 ==
 console.log()
 console.log('=== 9. 方法与子路径 ===')
 {
-  route = mount({ rejection: undefined })
+  mounted = mount()
   const put = await call(makeReq('PUT', {}))
-  check('PUT → 405', put.statusCode === 405, String(put.statusCode))
-  check('405 列出了该路径允许的方法', /GET/.test(put.body), put.body)
+  check('PUT → 404（该方法未声明，到不了 handler）', put.statusCode === 404, String(put.statusCode))
+  check('未声明的方法返回空体（不是我们的 400/405 —— 根本没进 handler）', put.body === '', JSON.stringify(put.body))
 
   const getCreate = await call(makeReq('GET', { url: '/custom-mode/create' }))
-  check('GET create → 405（预设抓取不能建助手）', getCreate.statusCode === 405, String(getCreate.statusCode))
+  check('GET create → 404（预设抓取不能建助手）', getCreate.statusCode === 404, String(getCreate.statusCode))
   check('create 目录未被创建', !existsSync(join(userRoot, 'get-create')))
 
   const getDelete = await call(makeReq('GET', { url: '/custom-mode/delete' }))
-  check('GET delete → 405', getDelete.statusCode === 405, String(getDelete.statusCode))
+  check('GET delete → 404', getDelete.statusCode === 404, String(getDelete.statusCode))
 
   const deep = await call(makeReq('GET', { url: '/custom-mode/whatever' }))
   check('未知子路径 → 404', deep.statusCode === 404, String(deep.statusCode))
@@ -496,10 +508,11 @@ console.log('=== 9. 方法与子路径 ===')
 console.log()
 console.log('=== 10. 其他异常输入 ===')
 {
-  route = mount({ rejection: undefined })
-  const huge = 'x'.repeat(4_000_001)
-  const oversize = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: huge }))
-  check('超过 4MB 的请求体被拒（500 + 说明）', oversize.statusCode === 500 && /过大/.test(oversize.body), `${oversize.statusCode} ${oversize.body.slice(0, 60)}`)
+  mounted = mount()
+  // 请求体上限不再由我们实现：`requestBody: 'buffered'` 的语义是"遵循平台配置的 JSON 上限"，
+  // 超限由载体在分发前拒绝（§1 已断言每条路由都声明了 buffered）。这里只确认小体量解析正常。
+  const parsedOk = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: 'ok' }))
+  check('正常体量仍然解析成功', parsedOk.statusCode === 200, String(parsedOk.statusCode))
 
   const undefinedMode = await call(post('/custom-mode/state', { id: 'custom', prompt: 'x' }))
   check('缺少 mode → 400（不崩）', undefinedMode.statusCode === 400, String(undefinedMode.statusCode))
@@ -514,7 +527,7 @@ console.log('=== 11. 缺文件时的行为（不能崩） ===')
   // 注意顺序：`apply()` 现在会补全 preset 里缺失的模板文件，所以"文件不见了"这个场景
   // 必须是**激活之后**才发生的——删在前会被补回来。
   const saved = readFileSync(compositionPath, 'utf8')
-  route = mount({ rejection: undefined })
+  mounted = mount()
   rmSync(compositionPath, { force: true })
   const res = await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))
   check('缺组合文件 → 200 且 ok:false + 明确错误', res.statusCode === 200 && JSON.parse(res.body).ok === false, res.body.slice(0, 90))

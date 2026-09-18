@@ -6,6 +6,32 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.0.3]
+
+### HTTP 路由迁移到平台带围栏的 `/api` 频道
+
+外部审阅指出：本插件把路由注册在裸 `ctx.webServer` 表上、自己调 `ctx.connection.requestRejection`，
+而平台提供了带围栏的替代（`ctx.connection.fetch.register`，官方有四个包在用）。核实后成立，完成迁移。
+
+- **路由改走 `ctx.connection.fetch.register(...)`** —— 共享的 `/api` 频道，其载体在分发**之前**施加
+  loopback/`trustedHosts` 的 Host 检查、`Sec-Fetch-Site`/`Origin` 判定与浏览器会话 cookie。手搓的检查
+  删掉了，于是栅栏是**结构**：路由不可能在没有栅栏的情况下存在。这与 `1.0.1` 之前那个漏洞是同一类错 ——
+  旧代码必须**记得**去检查。
+- **五条精确路由**（`/api/custom-mode`、`/api/custom-mode/state|create|delete|reorder`）：Fetch 注册表按
+  精确路径匹配，且注册路径**含 `/api` 前缀**（官方包就是这么传的）。方法表进入注册本身，反而强化了原来的
+  保证 —— 未声明的方法根本不会被分发：对只声明 POST 的路径发 GET，得到的是频道的 404，而不是我们的 405。
+- 处理器改成 Fetch 形状（`(Request) => Response`），每个响应都带 `cache-control: no-store`（页面要显示的
+  就是这份状态，缓存的 `state` 会让用户看到已经改过的旧行）。
+- 请求体用 `requestBody: 'buffered'`，于是上限由平台配置的 JSON cap 决定，取代我们自己那个 4 MB 检查。
+- `test/editor-route.test.mjs` 不再模拟"读请求体的中间件"，而是断言**结构**：五条注册都在
+  `connection.fetch` 上、每条路径的方法集合、未声明的方法到不了处理器，以及源码里不再有
+  `requestRejection(` 调用与 `webServer.register(`。它还断言：作用域化 `inject` 等不到 `connection` 时
+  一条都不注册。
+
+实测于 dsh `0.1.6-alpha.2`（`docs/MEASUREMENTS.md` §16 同时记录了确立该 API 真实行为的 20 行探针与迁移后
+复验）：未授权 `401`、跨站与 Host 伪造 `403`、带会话 `200`、旧裸路径 `404`、未授权 `POST` 不改动
+`prompt.md`。真浏览器验证 **21/21**。
+
 ## [1.0.2]
 
 ### 修复：来自一次外部批判性审阅（每条都复现过）

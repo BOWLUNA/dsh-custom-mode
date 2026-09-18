@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 11 suites, 520 checks; resolves the shipped presets itself
+node test/run.mjs                                  # 11 suites, 517 checks; resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
@@ -41,10 +41,13 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
    parse-and-reserialise.
 2. **The switch is tri-state**: untouched / explicitly on / explicitly off. `undefined` and `false`
    are two different things.
-3. **The settings route must run `ctx.connection.requestRejection(req)` first**, and must fail
-   **closed** when that service is missing. A route registered on the raw `webServer` table is
-   outside the platform's browser-trust fence (measured: the prompt could be read and `prompt.md`
-   rewritten without authentication).
+3. **HTTP routes are registered through `ctx.connection.fetch.register(...)`**, i.e. on the platform's
+   shared `/api` channel, where the carrier applies the Host/Origin fence and browser auth **before**
+   dispatch — and the registered paths include the `/api` prefix. Never register on the raw
+   `webServer` table: it sits outside that policy, and doing so is how this plugin once let an
+   unauthenticated GET read the prompt and an unauthenticated POST rewrite `prompt.md`.
+   `test/editor-route.test.mjs` asserts both halves of that (the registrations, and that the source
+   contains no `requestRejection(` call and no `webServer.register(`).
 4. **Waiting for services belongs in a scoped `ctx.inject(deps, cb)`**, never in the row's own
    `inject`: otherwise a profile without a web server (tui) prints the same `pending` warning a
    broken installation does.

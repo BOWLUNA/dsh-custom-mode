@@ -1,38 +1,36 @@
 /**
- * Host half: the 「自定义模式」 settings page — now an ASSISTANT MANAGER.
+ * Host half: the 「自定义模式」 settings page — an ASSISTANT MANAGER.
  *
- * It serves one private HTTP route and its sub-paths; the browser half calls them
+ * It registers five exact routes on the platform's shared `/api` channel; the browser half calls them
  * with `fetch`:
  *
- *   GET  /custom-mode              — every assistant this feature manages.
- *   GET  /custom-mode/state?id=…   — one assistant: base mode, rows, switches, prompt.
- *   POST /custom-mode/state        — { id, mode, overrides, prompt, name, description }:
- *                                    validate, render a fresh `agent.cordis.yml`, write both files.
- *   POST /custom-mode/create       — { name, description }: seed a new assistant from the
- *                                    packaged template and give it the standard base mode.
- *   POST /custom-mode/delete       — { id }: remove a locally authored assistant.
- *   POST /custom-mode/reorder      — { id, direction }: move one assistant up/down in the
- *                                    picker order by writing `order` into each `preset.yml`.
+ *   GET  /api/custom-mode              — every assistant this feature manages.
+ *   GET  /api/custom-mode/state?id=…   — one assistant: base mode, rows, switches, prompt.
+ *   POST /api/custom-mode/state        — { id, mode, overrides, prompt, name, description }:
+ *                                        validate, render a fresh `agent.cordis.yml`, write both files.
+ *   POST /api/custom-mode/create       — { name, description }: seed a new assistant from the
+ *                                        packaged template and give it the standard base mode.
+ *   POST /api/custom-mode/delete       — { id }: remove a locally authored assistant.
+ *   POST /api/custom-mode/reorder      — { id, direction }: move one assistant up/down in the
+ *                                        picker order by writing `order` into each `preset.yml`.
  *
- * Why one PREFIX route instead of five exact ones: the registered route table keys
- * on (kind, path), so a prefix claims `/custom-mode` and everything under it while
- * staying one registration to dispose. `dsh-host-webserver` matches a prefix route
- * on the exact path too, so the list endpoint lives at the route path itself.
+ * **Why `/api` and not the raw `webServer` table**: the carrier that owns the `/api` channel applies the
+ * platform's trust and authentication policy — loopback/`trustedHosts` Host check, `Sec-Fetch-Site`,
+ * `Origin`, and the signed browser-session cookie — *before* dispatching to a route. Registering there
+ * makes the fence part of the structure: a route cannot exist without it. Registering on the raw table
+ * instead puts the route outside that policy and leaves "check the request first" as a rule a human has
+ * to remember — and an earlier version of this plugin, doing exactly that, let an unauthenticated GET
+ * read the whole system prompt and an unauthenticated cross-site POST rewrite `prompt.md` (every official
+ * route answered 401; a plain form post needs no preflight, so CORS would not have helped either). The
+ * registered paths are absolute *including* `/api`, which is what the platform's own packages pass.
  *
- * Why a private route instead of a Remote namespace or `dsh-settings`: this
- * plugin then owns no Cordis service name and cannot collide with anything, and
- * it stays independent of the settings API whose helper names differ between dsh
- * releases (see docs/ARCHITECTURE.md).
+ * **Why exact routes rather than one prefix**: the Fetch registry matches exact paths. Five registrations
+ * cost nothing and each declares the methods it owns, so the method table doubles as the guarantee that a
+ * prefetched `GET …/create` cannot create anything — that method is simply not registered for that path.
  *
- * A route registered on the raw `webServer` table is however OUTSIDE the
- * platform's browser-trust fence, which only guards the channels the Connection
- * service mounts (`/`, `/api`, …). Measured on 0.1.6-alpha.1: an unauthenticated
- * POST with `content-type: text/plain` rewrote `prompt.md`, while every official
- * route answered 401 — and a cross-site form post needs no preflight, so any page
- * the user visited could have rewritten their agent's system prompt. The route
- * therefore runs the platform's own check first, via
- * `ctx.connection.requestRejection(req)` (Host/Origin fence + browser auth),
- * which is the same verdict `/api` gets.
+ * Why a private route instead of a Remote namespace or `dsh-settings`: this plugin then owns no Cordis
+ * service name and cannot collide with anything, and it stays independent of the settings API whose helper
+ * names differ between dsh releases (see docs/ARCHITECTURE.md §5).
  *
  * Storage is deliberately file-only and stateless: the composition file IS the
  * saved state, so no second document can drift from it. The page derives which
@@ -64,7 +62,7 @@ import {
   userPresetRoot,
 } from './assistants.mjs'
 
-export { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR, PRESET_META_PATH }
+export { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, API_PREFIX, PRESET_DIR, PRESET_META_PATH }
 
 /** The list endpoint is the route path itself; the rest hang off it. */
 const STATE_PATH = ROUTE_PATH + '/state'
@@ -424,92 +422,35 @@ export async function deleteAssistant(rows, input, agentPresets) {
   return { ok: true, id, note: '已删除「' + id + '」。正在使用它的会话不受影响；新建会话时不再出现。' }
 }
 
-/** Send JSON with no-store caching, so a save is never read back stale. */
-function sendJson(res, status, value) {
-  const body = JSON.stringify(value)
-  res.writeHead(status, {
-    'content-type': 'application/json; charset=utf-8',
-    'cache-control': 'no-store',
-    'content-length': String(Buffer.byteLength(body, 'utf8')),
-  })
-  res.end(body)
-}
-
-/** Read a request body with a hard cap. */
-async function readBody(req) {
-  const chunks = []
-  let size = 0
-  for await (const chunk of req) {
-    size += chunk.length
-    if (size > 4_000_000) throw new Error('请求体过大（上限 4MB）')
-    chunks.push(chunk)
-  }
-  return Buffer.concat(chunks).toString('utf8')
-}
-
 /**
- * The request's path and query.
+ * The plugin's HTTP surface, registered on the platform's **shared `/api` channel**.
  *
- * A missing or unparsable `url` resolves to the route path itself, which is the
- * list endpoint — the lenient branch exists so a malformed request reads as an
- * ordinary list call instead of throwing inside the fence.
+ * `ctx.connection.fetch.register({ path, methods, requestBody, fetch })` mounts one exact route under
+ * `/api`, and the carrier applies its trust and authentication policy **before** dispatch. That is a
+ * structural guarantee, not a convention: a route cannot exist without the fence, so "did you remember
+ * to check?" is not a question anyone has to answer. An earlier version of this plugin registered on the
+ * raw `ctx.webServer` table and called `ctx.connection.requestRejection` by hand — measured then, an
+ * unauthenticated GET returned the whole system prompt and an unauthenticated cross-site POST rewrote
+ * `prompt.md`, while every official route answered 401.
+ *
+ * Measured on 0.1.6-alpha.2 with a throwaway probe plugin (see `docs/MEASUREMENTS.md` §16):
+ *
+ *     GET  /api/<route>                                  no session cookie → 401 unauthorized
+ *     GET  /api/<route>   Origin: https://evil.example   cross-site        → 403
+ *     GET  /api/<route>   Host: evil.example             DNS-rebinding shape → 403
+ *     GET  /api/<route>                                  session cookie    → 200
+ *     POST /api/<route>   on a route that owns GET only                    → 404 (never dispatched)
+ *
+ * The paths are absolute *including* `/api` — that is what the platform's own packages pass
+ * (`/api/present.host`, `/api/changes.summary`), despite the type saying "below /api".
  */
-function requestUrl(req) {
-  const raw =
-    req !== null && typeof req === 'object' && typeof req.url === 'string' && req.url !== '' ? req.url : ROUTE_PATH
-  try {
-    return new URL(raw, 'http://localhost')
-  } catch {
-    return new URL(ROUTE_PATH, 'http://localhost')
-  }
-}
-
-/**
- * Rejection status for one request, or undefined when it may proceed.
- *
- * The platform's fence is verified through the Connection service, which is where
- * the Host/Origin check and the browser-session check live:
- *
- *  - Host must be loopback (or a declared trusted authority) → defeats DNS
- *    rebinding, where the socket reaches this server but the Host names the
- *    attacker's domain;
- *  - `Sec-Fetch-Site: cross-site` and a mismatching `Origin` are refused → defeats
- *    a malicious page posting to this local port (a simple form post needs no
- *    preflight, so CORS alone would not have stopped it);
- *  - the signed `dsh-auth-*` cookie must be present → without the browser session
- *    that the launch URL establishes, the route is closed.
- *
- * The service is resolved lazily, per request, and NOT through `inject`: measured
- * on 0.1.6-alpha.1, `connection` is provided after this bundle row's `apply` runs,
- * so an `inject` here would park the plugin in `pending` for no reason — while by
- * request time the service is always there.
- *
- * When the service is absent the route FAILS CLOSED. A dead settings page is a
- * visible, honest failure; an unauthenticated write path that rewrites the agent's
- * system prompt is a silent one.
- */
-let warnedMissingConnection = false
-function connectionRejection(ctx, req) {
-  const connection = ctx.get('connection')
-  if (connection !== undefined && typeof connection.requestRejection === 'function') {
-    return connection.requestRejection(req)
-  }
-  if (!warnedMissingConnection) {
-    warnedMissingConnection = true
-    console.error(
-      'custom-mode: connection 服务不可用（DSH 版本不匹配？），已拒绝该设置页的所有请求以保守处理。' +
-        'prompt.md 与 custom_prompt 工具不受影响。',
-    )
-  }
-  return 503
-}
+const API_PREFIX = '/api'
 
 /**
  * Where the settings page can exist at all.
  *
- * The page is a WEB page: without `webServer` there is nothing to serve the route on,
- * and without `agentPresets` the assistant list cannot be built. The tui profile has
- * neither.
+ * The page is a WEB page: without `connection` there is no `/api` channel to register on, and without
+ * `agentPresets` the assistant list cannot be built. The tui profile has neither.
  *
  * These must NOT go into the row's own `inject`. Measured on 0.1.6-alpha.1:
  * `./install.sh --profile tui` — a usage both `install.sh --help` and the READMEs
@@ -520,11 +461,11 @@ function connectionRejection(ctx, req) {
  *     custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
  *
  * That is the SAME line a broken installation prints, so it teaches users to ignore the
- * one warning that matters. Instead the row always activates, and the route is
+ * one warning that matters. Instead the row always activates, and the routes are
  * registered from a scoped fiber that waits for those two services (`ctx.inject`),
  * which is the dynamic form of the same declaration.
  */
-const WEB_SERVICES = ['webServer', 'agentPresets']
+const WEB_SERVICES = ['connection', 'agentPresets']
 
 export function apply(ctx) {
   // Before anything else: make sure the preset tree on disk is complete.
@@ -552,7 +493,7 @@ export function apply(ctx) {
     const missing = []
     if (typeof scope.agentPresets?.list !== 'function') missing.push('agentPresets.list()')
     if (typeof scope.agentPresets?.remove !== 'function') missing.push('agentPresets.remove()')
-    if (typeof scope.webServer?.register !== 'function') missing.push('webServer.register()')
+    if (typeof scope.connection?.fetch?.register !== 'function') missing.push('connection.fetch.register()')
     if (missing.length > 0) {
       console.error(
         'custom-mode: 当前 DSH 版本缺少所需 API：' +
@@ -589,83 +530,76 @@ export function apply(ctx) {
       return Array.isArray(rows) ? rows : []
     }
 
-    const handler = async (req, res) => {
-      try {
-        // The fence comes first, before any method dispatch: the GET leaks the whole
-        // system prompt and the POST rewrites it, so neither may run unauthenticated.
-        const rejection = connectionRejection(scope, req)
-        if (rejection !== undefined) {
-          // 401/403 与平台对 /api 的措辞一致；503 是"我们自己保守关闭"（connection 服务
-          // 取不到），它既不是未授权也不是被禁止，别把响应体写成 forbidden 误导排查的人。
-          const reason = rejection === 401 ? 'unauthorized' : rejection === 403 ? 'forbidden' : 'unavailable'
-          res.writeHead(rejection, { 'content-type': 'text/plain; charset=utf-8' })
-          res.end(reason)
-          return
-        }
+    /**
+     * One Fetch-shaped handler for the whole surface.
+     *
+     * `pathname` is the logical path (without the `/api` prefix) so the method table above stays the
+     * single place where the surface is described.
+     */
+    /**
+     * JSON response with the page's caching policy attached.
+     *
+     * `no-store` because every one of these answers is state the page then displays: a cached
+     * `GET /api/custom-mode/state` would show the user rows they already changed. (The old
+     * hand-rolled response helper set the same header; dropping it here would have been a silent
+     * regression.)
+     */
+    const json = (value, status = 200) =>
+      Response.json(value, { status, headers: { 'cache-control': 'no-store' } })
 
-        const url = requestUrl(req)
-        const pathname = url.pathname
-        const methods = METHODS[pathname]
-        if (methods === undefined) {
-          sendJson(res, 404, { ok: false, error: '未知的子路径：' + pathname })
-          return
-        }
-        // Per-path method table, not a global GET/POST gate: `create` and `delete`
-        // are POST-only, and letting a GET fall through to them would create an
-        // assistant off a link a browser prefetched.
-        if (!methods.includes(req.method)) {
-          sendJson(res, 405, { ok: false, error: '只支持 ' + methods.join(' 与 ') })
-          return
-        }
-        if (req.method === 'GET' && pathname === ROUTE_PATH) {
+    const handle = async (request, pathname) => {
+      try {
+        const url = new URL(request.url)
+        if (request.method === 'GET' && pathname === ROUTE_PATH) {
           await ensureShipped()
-          sendJson(res, 200, readList(await roster()))
-          return
+          return json(readList(await roster()))
         }
-        if (req.method === 'GET' && pathname === STATE_PATH) {
+        if (request.method === 'GET' && pathname === STATE_PATH) {
           await ensureShipped()
-          sendJson(res, 200, readState(await roster(), url.searchParams.get('id') ?? ''))
-          return
+          return json(readState(await roster(), url.searchParams.get('id') ?? ''))
         }
 
         // Everything below writes, so the body is read and parsed exactly once.
-        const raw = await readBody(req)
         let parsed
         try {
-          parsed = JSON.parse(raw)
+          parsed = await request.json()
         } catch {
-          sendJson(res, 400, { ok: false, error: '请求体不是合法 JSON' })
-          return
+          return json({ ok: false, error: '请求体不是合法 JSON' }, 400)
         }
         await ensureShipped()
         if (pathname === STATE_PATH) {
           const result = saveState(await roster(), parsed)
-          sendJson(res, result.ok === true ? 200 : 400, result)
-          return
+          return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === CREATE_PATH) {
           const result = createAssistant(await roster(), parsed)
-          sendJson(res, result.ok === true ? 200 : 400, result)
-          return
+          return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === REORDER_PATH) {
           const result = reorderAssistant(await roster(), parsed)
-          sendJson(res, result.ok === true ? 200 : 400, result)
-          return
+          return json(result, result.ok === true ? 200 : 400)
         }
         const result = await deleteAssistant(await roster(), parsed, scope.agentPresets)
-        sendJson(res, result.ok === true ? 200 : 400, result)
+        return json(result, result.ok === true ? 200 : 400)
       } catch (error) {
-        sendJson(res, 500, { ok: false, error: describe(error) })
+        return json({ ok: false, error: describe(error) }, 500)
       }
     }
 
-    // A PREFIX route claims `/custom-mode` and every sub-path under it, which keeps
-    // the endpoints to one registration and one disposer.
-    scope.effect(
-      () => scope.webServer.register({ kind: 'prefix', path: ROUTE_PATH, handler }),
-      'custom-mode.route',
-    )
+    // One registration per exact path — the platform's Fetch registry matches exact paths, not prefixes —
+    // each declaring the methods it owns. The method table doubles as the guarantee that a prefetched
+    // `GET /api/custom-mode/create` cannot create anything: that method is not registered for that path.
+    for (const [pathname, methods] of Object.entries(METHODS)) {
+      scope.effect(
+        () => scope.connection.fetch.register({
+          path: API_PREFIX + pathname,
+          methods: [...methods],
+          requestBody: 'buffered',
+          fetch: (request) => handle(request, pathname),
+        }),
+        'custom-mode.route' + pathname,
+      )
+    }
   })
 }
 

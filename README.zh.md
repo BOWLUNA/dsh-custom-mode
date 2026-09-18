@@ -128,7 +128,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 | `ctx.systemPrompt.section()` 且 `text` 支持**函数** | 提示词不再热更新 —— 整个项目的立足点 |
 | `agentPresets` 依据组成文件的 `mtimeMs`+`size` 重挂载 | 开关要重启进程才生效 |
 | `ctx.tools.register()` | 失去 `custom_prompt` 工具 |
-| `ctx.webServer.register({ kind, path, handler })` | 设置页空白 |
+| `ctx.connection.fetch.register({ path, methods, requestBody, fetch })` | 设置页 404 —— 什么都没注册 |
 | `kind: 'prefix'` 同时匹配 `path` 与 `path/…` | 只有列表能打开，`/state`、`/create`、`/delete` 全部 404 |
 | `agentPresets.list()` 行里有 `id` / `trust` / `path`，`preset.yml` 提供 `name` / `description` | 助手列表为空或认不出助手 |
 | `agentPresets.remove(id)`，且拒绝 `trust: 'system'` | 删除失败（页面会显示平台给的原因） |
@@ -156,7 +156,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 ## 开发
 
 ```sh
-node test/run.mjs        # 11 个套件、520 项；自己解析出厂 preset 目录
+node test/run.mjs        # 11 个套件、517 项；自己解析出厂 preset 目录
 ```
 
 改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。

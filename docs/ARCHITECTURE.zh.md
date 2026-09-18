@@ -110,14 +110,18 @@ react, react/jsx-runtime, react-dom, react-dom/client,
 
 浏览器半边没有 `host.call`（那是动态 Cordis 包的专用通道），静态加载的插件走的是 `ctx.remote.<namespace>`——那需要宿主注册 Remote 命名空间和类型化契约，重且易错。
 
-本项目改用**一条私有 HTTP 路由**：
+本项目改用**平台共享 `/api` 频道上的五条精确路由**：
 
-- 宿主半 `ctx.webServer.register({ kind: "exact", path: "/custom-mode", handler })`
-- 浏览器半 `fetch("/custom-mode", { method: "GET" | "POST" })`
+- 宿主半 `ctx.connection.fetch.register({ path: "/api/custom-mode/state", methods: ["GET", "POST"], requestBody: "buffered", fetch })` —— 一条路径一次注册
+- 浏览器半 `fetch("/api/custom-mode/state?id=…", { method: "GET" | "POST" })`
+
+优点：完全自包含，不占用任何 Cordis 服务名、不会和别人撞，也不必理解 Remote 的生成机制。而频道选 `/api` 而不是裸 `webServer` 表的原因是：**拥有 `/api` 的载体在任何路由被分发之前，就施加了平台的信任与鉴权策略** —— 于是栅栏是结构，不是一条要记住的规矩（见 §5.1）。
+
+（精确路径注册带来两个后果：注册的 `path` 是**包含 `/api` 的绝对路径**，官方包也是这么传的；以及路由没有声明的方法永远不会被分发 —— 对只声明 POST 的路径发 GET，拿到的是该频道的 404，而不是 405。）
 
 优点：完全自包含，不占用任何 Cordis 服务名，不可能和别人冲突；也不需要理解 Remote 生成机制。
 
-### 5.1 但裸路由**不在**平台的浏览器信任栅栏里（实测，已修）
+### 5.1 为什么路由落在 `/api` 上：裸路由**不在**平台的浏览器信任栅栏里（实测，1.0.3 修）
 
 上面这个写法有个当时没意识到的后果。`ctx.webServer` 是**裸 HTTP 表**；平台的
 Host/Origin 栅栏 + 浏览器鉴权是 `@deepseek-ai/dsh-client-connection` 挂在**它自己挂载的
@@ -169,6 +173,21 @@ POST + Origin: https://evil.example
   `connection.requestRejection`；只给本机进程用的，也要意识到它是**任何**本机进程都能调的。
 - `connection` 服务在 bundle 行的 `apply()` 执行时**还没就绪**（实测：写进 `inject` 会让插件
   停在 `pending`），所以要在**请求时**惰性取 `ctx.get('connection')`，并在取不到时**失败关闭**。
+
+
+修好之后（本插件 1.0.3、dsh `0.1.6-alpha.2` —— 路由在 `/api` 上，代码里已无任何手搓检查）：
+
+```sh
+curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3095/api/custom-mode                            → 401   （无 cookie）
+curl -s -b "$JAR"  -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3095/api/custom-mode                 → 200
+curl -s -b "$JAR"  -o /dev/null -w '%{http_code}\n' -H 'Origin: https://evil.example' \
+     -H 'Sec-Fetch-Site: cross-site' http://127.0.0.1:3095/api/custom-mode                                 → 403
+curl -s -o /dev/null -w '%{http_code}\n' -H 'Host: evil.example' http://127.0.0.1:3095/api/custom-mode     → 403
+curl -s -b "$JAR"  -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3095/custom-mode                      → 404   （裸路由已不存在）
+```
+
+同一次运行也复验了写入路径：未授权的 `POST /api/custom-mode/state` 返回 401 且 `prompt.md` 未被改动，
+带会话的调用则把两个文件都写好了。见 `docs/MEASUREMENTS.md` §16。
 
 ## 6. 为什么不用 `dsh-settings` 的 API
 
