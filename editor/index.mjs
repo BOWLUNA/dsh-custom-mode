@@ -166,7 +166,7 @@ export function readPrompt(directory) {
   try {
     return { ok: true, path, text: readFileSync(path, 'utf8') }
   } catch (error) {
-    return { ok: false, error: '读取提示词失败：' + describe(error) }
+    return { ok: false, code: 'promptReadFailed', params: { detail: describe(error) }, error: '读取提示词失败：' + describe(error) }
   }
 }
 
@@ -246,7 +246,7 @@ export function readState(rows, id, options = {}) {
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
   const composition = compositionFile(directory)
-  if (!existsSync(composition)) return { ok: false, error: '找不到组成文件：' + composition }
+  if (!existsSync(composition)) return { ok: false, code: 'compositionMissing', params: { path: composition }, error: '找不到组成文件：' + composition }
   const text = readFileSync(composition, 'utf8')
   const mode = modeOf(text)
   const prompt = readPrompt(directory)
@@ -304,11 +304,11 @@ export function saveState(rows, input) {
 
   const mode = input !== null && typeof input === 'object' && typeof input.mode === 'string' ? input.mode : ''
   if (!BASE_MODES.some((entry) => entry.id === mode)) {
-    return { ok: false, error: '未知的基础模式：' + mode }
+    return { ok: false, code: 'badMode', params: { mode }, error: '未知的基础模式：' + mode }
   }
   const prompt = input !== null && typeof input === 'object' && typeof input.prompt === 'string' ? input.prompt : ''
   if (prompt.trim() === '') {
-    return { ok: false, error: '保存被拒绝：系统提示词为空。留空不会清空身份，读取器会沿用上一版。' }
+    return { ok: false, code: 'promptEmpty', error: '保存被拒绝：系统提示词为空。留空不会清空身份，读取器会沿用上一版。' }
   }
   const verdict = checkPromptText(prompt)
   if (verdict.ok !== true) return { ok: false, error: verdict.error }
@@ -316,13 +316,13 @@ export function saveState(rows, input) {
   const rawName = input !== null && typeof input === 'object' && typeof input.name === 'string' ? input.name : ''
   const name = rawName.replace(/\r?\n/g, ' ').trim()
   if (name.length > MAX_NAME) {
-    return { ok: false, error: '保存被拒绝：模式名称过长（上限 ' + String(MAX_NAME) + ' 个字符）。' }
+    return { ok: false, code: 'nameTooLong', params: { max: MAX_NAME }, error: '保存被拒绝：模式名称过长（上限 ' + String(MAX_NAME) + ' 个字符）。' }
   }
   const rawDescription =
     input !== null && typeof input === 'object' && typeof input.description === 'string' ? input.description : ''
   const description = rawDescription.replace(/\r?\n/g, ' ').trim()
   if (description.length > MAX_DESCRIPTION) {
-    return { ok: false, error: '保存被拒绝：模式描述过长（上限 ' + String(MAX_DESCRIPTION) + ' 个字符）。' }
+    return { ok: false, code: 'descriptionTooLong', params: { max: MAX_DESCRIPTION }, error: '保存被拒绝：模式描述过长（上限 ' + String(MAX_DESCRIPTION) + ' 个字符）。' }
   }
 
   const overrides = new Map()
@@ -337,7 +337,7 @@ export function saveState(rows, input) {
   try {
     composition = renderComposition(mode, overrides, { modeName: name, assistantId: id })
   } catch (error) {
-    return { ok: false, error: '生成组成文件失败：' + describe(error) }
+    return { ok: false, code: 'renderFailed', params: { detail: describe(error) }, error: '生成组成文件失败：' + describe(error) }
   }
 
   // Self-check our own output before publishing it: a composition that lost its
@@ -346,7 +346,7 @@ export function saveState(rows, input) {
     if (collectRows(composition).length === 0) throw new Error('生成的组成文件没有任何行')
     readBaseComposition(mode)
   } catch (error) {
-    return { ok: false, error: '生成结果自检失败，已放弃写入：' + describe(error) }
+    return { ok: false, code: 'selfCheckFailed', params: { detail: describe(error) }, error: '生成结果自检失败，已放弃写入：' + describe(error) }
   }
 
   try {
@@ -356,7 +356,7 @@ export function saveState(rows, input) {
     // 另外两条由 readState 对比补记（见 journal.mjs 的单写者说明）。
     recordPrompt(directory, prompt, HISTORY_SOURCE.settings)
   } catch (error) {
-    return { ok: false, error: '写入失败：' + describe(error) }
+    return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
   }
 
   // A name the user cleared is left alone rather than written as an empty scalar:
@@ -370,6 +370,8 @@ export function saveState(rows, input) {
     ok: true,
     id,
     mode,
+    code: 'saved',
+    params: { name: name === '' ? id : name, mode },
     note: '已保存（' + (name === '' ? id : name) + '，基础模式 ' + mode + '）。新建会话即生效，当前会话保持原配置。',
   }
 }
@@ -390,15 +392,15 @@ export function saveState(rows, input) {
 export function createAssistant(rows, input, templateDir = packagedPresetDir()) {
   const rawName = input !== null && typeof input === 'object' && typeof input.name === 'string' ? input.name : ''
   const name = rawName.replace(/\r?\n/g, ' ').trim()
-  if (name === '') return { ok: false, error: '请先给新助手起个名字。' }
+  if (name === '') return { ok: false, code: 'nameRequired', error: '请先给新助手起个名字。' }
   if (name.length > MAX_NAME) {
-    return { ok: false, error: '名字太长了（上限 ' + String(MAX_NAME) + ' 个字符）。' }
+    return { ok: false, code: 'nameTooLong', params: { max: MAX_NAME }, error: '名字太长了（上限 ' + String(MAX_NAME) + ' 个字符）。' }
   }
   const rawDescription =
     input !== null && typeof input === 'object' && typeof input.description === 'string' ? input.description : ''
   const description = rawDescription.replace(/\r?\n/g, ' ').trim()
   if (description.length > MAX_DESCRIPTION) {
-    return { ok: false, error: '描述太长了（上限 ' + String(MAX_DESCRIPTION) + ' 个字符）。' }
+    return { ok: false, code: 'descriptionTooLong', params: { max: MAX_DESCRIPTION }, error: '描述太长了（上限 ' + String(MAX_DESCRIPTION) + ' 个字符）。' }
   }
 
   const root = userPresetRoot(rows)
@@ -410,7 +412,7 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
   // The roster can lag a directory it skipped (a hand-made one with no
   // composition). Refuse the name rather than half-own that directory.
   if (existsSync(join(root, id))) {
-    return { ok: false, error: '目录已存在，请换一个名字：' + join(root, id) }
+    return { ok: false, code: 'dirExists', params: { path: join(root, id) }, error: '目录已存在，请换一个名字：' + join(root, id) }
   }
 
   // A "duplicate" carries the source's prompt, base mode and row switches into a
@@ -424,7 +426,7 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     const fromDir = assistantDir(rows, from)
     if (fromDir === undefined) return unknownAssistant(from)
     const fromComposition = compositionFile(fromDir)
-    if (!existsSync(fromComposition)) return { ok: false, error: '找不到组成文件：' + fromComposition }
+    if (!existsSync(fromComposition)) return { ok: false, code: 'compositionMissing', params: { path: fromComposition }, error: '找不到组成文件：' + fromComposition }
     const text = readFileSync(fromComposition, 'utf8')
     const sourceMode = modeOf(text)
     const sourcePrompt = readPrompt(fromDir)
@@ -453,7 +455,7 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     try {
       writeAtomic(promptFile(created.dir), source.prompt)
     } catch (error) {
-      return { ok: false, error: '写入提示词失败：' + describe(error) }
+      return { ok: false, code: 'promptWriteFailed', params: { detail: describe(error) }, error: '写入提示词失败：' + describe(error) }
     }
   }
   const metaResult = writePresetMeta(name, description === '' && source !== null ? source.description : description, created.dir)
@@ -463,6 +465,9 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     ok: true,
     id,
     name,
+    code: source === null ? 'created' : 'duplicated',
+    // D5：文案里用**显示名**而不是内部目录 id。
+    params: source === null ? { name } : { name, from: source === null ? '' : from },
     note: source === null
       ? '已创建「' + name + '」。它的系统提示词现在是模板默认文本；写好后新建会话即可选择它。'
       : '已复制出「' + name + '」：提示词、基础模式与插件开关都来自「' + from + '」，之后各改各的，互不影响。',
@@ -485,14 +490,14 @@ export async function deleteAssistant(rows, input, agentPresets) {
   const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
   if (assistantDir(rows, id) === undefined) return unknownAssistant(id)
   if (typeof agentPresets?.remove !== 'function') {
-    return { ok: false, error: '当前 DSH 版本没有 agentPresets.remove()，无法删除。' }
+    return { ok: false, code: 'noRemoveApi', error: '当前 DSH 版本没有 agentPresets.remove()，无法删除。' }
   }
   try {
     await agentPresets.remove(id)
   } catch (error) {
-    return { ok: false, error: '删除失败：' + describe(error) }
+    return { ok: false, code: 'deleteFailed', params: { detail: describe(error) }, error: '删除失败：' + describe(error) }
   }
-  return { ok: true, id, note: '已删除「' + id + '」。正在使用它的会话不受影响；新建会话时不再出现。' }
+  return { ok: true, id, code: 'deleted', params: { name: id }, note: '已删除「' + id + '」。正在使用它的会话不受影响；新建会话时不再出现。' }
 }
 
 /**
@@ -651,7 +656,7 @@ export function apply(ctx) {
           const directory = assistantDir(await roster(), id)
           if (directory === undefined) return json(unknownAssistant(id), 404)
           const text = readVersion(directory, url.searchParams.get('n') ?? '')
-          if (text === null) return json({ ok: false, error: '找不到这个版本（历史可能已被上限裁剪）。' }, 404)
+          if (text === null) return json({ ok: false, code: 'versionMissing', error: '找不到这个版本（历史可能已被上限裁剪）。' }, 404)
           return json({ ok: true, id, n: url.searchParams.get('n'), text })
         }
 
@@ -669,7 +674,7 @@ export function apply(ctx) {
         try {
           parsed = await request.json()
         } catch {
-          return json({ ok: false, error: '请求体不是合法 JSON' }, 400)
+          return json({ ok: false, code: 'badJson', error: '请求体不是合法 JSON' }, 400)
         }
         await ensureShipped()
         if (pathname === STATE_PATH) {

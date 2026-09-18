@@ -78,6 +78,12 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
     （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。
     凡是"点了会发生什么"的断言，都用程序化点击，并同时对**磁盘真值**断言，而不是对页面早先显示过什么。
 
+13. **Every user-visible host result carries a `code`** (plus `params`); the page renders it from its own
+    bilingual dictionary. The Chinese `note`/`error` strings stay as the HTTP API's compatibility face — but
+    they must never be what the *page* shows, or the English UI turns Chinese exactly when something happens.
+    `tools/browser-verify.mjs` switches the interface to English and saves once to keep this honest. Names
+    inside those messages are user data and are never translated.
+
 ## Known traps (all measured)
 
 - `agent-presets` exists **only in the web profile composition**; tui and headless do not have it, so

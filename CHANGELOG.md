@@ -22,6 +22,24 @@ Measured on `0.1.5-rc.2`: bundle registration, a healthy 542-line composition tr
 full browser verification **38/38**. The two host APIs we lean on — `tools/pre-execute` (approval seam) and
 `connection.fetch.register` (fenced route channel) — both exist on the stable line.
 
+### The English UI no longer falls back to Chinese when something happens
+
+An external review called this the sharpest remaining defect: the host returned hard-coded Chinese `note` and
+`error` strings, and the page displayed them verbatim — so an English user saw a fully English panel until the
+moment they saved or hit an error, when the status line turned Chinese.
+
+- Every user-visible host result now carries a **`code`** (plus `params` for the values the sentence needs:
+  the assistant's display name, the base mode, a limit, a path, an underlying error). The page renders the
+  message from its own bilingual dictionary, so it follows the interface language.
+- The Chinese `note`/`error` strings are **kept** as the compatibility face of the HTTP API: an older client,
+  or a caller reading the JSON directly, still gets a readable sentence. A test pins both halves.
+- Names in those messages are **user data** and are never translated — the English status says
+  `Saved (自定义模式, base mode standard)…` because that is what the assistant is called.
+- Duplicate/delete messages use the assistant's display name instead of leaking the internal directory id.
+
+Measured in a real browser (`tools/browser-verify.mjs`, 38 → 44 checks): switch the interface to English, edit,
+save — the status message is English; switch back and the panel is Chinese again.
+
 ### Fixed: Windows concurrent saves, for real this time
 
 An external review showed the previous fix was half a fix: randomising the temporary name removed the

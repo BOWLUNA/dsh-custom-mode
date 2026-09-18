@@ -460,6 +460,23 @@ console.log('=== 5. POST /custom-mode/state：写盘与校验 ===')
 
 console.log()
 console.log()
+console.log('=== 5.4 服务端回 code：页面按语言渲染，不再混排 ===')
+{
+  mounted = mount()
+  // 成功路径：保存 → code=saved + params（显示名、基础模式）
+  const savedCode = JSON.parse((await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: '代码测试\n', name: '写作助手' }))).body)
+  check('保存回 code=saved', savedCode.code === 'saved', JSON.stringify({ code: savedCode.code }))
+  check('params 带显示名与基础模式', savedCode.params?.name === '写作助手' && savedCode.params?.mode === 'standard', JSON.stringify(savedCode.params))
+  // 失败路径：空提示词 → promptEmpty；名字过长 → nameTooLong（带 max）
+  const empty = JSON.parse((await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: '   ' }))).body)
+  check('空提示词回 promptEmpty', empty.code === 'promptEmpty', JSON.stringify({ code: empty.code }))
+  const tooLong = JSON.parse((await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: 'x', name: 'n'.repeat(200) }))).body)
+  check('超长名字回 nameTooLong 且带上限', tooLong.code === 'nameTooLong' && typeof tooLong.params?.max === 'number', JSON.stringify(tooLong.params))
+  // 中文串保留（HTTP API 的兼容面）——新客户端按 code 渲染，旧调用方仍拿到可读文案。
+  check('中文文案仍然保留（兼容）', typeof empty.error === 'string' && empty.error.includes('系统提示词为空'), String(empty.error).slice(0, 40))
+}
+
+console.log()
 console.log('=== 5.5 改动历史：谁改过、能不能取回 ===')
 {
   mounted = mount()

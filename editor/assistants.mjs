@@ -334,14 +334,14 @@ export function reorderAssistant(rows, input, write = writePresetMeta) {
   const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
   const direction = input !== null && typeof input === 'object' ? input.direction : undefined
   if (direction !== 'up' && direction !== 'down') {
-    return { ok: false, error: '未知的排序方向：' + String(direction) }
+    return { ok: false, code: 'badDirection', params: { direction: String(direction) }, error: '未知的排序方向：' + String(direction) }
   }
   const list = assistantsFromRoster(rows)
   const index = list.findIndex((item) => item.id === id)
-  if (index === -1) return { ok: false, error: '找不到助手「' + id + '」。' }
+  if (index === -1) return { ok: false, code: 'unknownAssistant', params: { id }, error: '找不到助手「' + id + '」。' }
   const target = direction === 'up' ? index - 1 : index + 1
-  if (target < 0) return { ok: false, error: '「' + (list[index].name || id) + '」已经在最前面。' }
-  if (target >= list.length) return { ok: false, error: '「' + (list[index].name || id) + '」已经在最后面。' }
+  if (target < 0) return { ok: false, code: 'alreadyFirst', params: { name: list[index].name || id }, error: '「' + (list[index].name || id) + '」已经在最前面。' }
+  if (target >= list.length) return { ok: false, code: 'alreadyLast', params: { name: list[index].name || id }, error: '「' + (list[index].name || id) + '」已经在最后面。' }
 
   const next = [...list]
   const [moved] = next.splice(index, 1)
@@ -357,6 +357,7 @@ export function reorderAssistant(rows, input, write = writePresetMeta) {
     ok: true,
     id,
     order: next.map((item) => item.id),
+    code: 'reordered',
     note: '顺序已保存：新建会话时的模式选择器按这个顺序排列。',
   }
 }

@@ -412,6 +412,85 @@ try {
     const warningsOn = await warningLines()
     check('恢复后告警消失（不许误报）', warningsOn.every((line) => line.includes('不起作用') === false), JSON.stringify(warningsOn))
 
+    // ── 语言：英文界面里，服务端的结果也必须是英文（外部审阅点名的硬伤）──────────
+    //
+    // 宿主仍回中文 note/error（HTTP API 的兼容面），页面按 `code` 用自己的词典渲染。
+    // 这条真的切到英文再存一次来验证 —— 而不是只看代码。
+    const switchLanguage = async (option) => {
+      const nav = await session.evaluate(`(() => {
+        const wanted = /^(通用设置|General)$/;
+        const el = [...document.querySelectorAll('button,[role=button],div,span')].find((e) => wanted.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 30);
+        if (el === undefined) return null;
+        const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      })()`)
+      if (nav === null) return 'no-nav'
+      await session.clickAt(nav.x, nav.y); await session.sleep(1200)
+      const opened = await session.evaluate(`(() => {
+        const labels = [...document.querySelectorAll('div,span')].filter((el) => {
+          const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
+          return own === '语言' || own === 'Language';
+        });
+        if (labels.length === 0) return null;
+        let node = labels[0];
+        for (let depth = 0; depth < 6 && node !== null; depth += 1) {
+          const button = node.querySelector === undefined ? null : node.querySelector('button');
+          if (button !== null && button !== undefined) {
+            const rect = button.getBoundingClientRect();
+            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+          }
+          node = node.parentElement;
+        }
+        return null;
+      })()`)
+      if (opened === null) return 'no-control'
+      await session.clickAt(opened.x, opened.y); await session.sleep(900)
+      // shell 的这个下拉依赖真实指针事件：合成 click() 会被忽略（cdp.mjs 的 clickAt 注释里记过这条）。
+      const point = await session.evaluate(`(() => {
+        const el = [...document.querySelectorAll('*')].find((e) => (e.textContent || '').trim() === ${JSON.stringify(option)} && e.children.length <= 3 && e.getBoundingClientRect().height > 8);
+        if (el === undefined) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      })()`)
+      if (point === null) return 'no-option'
+      await session.clickAt(point.x, point.y)
+      await session.sleep(1800)
+      return 'ok'
+    }
+    const openOurSection = async (label) => {
+      await session.evaluate(`(() => {
+        const wanted = new RegExp('^(' + ${JSON.stringify(label)} + ')$');
+        const el = [...document.querySelectorAll('button,[role=button],div,span')].find((e) => wanted.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 30);
+        if (el !== undefined) el.click();
+        return true;
+      })()`)
+      await session.sleep(1800)
+    }
+
+    const toEnglish = await switchLanguage('English')
+    check('能切到英文界面', toEnglish === 'ok', toEnglish)
+    await openOurSection('自定义模式|Custom mode')
+    const englishPanel = await session.evaluate(`(() => { const el = document.querySelector('.cpfe'); return el === null ? '' : el.innerText; })()`)
+    check('英文界面里面板本身是英文', /Assistant|Plugin switches|System prompt/.test(englishPanel), englishPanel.slice(0, 80))
+
+    // 保存按钮在没有改动时是禁用的 —— 先改一处，让"保存成功"这件事真的发生。
+    await session.fill('.cpfe-editor', 'D2 语言检查：这一版从英文界面保存。\n')
+    await session.sleep(400)
+    check('英文界面里点得到 Save', (await clickButton('Save')) === 'clicked')
+    await session.sleep(2800)
+    const statusEn = await session.evaluate(`(() => { const el = document.querySelector('.cpfe-status'); return el === null ? null : el.textContent.trim(); })()`)
+    // 注意：状态里会插值**用户自己的助手名**（这里叫「自定义模式」），那部分是用户数据、不该被翻译，
+    // 所以判据是"消息文本是英文"，而不是"整行没有 CJK"。
+    check(
+      '英文界面里保存结果是英文消息（助手名作为用户数据保留）',
+      typeof statusEn === 'string' && /Saved/.test(statusEn) && /已保存|基础模式|新建会话即生效/.test(statusEn) === false,
+      JSON.stringify(statusEn),
+    )
+    check('英文消息带上了插值参数（助手名、基础模式）', /base mode standard/.test(String(statusEn)), JSON.stringify(statusEn))
+
+    const back = await switchLanguage('中文')
+    check('能切回中文界面', back === 'ok', back)
+    await openOurSection('自定义模式|Custom mode')
+
     // ── 4. 截图 ────────────────────────────────────────────────────────────
     if (out !== '') {
       await session.evaluate(`(() => {

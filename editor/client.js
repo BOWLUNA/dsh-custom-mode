@@ -92,6 +92,31 @@ try {
         "msg.reorderFailed": "调整顺序失败",
         "msg.imported": "已导入到编辑器（还没有保存）：检查后点「保存」。",
         "msg.importFailed": "导入失败",
+        "api.badDirection": "未知的排序方向：{direction}",
+        "api.unknownAssistant": "找不到助手「{id}」：这一页只管理本工具创建的助手（目录里有 prompt.md，且组成文件用 prompt-reader.mjs 注入身份）。",
+        "api.alreadyFirst": "「{name}」已经在最前面。",
+        "api.alreadyLast": "「{name}」已经在最后面。",
+        "api.saved": "已保存（{name}，基础模式 {mode}）。新建会话即生效，当前会话保持原配置。",
+        "api.created": "已创建「{name}」。现在可以为它写系统提示词。",
+        "api.duplicated": "已复制自「{from}」。两份从此各改各的。",
+        "api.deleted": "已删除「{name}」。正在使用它的会话不受影响；新建会话时它不再出现。",
+        "api.reordered": "顺序已保存：新建会话时的模式选择器按这个顺序排列。",
+        "api.nameRequired": "请先给新助手起个名字。",
+        "api.nameTooLong": "名字太长了（上限 {max} 个字符）。",
+        "api.descriptionTooLong": "描述太长了（上限 {max} 个字符）。",
+        "api.promptEmpty": "保存被拒绝：系统提示词为空。留空不会清空身份，读取器会沿用上一版。",
+        "api.badMode": "未知的基础模式：{mode}",
+        "api.dirExists": "目录已存在，请换一个名字：{path}",
+        "api.compositionMissing": "找不到组成文件：{path}",
+        "api.writeFailed": "写入失败：{detail}",
+        "api.promptWriteFailed": "写入提示词失败：{detail}",
+        "api.renderFailed": "生成组成文件失败：{detail}",
+        "api.selfCheckFailed": "生成结果自检失败，已放弃写入：{detail}",
+        "api.promptReadFailed": "读取提示词失败：{detail}",
+        "api.noRemoveApi": "当前 DSH 版本没有 agentPresets.remove()，无法删除。",
+        "api.deleteFailed": "删除失败：{detail}",
+        "api.versionMissing": "找不到这个版本（历史可能已被上限裁剪）。",
+        "api.badJson": "请求体不是合法 JSON",
         "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 你写的提示词现在不起作用。要么打开这一行，要么清空提示词。",
         "warn.toolOff": "「custom_prompt 工具」这一行是关的：会话里无法让 agent 改提示词，只能在本页改。",
         "warn.noDescription": "没有描述：新建会话的模式选择器里会显示成「暂无描述」。",
@@ -235,6 +260,31 @@ try {
         "msg.reorderFailed": "Could not reorder",
         "msg.imported": "Imported into the editor (not saved yet) — review it, then click Save.",
         "msg.importFailed": "Import failed",
+        "api.badDirection": "Unknown reorder direction: {direction}",
+        "api.unknownAssistant": "No assistant 「{id}」: this page only manages the assistants it created (a directory with prompt.md whose composition injects the identity through prompt-reader.mjs).",
+        "api.alreadyFirst": "「{name}」 is already first.",
+        "api.alreadyLast": "「{name}」 is already last.",
+        "api.saved": "Saved ({name}, base mode {mode}). A new session picks it up; the current one keeps its configuration.",
+        "api.created": "Created 「{name}」. You can write its system prompt now.",
+        "api.duplicated": "Copied from 「{from}」. The two are independent from now on.",
+        "api.deleted": "Deleted 「{name}」. Sessions already using it keep running; it no longer appears for new sessions.",
+        "api.reordered": "Order saved: the new-session mode picker follows it.",
+        "api.nameRequired": "Give the new assistant a name first.",
+        "api.nameTooLong": "That name is too long (limit {max} characters).",
+        "api.descriptionTooLong": "That description is too long (limit {max} characters).",
+        "api.promptEmpty": "Save rejected: the system prompt is empty. Emptying it would not clear the identity — the reader keeps the last good text.",
+        "api.badMode": "Unknown base mode: {mode}",
+        "api.dirExists": "That directory already exists — pick another name: {path}",
+        "api.compositionMissing": "Composition file not found: {path}",
+        "api.writeFailed": "Write failed: {detail}",
+        "api.promptWriteFailed": "Writing the prompt failed: {detail}",
+        "api.renderFailed": "Rendering the composition failed: {detail}",
+        "api.selfCheckFailed": "The generated composition failed its self-check, so nothing was written: {detail}",
+        "api.promptReadFailed": "Reading the prompt failed: {detail}",
+        "api.noRemoveApi": "This DSH build has no agentPresets.remove(), so deleting is unavailable.",
+        "api.deleteFailed": "Delete failed: {detail}",
+        "api.versionMissing": "That version is gone (the history is capped).",
+        "api.badJson": "The request body is not valid JSON",
         "warn.personaOffWithPrompt": "The \"Identity (system prompt)\" row is off, so prompt.md is never injected — the prompt you wrote has no effect. Turn the row on, or clear the prompt.",
         "warn.toolOff": "The \"custom_prompt tool\" row is off: the agent cannot change the prompt from inside a session, only this page can.",
         "warn.noDescription": "No description: the new-session mode picker will show it as \"no description yet\".",
@@ -720,6 +770,32 @@ try {
          */
         const t = (key, fallback) => translate(key, fallback, shellT)
 
+        /** 把 `{name}` 这类占位符换成 params 里的值（缺失就原样留着，便于发现漏参）。 */
+        const fillPlaceholders = (template, params) =>
+          template.replace(/\{(\w+)\}/g, (match, key) =>
+            params !== null && typeof params === "object" && params[key] !== undefined ? String(params[key]) : match,
+          )
+
+        /**
+         * 服务端结果的**本地化渲染**。
+         *
+         * 宿主仍然回中文的 `note`/`error`（那是 HTTP API 的兼容面），但页面优先用自己的词典按 `code`
+         * 渲染 —— 否则英文界面会在出错那一刻掉回中文（外部审阅点名的"硬伤"）。服务端若带来了页面无从
+         * 知道的细节（路径、底层错误），放在 `params` 里填进模板。没有 `code` 时退回宿主文案，兼容旧宿主。
+         */
+        const apiText = (result, fallbackKey) => {
+          const code = result !== null && typeof result === "object" && typeof result.code === "string" ? result.code : ""
+          if (code !== "") {
+            const template = translate("api." + code, "", shellT)
+            if (template !== "") return fillPlaceholders(template, result.params)
+          }
+          if (result !== null && typeof result === "object") {
+            if (typeof result.error === "string" && result.error !== "") return result.error
+            if (typeof result.note === "string" && result.note !== "") return result.note
+          }
+          return t(fallbackKey)
+        }
+
         const [list, setList] = react.useState(null)
         const [selected, setSelected] = react.useState("")
         /** id → { payload, saved, value }: loaded state, baseline and live draft. */
@@ -764,7 +840,7 @@ try {
           const result = await fetchState(id)
           if (result === null || result === undefined || result.ok !== true) {
             setFailed(true)
-            setStatus((result && result.error) || t("msg.readFailed"))
+            setStatus(apiText(result, "msg.readFailed"))
             return
           }
           const fresh = draftOf(result)
@@ -781,7 +857,7 @@ try {
           const result = await fetchList()
           if (result === null || result === undefined || result.ok !== true) {
             setFailed(true)
-            setStatus((result && result.error) || t("msg.readFailed"))
+            setStatus(apiText(result, "msg.readFailed"))
             return
           }
           const assistants = Array.isArray(result.assistants) ? result.assistants : []
@@ -895,11 +971,11 @@ try {
             if (result !== null && result !== undefined && result.ok === true) {
               setNewName("")
               setFailed(false)
-              setStatus(result.note || (from === undefined ? t("msg.created") : t("msg.duplicated")))
+              setStatus(apiText(result, from === undefined ? "msg.created" : "msg.duplicated"))
               await reload(result.id)
             } else {
               setFailed(true)
-              setStatus((result && result.error) || t("msg.createFailed"))
+              setStatus(apiText(result, "msg.createFailed"))
             }
           } catch (error) {
             setFailed(true)
@@ -923,11 +999,11 @@ try {
             const result = await postJson(ROUTES.reorder, { id: draft.id, direction })
             if (result !== null && result !== undefined && result.ok === true) {
               setFailed(false)
-              setStatus(result.note || t("msg.reordered"))
+              setStatus(apiText(result, "msg.reordered"))
               await reload(draft.id)
             } else {
               setFailed(true)
-              setStatus((result && result.error) || t("msg.reorderFailed"))
+              setStatus(apiText(result, "msg.reorderFailed"))
             }
           } catch (error) {
             setFailed(true)
@@ -1032,7 +1108,7 @@ try {
               setDeleteOpen(false)
               setAcknowledged(false)
               setFailed(false)
-              setStatus(result.note || t("msg.deleted"))
+              setStatus(apiText(result, "msg.deleted"))
               setEntries((previous) => {
                 const next = { ...previous }
                 delete next[id]
@@ -1041,7 +1117,7 @@ try {
               await reload("")
             } else {
               setFailed(true)
-              setStatus((result && result.error) || t("msg.deleteFailed"))
+              setStatus(apiText(result, "msg.deleteFailed"))
             }
           } catch (error) {
             setFailed(true)
@@ -1087,7 +1163,7 @@ try {
             })
             if (result !== null && result !== undefined && result.ok === true) {
               setFailed(false)
-              setStatus(result.note || t("msg.saved"))
+              setStatus(apiText(result, "msg.saved"))
               // The server normalises what it stores (trimmed name, recomputed overrides),
               // so the just-saved draft is replaced by what it actually wrote. Without this
               // the page would show 「已保存」 and 「未保存」 at the same time.
@@ -1104,7 +1180,7 @@ try {
               }
             } else {
               setFailed(true)
-              setStatus((result && result.error) || t("msg.saveFailed"))
+              setStatus(apiText(result, "msg.saveFailed"))
             }
           } catch (error) {
             setFailed(true)
