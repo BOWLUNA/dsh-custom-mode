@@ -152,7 +152,7 @@ console.log('=== 5. 分组的缩进必须精确：改分组不能动到子行 ==
   check('子行原有的 disabled: true 未被破坏', offGroup.includes('      disabled: true'))
 
   const offChild = renderComposition('standard', new Map([['child-a', true]]))
-  check('显式打开子行 → 该子行的 disabled 被删掉', !/^ {6}disabled: true$/m.test(offChild))
+  check('显式打开子行 → 写死 disabled: false（不是删掉那一行）', /^ {6}disabled: false$/m.test(offChild))
   const parentChunk = offChild.split(/^- id: /m).find((chunk) => chunk.startsWith('delegation'))
   check('子行的开关不会写到分组上', parentChunk !== undefined && !/^ {2}disabled:/m.test(parentChunk))
 }
@@ -220,11 +220,14 @@ console.log('=== 8. 往返：反推的开关再渲染，行集合一致 ===')
     expected ? derived['tool-bash'] === true : derived['tool-bash'] === undefined,
     JSON.stringify(derived),
   )
-  check('但渲染结果确实按"显式打开"处理了（该行无 disabled）', !/disabled/.test(first.split(/^- id: /m).find((c) => c.startsWith('tool-bash')) ?? 'disabled'))
+  check(
+    '显式打开（本机本就为开）→ 磁盘形态回到出厂表达式，与"未触碰"一致',
+    /disabled: !!js process\.platform/.test(first.split(/^- id: /m).find((c) => c.startsWith('tool-bash')) ?? ''),
+  )
   const second = renderComposition(modeOf(first), derived)
   check('再渲染行集合一致', collectRows(second).length === collectRows(first).length)
   const bashChunk = second.split(/^- id: /m).find((chunk) => chunk.startsWith('tool-bash'))
-  check('显式打开过的行再渲染仍无 disabled', bashChunk !== undefined && !/^\s*disabled:/.test(bashChunk))
+  check('再渲染仍保持出厂表达式', bashChunk !== undefined && /disabled: !!js process\.platform/.test(bashChunk))
 }
 
 rmSync(dir, { recursive: true, force: true })

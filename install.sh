@@ -183,7 +183,9 @@ if (!hasWebServer || !hasAgentPresets) {
     console.log('          · 组合里没有 agent-presets：**「自定义模式」无法被选中**，')
     console.log('            preset 文件被复制过去了，但没有任何东西会挂载它')
   }
-  console.log('          · custom_prompt 工具可用（会话里直接说「把系统提示词改成……」）')
+  // 不要再承诺 custom_prompt：没有 agent-presets 就没有任何东西挂载这个 preset，
+  // 那一行（连同它的工具）永远不会出现 —— 指一条不存在的通道比不指更糟。
+  console.log('          · 会话里也拿不到：custom_prompt 工具来自这个 preset 的行，同样不会被挂载')
   if (!hasWebServer) console.log('          · 没有设置页：组合里没有 web 服务器')
   console.log('          要用完整功能（模式可选 + 图形化设置页），请装进 web profile：')
   console.log('            ./install.sh --profile web')
@@ -211,10 +213,9 @@ $NEXT_STEPS
 且组成文件用 prompt-reader.mjs 注入身份）。以前只有一个 custom 时用的是同一个根目录，
 所以升级不需要迁移：它会作为第一个助手出现在列表里。
 
-如果 preset 目录名不是 custom（--preset-id），编辑器默认找不到提示词文件，
-需要用环境变量指定：
-
-  export DSH_CUSTOM_PROMPT_PATH="$PROMPT_PATH"
+关于 --preset-id：编辑器现在按 roster 认目录（判据是目录里有 prompt.md、且组成文件引用
+prompt-reader.mjs），所以换了目录名照样会被列出与编辑，不需要再设任何环境变量。
+（DSH_CUSTOM_PROMPT_PATH 现在只用于测试时重定向"首次播种"的根。）
 
 故障排查见 docs/TROUBLESHOOTING.md。
 

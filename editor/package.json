@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Custom modes and custom prompts for DeepSeek Harness (dsh): edit a mode's system prompt on the settings page (it takes effect on the next model step), choose its base mode, switch plugins row by row, and keep several assistants side by side.",
   "license": "MIT",
   "type": "module",
@@ -59,7 +59,7 @@
     "test": "node ../test/run.mjs"
   },
   "peerDependencies": {
-    "@deepseek-ai/dsh": ">=0.1.6-alpha.1"
+    "@deepseek-ai/dsh": ">=0.1.6-alpha.1 <0.2.0-0"
   },
   "publishConfig": {
     "access": "public",
@@ -71,6 +71,6 @@
     }
   },
   "engines": {
-    "dsh": ">=0.1.6-alpha.1"
+    "dsh": ">=0.1.6-alpha.1 <0.2.0-0"
   }
 }

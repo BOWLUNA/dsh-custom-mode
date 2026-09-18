@@ -8,6 +8,48 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.0.2]
+
+### Fixed, after an external critical review (every item reproduced)
+
+- **Explicitly switching a row back on no longer deletes its shipped platform condition.** Saving
+  `off` then `on` used to splice the `disabled:` line out, leaving a file that was neither the shipped
+  text nor an explicit override — while the page reported the row as untouched. It now **restores the
+  shipped form** when that form already means "on" here (so a Linux click stops changing what Windows
+  sees), and writes a literal `disabled: false` only when the shipped form really is off here.
+- **A literal `disabled: false` was read as "disabled".** `describeRow` treated *any* literal as off, so
+  the fix above would have been misread by our own reader; the value is now checked, not just its presence.
+- **"Untouched" is now judged by text form, not by evaluated value**: a `!!js` expression whose result
+  happens to equal a literal is still an override, so the page's "changed" marker matches the disk.
+- **The Chinese settings page showed an English paragraph** in the system-prompt block (and it differed
+  from the English one). Translated, and `locales.test.mjs` gained a guard that fails when a Chinese value
+  is a full English sentence — key parity alone could never catch this.
+- **Base mode semantics are now disclosed** in the UI and the READMEs: the base decides which *rows* exist;
+  this plugin always replaces the base's `persona` row with its own reader (`complete: false`), so the
+  base's prompt semantics are not inherited. Minimal is the visible case — minimal's tool set, not its prompt.
+- **`node test/run.mjs` works on a machine whose only dsh is a global install** (and which has never been
+  started): the resolution chain gained the node prefix, hoisted or nested. It previously exited 2 with a
+  hint that did not apply.
+- **Writes are atomic** (temporary file + `rename` in the same directory), so the prompt reader's
+  mtime/size cache can no longer observe a half-written file.
+- **`engines.dsh` and the peer range now have an upper bound** (`>=0.1.6-alpha.1 <0.2.0-0`) instead of
+  claiming compatibility with every future dsh.
+- `install.sh`: the `tui` summary no longer promises a `custom_prompt` tool that can never mount (without
+  `agent-presets` nothing mounts that preset at all), and the stale `--preset-id` / `DSH_CUSTOM_PROMPT_PATH`
+  advice is gone.
+- Documentation drift that the review found: the README/CONTRIBUTING test counts (they said 8 suites/333
+  checks; it is 11/520), `SECURITY.md` still marked the route fix "unreleased" (it shipped in `1.0.1`), and
+  `PUBLISHING.md` still described the retired `.revN` practice in the present tense.
+
+### Still open (tracked, not fixed here)
+
+- The route is still registered on the raw `ctx.webServer` table and runs
+  `ctx.connection.requestRejection` itself. The platform ships a fenced alternative —
+  `ctx.connection.fetch.register({ path, methods, requestBody, fetch })`, which registers **below `/api`**
+  where the carrier applies trust and authentication before dispatch — and four official packages use it.
+  Migrating makes the fence structural instead of a discipline; it is a deliberate, separately verified
+  change (host + client + tests + docs), not a drive-by edit.
+
 ## [1.0.1]
 
 ### Discoverability: how people find this plugin

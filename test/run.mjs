@@ -69,6 +69,19 @@ function resolvePresetsDir() {
   const routes = [
     ['Node 解析', () => join(dirname(createRequire(import.meta.url).resolve(`${PACKAGE}/package.json`)), 'presets')],
     ['$DSH_HOME/profiles/node_modules', () => join(dirname(createRequire(join(dshHome, 'profiles', 'package.json')).resolve(`${PACKAGE}/package.json`)), 'presets')],
+    // 全局安装（`npm i -g`）把包放在 node 自己的前缀下。这一条是给"机器上只有全局装的 dsh、
+    // 且 dsh 还没启动过（$DSH_HOME/profiles 还是空的）"用的 —— 审阅方实测踩到过 exit 2。
+    // 两种形态都要看：dsh 的依赖可能被提升到前缀顶层，也可能嵌套在 dsh 自己下面。
+    [
+      'node 前缀下的全局安装',
+      () => {
+        const prefix = join(dirname(process.execPath), '..', 'lib', 'node_modules')
+        const hoisted = join(prefix, PACKAGE, 'presets')
+        if (existsSync(hoisted)) return hoisted
+        const anchor = createRequire(join(prefix, 'noop.js')).resolve('@deepseek-ai/dsh/package.json')
+        return join(dirname(anchor), 'node_modules', PACKAGE, 'presets')
+      },
+    ],
     // A locally installed dsh keeps its own dependency copy nested; npm hoists it
     // to the top level instead. Both shapes are worth a look.
     [

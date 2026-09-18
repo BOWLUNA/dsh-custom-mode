@@ -27,7 +27,7 @@ longer encodes it. Development and verification cover the rows below, newest fir
 
 ## Known Problems and Fixes
 
-### The settings-page private route has no authentication (fixed, unreleased)
+### The settings-page private route had no authentication (fixed; shipped in `1.0.1`)
 
 **Impact**: The `/custom-mode` route is registered on `ctx.webServer`'s bare HTTP table, while the
 platform's Host/Origin fence and browser session authentication apply only to the channels mounted

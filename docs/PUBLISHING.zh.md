@@ -175,8 +175,8 @@ DSH_HOME=$H dsh --profile web --dump-config | grep -A1 'id: custom-mode'
 ### 包版本的修订后缀（`0.1.6-alpha.1.rev1`）
 
 包版本通常是它所适配的 DSH 版本。npm 不允许同版本重发，所以**包本身**变了（`files` 里多了文件、
-元数据修正）时，用 `<DSH 版本>.revN` 发出去。`tools/verify-version-consistency.mjs` 接受这个后缀、
-拒绝别的写法，因此后缀不会变成偏离"CI 真正测过的版本"的缺口。
+元数据修正）时，用 `<DSH 版本>.revN` 发出去 —— 这套做法**已于 2026-09-18 取消**（包改走自己的稳定线，
+见上一节），校验器也不再接受该后缀。
 
 ### peer 范围与预发布版本
 

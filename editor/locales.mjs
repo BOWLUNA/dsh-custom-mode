@@ -67,14 +67,14 @@ export const zh = {
   'name.descriptionPlaceholder': '模式描述（显示在模式选择器里，可留空）',
 
   'mode.heading': '基础模式',
-  'mode.hint': '选一个官方模式作为底子，下面再按行微调。改完保存后，新建会话即生效，不需要重启。',
+  'mode.hint': '选一个官方模式作为底子，下面再按行微调。注意：底子只决定**行集合**与工具能力 —— 本模式的 persona 行始终替换掉底子那一行（提示词由你编辑，complete: false），底子的提示词语义不会被继承。改完保存后，新建会话即生效，不需要重启。',
 
   'rows.heading': '插件开关',
   'rows.hint': '逐行控制这个模式挂载哪些插件，和官方插件列表一样按行铺开。没拨过的行保持官方默认（含平台判断）；你手动拨了就以你的为准。',
 
   'prompt.heading': '系统提示词',
   'prompt.hint':
-    'This text is re-read before every model call, so a save applies on the next step and only affects sessions on this assistant. "Import" reads a file into the editor (nothing is written until you save); "Export" saves the current text as a .md file.',
+    '这段文本在每个模型调用前重新读取，所以保存后下一步即生效，且只影响使用这个助手的会话。「导入」把文件读进编辑器（未保存前不写入任何东西）；「导出」把当前文本存成 .md 文件。',
 
   'status.enabled': '已启用',
   'status.disabled': '已停用',
@@ -156,7 +156,7 @@ export const zh = {
   'base.ptc.label': 'PTC 模式',
   'base.ptc.note': '在标准模式基础上启用 PTC 工具呈现（tool-presentation）',
   'base.minimal.label': '极简模式',
-  'base.minimal.note': '只有 Shell 与终端，共 7 行；没有文件、检索、技能、子代理',
+  'base.minimal.note': '只有 Shell 与终端，共 7 行；没有文件、检索、技能、子代理。系统提示词不是极简那一套（persona 行被本模式替换）',
   'base.cordis.label': 'Cordis 模式',
   'base.cordis.note': '标准模式 + 读写运行时的 Cordis 工具集，可让 agent 自己改 harness',
 }
@@ -216,7 +216,7 @@ export const en = {
 
   'mode.heading': 'Base mode',
   'mode.hint':
-    'Choose an official mode as the base, then fine-tune individual rows below. After saving, a new session picks it up — no restart needed.',
+    'Pick an official mode as the base, then adjust it row by row. Note: the base only decides which rows exist — this mode always replaces the base\'s persona row with its own reader (complete: false), so the base\'s prompt semantics are not inherited. A save applies to the next new session; no restart needed.',
 
   'rows.heading': 'Plugin switches',
   'rows.hint':
@@ -224,7 +224,7 @@ export const en = {
 
   'prompt.heading': 'System prompt',
   'prompt.hint':
-    'This text is re-read before every model call, so a save applies on the next step. It affects only sessions using this mode.',
+    'This text is re-read before every model call, so a save applies on the next step and only affects sessions on this assistant. "Import" reads a file into the editor (nothing is written until you save); "Export" saves the current text as a .md file.',
 
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',
@@ -306,7 +306,7 @@ export const en = {
   'base.ptc.label': 'PTC',
   'base.ptc.note': 'Standard plus PTC tool presentation (tool-presentation)',
   'base.minimal.label': 'Minimal',
-  'base.minimal.note': 'Shell and terminal only, 7 rows; no files, search, skills or subagents',
+  'base.minimal.note': 'Shell and terminal only, 7 rows; no files, search, skills or subagents. The system prompt is not minimal\'s either (this mode replaces the persona row)',
   'base.cordis.label': 'Cordis',
   'base.cordis.note': 'Standard plus the Cordis toolset, letting the agent modify its own harness',
 }

@@ -1,5 +1,5 @@
 # 双语配对一致性记录：两侧在「上次确认一致」时的 git blob 哈希。
 # 两份文档权威相同——改完任意一侧，请把另一侧也改掉，然后重新记录：
 #   node tools/verify-translation-pairing.mjs --write
-README.md: 1c85da1032f53636ef9cd6f3241ab67c852c1d76
-README.zh.md: 1b8e9bf448cf6553f94dd7d3142bf53882cd2498
+README.md: fd632c21a1d68bba3e47f17df0d7722e13317f5c
+README.zh.md: fc2d4d6d6178d998537c173ada238374fcfb7432

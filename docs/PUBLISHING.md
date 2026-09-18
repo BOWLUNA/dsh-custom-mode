@@ -184,8 +184,8 @@ DSH_HOME=$H dsh --profile web --dump-config | grep -A1 'id: custom-mode'
 
 The package version is normally the DSH version it was adapted to. npm refuses to republish a version,
 so a change to the *package itself* — new files in `files`, a metadata fix — goes out as
-`<dsh version>.revN`. `tools/verify-version-consistency.mjs` accepts that suffix and rejects anything
-else, so the suffix cannot become a way to drift away from the version CI actually tested.
+`<dsh version>.revN` — a practice **retired on 2026-09-18**, when the package moved to its own stable
+line (see the section above); the checker no longer accepts that suffix.
 
 ### Peer ranges and prereleases
 
@@ -315,7 +315,7 @@ If Wikis / Discussions are of no use, do not enable them — empty entry points 
 01–04 predate the assistant manager and no longer represent the project).
 The default gray-background card looks bad when sharing a link.
 
-**Release**: the tag name matches the plugin version (`v1.0.0`; see README "Versioning").
+**Release**: the tag name matches the plugin version (`v1.0.1`; see README "Versioning").
 
 ```sh
 git checkout main

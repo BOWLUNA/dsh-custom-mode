@@ -72,6 +72,21 @@ for (const key of required) {
 }
 
 console.log()
+console.log('=== 5.5 中文词典里不该出现"整句英文" ===')
+{
+  // 键奇偶性挡不住这类 bug：一个中文键的值整段是英文（真发生过 —— 中文界面里"系统提示词"
+  // 那块的说明是英文，而且与英文侧的内容还不一样，520 个断言全绿也照样漏）。
+  // 判据故意保守：值里既没有中日韩字符、又出现了连续的英文句子，才判可疑。
+  const cjk = /[\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/
+  const sentence = /[A-Za-z][A-Za-z'’-]*\s+[A-Za-z][A-Za-z'’-]*\s+[A-Za-z][A-Za-z'’-]*\s+[A-Za-z]/
+  const suspicious = Object.entries(zh).filter(([, value]) => typeof value === 'string' && sentence.test(value) && !cjk.test(value))
+  check(
+    '中文词典里没有整句英文',
+    suspicious.length === 0,
+    suspicious.map(([key]) => key).join(', '),
+  )
+}
+
 console.log('=== 6. client.js 里的手抄字典与 locales.mjs 不漂移 ===')
 /**
  * Why this section exists: `editor/locales.mjs` is documented as the single

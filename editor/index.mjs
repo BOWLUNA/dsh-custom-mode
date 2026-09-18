@@ -39,7 +39,7 @@
  * rows the user changed by diffing against the same shipped base mode.
  */
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
 import {
@@ -282,8 +282,8 @@ export function saveState(rows, input) {
   }
 
   try {
-    writeFileSync(compositionFile(directory), composition, 'utf8')
-    writeFileSync(promptFile(directory), prompt, 'utf8')
+    writeAtomic(compositionFile(directory), composition)
+    writeAtomic(promptFile(directory), prompt)
   } catch (error) {
     return { ok: false, error: '写入失败：' + describe(error) }
   }
@@ -380,7 +380,7 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
   // The template ships a starter prompt; a duplicate replaces it with the source's.
   if (source !== null) {
     try {
-      writeFileSync(promptFile(created.dir), source.prompt, 'utf8')
+      writeAtomic(promptFile(created.dir), source.prompt)
     } catch (error) {
       return { ok: false, error: '写入提示词失败：' + describe(error) }
     }
@@ -667,6 +667,19 @@ export function apply(ctx) {
       'custom-mode.route',
     )
   })
+}
+
+/**
+ * 写文件：先写同目录的临时文件，再 rename 覆盖。
+ *
+ * `rename(2)` 在同一文件系统内是原子的，所以读者（提示词读取器按 mtime+size 缓存）要么看到旧内容、
+ * 要么看到新内容，不会读到写了一半的文件。原来连续两次 writeFileSync 在极端时序下可能被读成撕裂的
+ * prompt，而这个文件正是"用户的提示词"。
+ */
+function writeAtomic(file, text) {
+  const temporary = `${file}.tmp-${String(process.pid)}`
+  writeFileSync(temporary, text, 'utf8')
+  renameSync(temporary, file)
 }
 
 /** `error` as a readable string, without assuming it is an Error. */

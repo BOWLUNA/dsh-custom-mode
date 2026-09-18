@@ -83,6 +83,10 @@ plugin switches, system prompt) edit **whichever one is selected**.
   the two are independent afterwards.
 - **Each assistant is independent** — its prompt, base mode and row switches are its own; changing one
   leaves the others alone.
+- **Base mode is the row set, not the prompt** — it decides which rows exist and which tools the mode has;
+  this plugin always replaces the base's `persona` row with its own reader (`complete: false`), so the
+  base's *prompt* semantics are **not** inherited. Minimal is the visible case: you get minimal's tool set,
+  not minimal's prompt.
 - **Switching assistants never discards drafts** — each keeps its own unsaved edits, marked
   "Unsaved" in the list; the only path that throws edits away is the reload button, which renames
   itself to say so.
@@ -203,7 +207,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 8 suites, 333 checks; resolves the shipped presets itself
+node test/run.mjs        # 11 suites, 520 checks; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the

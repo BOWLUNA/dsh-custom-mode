@@ -297,10 +297,16 @@ function setDisabled(segmentText, disabled) {
   const own = disabledLineAt(indent)
   const index = lines.findIndex((line) => own.test(line))
   if (index !== -1) {
+    const shipped = lines[index].trim().replace(/^disabled:\s*/, '')
     if (disabled) {
       lines[index] = `${' '.repeat(indent)}disabled: true`
+    } else if (shipped.startsWith('!!js') && evalDisabledExpression(shipped) !== true) {
+      // 显式打开，但出厂那行是平台表达式、且它在本机求值就是"开"：这不是覆盖，而是**撤销覆盖** ——
+      // 保持出厂表达式原样，这一行就回到"跟随平台"。（原先这里删掉整行，结果是文件既不是出厂原样、
+      // 也不是显式覆盖，页面却显示"未拨过" —— 文件与显示同时失真。）
+      return segmentText
     } else {
-      lines.splice(index, 1)
+      lines[index] = `${' '.repeat(indent)}disabled: false`
     }
     return lines.join('\n')
   }
@@ -344,7 +350,8 @@ function describeRow(id, segmentText, children) {
   const meta = ROW_META[id] ?? {}
   // A literal `disabled: true` is off. A `!!js` predicate is resolved for THIS
   // machine, so the page shows the state actually in force rather than "has a key".
-  const literalOff = own.present && !own.value.startsWith('!!js')
+  // 只看"有没有 disabled 键"是不够的：`disabled: false` 也是字面量，但它表示**开着**。
+  const literalOff = own.present && !own.value.startsWith('!!js') && own.value === 'true'
   const fromExpression = own.present ? evalDisabledExpression(own.value) : undefined
   return {
     id,
@@ -564,6 +571,15 @@ function flattenRows(rows, into = new Map()) {
   return into
 }
 
+/** 同 {@link flattenRows}，但保留整行对象：判断"未触碰"要看**文本形态**，不只是求值结果。 */
+function flattenRowObjects(rows, into = new Map()) {
+  for (const row of rows) {
+    into.set(row.id, row)
+    flattenRowObjects(row.children, into)
+  }
+  return into
+}
+
 /**
  * Derive the explicit overrides that turned `base` into `text`.
  *
@@ -578,13 +594,19 @@ function flattenRows(rows, into = new Map()) {
  * @returns {Record<string, boolean>} row id -> enabled.
  */
 export function overridesOf(text, modeId) {
-  const base = flattenRows(collectRows(readBaseComposition(modeId)))
-  for (const extra of EXTRA_ROWS) base.set(extra.id, false)
-  const current = flattenRows(collectRows(text))
+  const base = flattenRowObjects(collectRows(readBaseComposition(modeId)))
+  for (const extra of EXTRA_ROWS) base.set(extra.id, { id: extra.id, disabled: false, disabledExpression: null })
+  const current = flattenRowObjects(collectRows(text))
   const overrides = {}
-  for (const [id, disabled] of current) {
-    if (base.get(id) === disabled) continue
-    overrides[id] = disabled !== true
+  for (const [id, row] of current) {
+    const baseRow = base.get(id)
+    // "未触碰"的判据是**文本形态相同**：出厂行可能是 `!!js` 平台表达式，而它在本机的求值结果恰好与
+    // 某个字面量一致 —— 只看求值结果，会把"表达式被换成字面量"误判成"没动过"。
+    const sameForm = baseRow !== undefined
+      && baseRow.disabled === row.disabled
+      && baseRow.disabledExpression === row.disabledExpression
+    if (sameForm) continue
+    overrides[id] = row.disabled !== true
   }
   return overrides
 }

@@ -127,7 +127,10 @@ console.log('=== 4. 平台表达式行：未触碰保留，显式打开才移除
   // Only tool-bash's own row may lose its condition; the pwsh row must keep its.
   const bashRow = forcedOn.split(/^- id: /m).find((chunk) => chunk.startsWith('tool-bash'))
   const pwshRow = forcedOn.split(/^- id: /m).find((chunk) => chunk.startsWith('tool-pwsh'))
-  check('显式打开后该行不再有 disabled', bashRow !== undefined && !/^\s*disabled:/m.test(bashRow))
+  // 这一行的出厂形态是平台表达式，而它在本机求值就是"开"：显式打开等于**撤销覆盖**，
+  // 于是恢复出厂表达式（而不是删掉它 —— 删掉会让文件既不是出厂原样、也不是显式覆盖）。
+  check('显式打开（本机本就为开）→ 恢复出厂平台表达式', bashRow !== undefined && /disabled: !!js process\.platform/.test(bashRow))
+  check('恢复后不再有写死的布尔', bashRow !== undefined && !/^\s*disabled: (true|false)\s*$/m.test(bashRow))
   check('另一平台行不受影响', pwshRow !== undefined && /!!js process\.platform/.test(pwshRow))
 }
 
@@ -159,7 +162,8 @@ console.log('=== 6. 分组：关掉分组本身，与关掉组内子行 ===')
   check('分组本身未被关闭', offChild.get('delegation') === undefined)
 
   const onChild = disabledMap(renderComposition('standard', new Map([['tool-subagent-codex', true]])))
-  check('可显式打开出厂关闭的子行', onChild.get('tool-subagent-codex') === undefined)
+  // 出厂是字面量 `true`（对所有平台都关）：显式打开就要写死 `false`，否则撤回不了覆盖。
+  check('可显式打开出厂关闭的子行（写死 false）', onChild.get('tool-subagent-codex') === 'false')
 }
 
 console.log()
