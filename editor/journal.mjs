@@ -23,8 +23,29 @@
  * 但这里记录的是**已发生的事实**而不是待确认的提议 —— 我们的场景是"改了什么要看得见、回得去"，
  * 不需要它的确认闸门。
  */
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+
+/**
+ * `rename` 带重试（与宿主半同一实现，见 editor/index.mjs 的说明）。
+ *
+ * 这两个文件刻意各留一份：preset 侧的模块是独立分发的，不能 import 宿主半 —— 与 `checkPromptText`
+ * 同样的取舍。journal 只在宿主半写，所以这里只需与宿主半保持一致的重试策略。
+ */
+function renameWithRetry(from, to, attempts = 5) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      renameSync(from, to)
+      return
+    } catch (error) {
+      const code = error !== null && typeof error === 'object' ? error.code : undefined
+      const retryable = code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
+      if (retryable !== true || attempt >= attempts) throw error
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20 * attempt)
+    }
+  }
+}
 
 /** 每个助手目录下的日志文件名。 */
 export const HISTORY_NAME = 'prompt-history.jsonl'
@@ -89,16 +110,29 @@ export function recordPrompt(directory, text, by = HISTORY_SOURCE.settings) {
 
   const at = new Date().toISOString()
   const n = entries.length === 0 ? 1 : entries[entries.length - 1].n + 1
+  // `bytes` 是给人看的体积，所以按 **UTF-8 字节**计（原先用 text.length = UTF-16 码元，
+  // CJK 内容下显示值只有真实字节的约 1/3，而界面标注是 "B"）。
   const lines = entries.slice(-(HISTORY_MAX - 1)).map((entry) =>
-    JSON.stringify({ n: entry.n, at: entry.at, by: entry.by, bytes: entry.text.length, text: entry.text }),
+    JSON.stringify({ n: entry.n, at: entry.at, by: entry.by, bytes: Buffer.byteLength(entry.text, 'utf8'), text: entry.text }),
   )
-  lines.push(JSON.stringify({ n, at, by, bytes: text.length, text }))
+  lines.push(JSON.stringify({ n, at, by, bytes: Buffer.byteLength(text, 'utf8'), text }))
 
   // 唯一的整文件重写：顺手把上限外的旧条目丢掉，用原子写落盘（读取器不会看到写了一半的文件）。
   const file = historyFile(directory)
-  const temporary = `${file}.tmp-${String(process.pid)}`
+  // 与宿主半同一条纪律：随机临时名（消除 tmp-vs-tmp 碰撞）+ 重试（Windows 上目标被并发 rename
+  // 持有时会短暂 EPERM）+ 失败清理。
+  const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
   writeFileSync(temporary, lines.join('\n') + '\n', 'utf8')
-  renameSync(temporary, file)
+  try {
+    renameWithRetry(temporary, file)
+  } catch (error) {
+    try {
+      rmSync(temporary, { force: true })
+    } catch {
+      /* 不掩盖原始错误 */
+    }
+    throw error
+  }
   return { recorded: true, at, n }
 }
 
@@ -119,7 +153,7 @@ export function listHistory(directory, limit = HISTORY_MAX) {
       n: entry.n,
       at: entry.at,
       by: entry.by,
-      bytes: entry.text.length,
+      bytes: Buffer.byteLength(entry.text, 'utf8'),
       preview: firstLine.trim().slice(0, 80),
     })
   }

@@ -8,6 +8,35 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.4.0]
+
+### Supports both dsh lines: the latest stable and the latest preview
+
+Until now `engines.dsh` started at `0.1.6-alpha.1`, which **excluded the stable release** (`0.1.5-rc.2`) — so
+stable users were told the plugin was unsupported. It was never true: measured on `0.1.5-rc.2`, everything
+works. The declared range is now `>=0.1.5-rc.2 <0.2.0-0`, and CI installs **both** lines (stable on Ubuntu,
+preview on Ubuntu ×2 + Windows) and asserts each one falls inside the range it was tested against.
+
+Measured on `0.1.5-rc.2`: bundle registration, a healthy 542-line composition tree, the `/api` fence
+(unauthenticated 401 / with session 200), `state`/`history`/`warnings`/`factoryPrompt` all present, and the
+full browser verification **38/38**. The two host APIs we lean on — `tools/pre-execute` (approval seam) and
+`connection.fetch.register` (fenced route channel) — both exist on the stable line.
+
+### Fixed: Windows concurrent saves, for real this time
+
+An external review showed the previous fix was half a fix: randomising the temporary name removed the
+tmp-vs-tmp collision but not the **destination** collision — on Windows two concurrent renames onto the same
+target still fail with `EPERM`/`EBUSY` (measured: 2 of 10 concurrent saves returned 400), and the failure path
+left orphan `.tmp-…` files inside the assistant directory (which the roster scans).
+
+- `rename` now retries with a short backoff on `EPERM`/`EBUSY`/`EACCES` and rethrows anything else
+  immediately; the retry is injectable, so it is pinned by a test that runs on Linux too.
+- The failure path removes the temporary file.
+- `editor/journal.mjs` had the same two problems (temporary name without randomness, no retry, no cleanup) —
+  fixed the same way.
+- The history's `bytes` figure is now real **UTF-8** size: it was `text.length` (UTF-16 code units) while the
+  UI labels it "B", so CJK entries showed about a third of the true size.
+
 ## [1.3.0]
 
 ### The agent's own prompt rewrite now goes through the platform's approval seam

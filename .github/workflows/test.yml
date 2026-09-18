@@ -26,12 +26,20 @@ jobs:
         os: [ubuntu-latest]
         # 20 是保守下限（只用标准库），24 是当前开发版本。
         node-version: ['20', '24']
+        # 只测开发主线（预览线）；稳定线单独列在 include 里。
+        dsh: ['0.1.6-alpha.2']
         include:
           # Windows 是最容易出差异的平台，而它长期没进过 CI：一次外部 Windows 实测因此
           # 发现了三处只在 Windows 显现的缺陷（install.sh 的 MSYS 路径、并发 rename 的
           # EPERM、平台表达式行的求值方向导致 4 条断言假失败）。只在 node 24 上跑，控时长。
           - os: windows-latest
             node-version: '24'
+            dsh: '0.1.6-alpha.2'
+          # 稳定线：项目要求**同时适配最新稳定版与最新预览版**。
+          # 实测（0.1.5-rc.2）：安装、组合树、围栏、state/history/warnings 与浏览器 38 项全过。
+          - os: ubuntu-latest
+            node-version: '24'
+            dsh: '0.1.5-rc.2'
     steps:
       - uses: actions/checkout@v7
 
@@ -42,7 +50,7 @@ jobs:
       # 只为了拿它自带的 @deepseek-ai/dsh-agent-presets/presets。
       # --no-save：仓库不因为 CI 多出一个 lockfile / package.json。
       - name: 安装 DSH（只为取出厂 preset）
-        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@${{ matrix.dsh }}
 
       - name: 语法检查
         shell: bash
@@ -66,8 +74,9 @@ jobs:
 
       # 包版本必须等于 CI 钉住并测试的 dsh 版本（允许 .revN 修订后缀）。
       # 只改一处会让 CI 在旧运行时上通过，而发布的包声称适配了没测过的版本。
+      # 每个矩阵项都断言：**它自己装的那条 dsh 线**落在声明的兼容范围内。
       - name: 版本一致性
-        run: node tools/verify-version-consistency.mjs
+        run: node tools/verify-version-consistency.mjs --dsh ${{ matrix.dsh }}
 
       # README.md / README.zh.md（以及 CONTRIBUTING 那一对）权威相同：
       # 改了一侧忘了另一侧，这里直接失败，而不是等有人切语言才发现。

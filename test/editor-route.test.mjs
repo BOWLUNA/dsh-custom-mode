@@ -243,6 +243,35 @@ const post = (path, payload) =>
   makeReq('POST', { url: path, headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })
 
 console.log()
+console.log('=== 0.5 rename 重试：Windows 并发保存的 EPERM 窗口（可注入，因此在 Linux 上也能验）===')
+{
+  // Windows 上两个 rename 指向同一目标会短暂 EPERM/EBUSY；随机临时名解决不了 dest-vs-dest。
+  const attempts = []
+  let calls = 0
+  const flaky = (from, to) => {
+    calls += 1
+    attempts.push(calls)
+    if (calls < 3) { const error = new Error('EPERM: operation not permitted'); error.code = 'EPERM'; throw error }
+  }
+  let slept = 0
+  editor.renameWithRetry('a.tmp', 'a', { rename: flaky, sleep: (ms) => { slept += ms } })
+  check('EPERM 会被重试到成功', calls === 3, String(calls))
+  check('重试之间有退避', slept > 0, String(slept))
+
+  let hardCalls = 0
+  const hardFail = () => { hardCalls += 1; const error = new Error('ENOENT'); error.code = 'ENOENT'; throw error }
+  let thrown = null
+  try { editor.renameWithRetry('a.tmp', 'a', { rename: hardFail, sleep: () => {} }) } catch (error) { thrown = error }
+  check('非临时性错误立刻抛出，不重试', hardCalls === 1 && thrown !== null, `${String(hardCalls)} ${String(thrown?.code)}`)
+
+  let exhausted = 0
+  const alwaysBusy = () => { exhausted += 1; const error = new Error('EBUSY'); error.code = 'EBUSY'; throw error }
+  thrown = null
+  try { editor.renameWithRetry('a.tmp', 'a', { rename: alwaysBusy, sleep: () => {}, attempts: 4 }) } catch (error) { thrown = error }
+  check('一直 EBUSY 时按上限放弃并抛出', exhausted === 4 && thrown?.code === 'EBUSY', `${String(exhausted)}`)
+}
+
+console.log()
 console.log('=== 1. 结构：注册在平台带围栏的频道上，且源码里没有手搓围栏 ===')
 {
   mounted = mount()

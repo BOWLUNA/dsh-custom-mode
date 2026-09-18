@@ -186,6 +186,12 @@ What this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh
 `editor/package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
 version CI installs and tests falls inside those ranges.
 
+**Both dsh lines are supported: the latest stable (`0.1.5-rc.2`) and the latest preview (`0.1.6-alpha.2`)** —
+declared as `>=0.1.5-rc.2 <0.2.0-0`, and CI installs *both* lines and runs the whole suite against each.
+Measured on `0.1.5-rc.2`: install, composition tree, the `/api` fence, `state`/`history`/`warnings` and the
+38 browser checks all pass; `tools/pre-execute` (the approval seam) and `connection.fetch.register` (the
+fenced route channel) both exist there too.
+
 Two reasons for the split. A bare `x.y.z` is what directories and markets require before they will
 auto-install a package — several resolve npm `latest` and reject anything carrying a prerelease tag.
 And a version string was never a checkable claim anyway: the declared range is, and it is the thing

@@ -38,7 +38,7 @@
  */
 
 import { randomBytes } from 'node:crypto'
-import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
 import {
@@ -716,12 +716,56 @@ export function apply(ctx) {
  * prompt，而这个文件正是"用户的提示词"。
  */
 function writeAtomic(file, text) {
-  // 临时名必须**每个请求唯一**：只带 pid 时，同一进程内两个并发保存会争同一个临时名，
-  // Windows 上两个 rename 指向同一目标会以 EPERM 失败（实测：10 并发保存 2 例 400），
-  // 而 POSIX 上 rename 原子覆盖、静默地后写胜出 —— 也就是说这个缺陷只在 Windows 显现。
+  // 临时名必须**每个请求唯一**：只带 pid 时，同一进程内两个并发保存会争同一个临时名。
+  // 但随机后缀只消除 tmp-vs-tmp 竞争 —— Windows 上**两个 rename 指向同一目标**仍会以
+  // EPERM/EBUSY 失败（实测：10 并发保存 2 例 400），所以还要短退避重试。
   const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
   writeFileSync(temporary, text, 'utf8')
-  renameSync(temporary, file)
+  try {
+    renameWithRetry(temporary, file)
+  } catch (error) {
+    // 失败必须清掉临时文件：助手目录会被 agent-presets 扫描，孤儿 tmp 是脏残留（实测留下过
+    // `agent.cordis.yml.tmp-135052-36a5bf5c`）。
+    try {
+      rmSync(temporary, { force: true })
+    } catch {
+      /* 清理失败不再掩盖原始错误 */
+    }
+    throw error
+  }
+}
+
+/** 同步退避：这条写路径本身是同步的，等一小会儿比把整个调用链改成异步更合适。 */
+function sleepSync(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+/**
+ * `rename` 带重试。
+ *
+ * Windows 上并发 rename 到同一目标会短暂报 `EPERM`/`EBUSY`/`EACCES`（目标被另一个 rename 持有），
+ * 退避几毫秒就能跨过这个窗口；其它错误立刻抛出，不做无谓等待。`rename`/`sleep` 可注入，
+ * 于是这条重试逻辑在 Linux 上也能被测试钉住（见 test/journal.test.mjs 的对应条目）。
+ *
+ * @param {string} from - 临时文件名（已写好内容）。
+ * @param {string} to - 目标文件名。
+ * @returns {void}
+ */
+export function renameWithRetry(from, to, options = {}) {
+  const rename = typeof options.rename === 'function' ? options.rename : renameSync
+  const sleep = typeof options.sleep === 'function' ? options.sleep : sleepSync
+  const attempts = Number.isInteger(options.attempts) ? options.attempts : 5
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      rename(from, to)
+      return
+    } catch (error) {
+      const code = error !== null && typeof error === 'object' ? error.code : undefined
+      const retryable = code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
+      if (retryable !== true || attempt >= attempts) throw error
+      sleep(20 * attempt)
+    }
+  }
 }
 
 /** `error` as a readable string, without assuming it is an Error. */

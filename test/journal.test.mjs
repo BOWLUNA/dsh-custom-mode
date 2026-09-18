@@ -13,7 +13,7 @@
  *   - `recordExternalChange` 只在"磁盘文本与日志末条不同"时才记 —— 这是会话内工具改动能被
  *     看见的机制。
  */
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
@@ -82,7 +82,7 @@ console.log('=== 3. listHistory：最新在前，且不带正文 ===')
   const list = listHistory(dir)
   check('最新在前', list[0].preview.includes('第二版'), JSON.stringify(list.map((e) => e.preview)))
   check('列表项不含正文', list.every((entry) => entry.text === undefined))
-  check('带字节数与来源', list[0].bytes === '第二版提示词\n'.length && list[0].by === HISTORY_SOURCE.settings)
+  check('带字节数与来源（bytes 是 UTF-8 字节）', list[0].bytes === Buffer.byteLength('第二版提示词\n', 'utf8') && list[0].by === HISTORY_SOURCE.settings, String(list[0].bytes))
   check('带版本序号', Number.isInteger(list[0].n) && list[0].n > 0, String(list[0].n))
   check('preview 取第一行非空内容', list[0].preview === '第二版提示词')
 }
@@ -133,6 +133,31 @@ console.log('=== 7. 上限：超出后只保留最后 N 条，且最新那条一
   check('最旧的已被丢弃', entries.some((entry) => entry.text === '版本 0\n') === false)
   check('裁剪后仍能按序号取回正文', readVersion(many, entries[0].n) === entries[0].text)
   rmSync(many, { recursive: true, force: true })
+}
+
+console.log()
+console.log('=== 7.5 bytes 是 UTF-8 字节，不是 UTF-16 码元（界面标注 "B"）===')
+{
+  const cjk = mkdtempSync(join(tmpdir(), 'dsh-journal-'))
+  const text = '你好，世界\n'                      // 6 个 CJK 码元 + 换行
+  recordPrompt(cjk, text, HISTORY_SOURCE.settings)
+  const entry = listHistory(cjk)[0]
+  check('CJK 文案按 UTF-8 计字节', entry.bytes === Buffer.byteLength(text, 'utf8'), `${String(entry.bytes)} vs ${String(Buffer.byteLength(text, 'utf8'))}`)
+  check('确实不同于 UTF-16 码元数', entry.bytes !== text.length, `${String(entry.bytes)} vs ${String(text.length)}`)
+  rmSync(cjk, { recursive: true, force: true })
+}
+
+console.log()
+console.log('=== 7.6 写入不留下临时文件，且临时名带随机性 ===')
+{
+  const tmp = mkdtempSync(join(tmpdir(), 'dsh-journal-'))
+  recordPrompt(tmp, '一版\n', HISTORY_SOURCE.settings)
+  const left = readdirSync(tmp).filter((name) => name.includes('.tmp-'))
+  check('目录里没有 .tmp- 残留', left.length === 0, JSON.stringify(left))
+  // 连续两次写入会产生两个不同的临时名（进程内并发才不会互踩）——用源码断言钉住这条意图。
+  const source = readFileSync(new URL('../editor/journal.mjs', import.meta.url), 'utf8')
+  check('临时名含随机后缀', /\.tmp-\$\{String\(process\.pid\)\}-\$\{randomBytes/.test(source), 'no random suffix in journal.mjs')
+  rmSync(tmp, { recursive: true, force: true })
 }
 
 console.log()

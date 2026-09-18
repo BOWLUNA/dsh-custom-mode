@@ -125,6 +125,11 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 ## 版本
 
+**同时支持两条 dsh 线：最新稳定版（`0.1.5-rc.2`）与最新预览版（`0.1.6-alpha.2`）** —— 声明为
+`>=0.1.5-rc.2 <0.2.0-0`，CI 会**两条线各装一次**并各跑一遍完整测试。`0.1.5-rc.2` 实测：安装、组合树、
+`/api` 围栏、`state`/`history`/`warnings` 与浏览器 38 项全过；审批缝依赖的 `tools/pre-execute` 与路由
+依赖的 `connection.fetch.register` 在稳定版里同样存在。
+
 包版本走**自己的线** —— `1.0.0`、`1.0.1` …… 它不镜像 DSH 的版本号。本插件支持哪些 dsh，由
 `editor/package.json` 的 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，并由
 `tools/verify-version-consistency.mjs`（CI 里执行）断言"CI 实际安装并测试的 dsh 版本落在这些范围内"。
