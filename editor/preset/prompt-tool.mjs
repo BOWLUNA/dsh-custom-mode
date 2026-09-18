@@ -25,7 +25,8 @@
  * needs no isolate realm.
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -188,7 +189,10 @@ function makeDefinition(modeName) {
       if (verdict.ok !== true) return verdict.error
       try {
         mkdirSync(dirname(PROMPT_PATH), { recursive: true })
-        writeFileSync(PROMPT_PATH, args.text, 'utf8')
+        // 与设置页同一条纪律：临时文件 + rename。读取器（prompt-reader.mjs）按 mtime+size 缓存，
+        // 非原子写会让它有机会读到写了一半的提示词 —— 设置页早已改用原子写，这里原先还是
+        // 直接 writeFileSync，属于"自我标准不一致"。
+        writeAtomic(PROMPT_PATH, args.text)
         return '已写入 ' + PROMPT_PATH + '（' + String(args.text.length) + ' 字符）。本会话下一步模型调用即使用新提示词。'
       } catch (error) {
         return '写入失败：' + String((error && error.message) || error)
@@ -203,4 +207,16 @@ export const inject = ['tools']
 export function apply(ctx, config = {}) {
   const definition = makeDefinition(resolveModeName(config))
   ctx.effect(() => ctx.tools.register(definition), 'custom-prompt.tool')
+}
+
+/**
+ * 写文件：同目录临时文件 + rename（rename 在同一文件系统内原子）。
+ *
+ * 临时名带 pid 与随机后缀：同一进程内的并发写必须各用各的临时名，否则 Windows 上两个
+ * rename 指向同一目标会以 EPERM 失败。
+ */
+function writeAtomic(file, text) {
+  const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
+  writeFileSync(temporary, text, 'utf8')
+  renameSync(temporary, file)
 }

@@ -50,6 +50,33 @@ check('exports["./client"] 指向的文件存在', exists(root.exports['./client
 check('main 指向的文件存在', exists(root.main), root.main)
 
 console.log()
+console.log('=== 3.5 两个 shell 脚本不得把绝对路径嵌进 node -e/-p 字符串 ===')
+{
+  // 来自一次 Windows 实测：Git Bash 里 `$(pwd)` 是 `/c/Users/…`，把它嵌进
+  // `node -e "require('/c/…')"` 之后不再触发 MSYS 的路径转换，Windows 的 node 直接
+  // MODULE_NOT_FOUND —— install.sh 崩在读包名上，而版本自检那行还因为 `|| echo '?'`
+  // 静默降级成了 "?"，等于在最需要自检的环境里失去了自检。
+  //
+  // 正确写法：把路径**当参数**传给 node（脚本里用 process.argv），或把相对路径交给
+  // tools/ 下的脚本。这条检查不依赖平台，所以在任何 CI 上都拦得住这类回归。
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  for (const script of ['install.sh', 'uninstall.sh']) {
+    const source = readFileSync(join(root, script), 'utf8')
+    const inline = [...source.matchAll(/node\s+-[ep]\s+"([^"]*)"/g)].map((match) => match[1])
+    const offenders = inline.filter((code) => /\$ROOT|\$\(pwd\)|\$PWD/.test(code))
+    check(
+      `${script} 的 node -e/-p 字符串里没有绝对路径`,
+      offenders.length === 0,
+      offenders.map((code) => code.slice(0, 70)).join(' | '),
+    )
+    check(
+      `${script} 读到了内容（避免空集假通过）`,
+      inline.length > 0 || source.includes('node tools/'),
+      String(inline.length),
+    )
+  }
+}
+
 console.log('=== 4. 两个清单指向同一批文件（防漂移）===')
 check(
   '根 dsh.bundle.patch 与 editor 的 patch 是同一个文件',

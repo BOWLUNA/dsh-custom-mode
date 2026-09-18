@@ -220,14 +220,24 @@ console.log('=== 8. 往返：反推的开关再渲染，行集合一致 ===')
     expected ? derived['tool-bash'] === true : derived['tool-bash'] === undefined,
     JSON.stringify(derived),
   )
+  // 与上一条同源：本机出厂为开 → 恢复出厂表达式；本机出厂为关 → 写死 false。
   check(
-    '显式打开（本机本就为开）→ 磁盘形态回到出厂表达式，与"未触碰"一致',
-    /disabled: !!js process\.platform/.test(first.split(/^- id: /m).find((c) => c.startsWith('tool-bash')) ?? ''),
+    expected
+      ? '显式打开（本机出厂为关）→ 磁盘上写死 disabled: false'
+      : '显式打开（本机出厂为开）→ 磁盘形态回到出厂表达式，与"未触碰"一致',
+    expected
+      ? /^\s*disabled: false\s*$/m.test(first.split(/^- id: /m).find((c) => c.startsWith('tool-bash')) ?? '')
+      : /disabled: !!js process\.platform/.test(first.split(/^- id: /m).find((c) => c.startsWith('tool-bash')) ?? ''),
   )
   const second = renderComposition(modeOf(first), derived)
   check('再渲染行集合一致', collectRows(second).length === collectRows(first).length)
   const bashChunk = second.split(/^- id: /m).find((chunk) => chunk.startsWith('tool-bash'))
-  check('再渲染仍保持出厂表达式', bashChunk !== undefined && /disabled: !!js process\.platform/.test(bashChunk))
+  check(
+    expected ? '再渲染仍写死 false' : '再渲染仍保持出厂表达式',
+    expected
+      ? bashChunk !== undefined && /^\s*disabled: false\s*$/m.test(bashChunk)
+      : bashChunk !== undefined && /disabled: !!js process\.platform/.test(bashChunk),
+  )
 }
 
 rmSync(dir, { recursive: true, force: true })

@@ -19,12 +19,19 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         # 20 是保守下限（只用标准库），24 是当前开发版本。
         node-version: ['20', '24']
+        include:
+          # Windows 是最容易出差异的平台，而它长期没进过 CI：一次外部 Windows 实测因此
+          # 发现了三处只在 Windows 显现的缺陷（install.sh 的 MSYS 路径、并发 rename 的
+          # EPERM、平台表达式行的求值方向导致 4 条断言假失败）。只在 node 24 上跑，控时长。
+          - os: windows-latest
+            node-version: '24'
     steps:
       - uses: actions/checkout@v7
 
@@ -38,6 +45,7 @@ jobs:
         run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
 
       - name: 语法检查
+        shell: bash
         run: |
           for f in editor/*.mjs editor/client.js preset/*.mjs test/*.mjs; do
             node --check "$f"
@@ -48,7 +56,10 @@ jobs:
       - name: 测试
         run: node test/run.mjs
 
+      # Git Bash 也在 Windows 上跑这一段：脚本里任何"绝对路径进 node -e"的写法会在这里
+      # 以外的方式暴露（真正抓住它的是 test/meta.test.mjs 的静态守卫）。
       - name: install.sh 自身可解析（bash -n）
+        shell: bash
         run: |
           bash -n install.sh
           bash -n uninstall.sh
@@ -68,11 +79,12 @@ jobs:
       # 而且要等到有人装完才发现。这里对着真实的 packlist 断言。
       - name: npm 打包自检（发布包里不能少文件）
         working-directory: editor
+        shell: bash
         run: |
-          npm pack --dry-run --json > /tmp/pack.json
+          npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"
           node -e '
             const fs = require("fs");
-            const files = JSON.parse(fs.readFileSync("/tmp/pack.json", "utf8"))[0].files.map((f) => f.path);
+            const files = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))[0].files.map((f) => f.path);
             const need = ["index.mjs", "client.js", "composition.mjs", "meta.mjs", "paths.mjs", "cordis.patch.yml", "package.json"];
             const missing = need.filter((name) => !files.includes(name));
             const stray = files.filter((path) => /^(test|tools|docs)\//.test(path));
@@ -85,4 +97,4 @@ jobs:
               console.error("打包混入了非运行时文件:", JSON.stringify(stray));
               process.exit(1);
             }
-          '
+          ' "$RUNNER_TEMP/pack.json"

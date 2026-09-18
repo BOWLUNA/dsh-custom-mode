@@ -6,6 +6,39 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.0.4]
+
+### Windows 支持：外部审阅在那个平台实测出的三处缺陷
+
+Windows 此前从未被测试过。一次审阅在上面跑了全链路（npm 安装、四条安装路径、API 全表面、攻击模拟、真实
+浏览器、压测），找出了只在 Windows 显现的问题。
+
+- **`install.sh` / `uninstall.sh` 在 Git Bash 下崩溃。** `$(pwd)` 是 MSYS 路径（`/c/Users/…`），把它嵌进
+  `node -e "require('$ROOT/…')"` 之后不再触发路径转换，Windows 的 node 直接 `MODULE_NOT_FOUND` —— 而那一行
+  以 `|| echo '?'` 收尾，于是版本自检**恰好在最需要它的环境里静默降级成 `?`**。现在路径以**相对路径**交给
+  `tools/package-facts.mjs`，读取失败会明确报出来而不是显示成 `?`。`test/manifests.test.mjs` 会守住两个脚本
+  保持这个形状（我把旧写法写回去验证过它确实报红）。
+- **并发保存在 Windows 上可能 `EPERM`。** `writeAtomic` 的临时名是 `<file>.tmp-<pid>`，同进程内两个在途保存
+  会共用它；POSIX 上 `rename` 原子覆盖、竞争不可见，而 Windows 会锁住目标。现在临时名带随机后缀。
+  （`preset/prompt-tool.mjs` 是另一侧的同类问题：设置页早已原子写，会话内的工具写路径还是普通写；现已统一，
+  两个打包副本都改了。）
+- **四条测试断言按 Linux 硬编码。** 它们假设出厂的 `tool-bash` 行（`disabled: !!js process.platform === 'win32'`）
+  求值为"开"，而这只在非 Windows 上成立。现在期望分支由**运行测试的那台机器**上的出厂状态推导，两个平台都对
+  —— 并且 CI 增加了 **`windows-latest` 任务**，这类回归不会再悄悄溜过去。
+- **请求体加了一道兜底上限**（4 MB）：`requestBody: 'buffered'` 把上限留给宿主配置，而审阅实测 5 MB 的请求体
+  能顺利到达处理器。平台的上限仍是第一道。
+
+### 同一次审阅查出的文档漂移
+
+- TROUBLESHOOTING §7 写着版本号"跟着官方走"，与本项目自己的版本策略（以及手上的包）**直接矛盾**：改写为
+  独立稳定线 `1.0.x` + `engines.dsh`/peer 声明。
+- TROUBLESHOOTING §9 与 SECURITY 仍在描述 `1.0.3` 之前的"失败关闭 503"：改为结构性栅栏（`connection`
+  不存在时一条路由都不注册），"我装的是哪个版本"的判据也从已删除的 `connectionRejection` 改成
+  `webServer.register(`。
+- TROUBLESHOOTING §17 的 pnpm 延迟声明在 pnpm 12.3.4 上不再复现（实测）：保留，但标注为与版本/配置相关，
+  "钉精确版本"的建议不变。
+- README 现在写明经过验证的平台。
+
 ## [1.0.3]
 
 ### HTTP 路由迁移到平台带围栏的 `/api` 频道

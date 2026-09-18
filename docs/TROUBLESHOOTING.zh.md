@@ -187,7 +187,9 @@ $EDITOR ~/.dsh/.agent-presets/custom/prompt.md
 
 ## 7. 版本不匹配
 
-本插件的版本号**跟着官方走**（当前 `0.1.6-alpha.1`）。升级 dsh 之后如果设置页空白或启动时报
+本插件有**自己的稳定版本线**（`1.0.x`）；它*支持哪些* dsh 由 `engines.dsh` 与 peer 范围声明
+（`>=0.1.6-alpha.1 <0.2.0-0`）。（`1.0.0` 之前版本号是镜像 dsh 的 —— 那套做法已于 2026-09-18 取消，
+因为有些目录只对裸 `x.y.z` 自动安装。）升级 dsh 之后如果设置页空白或启动时报
 「当前 DSH 版本缺少所需 API」，就是耦合点断了：见 README 的「耦合点清单」，逐条核对。
 
 `install.sh` 第 0 步会把 `dsh --version` 与插件声明的适配版本放在一起打印，不一致时给警告。
@@ -246,11 +248,13 @@ const rejection = ctx.get('connection').requestRejection(req)
 | POST + `Origin: https://evil.example` + `Sec-Fetch-Site: cross-site` | `403 forbidden` |
 | 带合法 `dsh-auth-*` cookie（正常浏览器会话） | `200`，功能照旧 |
 
-**你自己装的是哪个版本**：看 `editor/index.mjs` 里有没有 `connectionRejection`。
+**你自己装的是哪个版本**：看 `editor/index.mjs` 有没有注册在裸 `webServer` 表上（`webServer.register(`）。
+`1.0.3` 起改为注册在平台的 `/api` 频道（`connection.fetch.register`），由载体在分发前施加栅栏。
 没有的话，要么升级本仓库，要么先别把这个设置页暴露在能被别人访问的端口上
 （默认只绑 `127.0.0.1`，风险主要在**多用户机器**与**浏览器内的跨站请求**）。
 
-`connection` 服务取不到时（DSH 版本不匹配），路由**失败关闭**（返回 503 并在宿主日志里说明），
+`connection` 服务取不到时（DSH 版本不匹配），**一条路由都不会注册** —— 不存在"没有栅栏的退化路由"可退，
+作用域化的 `inject` 只是不执行（该行仍为 active，因此也不会打印会误导人的 `pending` 警告）。
 而不是退回「不校验也能用」。
 
 ---
@@ -436,7 +440,9 @@ $ dsh plugin --profile web add dsh-custom-mode
 + dsh-custom-mode 0.1.6-alpha.1          ← 不是 registry 上 `latest` 指向的那个版本
 ```
 
-**原因：pnpm ≥ 11 默认对新发布的版本有一个延迟。** `minimumReleaseAge` 默认 `1440` 分钟（一天），
+**原因：pnpm ≥ 11 默认对新发布的版本有一个延迟**（在 pnpm 11 上实测；**pnpm 12.3.4 上未复现** ——
+`pnpm config get minimumReleaseAge` 为 undefined，发布仅 24 分钟的版本按裸名就装上了，2026-09-18 于 Windows
+实测，所以请把该延迟视为与版本/配置相关，并照下面"钉精确版本"的建议做）。`minimumReleaseAge` 默认 `1440` 分钟（一天），
 因此发布不满一天的版本不会参与"按名字解析"，pnpm 会回退到最新的、已经过了一天的那个版本。实测：alpha.2
 发布了 13 小时被跳过，24.3 小时的 alpha.1 被装上。整个过程 registry 都是对的 —— `latest` 与两份
 packument 都指向 alpha.2，`npm install dsh-custom-mode@latest` 也解析到它。

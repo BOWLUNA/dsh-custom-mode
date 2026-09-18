@@ -37,9 +37,12 @@ by the Connection service (`/`, `/api`…). As a result, the entire system promp
 trigger a CORS preflight, so any web page open in the user's browser can POST to that port; the
 response cannot be read, but the write has already happened.
 
-**Fixed**: Before handling any request, the route first calls
-`ctx.connection.requestRejection(req)` (the same decision as for `/api`), and **fails closed**
-when that service is unavailable (503 + host log), rather than falling back to no validation.
+**Fixed** (twice): `1.0.1` ran the platform's check by hand at the top of every request and failed closed
+when the service was missing. `1.0.3` removed that design entirely: the routes are registered on the
+platform's shared `/api` channel (`ctx.connection.fetch.register`), where the carrier applies the
+loopback/`trustedHosts` Host check, `Sec-Fetch-Site`/`Origin`, and the browser-session cookie **before**
+dispatching. There is no hand-rolled check left to move, reorder or forget, and when `connection` is absent
+nothing is registered at all.
 
 **Mitigation** (when an immediate upgrade is not possible): the route is bound only to `127.0.0.1`
 by default, so the risk comes mainly from (a) other users/processes on the same machine and (b)

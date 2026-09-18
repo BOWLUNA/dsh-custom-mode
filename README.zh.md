@@ -30,6 +30,10 @@ dsh plugin --profile web add dsh-custom-mode
 装完重启 dsh，新建会话时选「自定义模式」。preset 会被写到 `$DSH_HOME/.agent-presets/custom/`；
 **那里已有的文件一律不动**，所以你自己写过的 `prompt.md` 不会被覆盖。
 
+**平台**：测试套件每次 push 都在 Ubuntu（Node 20 与 24）**和 Windows（Node 24）**上跑 —— 加 Windows
+任务是因为那个平台有自己的失败模式（`install.sh` 里的 MSYS 路径、并发保存时 `rename` 的目标锁、平台表达式
+求值方向相反）。两个 shell 脚本在任何 POSIX shell 下都能用，含 Git Bash。
+
 ### 图形界面安装（不用终端）
 
 dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插件**。它接受三种输入，本插件对应如下：
@@ -156,7 +160,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 ## 开发
 
 ```sh
-node test/run.mjs        # 11 个套件、517 项；自己解析出厂 preset 目录
+node test/run.mjs        # 11 个套件、521 项；自己解析出厂 preset 目录
 ```
 
 改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。

@@ -186,7 +186,9 @@ Or temporarily clear the entire prompt down to a single line of plain text, then
 
 ## 7. Version mismatch
 
-This plugin's version number **follows the official one** (currently `0.1.6-alpha.1`). After upgrading dsh, if the settings page is blank or startup reports
+This plugin has **its own stable version line** (`1.0.x`); *which* dsh releases it supports is declared in
+`engines.dsh` + the peer range (`>=0.1.6-alpha.1 <0.2.0-0`). (Until `1.0.0` the version mirrored dsh's — that
+was retired on 2026-09-18, because some directories only auto-install a plain `x.y.z`.) After upgrading dsh, if the settings page is blank or startup reports
 "the current DSH version is missing a required API", then a coupling point has broken: see the "coupling point checklist" in the README and verify them one by one.
 
 Step 0 of `install.sh` prints `dsh --version` together with the adaptation version declared by the plugin, and warns when they do not match.
@@ -245,12 +247,15 @@ Measurements after the fix:
 | POST + `Origin: https://evil.example` + `Sec-Fetch-Site: cross-site` | `403 forbidden` |
 | With a valid `dsh-auth-*` cookie (normal browser session) | `200`, functionality unchanged |
 
-**Which version you have installed yourself**: check whether `editor/index.mjs` contains `connectionRejection`.
+**Which version you have installed yourself**: check whether `editor/index.mjs` registers on the raw
+`webServer` table (`webServer.register(`). `1.0.3` and later register on the platform's `/api` channel
+(`connection.fetch.register`) instead, where the carrier applies the fence before dispatch.
 If it does not, either upgrade this repository, or for now do not expose this settings page on a port that others can reach
 (by default it binds only to `127.0.0.1`; the risk is mainly on **multi-user machines** and **cross-site requests from inside a browser**).
 
-When the `connection` service cannot be obtained (DSH version mismatch), the route **fails closed** (returns 503 and explains in the host log),
-rather than falling back to "it still works without validation".
+When the `connection` service cannot be obtained (DSH version mismatch), **nothing is registered at all** —
+there is no unfenced fallback route to fall back to, and the scoped `inject` simply never runs (the row stays
+`active`, so no misleading `pending` warning is printed either).
 
 ---
 
@@ -451,7 +456,10 @@ $ dsh plugin --profile web add dsh-custom-mode
 + dsh-custom-mode 0.1.6-alpha.1          ← not the version the registry calls `latest`
 ```
 
-**Cause: pnpm ≥ 11 delays newly published versions by default.** `minimumReleaseAge` defaults to
+**Cause: pnpm ≥ 11 delays newly published versions by default** (measured on pnpm 11; **on pnpm 12.3.4 this
+did not reproduce** — `pnpm config get minimumReleaseAge` was undefined and a version 24 minutes old installed
+by bare name, measured on Windows 2026-09-18, so treat the delay as version/config-dependent and keep the
+"pin the exact version" advice below regardless). `minimumReleaseAge` defaults to
 `1440` minutes (one day), so a version published less than a day ago is not eligible for a bare-name
 resolution and pnpm falls back to the newest version that is. Measured: alpha.2 was 13 hours old and was
 skipped; alpha.1, 24.3 hours old, was installed. The registry was correct the whole time — `latest` and

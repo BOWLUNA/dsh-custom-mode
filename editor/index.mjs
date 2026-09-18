@@ -37,6 +37,7 @@
  * rows the user changed by diffing against the same shipped base mode.
  */
 
+import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
@@ -78,6 +79,12 @@ const METHODS = {
   [DELETE_PATH]: ['POST'],
   [REORDER_PATH]: ['POST'],
 }
+
+/** 只告警一次：避免每个请求都刷同一行日志。 */
+let warnedRosterShape = false
+
+/** 应用层请求体上限；平台的 buffered cap 是第一道，这个是我们自己的兜底（见 handler 里的注释）。 */
+const MAX_BODY_BYTES = 4 * 1024 * 1024
 
 /** Longest display name / description the page accepts, so one paste cannot bloat every picker. */
 const MAX_NAME = 80
@@ -490,10 +497,14 @@ export function apply(ctx) {
     // Compatibility guard: this plugin reads host APIs that a future DSH release could
     // reshape. Check them once and say so plainly, instead of letting every request
     // fail with an opaque 500.
-    const missing = []
-    if (typeof scope.agentPresets?.list !== 'function') missing.push('agentPresets.list()')
-    if (typeof scope.agentPresets?.remove !== 'function') missing.push('agentPresets.remove()')
-    if (typeof scope.connection?.fetch?.register !== 'function') missing.push('connection.fetch.register()')
+    // 数据表形式：以后新增一处耦合点，只要在这里加一行 —— README 的耦合点清单与本表同源，
+    // 让"上游改了 API 形状"在启动日志里就能看见，而不是等用户报"设置页白屏"。
+    const REQUIRED_APIS = [
+      ['agentPresets.list()', () => typeof scope.agentPresets?.list === 'function'],
+      ['agentPresets.remove()', () => typeof scope.agentPresets?.remove === 'function'],
+      ['connection.fetch.register()', () => typeof scope.connection?.fetch?.register === 'function'],
+    ]
+    const missing = REQUIRED_APIS.filter(([, probe]) => !probe()).map(([name]) => name)
     if (missing.length > 0) {
       console.error(
         'custom-mode: 当前 DSH 版本缺少所需 API：' +
@@ -527,7 +538,16 @@ export function apply(ctx) {
     /** The roster, or an empty list — discovery itself reports broken rows rather than throwing. */
     const roster = async () => {
       const rows = await scope.agentPresets.list()
-      return Array.isArray(rows) ? rows : []
+      if (!Array.isArray(rows)) {
+        // 形状变了：静默返回空列表会让页面显示"一个助手都没有"，比报错更难查（曾经就因为
+        // 缺少这种告警，一个 API 形状变化以"设置页白屏"的形式出现）。
+        if (!warnedRosterShape) {
+          warnedRosterShape = true
+          console.error('custom-mode: agentPresets.list() 没有返回数组（DSH 版本不匹配？），助手列表将为空。')
+        }
+        return []
+      }
+      return rows
     }
 
     /**
@@ -557,6 +577,15 @@ export function apply(ctx) {
         if (request.method === 'GET' && pathname === STATE_PATH) {
           await ensureShipped()
           return json(readState(await roster(), url.searchParams.get('id') ?? ''))
+        }
+
+        // Backstop on request size. `requestBody: 'buffered'` means the platform applies its own
+        // JSON cap, but that cap is the host's configuration, not a contract — measured on Windows,
+        // a 5 MB body reached us happily. This keeps one authenticated request from making us buffer
+        // an unbounded amount; the platform's cap remains the primary guard.
+        const declared = Number(request.headers.get('content-length') ?? '')
+        if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+          return json({ ok: false, error: `请求体过大（上限 ${String(MAX_BODY_BYTES)} 字节）` }, 413)
         }
 
         // Everything below writes, so the body is read and parsed exactly once.
@@ -611,7 +640,10 @@ export function apply(ctx) {
  * prompt，而这个文件正是"用户的提示词"。
  */
 function writeAtomic(file, text) {
-  const temporary = `${file}.tmp-${String(process.pid)}`
+  // 临时名必须**每个请求唯一**：只带 pid 时，同一进程内两个并发保存会争同一个临时名，
+  // Windows 上两个 rename 指向同一目标会以 EPERM 失败（实测：10 并发保存 2 例 400），
+  // 而 POSIX 上 rename 原子覆盖、静默地后写胜出 —— 也就是说这个缺陷只在 Windows 显现。
+  const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
   writeFileSync(temporary, text, 'utf8')
   renameSync(temporary, file)
 }

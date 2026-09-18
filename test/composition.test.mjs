@@ -127,10 +127,26 @@ console.log('=== 4. 平台表达式行：未触碰保留，显式打开才移除
   // Only tool-bash's own row may lose its condition; the pwsh row must keep its.
   const bashRow = forcedOn.split(/^- id: /m).find((chunk) => chunk.startsWith('tool-bash'))
   const pwshRow = forcedOn.split(/^- id: /m).find((chunk) => chunk.startsWith('tool-pwsh'))
-  // 这一行的出厂形态是平台表达式，而它在本机求值就是"开"：显式打开等于**撤销覆盖**，
-  // 于是恢复出厂表达式（而不是删掉它 —— 删掉会让文件既不是出厂原样、也不是显式覆盖）。
-  check('显式打开（本机本就为开）→ 恢复出厂平台表达式', bashRow !== undefined && /disabled: !!js process\.platform/.test(bashRow))
-  check('恢复后不再有写死的布尔', bashRow !== undefined && !/^\s*disabled: (true|false)\s*$/m.test(bashRow))
+  // 显式打开的行为**取决于该行出厂状态在本机的求值结果**（这正是 1.0.2 修好的语义）：
+  //   出厂在本机为开 → 撤销覆盖，恢复出厂平台表达式；
+  //   出厂在本机为关 → 真实覆盖，写死 `disabled: false`（恢复表达式反而会违背用户指令）。
+  // 断言必须跟着本机平台走：`tool-bash` 的条件是 `process.platform === 'win32'`，
+  // Linux/macOS 为开、Windows 为关 —— 按 Linux 硬编码会让整套在 Windows 上假失败。
+  const bashShippedOff = collectRows(base).find((row) => row.id === 'tool-bash')?.disabled === true
+  check(
+    bashShippedOff
+      ? '显式打开（本机出厂为关）→ 写死 disabled: false'
+      : '显式打开（本机出厂为开）→ 恢复出厂平台表达式',
+    bashShippedOff
+      ? bashRow !== undefined && /^\s*disabled: false\s*$/m.test(bashRow)
+      : bashRow !== undefined && /disabled: !!js process\.platform/.test(bashRow),
+  )
+  check(
+    '写死布尔只在"本机出厂为关"的分支里出现',
+    bashShippedOff
+      ? bashRow !== undefined && !/disabled: !!js process\.platform/.test(bashRow)
+      : bashRow !== undefined && !/^\s*disabled: (true|false)\s*$/m.test(bashRow),
+  )
   check('另一平台行不受影响', pwshRow !== undefined && /!!js process\.platform/.test(pwshRow))
 }
 

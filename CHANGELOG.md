@@ -8,6 +8,45 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.0.4]
+
+### Windows support: three platform defects an external review found by testing there
+
+Windows had never been tested. A review ran the whole thing on it (npm install, four install paths, the API
+surface, an attack simulation, a real browser, load tests) and found defects that only appear there.
+
+- **`install.sh` / `uninstall.sh` crashed in Git Bash.** `$(pwd)` is an MSYS path (`/c/Users/…`); embedded
+  inside `node -e "require('$ROOT/…')"` it is no longer path-translated, so Windows' node died with
+  `MODULE_NOT_FOUND` — and because that line ended in `|| echo '?'`, the version self-check silently degraded
+  to `?` in exactly the environment that needed it. Paths now go through `tools/package-facts.mjs` by
+  **relative** path, and a failed read is reported instead of rendering as `?`.
+  `test/manifests.test.mjs` asserts both scripts keep this shape (verified by re-introducing the old line and
+  watching it fail).
+- **Concurrent saves could fail with `EPERM` on Windows.** `writeAtomic`'s temporary name was
+  `<file>.tmp-<pid>`, so two in-flight saves in one process shared it; on POSIX `rename` atomically
+  overwrites and the race is invisible, while Windows locks the target. The name now carries a random suffix.
+  (`preset/prompt-tool.mjs`, the in-session write path, had the same shape of problem from the other side: it
+  wrote non-atomically while the settings page already wrote atomically. It is atomic now too, in both
+  packaged copies.)
+- **Four test assertions were hardcoded to Linux.** They assumed the shipped `tool-bash` row
+  (`disabled: !!js process.platform === 'win32'`) evaluates to "on", which is only true off Windows. They now
+  derive the expected branch from the shipped state on the machine that runs them, so both platforms are
+  correct — and CI gained a **`windows-latest` job** so this can never silently regress again.
+- **A backstop on request size** (4 MB): `requestBody: 'buffered'` leaves the cap to the host's configuration,
+  and the review measured a 5 MB body reaching the handler. The platform's cap stays the primary guard.
+
+### Documentation drift the same review caught
+
+- TROUBLESHOOTING §7 said the version **follows the official one**, contradicting this project's own
+  versioning policy (and the package in hand): rewritten to describe the stable `1.0.x` line and the declared
+  `engines.dsh` / peer range.
+- TROUBLESHOOTING §9 and SECURITY still described the pre-`1.0.3` fail-closed `503`: updated to the structural
+  fence (nothing is registered at all when `connection` is absent), and the "which version am I running"
+  check now looks for `webServer.register(` instead of the removed `connectionRejection`.
+- TROUBLESHOOTING §17's pnpm-delay claim no longer reproduces on pnpm 12.3.4 (measured): kept, but marked as
+  version/config-dependent, with the "pin the exact version" advice left intact.
+- The READMEs now state the verified platforms.
+
 ## [1.0.3]
 
 ### The HTTP surface moved onto the platform's fenced `/api` channel

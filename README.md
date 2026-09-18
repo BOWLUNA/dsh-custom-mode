@@ -37,6 +37,11 @@ Restart dsh afterwards, then choose「自定义模式」for a new session. The p
 `$DSH_HOME/.agent-presets/custom/`; anything already there is left alone, so a `prompt.md` you wrote
 yourself is never overwritten.
 
+**Platforms**: the suite runs on every push under Ubuntu (Node 20 and 24) **and Windows (Node 24)** — the
+Windows job exists because that platform has its own failure modes (MSYS paths in `install.sh`, `rename`
+locking under concurrent saves, platform expressions evaluating the other way). Both shell scripts work in
+any POSIX shell, Git Bash included.
+
 ### Installing from the interface (no terminal)
 
 From dsh `0.1.6-alpha.2` there is a Plugins page: **sidebar → Plugins → Add plugin**. It takes three
@@ -207,7 +212,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 11 suites, 517 checks; resolves the shipped presets itself
+node test/run.mjs        # 11 suites, 521 checks; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the
