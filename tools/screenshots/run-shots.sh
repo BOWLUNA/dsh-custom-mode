@@ -15,6 +15,12 @@ set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 URL="${1:?用法: ./run-shots.sh <带 token 的 URL> [输出目录]}"
 OUT="${2:-$REPO/docs/images}"
+# Resolve OUT before the `cd` below: a relative argument (the common `docs/images`) would
+# otherwise be created inside tools/screenshots/ instead of the repository root.
+case "$OUT" in
+  /*) ;;
+  *) OUT="$(cd "$(dirname "$REPO/$OUT")" 2>/dev/null && pwd)/$(basename "$OUT")" ;;
+esac
 
 if [ -n "${DSH_HOME:-}" ] && [ -d "$DSH_HOME/.agent-presets/custom" ]; then
   cp "$REPO/preset/agent.cordis.yml" "$REPO/preset/preset.yml" "$DSH_HOME/.agent-presets/custom/"

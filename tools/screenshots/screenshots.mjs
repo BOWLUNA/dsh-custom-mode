@@ -200,24 +200,36 @@ if (probe?.list?.ok !== true || probe?.detail?.ok !== true) {
   throw new Error(`设置页读取失败: ${JSON.stringify(probe)}`)
 }
 
-// 01：助手列表（多助手管理的入口）
-console.log('截图 01（助手列表）…')
-await scrollTo('.cpfe > section:nth-of-type(1)')
+// 01：模式名称 + 基础模式（第 2、3 个 section）。助手列表是 05 的题材，这里不再重复拍它。
+console.log('截图 01（模式名称 + 基础模式）…')
+await scrollTo('.cpfe > section:nth-of-type(2)')
 await shotDialog('01-mode-switch.png')
 
 // ── 功能实测 A：拨开关 ────────────────────────────────────────────────────
 console.log('实测 A：关闭「网页检索与抓取」（不保存，先让「已改」徽标出现）…')
 await scrollTo('.cpfe-rows')
+// The switch is the shell's own atom now: `[role=switch]` with `aria-checked`, not an
+// `<input type=checkbox>` (measured: 32 rows, 32 `[role=switch]`, 0 checkboxes in the panel).
+// React updates the attribute a tick after the click, so the new state is read separately.
+const ROW_FINDER = `[...document.querySelectorAll('.cpfe-row')].find((el) => el.textContent.includes('网页检索与抓取') || el.textContent.includes('Web search and fetch'))`
 report.toggle = await session.evaluate(`(() => {
-  const row = [...document.querySelectorAll('.cpfe-row')].find((el) => el.textContent.includes('网页检索与抓取') || el.textContent.includes('Web search and fetch'));
+  const row = ${ROW_FINDER};
   if (row === undefined) return null;
-  const box = row.querySelector('input[type=checkbox]');
-  if (box.checked !== true) return { alreadyOff: true };
+  const box = row.querySelector('[role=switch]');
+  if (box === null) return { missingSwitch: true };
+  const before = box.getAttribute('aria-checked') === 'true';
+  if (before !== true) return { alreadyOff: true };
   box.click();
-  return { before: true, after: box.checked };
+  return { before };
 })()`)
-console.log('  tool-web 复选框:', JSON.stringify(report.toggle))
-await session.sleep(600)
+await session.sleep(500)
+report.toggleAfter = await session.evaluate(`(() => {
+  const row = ${ROW_FINDER};
+  const box = row === undefined ? null : row.querySelector('[role=switch]');
+  return box === null ? null : box.getAttribute('aria-checked') === 'true';
+})()`)
+console.log('  tool-web 开关:', JSON.stringify({ ...report.toggle, after: report.toggleAfter }))
+await session.sleep(300)
 
 // 02：插件开关（含分组 + 已改徽标）
 console.log('截图 02（插件开关，含分组缩进）…')
@@ -232,7 +244,10 @@ await shotDialog('02-plugin-switches.png')
 // ── 功能实测 B：保存 ─────────────────────────────────────────────────────
 console.log('实测 B：点保存…')
 report.save = await session.evaluate(`(() => {
-  const button = [...document.querySelectorAll('.cpfe-btn')].find((el) => /保存|Save/.test(el.textContent.trim()));
+  // The save control is a shell Button too: find it by its label, not by the old .cpfe-btn class.
+  const candidates = [...document.querySelectorAll('button,[role=button]')];
+  const button = candidates.find((el) => /^(保存|Save)$/.test(el.textContent.trim()))
+    ?? candidates.find((el) => /保存|Save/.test(el.textContent.trim()));
   if (button === undefined) return { clicked: false, reason: 'no button' };
   if (button.disabled) return { clicked: false, reason: 'disabled' };
   button.click();
