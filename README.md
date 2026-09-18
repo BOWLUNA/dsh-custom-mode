@@ -100,7 +100,9 @@ plugin switches, system prompt) edit **whichever one is selected**.
   you save, and Reload discards it. Before this existed, a prompt you had edited into a corner could
   only be recovered by deleting the assistant and creating it again.
 - **New assistant** — type a name and click "New assistant". It is seeded from the packaged template:
-  the full Standard row set plus a starter prompt, selectable in a new session as soon as you save it.
+  the full Standard row set plus a starter prompt, selectable in a new session as soon as you save it —
+  **in an already-open page the picker's list is a load-time snapshot, so refresh (F5) once to see a new
+  assistant there** (measured; the roster itself is up to date).
 - **Duplicate** — copies the selected assistant's prompt, base mode and row switches into a new one;
   the two are independent afterwards.
 - **Each assistant is independent** — its prompt, base mode and row switches are its own; changing one

@@ -259,6 +259,27 @@ const rejection = ctx.get('connection').requestRejection(req)
 
 ---
 
+## 9.5 依赖装上了，但 bundle 条目丢了
+
+实测：当 `node_modules` 里还有这个包、而 `profiles/web/package.json` 的 `dsh.profile.bundles` 里已经没有
+`dsh-custom-mode` 时，**`dsh plugin --profile web add dsh-custom-mode` 会短路**（pnpm 报 "resolution skipped"），
+**不会**把 bundle 条目补回来 —— 命令看起来成功了，设置页却始终没有。自救顺序：
+
+1. 先 `dsh plugin --profile web remove dsh-custom-mode`，再 add 一次；
+2. 或直接编辑 `profiles/web/package.json`，把 `"dsh-custom-mode"` 放回 `dsh.profile.bundles`；
+3. `./install.sh` 本来就在做这套记账（安装前快照 bundle 列表、装完断言"一个都没少"），所以一条命令没生效时它是兜底。
+
+## 9.6 `0.1.6-alpha.1` 根本起不来 —— 那是宿主的问题，不是本插件
+
+实测（也是 `alpha` dist-tag 被移到 `alpha.2` 的原因）：
+
+```text
+SyntaxError: The requested module '@deepseek-ai/dsh-app-boot' does not provide an export named 'watchUserPatches'
+```
+
+进程在 `profile-boot` 阶段就退出，**发生在任何插件被加载之前**。与本插件无关；如果你在 `0.1.6-alpha.1` 上，
+请换到 `0.1.6-alpha.2`（或同样受支持的稳定线 `0.1.5-rc.2`，见 README 的 Versioning 一节）。
+
 ## 10. 装进 tui / headless 之类的 profile：能用的比预期少
 
 `./install.sh --help` 与两份 README 都写了 `--profile tui`，但**实测**要先看清一件事：
@@ -440,7 +461,11 @@ $ dsh plugin --profile web add dsh-custom-mode
 + dsh-custom-mode 0.1.6-alpha.1          ← 不是 registry 上 `latest` 指向的那个版本
 ```
 
-**原因：pnpm ≥ 11 默认对新发布的版本有一个延迟**（在 pnpm 11 上实测；**pnpm 12.3.4 上未复现** ——
+**原因：pnpm ≥ 11 默认对新发布的版本有延迟，而官方安装管线同样受它影响。** 两次实测结果不同，取决于版本
+如何被解析：`dsh plugin --profile web add dsh-custom-mode` 在 1.3.0 发布 **38 分钟后仍装上了 1.0.3**
+（官方管线、pnpm 12），而同一条命令在另一个 profile/缓存下直接装到了新版。请把冷却期视为与版本和配置相关，
+并且**核对实际装到了什么**（在 profile 里 `npm ls dsh-custom-mode`，或看 `profiles/web/package.json`），
+而不是只看命令的退出码。永远可行的是**显式钉版本**。原始声明如下（在 pnpm 11 上实测）：
 `pnpm config get minimumReleaseAge` 为 undefined，发布仅 24 分钟的版本按裸名就装上了，2026-09-18 于 Windows
 实测，所以请把该延迟视为与版本/配置相关，并照下面"钉精确版本"的建议做）。`minimumReleaseAge` 默认 `1440` 分钟（一天），
 因此发布不满一天的版本不会参与"按名字解析"，pnpm 会回退到最新的、已经过了一天的那个版本。实测：alpha.2

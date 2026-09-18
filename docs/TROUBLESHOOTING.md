@@ -259,6 +259,30 @@ there is no unfenced fallback route to fall back to, and the scoped `inject` sim
 
 ---
 
+## 9.5 The plugin's dependency is installed but the bundle entry is gone
+
+Measured: when `node_modules` still holds the package but `profiles/web/package.json` no longer lists
+`dsh-custom-mode` in `dsh.profile.bundles`, **`dsh plugin --profile web add dsh-custom-mode` short-circuits**
+(pnpm reports "resolution skipped") and does **not** restore the bundle entry — the settings page stays absent
+while the command looks successful. Self-rescue, in order:
+
+1. `dsh plugin --profile web remove dsh-custom-mode` then add it again;
+2. or edit `profiles/web/package.json` and put `"dsh-custom-mode"` back into `dsh.profile.bundles`;
+3. `./install.sh` does exactly this bookkeeping for you (it snapshots the bundle list before installing and
+   asserts nothing was lost), which is why it is the fallback when the one-liner does not take.
+
+## 9.6 `0.1.6-alpha.1` cannot boot at all — that is the host, not this plugin
+
+Measured (and the reason the `alpha` dist-tag moved to `alpha.2`):
+
+```text
+SyntaxError: The requested module '@deepseek-ai/dsh-app-boot' does not provide an export named 'watchUserPatches'
+```
+
+The process exits during `profile-boot`, **before any plugin is loaded**. Nothing about this plugin is
+involved; if you are on `0.1.6-alpha.1`, move to `0.1.6-alpha.2` (or the stable line `0.1.5-rc.2`, which is
+also supported — see the README's Versioning section).
+
 ## 10. Installing into a profile such as tui / headless: less works than expected
 
 Both `./install.sh --help` and the two READMEs mention `--profile tui`, but **measurement** shows that one thing must be understood first:
@@ -456,10 +480,13 @@ $ dsh plugin --profile web add dsh-custom-mode
 + dsh-custom-mode 0.1.6-alpha.1          ← not the version the registry calls `latest`
 ```
 
-**Cause: pnpm ≥ 11 delays newly published versions by default** (measured on pnpm 11; **on pnpm 12.3.4 this
-did not reproduce** — `pnpm config get minimumReleaseAge` was undefined and a version 24 minutes old installed
-by bare name, measured on Windows 2026-09-18, so treat the delay as version/config-dependent and keep the
-"pin the exact version" advice below regardless). `minimumReleaseAge` defaults to
+**Cause: pnpm ≥ 11 delays newly published versions by default, and the official pipeline is subject to it.**
+Measured twice, with different results depending on how the version is resolved: a bare-name
+`dsh plugin --profile web add dsh-custom-mode` **38 minutes after 1.3.0 was published installed 1.0.3**
+(official pipeline, pnpm 12), while the same install in a different profile/cache resolved the new version
+directly. Treat the cooldown as version- and config-dependent, and **verify what actually landed**
+(`npm ls dsh-custom-mode` inside the profile, or `cat profiles/web/package.json`) instead of trusting the
+command's exit code. Explicitly pinning the version is what always works. `minimumReleaseAge` defaults to
 `1440` minutes (one day), so a version published less than a day ago is not eligible for a bare-name
 resolution and pnpm falls back to the newest version that is. Measured: alpha.2 was 13 hours old and was
 skipped; alpha.1, 24.3 hours old, was installed. The registry was correct the whole time — `latest` and
