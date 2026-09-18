@@ -19,8 +19,8 @@ The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouche
 | ![Mode name and base mode](docs/images/01-mode-switch.png) | ![Plugin switches](docs/images/02-plugin-switches.png) |
 | ![System prompt](docs/images/03-system-prompt.png) | ![Mode picker](docs/images/04-preset-picker.png) |
 
-The current page (the assistant manager, captured on a real instance by
-`tools/browser-verify.mjs`):
+The assistant manager, cropped to its own section (captured on a real instance by
+`tools/screenshots/run-shots.sh`; `tools/browser-verify.mjs` is what checks the page):
 
 ![Assistant manager](docs/images/05-assistant-manager.png)
 

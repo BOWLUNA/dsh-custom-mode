@@ -205,6 +205,15 @@ console.log('=== 0. 浏览器半与宿主半的路由常量不许漂移 ===')
     match !== null && match[1] === editor.API_PREFIX + editor.ROUTE_PATH,
     `${match === null ? '(none)' : match[1]} vs ${editor.API_PREFIX + editor.ROUTE_PATH}`,
   )
+
+  // 工具是同一组路径的**第三处副本**。1.0.3 把路由迁到 /api 之后，截图工具里还留着旧路径，
+  // 结果是"拿空响应当 JSON"（报错信息只有 "Unexpected end of JSON input"），而 CI 看不到 ——
+  // 截图工具要浏览器才能跑。所以这里对文本断言：任何 '/custom-mode' 前必须紧跟 /api。
+  for (const tool of ['tools/screenshots/screenshots.mjs', 'tools/browser-verify.mjs']) {
+    const source = readFileSync(new URL(`../${tool}`, import.meta.url), 'utf8')
+    const stale = [...source.matchAll(/(['"])\/custom-mode/g)].map((entry) => entry[0])
+    check(`${tool} 里没有漏掉 /api 前缀的路径`, stale.length === 0, stale.join(', '))
+  }
 }
 
 let handlerCalls = 0

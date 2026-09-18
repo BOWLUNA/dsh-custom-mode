@@ -15,7 +15,7 @@
 | ![模式名称与基础模式](docs/images/01-mode-switch.png) | ![插件开关](docs/images/02-plugin-switches.png) |
 | ![系统提示词](docs/images/03-system-prompt.png) | ![模式选择器](docs/images/04-preset-picker.png) |
 
-当前界面（多助手管理器，真机截图，由 `tools/browser-verify.mjs` 产出）：
+多助手管理器（裁到它自己那一段；真机截图由 `tools/screenshots/run-shots.sh` 产出，`tools/browser-verify.mjs` 负责校验界面）：
 
 ![助手管理器](docs/images/05-assistant-manager.png)
 

@@ -1,14 +1,17 @@
 # Screenshots
 
-Five images, all **800x800 PNG** (~44–77 KB each, ~310 KB in total). None of them is hand-taken: each
-is captured by driving a real running instance, and four of them come from two scripts you can re-run.
+Five images. **01–04 are 800×800 PNG** (the README shows them as a 2×2 table, so they share one canvas);
+**05 is 800×292** — it is a standalone image and is cropped to the assistant section alone, because a
+full-height crop would repeat 01's mode-name and base-mode blocks and read as "the same picture twice".
+None of them is hand-taken: all five are captured by `tools/screenshots/run-shots.sh` driving a real
+running instance.
 
 ```
 01-mode-switch.png        Settings →「自定义模式」, mode name + base mode (and the top of the switches)
 02-plugin-switches.png    Plugin switches: group and child indentation, tri-state badges
 03-system-prompt.png      The system prompt editor and the save bar, right after a real save
 04-preset-picker.png      The new-session mode picker, with the custom modes in the list
-05-assistant-manager.png  The assistant list: several modes in one page, each with its own prompt
+05-assistant-manager.png  The assistant list, cropped to its own section: several modes in one page
 ```
 
 `01`–`04` are shot by `tools/screenshots/screenshots.mjs`, which really clicks, toggles a row, saves,

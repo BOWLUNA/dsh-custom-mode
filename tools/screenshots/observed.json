@@ -4,6 +4,9 @@
     "ok": true,
     "assistants": [
       "自定义模式",
+      "写作助手",
+      "写作助手",
+      "写作助手",
       "写作助手"
     ],
     "editing": "custom",
@@ -18,7 +21,7 @@
   "save": {
     "clicked": true
   },
-  "saveStatus": "已保存（自定义模式，基础模式 standard）。新建会话即生效，当前会话保持原配置。",
+  "saveStatus": "已保存（写作助手，基础模式 standard）。新建会话即生效，当前会话保持原配置。",
   "languageSwitch": "中文 → English（界面自己的语言控件）",
   "englishNav": "Custom mode",
   "englishHeadings": [

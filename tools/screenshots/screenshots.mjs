@@ -105,6 +105,24 @@ async function shotDialog(name) {
   console.log(`  → ${name}（${CANVAS.width}x${CANVAS.height}）`)
 }
 
+/**
+ * Capture an area of an explicit height, keeping the shared width.
+ *
+ * `05-assistant-manager.png` is a STANDALONE image (not one of the four in the README's 2×2 table),
+ * so it does not have to be 800×800. Cropping it to just its own section is the point: a full-height
+ * crop starts with the assistant block and then repeats 01's mode-name and base-mode blocks, which
+ * reads as "these two pictures show the same thing".
+ */
+async function shotRegion(name, anchor, height) {
+  await session.screenshotBox(`${outDir}/${name}`, {
+    x: Math.max(0, Math.round(anchor.x)),
+    y: Math.max(0, Math.round(anchor.y)),
+    width: CANVAS.width,
+    height: Math.round(height),
+  })
+  console.log(`  → ${name}（${CANVAS.width}x${Math.round(height)}）`)
+}
+
 /** Capture an arbitrary area, cropped to the shared canvas. */
 async function shotCanvas(name, anchor) {
   await session.screenshotBox(`${outDir}/${name}`, canvasBox(anchor))
@@ -120,12 +138,19 @@ async function shotCanvas(name, anchor) {
  */
 async function pluginState() {
   return session.evaluate(`(async () => {
-    const list = await fetch('/custom-mode', { headers: { accept: 'application/json' } }).then((r) => r.json());
+    // 路径必须带 /api：路由注册在平台带围栏的共享频道上（1.0.3 起）。用旧路径会拿到 404 空体，
+    // 而 r.json() 只会抛一句 "Unexpected end of JSON input" —— 所以下面显式检查 r.ok。
+    const call = async (url) => {
+      const response = await fetch(url, { headers: { accept: 'application/json' } });
+      if (!response.ok) throw new Error(url + ' → HTTP ' + String(response.status));
+      return response.json();
+    };
+    const list = await call('/api/custom-mode');
     const assistants = Array.isArray(list.assistants) ? list.assistants : [];
     const first = assistants.length > 0 ? assistants[0].id : null;
     const detail = first === null
       ? null
-      : await fetch('/custom-mode/state?id=' + encodeURIComponent(first), { headers: { accept: 'application/json' } }).then((r) => r.json());
+      : await call('/api/custom-mode/state?id=' + encodeURIComponent(first));
     return { list, detail, assistants };
   })()`)
 }
@@ -200,6 +225,35 @@ if (probe?.list?.ok !== true || probe?.detail?.ok !== true) {
   throw new Error(`设置页读取失败: ${JSON.stringify(probe)}`)
 }
 
+// 05：助手列表（独立图片，按自己那一段的高度裁）。先建一个助手，让"多助手"这件事在图里看得见
+// —— 只有单个助手的图说明不了这个功能。这个助手随一次性实例一起丢弃。
+console.log('截图 05（助手列表：先建一个助手）…')
+await scrollTo('.cpfe > section:nth-of-type(1)')
+try {
+  await session.fill('.cpfe-newrow input', '写作助手')
+  await session.clickTextReal('新增助手', { exact: false })
+  await session.sleep(2600)
+} catch (error) {
+  // 截图不该因为这一步失败而整体失败：建不出来就按现状拍。
+  console.log('  （没能建出第二个助手，按现状拍摄）:', String(error?.message ?? error))
+}
+await scrollTo('.cpfe > section:nth-of-type(1)')
+await session.sleep(600)
+{
+  const geometry = await session.evaluate(`(() => {
+    const panel = document.querySelector(${JSON.stringify(DIALOG)});
+    const section = document.querySelector('.cpfe > section:nth-of-type(1)');
+    if (panel === null || section === null) return null;
+    const p = panel.getBoundingClientRect();
+    const s = section.getBoundingClientRect();
+    // 高度取到"助手"这一段之下一点，并且**要越过左侧导航当前项的底边** —— 只裁到 section 底边
+    // 会把导航项切在半截，看起来像图片坏了。52px 是实测：导航项高约 45px。
+    return { x: p.x, y: p.y, height: Math.min(p.height, s.y - p.y + s.height + 52) };
+  })()`)
+  if (geometry === null) throw new Error('量不到助手区块的几何')
+  await shotRegion('05-assistant-manager.png', geometry, geometry.height)
+}
+
 // 01：模式名称 + 基础模式（第 2、3 个 section）。助手列表是 05 的题材，这里不再重复拍它。
 console.log('截图 01（模式名称 + 基础模式）…')
 await scrollTo('.cpfe > section:nth-of-type(2)')
@@ -262,6 +316,23 @@ console.log('  保存后状态栏:', JSON.stringify(report.saveStatus))
 
 // 03：系统提示词 + 保存栏（紧接着保存，状态栏正是「已保存」）
 console.log('截图 03（系统提示词 + 保存栏）…')
+// 保存栏下面印着组合文件的绝对路径。截图是在一次性 DSH_HOME 上跑的，于是图里会出现
+// `/tmp/dsh-shots-XXXX/…` 这种路径 —— 既噪，又只对那一次运行成立。文档图片里换成 $DSH_HOME。
+await session.evaluate(`(() => {
+  // 用字符串操作而不是正则：这条语句要穿过模板字符串与 shell 两层引用，正则里的反斜杠
+  // 极易被吃掉（实测踩到：注入后报 "Invalid regular expression: /^.*?(?=/"）。
+  const marker = '/.agent-presets/';
+  let changed = 0;
+  for (const el of [...document.querySelectorAll('*')]) {
+    if (el.children.length !== 0) continue;
+    const text = typeof el.textContent === 'string' ? el.textContent : '';
+    const at = text.indexOf(marker);
+    if (at === -1) continue;
+    el.textContent = '$DSH_HOME' + text.slice(at);
+    changed += 1;
+  }
+  return changed;
+})()`)
 await scrollTo('.cpfe-editor')
 await session.sleep(500)
 await shotDialog('03-system-prompt.png')
