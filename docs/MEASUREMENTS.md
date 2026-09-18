@@ -789,7 +789,7 @@ upgrade is slow (Tencent mirror), so it belongs in the background with polling, 
 ```
 # isolated DSH_HOME + a settings.yaml that suppresses the first-run modals (onboarding/locale/theme
 # only — credentials never leave the session machine)
-$ ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && DSH_HOME=/root/dsh-custom-lab ./install.sh'
+$ ssh "$LAB" 'cd /root/dsh-lab/dsh-custom-mode && DSH_HOME=/root/dsh-custom-lab ./install.sh'
     composition tree: 164 rows, dsh-custom-mode in place
 $ ssh "$LAB" '/root/custom-lab.sh'
 dsh web: http://127.0.0.1:3082/?token=SaOzofZ2…
@@ -807,7 +807,7 @@ $ ssh "$LAB" '/root/chrome-lab.sh'
 ### 14.2 Result: 21/21
 
 ```
-$ ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && CDP_PORT=9222 \
+$ ssh "$LAB" 'cd /root/dsh-lab/dsh-custom-mode && CDP_PORT=9222 \
     node tools/browser-verify.mjs --url "http://127.0.0.1:3082/?token=…" --out /root/custom-mode-verify.png'
 
 PASS  first-run overlay cleared (otherwise every click below is intercepted)
@@ -849,3 +849,71 @@ cards whose switches have **visible titles** (「身份（系统提示词）」,
   **all** dialogs by content.
 - `RiskConfirmation`'s confirm button reads React state, so ticking and clicking must happen in **two
   ticks**, or the delete never fires.
+
+## 15. Re-verification on dsh `0.1.6-alpha.2`, installed from npm
+
+Everything below was run against a throwaway `DSH_HOME` and the package **as published**, not the
+working tree: the tarball was first compared with `npm pack` of the repository and found byte-identical
+(16 files, same list hash).
+
+### The install path, and the detour it took
+
+```
+$ dsh plugin --profile web add dsh-custom-mode
++ dsh-custom-mode 0.1.6-alpha.1            ← the registry said `latest` = 0.1.6-alpha.2
+
+$ node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
+{ 'dsh-custom-mode': '0.1.6-alpha.1' }
+```
+
+That is pnpm's one-day supply-chain delay, not a registry problem: `minimumReleaseAge` defaults to
+`1440` minutes in pnpm ≥ 11, alpha.2 was 13 hours old, alpha.1 was 24.3. Installing the exact version
+works and records the exception:
+
+```
+$ dsh plugin --profile web add dsh-custom-mode@0.1.6-alpha.2
+$ node -p "…dependencies"                 → { 'dsh-custom-mode': '0.1.6-alpha.2' }
+```
+
+The symptom on the older version is visible and is exactly what the seeding work removed: no
+`custom-mode: 已播种` line, no `$DSH_HOME/.agent-presets/`, and the settings route answering
+`{"ok":false,"error":"找不到组成文件：…"}`.
+
+### On the published alpha.2
+
+```
+custom-mode: 已播种 preset 到 …/.agent-presets/custom（新建 5 个文件: agent.cordis.yml, preset.yml,
+             prompt.md, prompt-reader.mjs, prompt-tool.mjs）
+GET /custom-mode          → 200 {"ok":true,"assistants":[{"id":"custom","name":"自定义模式",…}],"root":…}
+GET /custom-mode (no cookie) → 401
+```
+
+`tools/browser-verify.mjs` against it: **21 通过, 0 失败** — the page opens, no raw translation keys,
+the assistant block and its buttons render, the three blocks render, every switch has a visible row
+title, create puts an assistant in the list, delete opens the risk confirmation, confirming removes it,
+and the page logs no `dsh-custom-mode` error.
+
+### Several assistants (the new capability), checked on disk
+
+| Step | Result |
+| --- | --- |
+| `POST /custom-mode/create {"name":"writer"}` | id `writer` — an English name becomes the directory name |
+| `POST /custom-mode/create {"name":"写作助手"}` | id `custom-2` — anything that is not a legal id falls back |
+| Each assistant's directory | `agent.cordis.yml`, `preset.yml`, `prompt.md`, `prompt-reader.mjs`, `prompt-tool.mjs` |
+| Prompt written to `writer`, then to `custom-2` | `writer/prompt.md` = `WRITER-PROMPT-V2`, `custom-2/prompt.md` = `CUSTOM2-PROMPT`, `custom/prompt.md` untouched |
+| Base mode per assistant | `writer` → `# 基础模式: standard`, `custom-2` → `# 基础模式: minimal` |
+| A hand-authored preset (`handmade/`: no `prompt.md`, composition does not use `prompt-reader.mjs`) | not listed, a save for it is refused with a readable error, and its files are byte-identical afterwards |
+| `POST /custom-mode/delete {"id":"writer"}` | directory removed, list back to two |
+| Restart dsh | the deleted assistant does **not** come back; the other two keep their own prompts; `handmade/` is still untouched |
+
+### Two tooling bugs this run surfaced
+
+- `tools/screenshots/screenshots.mjs` still looked for the old controls: the switches are the shell's
+  own atoms now (`[role=switch]` with `aria-checked`; measured 32 rows, 32 switches, **0**
+  `input[type=checkbox]`), and the save control is a plain `button`, not `.cpfe-btn`. Both lookups were
+  rewritten, which is what makes the four README images regenerable again.
+- `tools/screenshots/run-shots.sh` resolved its output directory **after** changing into
+  `tools/screenshots/`, so a relative `docs/images` was created inside the tool directory instead of the
+  repository. It now resolves the path before the `cd`; verified by re-running with the relative
+  argument and watching the images land in `docs/images/`.
+

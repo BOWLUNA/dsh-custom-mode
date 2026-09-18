@@ -125,6 +125,14 @@ pnpm caches the resolved `latest` too: a machine that resolved it before the cha
 old version until its metadata cache expires, so verify an install from a clean cache rather than
 trusting the tag alone.
 
+**And expect a one-day lag on pnpm ≥ 11.** `minimumReleaseAge` defaults to `1440` minutes, so for the
+first day after a release a **bare name** install keeps resolving to the previous version — nothing is
+wrong with the registry, and `npm view` will happily show the new `latest`. Measured on this package:
+`dsh plugin --profile web add dsh-custom-mode` installed `0.1.6-alpha.1` thirteen hours after
+`0.1.6-alpha.2` was published, and installed alpha.2 at once when the version was given explicitly.
+If a user reports "it installed the old one", that is the reason; §17 of `docs/TROUBLESHOOTING.md` has
+the check and the two ways out.
+
 ### The tension with "version numbers follow DSH only"
 
 npm requires the version number of every publish to be unique, while this project's version numbers follow DSH only. When the two meet:

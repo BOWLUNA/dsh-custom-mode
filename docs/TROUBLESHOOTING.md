@@ -439,3 +439,34 @@ grep -n '^order:' "$DSH_HOME"/.agent-presets/*/preset.yml
   more and it fills in 1..N for **every** managed assistant.
 - **the files are right but the picker did not change**: the picker reads the roster when a **new session**
   starts; sessions already open are unaffected.
+
+## 17. A freshly published version does not install — `dsh plugin add <name>` takes the previous one
+
+You published (or read about) `0.1.6-alpha.2`, but the bare name installs the older version, and the new
+behaviour is missing. With this plugin that is visible: a version that predates seeding leaves
+`$DSH_HOME/.agent-presets/` empty, and the settings page then reports a missing composition file.
+
+```
+$ dsh plugin --profile web add dsh-custom-mode
++ dsh-custom-mode 0.1.6-alpha.1          ← not the version the registry calls `latest`
+```
+
+**Cause: pnpm ≥ 11 delays newly published versions by default.** `minimumReleaseAge` defaults to
+`1440` minutes (one day), so a version published less than a day ago is not eligible for a bare-name
+resolution and pnpm falls back to the newest version that is. Measured: alpha.2 was 13 hours old and was
+skipped; alpha.1, 24.3 hours old, was installed. The registry was correct the whole time — `latest` and
+both packuments pointed at alpha.2, and `npm install dsh-custom-mode@latest` resolved to it.
+
+Fix — install the exact version, which pnpm accepts and records as an exception in the profile's
+`pnpm-workspace.yaml` (`minimumReleaseAgeExclude`), or simply wait a day:
+
+```sh
+dsh plugin --profile web add dsh-custom-mode@0.1.6-alpha.2
+```
+
+and check what actually landed instead of what you typed:
+
+```sh
+node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
+```
+

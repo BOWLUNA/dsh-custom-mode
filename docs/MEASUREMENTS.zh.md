@@ -772,7 +772,7 @@ npm 标签有坑：`latest` 停在旧的 `0.1.5-rc.2`，新版在 `alpha` 上；
 
 ```
 # 独立 DSH_HOME + 免首启弹窗的 settings.yaml（只放 onboarding/locale/theme，凭据不出会话机）
-$ ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && DSH_HOME=/root/dsh-custom-lab ./install.sh'
+$ ssh "$LAB" 'cd /root/dsh-lab/dsh-custom-mode && DSH_HOME=/root/dsh-custom-lab ./install.sh'
     组合树 164 行，dsh-custom-mode 已就位
 $ ssh "$LAB" '/root/custom-lab.sh'
 dsh web: http://127.0.0.1:3082/?token=SaOzofZ2…
@@ -790,7 +790,7 @@ $ ssh "$LAB" '/root/chrome-lab.sh'
 ### 14.2 验证结果：21/21
 
 ```
-$ ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && CDP_PORT=9222 \
+$ ssh "$LAB" 'cd /root/dsh-lab/dsh-custom-mode && CDP_PORT=9222 \
     node tools/browser-verify.mjs --url "http://127.0.0.1:3082/?token=…" --out /root/custom-mode-verify.png'
 
 PASS  首启遮罩被清掉（否则下面的点击都会被拦）
@@ -831,3 +831,65 @@ PASS  页面没有报 dsh-custom-mode 的错误
   改成**在所有 dialog 里按内容找**。
 - `RiskConfirmation` 的确认按钮读 React 状态，勾选与点击必须在**两个 tick** 里做，
   否则删除不会发生。
+
+## 15. 在 dsh `0.1.6-alpha.2` 上重新验证（从 npm 安装的版本）
+
+以下全部在一个一次性 `DSH_HOME` 上、对着**已发布的包**做的，不是对着工作区：先把它下载下来与仓库的
+`npm pack` 做过逐字节比对，一致（16 个文件，清单哈希相同）。
+
+### 安装路径，以及它中间绕的那一下
+
+```
+$ dsh plugin --profile web add dsh-custom-mode
++ dsh-custom-mode 0.1.6-alpha.1            ← 而 registry 上 `latest` 是 0.1.6-alpha.2
+
+$ node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
+{ 'dsh-custom-mode': '0.1.6-alpha.1' }
+```
+
+这是 pnpm 的一天供应链延迟，不是 registry 的问题：pnpm ≥ 11 里 `minimumReleaseAge` 默认 `1440` 分钟，
+alpha.2 发布了 13 小时，alpha.1 是 24.3 小时。装精确版本可以，并把例外记进 `pnpm-workspace.yaml`：
+
+```
+$ dsh plugin --profile web add dsh-custom-mode@0.1.6-alpha.2
+$ node -p "…dependencies"                 → { 'dsh-custom-mode': '0.1.6-alpha.2' }
+```
+
+装到旧版本的现象是看得见的，而且正是播种那件工作要消除的东西：没有 `custom-mode: 已播种` 那行、没有
+`$DSH_HOME/.agent-presets/`，设置页路由回 `{"ok":false,"error":"找不到组成文件：…"}`。
+
+### 已发布的 alpha.2 上
+
+```
+custom-mode: 已播种 preset 到 …/.agent-presets/custom（新建 5 个文件: agent.cordis.yml, preset.yml,
+             prompt.md, prompt-reader.mjs, prompt-tool.mjs）
+GET /custom-mode          → 200 {"ok":true,"assistants":[{"id":"custom","name":"自定义模式",…}],"root":…}
+GET /custom-mode（无 cookie） → 401
+```
+
+`tools/browser-verify.mjs` 对它跑：**21 通过, 0 失败** —— 页面能开、没有裸翻译键、助手区块与它的按钮都
+渲染出来、三个区块都在、每个开关都有可见行标题、新增后出现在列表、删除会弹风险确认、确认后消失，页面
+没有 `dsh-custom-mode` 的报错。
+
+### 多助手（新能力）的磁盘级核对
+
+| 步骤 | 结果 |
+| --- | --- |
+| `POST /custom-mode/create {"name":"writer"}` | id 为 `writer` —— 英文名直接作为目录名 |
+| `POST /custom-mode/create {"name":"写作助手"}` | id 为 `custom-2` —— 不是合法 id 的名字按规则回退 |
+| 每个助手的目录 | `agent.cordis.yml`、`preset.yml`、`prompt.md`、`prompt-reader.mjs`、`prompt-tool.mjs` |
+| 先给 `writer` 写提示词，再给 `custom-2` 写 | `writer/prompt.md` = `WRITER-PROMPT-V2`，`custom-2/prompt.md` = `CUSTOM2-PROMPT`，`custom/prompt.md` 未被触碰 |
+| 各助手的底子模式 | `writer` → `# 基础模式: standard`，`custom-2` → `# 基础模式: minimal` |
+| 手写 preset（`handmade/`：无 `prompt.md`，组成也不走 `prompt-reader.mjs`） | 不在列表里；对它保存会被拒且错误可读；事后它的文件逐字节未变 |
+| `POST /custom-mode/delete {"id":"writer"}` | 目录被删，列表回到两个 |
+| 重启 dsh | 被删的助手**不会回来**；另外两个各自的提示词保住；`handmade/` 仍然未被触碰 |
+
+### 这一轮暴露的两个工具 bug
+
+- `tools/screenshots/screenshots.mjs` 还在找旧控件：开关现在是壳自己的原子组件（`[role=switch]` +
+  `aria-checked`；实测 32 行、32 个开关、**0** 个 `input[type=checkbox]`），保存控件是普通 `button`
+  而不是 `.cpfe-btn`。两处都改掉了，这才让四张 README 图重新可生成。
+- `tools/screenshots/run-shots.sh` 在 `cd` 到 `tools/screenshots/` **之后**才解析输出目录，于是相对的
+  `docs/images` 被创建在工具目录里而不是仓库里。现在先解析成绝对路径再 `cd`；用相对参数重跑验证过，
+  图确实落在 `docs/images/`。
+

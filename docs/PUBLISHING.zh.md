@@ -123,6 +123,12 @@ npm dist-tag add dsh-custom-mode@<version> latest
 pnpm 也会缓存解析出来的 `latest`：改动之前解析过的机器会一直装旧版本，直到元数据缓存过期。所以要在
 干净缓存下验一次安装，而不是只看 tag。
 
+**另外要预期 pnpm ≥ 11 的一天延迟。** `minimumReleaseAge` 默认 `1440` 分钟，所以发布后的头一天里，
+**按包名**安装会一直解析到上一个版本 —— registry 没有任何问题，`npm view` 也会正常显示新的 `latest`。
+对这个包实测：`0.1.6-alpha.2` 发布 13 小时后，`dsh plugin --profile web add dsh-custom-mode` 装到的
+是 `0.1.6-alpha.1`；而显式给出精确版本时立刻就装到了 alpha.2。如果有用户说"它装的是旧版本"，原因就是
+这个；排查方法与两条出路见 `docs/TROUBLESHOOTING.zh.md` 的 §17。
+
 ### 与"版本号只跟随 DSH"的张力
 
 npm 要求每次发布的版本号唯一，而本项目的版本号只跟随 DSH。两者相遇时：

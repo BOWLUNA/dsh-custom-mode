@@ -424,3 +424,33 @@ grep -n '^order:' "$DSH_HOME"/.agent-presets/*/preset.yml
 - **只有部分助手有**：这正是 writer 保留磁盘旧值的行为；对任意一个助手再点上移/下移一次，
   会给**所有**受管助手补齐 1..N。
 - **文件对了但选择器没变**：选择器只在**新建会话**时读取 roster；已经打开的会话不受影响。
+
+## 17. 刚发布的新版本装不上 —— `dsh plugin add <名字>` 装到的是上一版
+
+你刚发布了（或看到别人发布了）`0.1.6-alpha.2`，但按包名安装装到的是旧版本，新行为不在。对本插件来说
+这一点是看得见的：没有播种能力的那个版本会让 `$DSH_HOME/.agent-presets/` 保持为空，于是设置页报"找不到
+组成文件"。
+
+```
+$ dsh plugin --profile web add dsh-custom-mode
++ dsh-custom-mode 0.1.6-alpha.1          ← 不是 registry 上 `latest` 指向的那个版本
+```
+
+**原因：pnpm ≥ 11 默认对新发布的版本有一个延迟。** `minimumReleaseAge` 默认 `1440` 分钟（一天），
+因此发布不满一天的版本不会参与"按名字解析"，pnpm 会回退到最新的、已经过了一天的那个版本。实测：alpha.2
+发布了 13 小时被跳过，24.3 小时的 alpha.1 被装上。整个过程 registry 都是对的 —— `latest` 与两份
+packument 都指向 alpha.2，`npm install dsh-custom-mode@latest` 也解析到它。
+
+解决：装**精确版本**——pnpm 会接受，并把这条记进 profile 的 `pnpm-workspace.yaml`
+（`minimumReleaseAgeExclude`）；或者干脆等一天：
+
+```sh
+dsh plugin --profile web add dsh-custom-mode@0.1.6-alpha.2
+```
+
+另外，别只看你敲了什么，要看真的装上了什么：
+
+```sh
+node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
+```
+

@@ -90,12 +90,12 @@ it kills the session. Concrete hosts, addresses and launcher scripts belong in t
 
 ```sh
 # 1. ship the tree (the lab has its own checkout; node_modules excluded)
-tar czf - --exclude=node_modules --exclude=.git -C <repo-parent> dsh-editable-prompt \
+tar czf - --exclude=node_modules --exclude=.git -C <repo-parent> dsh-custom-mode \
   | ssh "$LAB" 'tar xzf - -C /root/dsh-lab'
 
 # 2. a throwaway DSH_HOME on the lab. Seed settings.yaml (onboarding version + locale + theme) so
 #    the first-run modals stay away. NEVER copy ~/.dsh/.credentials.yaml — credentials stay here.
-ssh "$LAB" 'mkdir -p /root/dsh-custom-lab && cd /root/dsh-lab/dsh-editable-prompt \
+ssh "$LAB" 'mkdir -p /root/dsh-custom-lab && cd /root/dsh-lab/dsh-custom-mode \
   && DSH_HOME=/root/dsh-custom-lab ./install.sh'
 
 # 3. boot it (a script + setsid, not a foreground ssh command) and read the token URL from the log
@@ -105,7 +105,7 @@ ssh "$LAB" '/root/custom-lab.sh && cat /root/custom-lab.log'
 ssh "$LAB" '/root/chrome-lab.sh'          # CDP on 127.0.0.1:9222
 
 # 5. verify the rendered page (create/delete round trip included), then look at the screenshot
-ssh "$LAB" 'cd /root/dsh-lab/dsh-editable-prompt && CDP_PORT=9222 \
+ssh "$LAB" 'cd /root/dsh-lab/dsh-custom-mode && CDP_PORT=9222 \
   node tools/browser-verify.mjs --url "<token URL>" --out /root/verify.png'
 scp "$LAB":/root/verify.png /tmp/verify.png               # then read the image
 ```
