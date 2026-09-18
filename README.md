@@ -90,6 +90,11 @@ plugin switches, system prompt) edit **whichever one is selected**.
 - **配置了却不生效会被点名** — the page warns when a setting cannot take effect: the「身份（系统提示词）」
   row is off while `prompt.md` still has content (so your prompt is silently ignored), the `custom_prompt`
   tool row is off, the assistant has no name or no description (the picker shows the bare id /「暂无描述」).
+- **The agent can change its own prompt, with your approval** — the in-session `custom_prompt` tool reads the
+  prompt, replaces it, or **appends** to it. Appending matters because it never has to *reproduce* the whole
+  prompt: an agent that wants to remember one rule cannot lose existing content on the way (measured: it may
+  still read first to see what it is adding to). Both writing actions go through the platform's approval panel
+  first.
 - **Change history** — every save, *and* any change made outside this page (the in-session
   `custom_prompt` tool, a hand edit of `prompt.md`), leaves a version in the history list under the
   prompt box, labelled with when and where it came from. Loading one only edits the draft: nothing is

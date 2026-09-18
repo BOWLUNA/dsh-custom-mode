@@ -80,6 +80,53 @@ function shape(text) {
   return { heads, fence, tables, quotes, items }
 }
 
+/**
+ * 长片段语言检查：英文那一份里不该躺着整段中文，中文那一份里不该出现整句英文。
+ *
+ * 为什么需要它：哈希与结构都对的两份文档，仍可能"英文文件里放了一整段中文" —— 实测发生过
+ * （`MEASUREMENTS.md` 的 §16–§18 整段是中文），而读者只读自己语言那一份，看到的就是混排。
+ *
+ * 判据故意宽松，避免误报：
+ *  - 跳过代码围栏与行内代码（原始输出、命令、标识符本来就不该翻译）；
+ *  - 跳过引号内（`"…"` 与 `「…」`）—— 引用上游原文或界面文案是合法的；
+ *  - 只有连续 ≥12 个汉字（英文侧）或 ≥10 个连续英文词（中文侧）才算可疑。
+ *
+ * @param {string} full - absolute path of one side.
+ * @param {string} rel - repository-relative path, used to pick the expected language.
+ * @returns {string[]} problems (empty when the file is clean).
+ */
+function languagePurity(full, rel) {
+  const englishSide = !/\.zh\.md$/.test(rel)
+  const problems = []
+  let inFence = false
+  let scanned = 0
+  const lines = readFileSync(full, 'utf8').split('\n')
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index]
+    if (line.trimStart().startsWith('```')) {
+      inFence = !inFence
+      continue
+    }
+    if (inFence) continue
+    scanned += 1
+    const target = line
+      .replace(/`[^`]*`/g, ' ')
+      .replace(/"[^"]*"/g, ' ')
+      .replace(/「[^」]*」/g, ' ')
+    const hit = englishSide
+      ? /[\u4e00-\u9fff]{12,}/.exec(target)
+      : /(?:[A-Za-z][A-Za-z'-]*\s+){9,}[A-Za-z][A-Za-z'-]*/.exec(target)
+    if (hit !== null) {
+      problems.push(
+        `${rel}:${String(index + 1)} ${englishSide ? '英文文档里出现整段中文' : '中文文档里出现整句英文'} → ${hit[0].slice(0, 40)}`,
+      )
+    }
+  }
+  // 防"空集假通过"：一份 md 不可能连 5 行正文都没有，扫不到就说明检查本身失效了。
+  if (scanned < 5) problems.push(`${rel}: 只扫到 ${String(scanned)} 行正文，语言检查本身可能失效`)
+  return problems
+}
+
 const write = process.argv.includes('--write')
 const records = findRecords()
 let failures = 0
@@ -144,6 +191,12 @@ for (const recordPath of records) {
       `这些文件里找不到指向对方语言的链接 → ${missingLink.join('、')}\n` +
       '    每一侧都应有一行 `English | [中文](X.zh.md)` / `[English](X.md) | 中文`。',
     )
+  }
+
+  // 语言纯度：两侧语言不能混排（长片段级，宽松阈值）。
+  const purity = files.flatMap((file) => languagePurity(join(REPO, file), file))
+  if (purity.length > 0) {
+    problems.push(`语言混排 →\n${purity.map((line) => `    ${line}`).join('\n')}`)
   }
 
   // 结构对等：哈希一致只说明"两侧都没再改过"，不说明它们长得一样。

@@ -69,10 +69,33 @@ console.log('=== 1. 工具的形状（模型看到的就是这些） ===')
 check('注册了一个工具', definition !== undefined)
 check('名字是 custom_prompt（文档里承诺的名字）', definition?.name === 'custom_prompt', String(definition?.name))
 check('有描述', typeof definition?.description === 'string' && definition.description.length > 40)
-check('参数里 action 是 read|write 枚举', JSON.stringify(definition?.parameters?.properties?.action?.enum) === '["read","write"]')
+check('参数里 action 是 read|write|append 枚举', JSON.stringify(definition?.parameters?.properties?.action?.enum) === '["read","write","append"]', JSON.stringify(definition?.parameters?.properties?.action?.enum))
 check('参数里声明了 text', definition?.parameters?.properties?.text?.type === 'string')
 check('输出 schema 是 string', definition?.output?.schema?.type === 'string')
 check('execute 是函数', typeof definition?.execute === 'function')
+
+console.log()
+console.log('=== 1.4 append：加一条规则不必"先读再整文件覆写" ===')
+{
+  writeFileSync(promptPath, '原有内容第一行\n', 'utf8')
+  const appended = await definition.execute({ action: 'append', text: '新规则：结尾不要征询式问句。' })
+  const after = readFileSync(promptPath, 'utf8')
+  check('append 返回成功说明（带新增与总字符数）', /已追加/.test(appended) && /现共/.test(appended), String(appended).slice(0, 80))
+  check('原有内容原样保留', after.startsWith('原有内容第一行\n'), JSON.stringify(after.slice(0, 24)))
+  check('新文本追加在末尾且恰好一个换行分隔', after === '原有内容第一行\n新规则：结尾不要征询式问句。\n', JSON.stringify(after))
+
+  // 追加同样不能把未注册变量带进文件 —— 校验的是**合并后**的完整文本。
+  writeFileSync(promptPath, '干净的内容。\n', 'utf8')
+  const rejected = await definition.execute({ action: 'append', text: '带一个 {{nope}} 变量。' })
+  check('追加含未注册变量 → 被拒绝', /追加被拒绝/.test(rejected), String(rejected).slice(0, 80))
+  check('被拒绝时文件未改动', readFileSync(promptPath, 'utf8') === '干净的内容。\n')
+
+  // 空 text 拒绝；文件不存在时从空开始（读取器本来就对缺失文件有回退）。
+  check('append 空 text → 拒绝', /追加被拒绝/.test(await definition.execute({ action: 'append', text: '   ' })))
+  rmSync(promptPath, { force: true })
+  const fromNothing = await definition.execute({ action: 'append', text: '从空文件开始的第一条规则。' })
+  check('文件不存在时 append 也能建起来', /已追加/.test(fromNothing) && readFileSync(promptPath, 'utf8') === '从空文件开始的第一条规则。\n', JSON.stringify(readFileSync(promptPath, 'utf8')))
+}
 
 console.log()
 console.log('=== 1.5 审批闸门：改写提示词必须过平台的审批缝 ===')
@@ -105,6 +128,9 @@ console.log('=== 1.5 审批闸门：改写提示词必须过平台的审批缝 =
   const longVerdict = await gate({ name: 'custom_prompt', arguments: { action: 'write', text: longText } }, next)
   check('超长内容只截断展示（不把整段塞进审批理由）', String(longVerdict?.reason).length < 200, String(String(longVerdict?.reason).length))
 
+  const appendVerdict = await gate({ name: 'custom_prompt', arguments: { action: 'append', text: '新增一条规则\n' } }, next)
+  check('append → ask（追加同样在改系统提示词）', appendVerdict?.kind === 'ask', JSON.stringify(appendVerdict))
+  check('append 的审批理由说的是"追加"', /追加/.test(String(appendVerdict?.reason)), String(appendVerdict?.reason))
   check('read → 放行（改不了东西的调用不弹窗）', (await gate({ name: 'custom_prompt', arguments: { action: 'read' } }, next))?.kind === 'gate-passed-through')
   check('未指定 action → 放行（工具按 read 处理）', (await gate({ name: 'custom_prompt', arguments: {} }, next))?.kind === 'gate-passed-through')
   check('别的工具 → 放行', (await gate({ name: 'tool-bash', arguments: { command: 'ls' } }, next))?.kind === 'gate-passed-through')

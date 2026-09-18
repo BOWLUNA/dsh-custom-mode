@@ -919,141 +919,160 @@ and the page logs no `dsh-custom-mode` error.
 
 ---
 
-## 16. HTTP 路由迁移到平台的带围栏频道（0.1.6-alpha.2，一次性实例）
+---
 
-一次外部批判性审阅指出：本插件把路由注册在裸 `ctx.webServer` 表上，然后自己调
-`ctx.connection.requestRejection`；而平台早就提供了带围栏的替代。核实后成立，1.0.3 完成迁移。
+## 16. The HTTP surface moved onto the platform's fenced channel (0.1.6-alpha.2, throwaway instance)
 
-### 16.1 先写探针，实测 `/api` 的真实行为（不靠读代码推断）
+An external review pointed out that this plugin registered its routes on the bare `ctx.webServer` table and
+called `ctx.connection.requestRejection` itself, while the platform ships a fenced alternative. Verified, and
+`1.0.3` completed the migration.
 
-探针插件（20 行，注册 3 条 `/api` 路由，`methods`/`requestBody` 按官方包的用法）装进一次性
-`DSH_HOME`（端口 3094）后：
+### 16.1 Probe first: measure what `/api` really does instead of inferring it from the types
 
-```text
-GET  /api/rev-probe                   未授权                → 401 unauthorized
-GET  /api/rev-probe                   带会话 cookie          → 200 {"probe":"get-ok",...}
-GET  /api/rev-probe?x=1&y=2           带会话（query 可见）    → {"probe":"get-ok","query":"?x=1&y=2",...}
-POST /api/rev-probe-post  未授权                             → 401
-POST /api/rev-probe-post  带会话 + JSON body                 → 200 {"probe":"post-ok","got":{"a":1}}
-POST /api/rev-probe-post  带会话 + 坏 JSON                   → 400（我们自己的 handler 给的消息）
-GET  /api/rev-probe       带会话 + Origin: https://evil.example + Sec-Fetch-Site: cross-site → 403
-GET  /api/rev-probe       Host: evil.example                 → 403
-POST /api/rev-probe       （该路由只声明 GET）                → 404（根本没进 handler）
-GET  /api/rev-probe/nope   未注册的子路径                     → 404
-GET  /rev-probe           （旧的裸路由风格）                  → 404
-```
-
-**两条容易踩错的事实**：注册的 `path` 必须**含 `/api` 前缀**（官方包传的是 `/api/present.host`、
-`/api/changes.summary`；类型注释里那句 "below /api" 指的是 URL 空间，我第一次就写成了 `/rev-probe`
-并得到 404）；方法未声明时平台**不分发**，拿到的是 404 而不是 405。
-
-### 16.2 迁移后（`/api/custom-mode*`，端口 3095）
+A 20-line probe plugin (three `/api` routes, `methods`/`requestBody` copied from how the official packages
+register) installed into a throwaway `DSH_HOME` (port 3094):
 
 ```text
-GET  /api/custom-mode                   未授权                → 401 unauthorized
-POST /api/custom-mode/state             未授权（JSON body）    → 401，prompt.md md5 未变
-GET  /api/custom-mode                   带会话                → 200 {"ok":true,"assistants":[…]}
-GET  /api/custom-mode                   带会话 + 跨站 Origin   → 403
-GET  /api/custom-mode                   Host: evil.example    → 403
-GET  /custom-mode                       （旧的裸路由）          → 404
-POST /api/custom-mode/state             带会话                → 200 已保存；prompt.md 与组成文件都写了
+GET  /api/rev-probe                   unauthenticated           → 401 unauthorized
+GET  /api/rev-probe                   session cookie            → 200 {"probe":"get-ok",...}
+GET  /api/rev-probe?x=1&y=2           session (query visible)   → {"probe":"get-ok","query":"?x=1&y=2",...}
+POST /api/rev-probe-post              unauthenticated           → 401
+POST /api/rev-probe-post              session + JSON body       → 200 {"probe":"post-ok","got":{"a":1}}
+POST /api/rev-probe-post              session + bad JSON        → 400 (the message our own handler returned)
+GET  /api/rev-probe   session + Origin: https://evil.example + Sec-Fetch-Site: cross-site → 403
+GET  /api/rev-probe   Host: evil.example                         → 403
+POST /api/rev-probe   (that route declares GET only)             → 404 (the handler is never reached)
+GET  /api/rev-probe/nope   an unregistered sub-path              → 404
+GET  /rev-probe            (the old bare-route shape)            → 404
 ```
 
-浏览器半（真浏览器，CDP）：`tools/browser-verify.mjs` **21 通过 / 0 失败** —— 增删往返、风险确认弹窗、
-语言与主题切换都在新路径下照常工作。
+**Two facts that are easy to get wrong**: the registered `path` must **include the `/api` prefix** (the
+official packages pass `/api/present.host`, `/api/changes.summary`; the types' "below /api" describes the URL
+space — a first attempt with `/rev-probe` got 404s); and a method a route does not declare is **never
+dispatched**, so it yields 404 rather than 405.
 
-代码侧的结构断言（`test/editor-route.test.mjs`）：5 条精确路径全部注册在 `connection.fetch` 上、
-`requestBody: 'buffered'`、`create`/`delete`/`reorder` 只声明 POST；并且源码里**不再有**
-`requestRejection(` 调用与 `webServer.register(`；等不到 `connection` 时**一条也不注册**。
+### 16.2 After the migration (`/api/custom-mode*`, port 3095)
+
+```text
+GET  /api/custom-mode                    unauthenticated         → 401 unauthorized
+POST /api/custom-mode/state              unauthenticated (JSON)  → 401, prompt.md md5 unchanged
+GET  /api/custom-mode                    session cookie          → 200 {"ok":true,"assistants":[…]}
+GET  /api/custom-mode                    session + cross-site Origin → 403
+GET  /api/custom-mode                    Host: evil.example      → 403
+GET  /custom-mode                        (the old bare route)    → 404
+POST /api/custom-mode/state              session cookie          → 200 saved; prompt.md and composition written
+```
+
+The browser half (real browser over CDP): `tools/browser-verify.mjs` **21 passed / 0 failed** — the
+create/delete round trip, the risk-confirmation dialog and the language/theme switches all work on the new
+paths.
+
+Structural assertions on the code (`test/editor-route.test.mjs`): all five exact paths are registered on
+`connection.fetch` with `requestBody: 'buffered'`; `create`/`delete`/`reorder` declare POST only; the source
+contains **no** `requestRejection(` call and **no** `webServer.register(`; and when `connection` never
+arrives, **nothing is registered at all**.
 
 ---
 
-## 17. 自我的提示词改写走平台审批缝（0.1.6-alpha.2，真实会话实测）
+## 17. In-session prompt rewrites go through the platform's approval seam (0.1.6-alpha.2, real sessions)
 
-用户提出的需求：会话内的 `custom_prompt` 工具能覆盖整个系统提示词，而调用它的可能是被注入的模型 ——
-这条路径此前没有任何门。做法是注册 `tools/pre-execute`（waterfall）并在 `action === "write"` 时返回
-`{kind:'ask'}`，由平台的审批策略决定后续。
+The requirement: `custom_prompt`'s `write` replaces the whole system prompt, and the caller can be an injected
+model — that path had no gate at all. The fix registers `tools/pre-execute` (a waterfall) and answers
+`{kind:'ask'}` for the write action, leaving the outcome to the platform's approval policy.
 
-### 17.1 先探针，别照类型注释猜
+### 17.1 Probe first: do not infer the behaviour from a type comment
 
-用一个 20 行探针插件（只注册监听、返回 `ask`）在一次性实例上跑真实会话：
+A 20-line probe plugin (registers the listener only, answers `ask`) driven through a real session on a
+throwaway instance:
 
 ```text
-[ask-probe] 已注册 tools/pre-execute 监听
-$ 会话里：请用 custom_prompt 工具把系统提示词改成：审批测试第一版。只用一次工具调用。
-# 权限预设 = danger-full-access（approval: never）时：
-工具调用Error: the user rejected tool "custom_prompt"          ← 不弹窗，直接判为拒绝
+[ask-probe] tools/pre-execute listener registered
+$ in the session: use the custom_prompt tool to set the system prompt to 审批测试第一版. One tool call only.
+# permission preset = danger-full-access (approval: never):
+工具调用Error: the user rejected tool "custom_prompt"          ← no panel; treated as a denial
 思考The user rejected the tool call. I should stop and explain.
-（prompt.md 未被修改）
+(prompt.md unchanged)
 
-# 权限预设 = workspace-write（approval: ask）时：
+# permission preset = workspace-write (approval: ask):
 工具调用 custom_prompt · write
 等待审批
-ask-probe：改系统提示词前需要你确认          ← 我们给的理由被原样呈现
+ask-probe：改系统提示词前需要你确认          ← the reason we passed is shown verbatim
 [拒绝] [允许一次]
-# 点「允许一次」之后：
+# after clicking 「允许一次」:
 已生效：系统提示词已改为 审批实测通过。
-（磁盘：/…/.agent-presets/custom/prompt.md 内容变成 审批实测通过）
+(on disk: /…/.agent-presets/custom/prompt.md now contains 审批实测通过)
 ```
 
-**两条结论**：`ask` 会不会弹窗由**审批策略**决定（`never` → 不弹、直接拒绝；`ask` → 弹面板）；
-因此这条闸门的最坏情况是"改不成"，而不是"悄悄改成了"。
+**Two conclusions**: whether `ask` shows a panel is decided by the **approval policy** (`never` → no panel,
+straight denial; `ask` → the panel), so the worst case for this gate is "the change does not happen", never
+"it happened quietly".
 
-### 17.2 换上我们自己的闸门后复验
+### 17.2 Re-checked with our own gate in place
 
 ```text
-面板文案：等待审批
-          把「自定义模式」的系统提示词整体替换为 7 字符：审批实测通过。（写入 /tmp/…/prompt.md）
-          [拒绝] [允许一次]
-点「允许一次」 → 工具执行，磁盘变成 审批实测通过。（agent 也如实汇报了写入位置与影响范围）
-点「拒绝」     → prompt.md md5 前后一致（fb6bdc8c…），文件未被修改
+panel text: 等待审批
+            把「自定义模式」的系统提示词整体替换为 7 字符：审批实测通过。（写入 /tmp/…/prompt.md）
+            [拒绝] [允许一次]
+click 「允许一次」 → the tool runs and the file becomes 审批实测通过 (the agent also reported where it wrote and what it affected)
+click 「拒绝」     → prompt.md md5 unchanged (fb6bdc8c…), the file was not touched
 ```
 
-浏览器验收（`tools/browser-verify.mjs`）另有 38 项覆盖设置页侧；审批这条链路必须真会话才能验，故记录在此。
+The browser verification (`tools/browser-verify.mjs`) covers the settings-page side separately; this chain
+needs a real session, which is why it is recorded here.
 
 ---
 
-## 18. 模型在环深测（0.1.6-alpha.2，测试账号 token，一次性实例）
+## 18. Model-in-the-loop deep test (0.1.6-alpha.2, test-account token, throwaway instance)
 
-用真实模型会话（`DeepSeek-V4.1-Flash`）验证那些**只有真会话才能验**的契约。本节的结论与"未结论"分开写。
+Real model sessions (`DeepSeek-V4.1-Flash`) were used to check the contracts that **only a real session can
+check**. Conclusions and non-conclusions are kept apart.
 
-### 18.1 已验证
+### 18.1 Verified
 
-1. **审批闸门的三条路径**（原始输出见 §17）：策略 `ask` + 允许 → 真的写入；`ask` + 拒绝 → 文件 md5 不变；
-   策略 `never` → 不弹窗、直接拒绝。闸门最坏是"改不成"，从不是"悄悄改成了"。
-2. **`{{model}}` 在注入时被替换成宿主真实模型 id**：会话自述"我现在的身份要求是：作为由
-   `deepseek-flash` 模型驱动的编码 agent……" —— 模板里写的是 `{{model}}`，宿主渲染成了真实 id。
-   （历史上这一条最容易被写错：界面显示名 ≠ 真实 id。）
-3. **未注册变量不会炸会话**：手工把 `prompt.md` 写成含 `{{nope}}` 的文本后提问，会话照常回答
-   （1+1 → 2）。设置页会拒绝保存这种文本，但文件被别的途径写坏时不应该连会话一起带走。
-4. **会话的 preset 归属**：新建会话取 `settings.yaml` 的 `agent-presets.default`（实测把默认改成
-   `custom` 后，新会话的模式就是「自定义模式」）；而**已经出过内容的会话不能换预设**（与上游文档一致，
-   也是自动化里最容易踩的坑：往旧会话里发消息，验的是别的模式）。
+1. **All three paths of the approval gate** (raw output in §17): policy `ask` + allow → the write really
+   happens; `ask` + deny → the file's md5 is unchanged; policy `never` → no panel, straight denial. The worst
+   case is "the change does not happen", never "it happened quietly".
+2. **`{{model}}` is rendered into the host's real model id**: the session described itself as "an encoding
+   agent powered by the `deepseek-flash` model" — the template says `{{model}}` and the host substituted the
+   real id. (This is the field most easily got wrong: the interface's display name is not the real id.)
+3. **An unregistered variable does not kill the session**: with `prompt.md` hand-written to contain `{{nope}}`,
+   the session still answered (1+1 → 2). The settings page refuses to save such text, but a file broken by
+   another path must not take the session down with it.
+4. **Preset attribution of a session**: a new session takes `agent-presets.default` from `settings.yaml`
+   (measured: after setting it to `custom`, a new session's mode is 「自定义模式」); and **a session that has
+   produced content cannot switch presets** (matching the upstream documentation, and the easiest trap in
+   automation: sending into an old session measures a different mode).
 
-### 18.2 热更新契约：**成立**（而且我第一次测错了，这里记录错在哪）
+### 18.2 The hot-reload contract: **holds** (and my first attempt got it wrong — recorded here)
 
-**结论**：在一条**已经出过内容**的会话里改写 `prompt.md`，**下一步就生效** —— 这一条上面 §0 的承诺得到独立复现。
+**Conclusion**: rewriting `prompt.md` inside a session that **has already produced content** takes effect on
+the **next step** — the promise in §0 above, independently reproduced.
 
-干净的实验（一次性实例，`0.1.6-alpha.2`，`deepseek-flash`，会话模式确认是「自定义模式」）：
+The clean experiment (throwaway instance, `0.1.6-alpha.2`, `deepseek-flash`, session mode confirmed to be
+「自定义模式」):
 
 ```text
-[轮 1] 先问一次，此时 prompt.md 里没有标记规则
-  提问：5+5 等于几？
-  回答：5 + 5 = 10                      ← 回答里没有标记（干净基线）
+[turn 1] ask once, while prompt.md has no marker rule
+  ask: 5+5 等于几？
+  reply: 5 + 5 = 10                     ← no marker in the reply (clean baseline)
 
-[写入规则] 把带标记的格式规则写进 prompt.md（同一个会话，不改任何别的东西）
+[write the rule] put a marker format rule into prompt.md (same session, nothing else changed)
 
-[轮 2] 同一会话再问
-  提问：6+6 等于几？
-  回答：[[MARKER-7F3A]]                 ← 首行就是规则要求的标记
-        6 + 6 = 12
-  页面里还出现了平台自己打的标注：**「系统提示词更新」**
+[turn 2] ask again in the same session
+  ask: 6+6 等于几？
+  reply: [[MARKER-7F3A]]                ← first line is exactly the marker the rule demands
+         6 + 6 = 12
+  the page also showed the platform's own annotation: **「系统提示词更新」**
 ```
 
-**我第一次测出来的"不生效"是测试设计的错，值得记下来**：那次的顺序是"先写入规则问一轮（回答里就有标记）→ 撤掉规则再问"，
-后两轮的回答里仍有标记。我当时判断为"会话冻结在挂载时那份提示词"，但真正的原因是**模型在模仿自己上文里的
-标记**（few-shot 自我模仿），与系统提示词是否更新无关。教训：验证"提示词是否变化"时，**基线那一轮里绝不能出现
-要观察的特征**，否则后面看到的都可能是模仿。
+**My first "it does not take effect" was a fault in the test design, and it is worth recording**: that run
+went "write the rule, ask once (the reply already contains the marker) → remove the rule, ask again", and the
+later replies still carried the marker. I read that as "the session is frozen on the prompt it mounted with",
+but the real cause was **the model imitating its own earlier replies** (few-shot self-imitation), unrelated to
+whether the system prompt was updated. The lesson: when checking whether a prompt change took effect, **the
+baseline turn must not contain the feature you are about to look for**, otherwise everything you see later may
+be imitation.
 
-另外这也解释了 `/custom_prompt` 工具的 write 为什么必须**只改草稿/落盘而不动会话**：热生效由平台在下一步重读
-系统提示词来完成，插件不需要（也不应该）去插手会话状态。
+This also explains why the `custom_prompt` tool's write must only touch the file and not the session: the
+platform re-reads the system prompt on the next step, so the plugin neither needs nor should poke at session
+state.

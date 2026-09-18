@@ -142,25 +142,29 @@ function makeDefinition(modeName) {
   return {
     name: 'custom_prompt',
     description:
-      'Read or replace the system prompt of the 「' +
+      'Read, replace or append to the system prompt of the 「' +
       modeName +
       '」 custom agent preset. ' +
-      'The prompt is a plain file; this tool reads it (action "read", the default) ' +
-      'or overwrites it wholesale (action "write" with text). A write takes effect ' +
+      'The prompt is a plain file; this tool reads it (action "read", the default), ' +
+      'overwrites it wholesale (action "write" with text) or adds text at the end ' +
+      '(action "append" with text — one call, instead of reading the whole prompt and ' +
+      'writing it back to add a line). Any change takes effect ' +
       "on this session's next model step — no restart needed — and only affects " +
-      'sessions running this preset. Use it when the user asks to change ' +
-      'their system prompt or wants to see what it currently says.',
+      'sessions running this preset. Both "write" and "append" ask the user for approval ' +
+      'first. Use it when the user asks to change their system prompt, to remember a rule, ' +
+      'or wants to see what it currently says.',
     parameters: {
       type: 'object',
       properties: {
         action: {
           type: 'string',
-          enum: ['read', 'write'],
-          description: 'Read the current prompt (default) or replace it.',
+          enum: ['read', 'write', 'append'],
+          description: 'Read the current prompt (default), replace it, or append text to it.',
         },
         text: {
           type: 'string',
-          description: 'Required when action is "write": the complete new prompt text.',
+          description:
+            'Required when action is "write" (the complete new prompt) or "append" (the text to add at the end).',
         },
       },
     },
@@ -180,6 +184,35 @@ function makeDefinition(modeName) {
           return '当前系统提示词（' + PROMPT_PATH + '）：\n\n' + readFileSync(PROMPT_PATH, 'utf8')
         } catch {
           return MISSING
+        }
+      }
+
+      if (action === 'append') {
+        if (typeof args.text !== 'string' || args.text.trim() === '') {
+          return '追加被拒绝：action 为 "append" 时必须提供非空的 text。'
+        }
+        let current = ''
+        try {
+          current = readFileSync(PROMPT_PATH, 'utf8')
+        } catch {
+          // 文件不存在就当作从空开始：读取器本来就对缺失文件有回退，追加没有理由不工作。
+        }
+        // 分隔：保证两块之间恰好一个换行，不在文件里堆空行。
+        const base = current === '' || current.endsWith('\n') ? current : current + '\n'
+        const added = args.text.endsWith('\n') ? args.text : args.text + '\n'
+        const combined = base + added
+        // 校验的是**合并之后**的完整文本：追加同样不能把未注册变量带进文件。
+        const verdict = checkPromptText(combined)
+        if (verdict.ok !== true) return '追加被拒绝（合并后的提示词未通过校验）：' + verdict.error
+        try {
+          mkdirSync(dirname(PROMPT_PATH), { recursive: true })
+          writeAtomic(PROMPT_PATH, combined)
+          return (
+            '已追加到 ' + PROMPT_PATH + '（新增 ' + String(added.length) + ' 字符，现共 ' +
+            String(combined.length) + ' 字符）。本会话下一步模型调用即使用新提示词。'
+          )
+        } catch (error) {
+          return '追加失败：' + String((error && error.message) || error)
         }
       }
 
@@ -231,14 +264,15 @@ function registerApprovalGate(ctx) {
       if (exec === null || typeof exec !== 'object' || exec.name !== TOOL_NAME) return next()
       const args = exec.arguments
       const action = args !== null && typeof args === 'object' ? args.action : undefined
-      // 只拦写入；未指定 action 时工具按 read 处理，同样不拦。
-      if (action !== 'write') return next()
+      // 拦所有会改文件的动作：write 与 append 都在改系统提示词；未指定 action 时按 read 处理，不拦。
+      if (action !== 'write' && action !== 'append') return next()
+      const verb = action === 'append' ? '追加到' : '整体替换为'
       const text = typeof args.text === 'string' ? args.text : ''
       const firstLine = text.split('\n').find((line) => line.trim() !== '') ?? ''
       return {
         kind: 'ask',
         reason:
-          '把「' + resolveModeName(undefined) + '」的系统提示词整体替换为 ' + String(text.length) + ' 字符' +
+          '把「' + resolveModeName(undefined) + '」的系统提示词' + verb + ' ' + String(text.length) + ' 字符' +
           (firstLine === '' ? '' : '：' + firstLine.trim().slice(0, 60)) +
           '（写入 ' + PROMPT_PATH + '）',
       }

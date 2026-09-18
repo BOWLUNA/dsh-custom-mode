@@ -8,6 +8,36 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.5.0]
+
+### `custom_prompt` can append, and both writing actions are gated
+
+An external review noted the tool could only overwrite the whole prompt, so an agent that just wanted to
+remember one rule had to read the entire prompt and write it back — two calls, and a chance to lose content on
+the way.
+
+- New `action: "append"`: the text is added at the end (exactly one newline between blocks), the file is
+  created if it does not exist, and the **combined** text goes through the same `{{…}}` validation as a
+  hand-typed save — an append cannot smuggle an unregistered variable into the file.
+- The approval gate covers **both** writing actions; its reason says which one it is
+  (`…整体替换为 N 字符…` / `…追加到 N 字符…`).
+- Measured in a real session: asked to remember a rule, the model chose `append` on its own. The trajectory
+  shows the exact sequence — `custom_prompt{"action": "read"}` (not gated) then
+  `custom_prompt{"action": "append", "text": "回复结尾不要出现征询式问句。\n"}` — the panel said
+  `把「自定义模式」的系统提示词追加到 15 字符：…（写入 …/prompt.md）`, approving grew the file 258 → 273
+  characters with the original text intact, and the platform logged 「系统提示词已更新」. Two tool calls, and
+  that is the honest framing: the benefit is **not** "always one call" but "the whole prompt never has to be
+  rewritten", which is what made the old path able to lose content.
+
+### Documentation: the pair checker now also checks language purity
+
+`MEASUREMENTS.md` had §16–§18 written in Chinese inside the **English** file (my own doing, and exactly what
+the review meant by "mixed tails"). Those sections are now English, and `tools/verify-translation-pairing.mjs`
+grew a fourth layer: an English side must not contain a run of ≥12 CJK characters and a Chinese side must not
+contain a sentence of ≥10 ASCII words, with code fences, inline code and quoted spans skipped (quoting
+upstream source or a UI label is legitimate). Verified by injecting a Chinese paragraph into `README.md` and
+watching it fail on the right line.
+
 ## [1.4.1]
 
 ### The stable line ships a row the preview line does not — and the new CI matrix caught it
