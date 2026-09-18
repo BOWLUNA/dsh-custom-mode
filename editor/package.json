@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "1.6.1",
+  "version": "1.7.0",
   "description": "Custom modes and custom prompts for DeepSeek Harness (dsh): edit a mode's system prompt on the settings page (it takes effect on the next model step), choose its base mode, switch plugins row by row, and keep several assistants side by side.",
   "license": "MIT",
   "type": "module",
@@ -47,6 +47,7 @@
     "index.mjs",
     "assistants.mjs",
     "seed.mjs",
+    "atomic.mjs",
     "client.js",
     "composition.mjs",
     "meta.mjs",

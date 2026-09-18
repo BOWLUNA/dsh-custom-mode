@@ -22,6 +22,8 @@
  */
 
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { renderComposition } from './composition.mjs'
+import { writeAtomic } from './atomic.mjs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -51,7 +53,45 @@ function describe(error) {
  * @param {string} [sourceDir] - the packaged copy to copy from.
  * @returns {{created: string[], kept: string[], errors: string[]}} what happened, per file.
  */
-export function seedPreset(presetDir, sourceDir = packagedPresetDir()) {
+/**
+ * The starter composition for a newly seeded assistant, **derived from the composition the installed dsh line
+ * actually ships**.
+ *
+ * **Why not copy the packaged file** (measured, and it was a real defect): the packaged `agent.cordis.yml` was
+ * rendered from one dsh line, and the other line may not ship some of its rows. Concretely, the preview line's
+ * standard composition enables `workflow-ptc` (`@deepseek-ai/dsh-workflow-ptc`), which the stable line
+ * (`0.1.5-rc.2`) does not install at all — the platform's health check then marks the whole preset broken and
+ * **silently drops the mode from every picker**, while the settings page keeps working (it never needs the
+ * preset to be resolvable). Deriving the rows from what is installed makes that impossible by construction,
+ * on any future line as well.
+ *
+ * @param {{mode?: string, assistantId?: string, modeName?: string}} [options]
+ * @returns {string|null} rendered composition, or `null` when the installed composition cannot be read (the
+ *   caller then keeps the packaged fallback file).
+ */
+export function starterComposition(options = {}) {
+  const mode = typeof options.mode === 'string' && options.mode !== '' ? options.mode : 'standard'
+  try {
+    return renderComposition(mode, new Map(), {
+      assistantId: typeof options.assistantId === 'string' ? options.assistantId : '',
+      modeName: typeof options.modeName === 'string' ? options.modeName : '',
+    })
+  } catch (error) {
+    console.error(
+      'custom-mode: 无法从本机安装的出厂组成派生播种文件（' + describe(error) + '），改用包内模板。' +
+        '如果这条 dsh 线与该模板的差异行不匹配，模式可能被判为 broken 而不出现在选择器里。',
+    )
+    return null
+  }
+}
+
+/**
+ * @param {string} presetDir - where the assistant lives.
+ * @param {string} sourceDir - packaged template directory (tests inject their own).
+ * @param {{composition?: string|null}} [options] - a rendered composition to write instead of copying
+ *   `agent.cordis.yml`; see {@link starterComposition}.
+ */
+export function seedPreset(presetDir, sourceDir = packagedPresetDir(), options = {}) {
   const created = []
   const kept = []
   const errors = []
@@ -74,6 +114,17 @@ export function seedPreset(presetDir, sourceDir = packagedPresetDir()) {
     if (existsSync(target)) {
       kept.push(name)
       continue
+    }
+    // 组成文件优先用"按本机那条线派生"的内容；只有派生失败（null）时才退回包内模板。
+    if (name === 'agent.cordis.yml' && typeof options.composition === 'string' && options.composition !== '') {
+      try {
+        writeAtomic(target, options.composition)
+        created.push(name)
+        continue
+      } catch (error) {
+        errors.push(`写入 ${name} 失败: ${describe(error)}`)
+        continue
+      }
     }
     const source = join(sourceDir, name)
     if (!existsSync(source)) {
@@ -102,10 +153,10 @@ export function seedPreset(presetDir, sourceDir = packagedPresetDir()) {
  * @param {string} [sourceDir] - packaged template to copy from (defaults to `preset/` beside this module).
  * @returns {{created: string[], kept: string[], errors: string[]}}
  */
-export function seedPresetWithLog(presetDir, log = console.error, info = console.log, sourceDir = packagedPresetDir()) {
+export function seedPresetWithLog(presetDir, log = console.error, info = console.log, sourceDir = packagedPresetDir(), options = {}) {
   let result
   try {
-    result = seedPreset(presetDir, sourceDir)
+    result = seedPreset(presetDir, sourceDir, options)
   } catch (error) {
     // seedPreset is written not to throw; this is a last-resort guard so that a bug here
     // can never stop the host from booting.

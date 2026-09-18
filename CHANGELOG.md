@@ -8,6 +8,68 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.7.0]
+
+### Fixed: on the stable dsh line the mode had disappeared from every picker
+
+A review found it, and it was real: on `0.1.5-rc.2` (the npm `latest` line, i.e. most users' default) 「自定义模式」
+never appeared in the new-session mode picker. The settings page still worked, which is exactly why our checks
+stayed green.
+
+The chain: our packaged seed template had been rendered from the **preview** line and enabled a row
+(`workflow-ptc` → `@deepseek-ai/dsh-workflow-ptc`) that the stable line does not install at all; the platform's
+health check marks a preset with an unresolvable **enabled** row as broken, and a broken preset is silently
+dropped from the pickers.
+
+- The seeded composition is now **derived from the composition the installed line actually ships**
+  (`starterComposition()`), with the packaged file kept only as a fallback. `install.sh` no longer copies a
+  composition, so the first activation writes the derived one.
+- `test/seed.test.mjs` walks every enabled row of the derived composition and asserts its package resolves in
+  this install. On the stable line it prints the template's own problem — the bug it prevents.
+- New `tools/picker-probe.mjs` opens the real new-session picker over CDP and fails when an expected mode is
+  missing: the one user-visible fact none of our checks covered (found by this review's §4).
+- Verified on `0.1.5-rc.2`: the derived file, the roster and the picker
+  (`["自定义模式","标准模式","PTC 模式","极简模式"]`), see `docs/MEASUREMENTS.md` §20.
+
+### The English interface stopped leaking Chinese in the three places it still did
+
+- An illegal `{{…}}` interpolation is rejected with a **code**, so the page renders it from its dictionary.
+- The `custom_prompt` **approval reason** is bilingual. It is a security decision, and the panel is rendered by
+  the platform, so the plugin cannot know the interface language — both languages on one line is the honest
+  answer, not one of them.
+- The seeded assistant's **description** is bilingual (the name stays 「自定义模式」: it is the brand and what the
+  marketplace lists).
+
+### Writes: one implementation, and the remaining races named rather than glossed over
+
+- **All atomic writes now share one module** (`editor/atomic.mjs`): a review found `meta.mjs` writing
+  `preset.yml` with a bare `writeFileSync` under a comment promising the opposite — and a corrupt `preset.yml`
+  is precisely how a mode disappears from every picker.
+- `saveState` stages **both** files before renaming either (`writeAtomicPair`), so the composition and the prompt
+  no longer have a mixed-state window between two independent writes.
+- `prompt-tool.mjs` (the in-session writer) gained the same rename retry and failure cleanup as the settings page.
+- `reorderAssistant` rolls back the files it already wrote when a later write fails, instead of leaving a
+  half-applied order.
+- Saves are **serialised per assistant inside the process**. A review measured 1 failure in 10 concurrent saves
+  on Windows even after the retry, because two handlers prepared and renamed the same pair of files at once; the
+  retry covers the cross-process window, the serialisation removes the in-process one. Both are stated as what
+  they are — this is no longer claimed to be impossible.
+- A missing approval gate is no longer only a `console.error`: the preset side leaves a marker and the settings
+  page shows a warning, so an old host cannot silently drop the gate.
+
+### Documentation is now checked, not remembered
+
+`tools/verify-doc-numbers.mjs` runs the suite and compares every documented count (suite count, check count, the
+declared dsh range, the version in SECURITY's support table) with reality; CI runs it. It exists because this
+review found three drifts in one pass that no test could see — and it immediately found two more of mine (the
+Chinese README had kept "12 个套件、588 项", `test/README.md` "333 checks").
+
+Also: the README's install command now carries the pnpm release-cooldown warning next to it (a bare
+`dsh plugin add` 38 minutes after a release was measured landing on a 3-minor-old version), duplicate/deleted
+toasts use display names instead of internal directory ids, the dictionary's dead duplicate key is gone (with a
+duplicate-key check), the literal `**` markdown that rendered as asterisks is gone, and
+`tools/session-trace.mjs` now rejects unknown arguments instead of ignoring them.
+
 ## [1.6.1]
 
 ### Two portability bugs in the trace tool, both found by CI

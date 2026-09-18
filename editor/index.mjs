@@ -37,8 +37,8 @@
  * rows the user changed by diffing against the same shipped base mode.
  */
 
-import { randomBytes } from 'node:crypto'
-import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { writeAtomic, writeAtomicPair } from './atomic.mjs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
 import {
@@ -52,7 +52,7 @@ import {
 } from './composition.mjs'
 import { readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
 import { listHistory, readVersion, recordExternalChange, recordPrompt, HISTORY_SOURCE } from './journal.mjs'
-import { packagedPresetDir } from './seed.mjs'
+import { packagedPresetDir, starterComposition } from './seed.mjs'
 import {
   allocateId,
   assistantDir,
@@ -61,6 +61,7 @@ import {
   createAssistantDir,
   reorderAssistant,
   seedOnActivation,
+  LEGACY_ID,
   userPresetRoot,
 } from './assistants.mjs'
 
@@ -128,6 +129,8 @@ export function checkPromptText(text) {
     if (!VARIABLE_NAME.test(variable)) {
       return {
         ok: false,
+        code: 'badVariableName',
+        params: { variable: '{{' + variable + '}}' },
         error:
           '保存被拒绝：{{' +
           variable +
@@ -138,6 +141,8 @@ export function checkPromptText(text) {
     if (!KNOWN_VARIABLES.includes(variable)) {
       return {
         ok: false,
+        code: 'unknownVariable',
+        params: { variable: '{{' + variable + '}}', known: KNOWN_VARIABLES.map((item) => '{{' + item + '}}').join('、') },
         error:
           '保存被拒绝：{{' +
           variable +
@@ -274,7 +279,12 @@ export function readState(rows, id, options = {}) {
     // 改动历史（只有元数据，正文按需取：见 GET /custom-mode/history）。
     history: listHistory(directory),
     // 「配置了却不生效」的告警码（文案在页面侧按语言渲染）。
-    warnings: configWarnings(text, prompt.ok === true ? prompt.text : '', meta),
+    warnings: [
+      ...configWarnings(text, prompt.ok === true ? prompt.text : '', meta),
+      // 审批闸门缺失：由预置侧在注册失败时留下标记文件（宿主半看不到那个事件是否真的有人监听）。
+      // 诚实地把它变成页面上的告警，而不是只留在 console.error 里。
+      ...(existsSync(join(directory, 'approval-gate-missing')) ? ['approvalGateMissing'] : []),
+    ],
   }
 }
 
@@ -297,6 +307,23 @@ export function readList(rows) {
  * @param {Array<object>} rows - the current roster.
  * @param {object} input - `{ id, mode, overrides, prompt, name, description }`.
  */
+/**
+ * 进程内按助手串行化写入。
+ *
+ * 实测（外部审阅，Windows）：即使有 rename 重试，同一助手 10 个并发保存里仍有 1 次 EPERM —— 因为两个
+ * 处理器在**同一时刻**准备并改名同一对文件。重试覆盖的是跨进程窗口；这里消掉的是本进程内的竞争，也就是
+ * 我们能真正保证的那一半。（两个实例共用同一个 DSH_HOME 的跨进程竞争，插件无法串行化，那里靠重试。）
+ */
+const writeChains = new Map()
+
+function serializedWrite(key, work) {
+  const previous = writeChains.get(key) ?? Promise.resolve()
+  const next = previous.then(work, work)
+  // 链本身必须永远处于 fulfilled 状态，否则一次失败会卡死后续所有写入。
+  writeChains.set(key, next.then(() => undefined, () => undefined))
+  return next
+}
+
 export function saveState(rows, input) {
   const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
   const directory = assistantDir(rows, id)
@@ -311,7 +338,10 @@ export function saveState(rows, input) {
     return { ok: false, code: 'promptEmpty', error: '保存被拒绝：系统提示词为空。留空不会清空身份，读取器会沿用上一版。' }
   }
   const verdict = checkPromptText(prompt)
-  if (verdict.ok !== true) return { ok: false, error: verdict.error }
+  if (verdict.ok !== true) {
+    // 带上 code/params：英文界面由页面自己的词典渲染；中文串保留给直接调 HTTP API 的调用方。
+    return { ok: false, code: verdict.code, params: verdict.params, error: verdict.error }
+  }
 
   const rawName = input !== null && typeof input === 'object' && typeof input.name === 'string' ? input.name : ''
   const name = rawName.replace(/\r?\n/g, ' ').trim()
@@ -350,8 +380,12 @@ export function saveState(rows, input) {
   }
 
   try {
-    writeAtomic(compositionFile(directory), composition)
-    writeAtomic(promptFile(directory), prompt)
+    // 组成文件与提示词必须一起更新：先都写进临时文件再一起换名，失败时不会留下"新组成 + 旧提示词"
+    // 这种混合状态（审阅指出原先两次独立原子写之间存在这个窗口）。
+    writeAtomicPair([
+      [compositionFile(directory), composition],
+      [promptFile(directory), prompt],
+    ])
     // 改动留痕：三个改动路径（设置页 / 会话内工具 / 手工编辑）里，只有设置页是"当场知道"的。
     // 另外两条由 readState 对比补记（见 journal.mjs 的单写者说明）。
     recordPrompt(directory, prompt, HISTORY_SOURCE.settings)
@@ -422,11 +456,16 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
   // file embeds the new assistant's own name and id.
   let source = null
   const from = input !== null && typeof input === 'object' && typeof input.from === 'string' ? input.from : ''
+  // 显示名在分支里计算，但返回语句在分支外 —— 所以声明在外层。
+  let fromDisplayName = from
   if (from !== '') {
     const fromDir = assistantDir(rows, from)
     if (fromDir === undefined) return unknownAssistant(from)
     const fromComposition = compositionFile(fromDir)
     if (!existsSync(fromComposition)) return { ok: false, code: 'compositionMissing', params: { path: fromComposition }, error: '找不到组成文件：' + fromComposition }
+    // 显示名（`rows` 里的 name）优先于内部 id —— 与删除一致。
+    const fromRow = rows.find((item) => item !== null && typeof item === 'object' && item.id === from)
+    if (typeof fromRow?.name === 'string' && fromRow.name.trim() !== '') fromDisplayName = fromRow.name
     const text = readFileSync(fromComposition, 'utf8')
     const sourceMode = modeOf(text)
     const sourcePrompt = readPrompt(fromDir)
@@ -467,7 +506,7 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     name,
     code: source === null ? 'created' : 'duplicated',
     // D5：文案里用**显示名**而不是内部目录 id。
-    params: source === null ? { name } : { name, from: source === null ? '' : from },
+    params: source === null ? { name } : { name, from: fromDisplayName },
     note: source === null
       ? '已创建「' + name + '」。它的系统提示词现在是模板默认文本；写好后新建会话即可选择它。'
       : '已复制出「' + name + '」：提示词、基础模式与插件开关都来自「' + from + '」，之后各改各的，互不影响。',
@@ -492,12 +531,17 @@ export async function deleteAssistant(rows, input, agentPresets) {
   if (typeof agentPresets?.remove !== 'function') {
     return { ok: false, code: 'noRemoveApi', error: '当前 DSH 版本没有 agentPresets.remove()，无法删除。' }
   }
+  // 文案用**显示名**，不用内部目录 id（复制/删除的状态行曾把 id 暴露给用户，审阅点名）。
+  const displayName = (() => {
+    const row = Array.isArray(rows) ? rows.find((item) => item !== null && typeof item === 'object' && item.id === id) : undefined
+    return typeof row?.name === 'string' && row.name.trim() !== '' ? row.name : id
+  })()
   try {
     await agentPresets.remove(id)
   } catch (error) {
     return { ok: false, code: 'deleteFailed', params: { detail: describe(error) }, error: '删除失败：' + describe(error) }
   }
-  return { ok: true, id, code: 'deleted', params: { name: id }, note: '已删除「' + id + '」。正在使用它的会话不受影响；新建会话时不再出现。' }
+  return { ok: true, id, code: 'deleted', params: { name: displayName }, note: '已删除「' + displayName + '」。正在使用它的会话不受影响；新建会话时不再出现。' }
 }
 
 /**
@@ -559,7 +603,14 @@ export function apply(ctx) {
   // generated composition) and creates the legacy assistant only on a first run — see
   // the assistant registry for why a deleted assistant must not come back.
   try {
-    seedOnActivation({ root: dirname(PRESET_DIR), templateDir: packagedPresetDir() })
+    seedOnActivation({
+      root: dirname(PRESET_DIR),
+      templateDir: packagedPresetDir(),
+      // 组成文件**不照搬包内模板**，而是按本机装的那条 dsh 线派生：模板是某一条线渲染出来的，
+      // 另一条线可能根本没有它的某些行（实测：预览线的 workflow-ptc 在稳定线上不存在，
+      // 平台会把整个预设判为 broken 并从所有选择器里静默丢弃）。
+      composition: starterComposition({ assistantId: LEGACY_ID }),
+    })
   } catch (error) {
     console.error('custom-mode: 初始化 preset 目录时出现意外错误（已忽略）: ' + describe(error))
   }
@@ -677,19 +728,21 @@ export function apply(ctx) {
           return json({ ok: false, code: 'badJson', error: '请求体不是合法 JSON' }, 400)
         }
         await ensureShipped()
+        const targetId = parsed !== null && typeof parsed === 'object' && typeof parsed.id === 'string' ? parsed.id : ''
         if (pathname === STATE_PATH) {
-          const result = saveState(await roster(), parsed)
+          const result = await serializedWrite('save:' + targetId, async () => saveState(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === CREATE_PATH) {
-          const result = createAssistant(await roster(), parsed)
+          // 新建与排序改的是整棵树（根目录 + 每个助手的 preset.yml），所以用同一把"树锁"。
+          const result = await serializedWrite('tree', async () => createAssistant(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === REORDER_PATH) {
-          const result = reorderAssistant(await roster(), parsed)
+          const result = await serializedWrite('tree', async () => reorderAssistant(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
-        const result = await deleteAssistant(await roster(), parsed, scope.agentPresets)
+        const result = await serializedWrite('delete:' + targetId, async () => deleteAssistant(await roster(), parsed, scope.agentPresets))
         return json(result, result.ok === true ? 200 : 400)
       } catch (error) {
         return json({ ok: false, error: describe(error) }, 500)
@@ -720,58 +773,9 @@ export function apply(ctx) {
  * 要么看到新内容，不会读到写了一半的文件。原来连续两次 writeFileSync 在极端时序下可能被读成撕裂的
  * prompt，而这个文件正是"用户的提示词"。
  */
-function writeAtomic(file, text) {
-  // 临时名必须**每个请求唯一**：只带 pid 时，同一进程内两个并发保存会争同一个临时名。
-  // 但随机后缀只消除 tmp-vs-tmp 竞争 —— Windows 上**两个 rename 指向同一目标**仍会以
-  // EPERM/EBUSY 失败（实测：10 并发保存 2 例 400），所以还要短退避重试。
-  const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
-  writeFileSync(temporary, text, 'utf8')
-  try {
-    renameWithRetry(temporary, file)
-  } catch (error) {
-    // 失败必须清掉临时文件：助手目录会被 agent-presets 扫描，孤儿 tmp 是脏残留（实测留下过
-    // `agent.cordis.yml.tmp-135052-36a5bf5c`）。
-    try {
-      rmSync(temporary, { force: true })
-    } catch {
-      /* 清理失败不再掩盖原始错误 */
-    }
-    throw error
-  }
-}
-
-/** 同步退避：这条写路径本身是同步的，等一小会儿比把整个调用链改成异步更合适。 */
-function sleepSync(ms) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
-}
-
-/**
- * `rename` 带重试。
- *
- * Windows 上并发 rename 到同一目标会短暂报 `EPERM`/`EBUSY`/`EACCES`（目标被另一个 rename 持有），
- * 退避几毫秒就能跨过这个窗口；其它错误立刻抛出，不做无谓等待。`rename`/`sleep` 可注入，
- * 于是这条重试逻辑在 Linux 上也能被测试钉住（见 test/journal.test.mjs 的对应条目）。
- *
- * @param {string} from - 临时文件名（已写好内容）。
- * @param {string} to - 目标文件名。
- * @returns {void}
- */
-export function renameWithRetry(from, to, options = {}) {
-  const rename = typeof options.rename === 'function' ? options.rename : renameSync
-  const sleep = typeof options.sleep === 'function' ? options.sleep : sleepSync
-  const attempts = Number.isInteger(options.attempts) ? options.attempts : 5
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      rename(from, to)
-      return
-    } catch (error) {
-      const code = error !== null && typeof error === 'object' ? error.code : undefined
-      const retryable = code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
-      if (retryable !== true || attempt >= attempts) throw error
-      sleep(20 * attempt)
-    }
-  }
-}
+// 原子写与重试只有一份实现（见 atomic.mjs 的说明）；这里再导出 renameWithRetry，
+// 让既有的路由测试继续能从 index.mjs 取到它。
+export { renameWithRetry } from './atomic.mjs'
 
 /** `error` as a readable string, without assuming it is an Error. */
 function describe(error) {

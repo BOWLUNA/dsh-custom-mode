@@ -6,7 +6,7 @@ English | [中文](README.zh.md)
 node test/run.mjs
 ```
 
-One entry point runs all eight suites and resolves the "shipped presets directory" itself (it is not
+One entry point runs all thirteen suites and resolves the "shipped presets directory" itself (it is not
 in this repository; it comes from the installed `@deepseek-ai/dsh-agent-presets`):
 
 ```
@@ -28,10 +28,10 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 … result: 31 passed, 0 failed
 ──────── locales.test.mjs ────────
 … result: 65 passed, 0 failed
-all 8 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 13 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-**333 checks** in total. Only `composition.test.mjs` needs that shipped directory; the other seven bring
+**662 checks** in total. Only `composition.test.mjs` needs that shipped directory; the other twelve bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 There are three resolution paths, and any one of them hitting is enough: the

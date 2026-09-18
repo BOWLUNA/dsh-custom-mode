@@ -20,6 +20,8 @@ longer encodes it. Development and verification cover the rows below, newest fir
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
+| `1.7.0` (current release) | `0.1.5-rc.2` (latest stable) **and** `0.1.6-alpha.2` (latest preview) | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0`, and CI installs and runs the whole suite against both lines |
+| `1.0.0`–`1.0.6` | `0.1.6-alpha.2` | Supported (superseded) |
 | `1.0.0` | `0.1.6-alpha.2` | **Supported (current development and verification target)** |
 | `0.1.6-alpha.2` | `0.1.6-alpha.2` | **Supported (current development and verification target)** |
 | `0.1.6-alpha.1` (including commits after this repository's `review/2026-09-fixes` branch) | `0.1.6-alpha.1` | Supported (previous) |

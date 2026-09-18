@@ -416,7 +416,7 @@ upstream row turns CI red instead of silently rendering a bare id.
 ### Suite result
 
 ```
-DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.1 presets> node test/run.mjs   → 8 suites, all pass
+DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.1 presets> node test/run.mjs   → 8 suites, all pass（当时的套件数；本文件保持历史记录原样）
 DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.2 presets> node test/run.mjs   → 8 suites, all pass
 ```
 
@@ -1110,4 +1110,56 @@ $ node tools/session-trace.mjs --home /tmp/dsh-exp-…
 
 `--compare <A> <B>` 是同一件事的横向版本：两边各读一次，输出按 |Δ| 排序的差值表（例如换实现后
 "总调用数 +0，custom_prompt(append) 1 → 1"）。
+
+---
+
+## 20. The mode disappeared from every picker on the stable line (reported by a review, confirmed, fixed)
+
+**Symptom**: on `0.1.5-rc.2` (the npm `latest` line, i.e. most users' default), 「自定义模式」 did not appear in the
+new-session mode picker at all. The settings page still opened and worked.
+
+**Root cause, reproduced here**:
+
+```text
+$ grep -n -A2 "workflow-ptc" editor/preset/agent.cordis.yml     # our packaged seed template
+    - id: workflow-ptc
+      name: '@deepseek-ai/dsh-workflow-ptc'
+
+$ ls /tmp/dsh-stable3/node_modules/@deepseek-ai/ | grep -c workflow-ptc
+0                                                                # the stable line does not ship that package
+$ grep -c workflow-ptc <preview>/presets/standard/agent.cordis.yml
+2                                                                # the preview line does
+```
+
+An enabled row whose plugin cannot be resolved makes the platform's health check mark the whole preset broken,
+and a broken preset is dropped from the pickers — silently, since the settings page never needs the preset to be
+resolvable. Our packag seed template had been rendered from the **preview** line, so it carried that row.
+
+**Why the double-line CI missed it** (the review's point, and it is correct): the stable job ran the suite, which
+checks text surgery, routes and dictionaries — none of which ask "is this preset healthy on this line"; the UI
+verification only ever ran against the preview line and only against the settings page, never the picker.
+
+**Fix**: the seeded composition is no longer a copy of a packaged file — it is rendered from the composition the
+**installed line actually ships** (`starterComposition()` in `editor/seed.mjs`), with the packaged file kept only
+as a fallback when that cannot be read. `install.sh` no longer copies a composition at all, so the first
+activation writes the derived one. A new check in `test/seed.test.mjs` walks every **enabled** row of the derived
+composition and asserts its package resolves in this install; on the stable line it prints the template's own
+problem, which is the bug it prevents:
+
+```text
+说明：包内模板在本线有 1 处不可解析（workflow-ptc → @deepseek-ai/dsh-workflow-ptc）—— 这正是播种改为"按本线派生"的原因。
+```
+
+**Verified on the stable line** (throwaway `DSH_HOME`, plugin installed from the working tree, port 3108):
+
+```text
+$ ls $DSH_HOME/.agent-presets/custom/
+agent.cordis.yml  preset.yml  prompt-reader.mjs  prompt-tool.mjs  prompt.md
+$ grep -c workflow-ptc $DSH_HOME/.agent-presets/custom/agent.cordis.yml
+0
+$ node tools/picker-probe.mjs <url>           # opens the new-session picker over CDP
+  当前模式按钮: {"text":"自定义模式"}
+  选择器里的模式: ["自定义模式","标准模式","PTC 模式","极简模式"]
+  ✅ 稳定线上「自定义模式」出现在选择器里
+```
 

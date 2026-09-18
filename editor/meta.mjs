@@ -17,6 +17,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs'
+import { writeAtomic } from './atomic.mjs'
 import { join } from 'node:path'
 import { PRESET_DIR } from './paths.mjs'
 
@@ -113,7 +114,9 @@ export function writePresetMeta(name, description, directory = PRESET_DIR, optio
     typeof requested === 'number' && Number.isFinite(requested) ? Math.trunc(requested) : readPresetMeta(directory).order
   if (order !== undefined) lines.push('order: ' + String(order))
   try {
-    writeFileSync(presetMetaPath(directory), lines.join('\n') + '\n', 'utf8')
+    // **非原子写的最坏后果在这里**：preset.yml 写坏 = 这个模式从所有选择器里消失（见本文件头注释）。
+    // 实测审阅指出这里原先用的是裸 writeFileSync，与设置页的纪律不一致；现在共用同一份实现。
+    writeAtomic(presetMetaPath(directory), lines.join('\n') + '\n')
   } catch (error) {
     return { ok: false, error: '写入 preset.yml 失败：' + String((error && error.message) || error) }
   }

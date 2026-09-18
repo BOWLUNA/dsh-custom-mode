@@ -17,8 +17,9 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 13 suites, 643 checks; resolves the shipped presets itself
-node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
+node test/run.mjs                                  # 13 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself
+node tools/verify-translation-pairing.mjs          # bilingual pairing + language-purity check (what CI runs)
+node tools/verify-doc-numbers.mjs                  # documented counts vs the real run (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
 # Against a real harness: always use a throwaway DSH_HOME, never the one in use
@@ -151,7 +152,10 @@ fresh `--user-data-dir` and hard-killing the previous one.
 ## Knowing when you are done
 
 - Code: `node test/run.mjs` is green. Docs: `node tools/verify-translation-pairing.mjs` passes
-  (both sides of a pair must be edited, then re-recorded with `--write`).
+  (both sides of a pair must be edited, then re-recorded with `--write`) **and**
+  `node tools/verify-doc-numbers.mjs` passes — a number in a README is a claim, and that tool compares every
+  one of them (suite count, check count, declared dsh range, the version in SECURITY's support table) with the
+  real run. It exists because a review found three drifts in one pass that no test could see.
 - **A real session's tool calls**: `node tools/session-trace.mjs [--home …] [--session …] [--summary]` reads
   `session.v3.jsonl.zstd` directly and prints the call sequence plus a per-tool tally. Session logs are
   **multi-frame** Zstandard and Node's one-shot decoder returns only the first frame *without an error*, so the
@@ -160,6 +164,10 @@ fresh `--user-data-dir` and hard-killing the previous one.
   wrong claim of exactly that shape. It reads session *content*: prefer `--summary` (counts only) when the log
   is not yours. `--expect 'custom_prompt(read)=1'` turns such a sentence into a **check** (exit 1 on mismatch),
   and `--compare <homeA> <homeB>` answers "did this change make the agent take more or fewer steps?".
+- **The mode is actually offered**: after touching seeding, composition or the dsh range, run
+  `node tools/picker-probe.mjs --url "<token URL>" --expect 自定义模式`. A review found the stable line dropping
+  the mode from every picker while the settings page (and therefore `tools/browser-verify.mjs`) stayed green —
+  "the preset is healthy on this line" is a fact only a rendered picker can show.
 - Behaviour: run it for real under a throwaway `DSH_HOME` and write the observed output into
   `docs/MEASUREMENTS.md` — this repository's convention is that a conclusion comes with the command
   and its raw output, not with "should be fine".

@@ -25,9 +25,9 @@
  * needs no isolate realm.
  */
 
+import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /** Absolute path of the prompt file this preset reads. */
@@ -271,16 +271,29 @@ function registerApprovalGate(ctx) {
       const firstLine = text.split('\n').find((line) => line.trim() !== '') ?? ''
       return {
         kind: 'ask',
+        // **双语**：这是安全决策界面 —— 用哪种界面语言的用户都必须读懂自己要批准什么。
+        // （页面其它文案走词典，但审批面板由平台渲染，插件侧拿不到当前界面语言。）
         reason:
           '把「' + resolveModeName(undefined) + '」的系统提示词' + verb + ' ' + String(text.length) + ' 字符' +
           (firstLine === '' ? '' : '：' + firstLine.trim().slice(0, 60)) +
-          '（写入 ' + PROMPT_PATH + '）',
+          '（写入 ' + PROMPT_PATH + '）' +
+          " ／ Change this mode's system prompt: " + (action === 'append' ? 'append ' : 'replace with ') +
+          String(text.length) + ' characters (writes ' + PROMPT_PATH + ')',
       }
     }),
     'custom-prompt.approval-gate',
   )
   return true
 }
+
+/**
+ * Marker file the host half reads to surface a MISSING approval gate in the settings page.
+ *
+ * The gate lives on the preset side, which is loaded per session, so the host half cannot see whether it
+ * registered. A review called the previous behaviour ("only console.error") a silent gap; this turns it into a
+ * visible warning. The marker is removed as soon as registration succeeds.
+ */
+export const GATE_MARKER = 'approval-gate-missing'
 
 /** The tool registry is a hard dependency; without it there is no tool. */
 export const inject = ['tools']
@@ -291,7 +304,14 @@ export function apply(ctx, config = {}) {
 
   // 审批闸门。宿主若不支持 `tools/pre-execute`（比本插件声明的下限还老的构建），这里会**明确**
   // 说一声再继续 —— 降级是有的，但不许静默。
-  if (registerApprovalGate(ctx) !== true) {
+  const gateReady = registerApprovalGate(ctx) === true
+  try {
+    if (gateReady) rmSync(join(dirname(PROMPT_PATH), GATE_MARKER), { force: true })
+    else writeFileSync(join(dirname(PROMPT_PATH), GATE_MARKER), 'this host has no tools/pre-execute event\n', 'utf8')
+  } catch {
+    /* 标记写不进去不能影响会话；下面的 console.error 仍然是兜底 */
+  }
+  if (gateReady !== true) {
     console.error(
       'custom-mode: 这个宿主没有 tools/pre-execute 事件，会话内改写系统提示词的审批闸门**未启用**' +
         '（设置页不受影响）。请升级 DSH，或把「custom_prompt 工具」这一行关掉。',
@@ -305,8 +325,35 @@ export function apply(ctx, config = {}) {
  * 临时名带 pid 与随机后缀：同一进程内的并发写必须各用各的临时名，否则 Windows 上两个
  * rename 指向同一目标会以 EPERM 失败。
  */
+/**
+ * `rename` 带重试 —— 与设置页同一条纪律（原先这里只有裸 rename，注释却自称"同一条纪律"，审阅点名）。
+ * Windows 上并发改名到同一目标会短暂 EPERM/EBUSY；退避几毫秒即可跨过。
+ */
+function renameWithRetry(from, to, attempts = 8) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      renameSync(from, to)
+      return
+    } catch (error) {
+      const code = error !== null && typeof error === 'object' ? error.code : undefined
+      const retryable = code === 'EPERM' || code === 'EBUSY' || code === 'EACCES'
+      if (retryable !== true || attempt >= attempts) throw error
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20 * attempt)
+    }
+  }
+}
+
 function writeAtomic(file, text) {
   const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
   writeFileSync(temporary, text, 'utf8')
-  renameSync(temporary, file)
+  try {
+    renameWithRetry(temporary, file)
+  } catch (error) {
+    try {
+      rmSync(temporary, { force: true })
+    } catch {
+      /* 不掩盖原始错误 */
+    }
+    throw error
+  }
 }

@@ -334,6 +334,22 @@ function main() {
     return
   }
 
+  // 未知的位置参数必须报错而不是被静默忽略（审阅实测：传一个路径进去毫无反应，用户以为它生效了）。
+  const consumesValue = new Set(['--home', '--session', '--grep', '--expect', '--compare'])
+  const strays = []
+  for (let i = 0; i < argv.length; i += 1) {
+    const value = argv[i]
+    if (value.startsWith('--')) {
+      if (consumesValue.has(value)) i += value === '--compare' ? 2 : 1
+      continue
+    }
+    strays.push(value)
+  }
+  if (strays.length > 0) {
+    console.error(`不认识的参数：${strays.join(' ')}（用法见文件头注释：--home / --session / --summary / --grep / --denied / --expect / --compare / --json）`)
+    process.exit(2)
+  }
+
   const logs = findLogs(home)
   if (logs.length === 0) {
     console.error(`没有在 ${join(home, 'sessions')} 下找到会话日志 —— 换个 --home，或先在那个 home 里跑一次会话。`)

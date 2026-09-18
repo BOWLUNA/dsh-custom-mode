@@ -24,7 +24,10 @@
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode
+dsh plugin --profile web add dsh-custom-mode@1.7.0   # 钉版本才能确定拿到这一版
+# 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
+# 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
+# `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
 ```
 
 装完重启 dsh，新建会话时选「自定义模式」。preset 会被写到 `$DSH_HOME/.agent-presets/custom/`；
@@ -177,7 +180,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 ## 开发
 
 ```sh
-node test/run.mjs        # 12 个套件、588 项；自己解析出厂 preset 目录
+node test/run.mjs        # 13 个套件；自己解析出厂 preset 目录
 ```
 
 改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。

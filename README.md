@@ -30,7 +30,11 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode
+dsh plugin --profile web add dsh-custom-mode@1.7.0   # pin the version to get this one for sure
+# A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
+# default): for hours after a release it can silently install an OLDER version — measured: a bare
+# install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
+# dsh-custom-mode` inside the profile, or pin the version as above.
 ```
 
 Restart dsh afterwards, then choose「自定义模式」for a new session. The preset is written to
@@ -242,7 +246,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 12 suites, 588 checks; resolves the shipped presets itself
+node test/run.mjs        # 13 suites; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the

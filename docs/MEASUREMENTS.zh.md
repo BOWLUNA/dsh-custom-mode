@@ -1067,3 +1067,53 @@ $ node tools/session-trace.mjs --home /tmp/dsh-exp-…
 
 `--compare <A> <B>` 是同一件事的横向版本：两边各读一次，输出按 |Δ| 排序的差值表（例如换实现后
 "总调用数 +0，custom_prompt(append) 1 → 1"）。
+
+---
+
+## 20. 稳定线上模式从所有选择器里消失（由外部审阅报告，已复现、已修）
+
+**现象**：在 `0.1.5-rc.2`（npm `latest` 那条线，也就是多数用户的默认）上，新建会话的模式选择器里**完全看不到**
+「自定义模式」；而设置页照常能打开、能操作。
+
+**根因，本地复现**：
+
+```text
+$ grep -n -A2 "workflow-ptc" editor/preset/agent.cordis.yml     # 我们打包的播种模板
+    - id: workflow-ptc
+      name: '@deepseek-ai/dsh-workflow-ptc'
+
+$ ls /tmp/dsh-stable3/node_modules/@deepseek-ai/ | grep -c workflow-ptc
+0                                                                # 稳定线根本不提供这个包
+$ grep -c workflow-ptc <预览线>/presets/standard/agent.cordis.yml
+2                                                                # 预览线提供
+```
+
+一个**启用状态**的行如果解析不到对应插件，平台健康检查会把整个预设判为 broken，而 broken 预设会被选择器
+丢弃 —— 且是静默的，因为设置页从不需要"预设可被解析"。我们的播种模板当初是从**预览线**渲染出来的，因此带了
+这一行。
+
+**为什么双线 CI 没抓到**（审阅的判断，成立）：稳定线任务跑的是套件，覆盖文本手术、路由、词典 —— 没有一条在问
+"这个预设在这条线上健康吗"；而 UI 验收只在预览线上跑、且只跑设置页，从没跑过选择器。
+
+**修法**：播种的组成文件不再照搬打包文件，而是**按本机实际安装的那条线渲染**（`editor/seed.mjs` 的
+`starterComposition()`），只有读不到出厂组成时才退回包内模板；`install.sh` 干脆不再复制组成文件，让首次激活
+写出派生结果。`test/seed.test.mjs` 新增一条检查：逐行确认派生结果里**未禁用**的行的包在本机安装里能解析；
+在稳定线上它会打印出包内模板自己的问题，也就是它挡住的那个 bug：
+
+```text
+说明：包内模板在本线有 1 处不可解析（workflow-ptc → @deepseek-ai/dsh-workflow-ptc）—— 这正是播种改为"按本线派生"的原因。
+```
+
+**在稳定线上验证**（一次性 `DSH_HOME`，从工作树安装插件，端口 3108）：
+
+```text
+$ ls $DSH_HOME/.agent-presets/custom/
+agent.cordis.yml  preset.yml  prompt-reader.mjs  prompt-tool.mjs  prompt.md
+$ grep -c workflow-ptc $DSH_HOME/.agent-presets/custom/agent.cordis.yml
+0
+$ node tools/picker-probe.mjs <url>           # 用 CDP 打开新建会话的模式选择器
+  当前模式按钮: {"text":"自定义模式"}
+  选择器里的模式: ["自定义模式","标准模式","PTC 模式","极简模式"]
+  ✅ 稳定线上「自定义模式」出现在选择器里
+```
+

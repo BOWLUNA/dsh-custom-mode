@@ -113,6 +113,48 @@ function extractDictionary(source, variable) {
   throw new Error(`client.js 里 ${variable} 的花括号不闭合`)
 }
 
+/**
+ * Duplicate keys inside one dictionary.
+ *
+ * A repeated key is silently overwritten by the later one, so the earlier value is dead code that looks alive —
+ * a review found exactly that (`msg.unsaved` was defined twice, and the short label could never render).
+ * Counting occurrences is enough: these dictionaries are flat object literals of string values.
+ *
+ * @param {string} source - the file's text.
+ * @param {string} variable - `ZH` or `EN`.
+ * @returns {string[]} key names that appear more than once.
+ */
+function duplicateKeys(source, variable) {
+  const start = source.indexOf(`const ${variable} = {`)
+  if (start === -1) return []
+  let depth = 0
+  let end = -1
+  for (let i = source.indexOf('{', start); i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1
+    if (source[i] === '}') {
+      depth -= 1
+      if (depth === 0) {
+        end = i
+        break
+      }
+    }
+  }
+  if (end === -1) return []
+  const body = source.slice(start, end)
+  const seen = new Map()
+  for (const match of body.matchAll(/^\s*(['"])([\w.]+)\1\s*:/gm)) {
+    seen.set(match[2], (seen.get(match[2]) ?? 0) + 1)
+  }
+  return [...seen.entries()].filter(([, count]) => count > 1).map(([key]) => key)
+}
+
+for (const [name, source] of [['locales.mjs', readFileSync(new URL('../editor/locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')]]) {
+  for (const variable of ['ZH', 'EN']) {
+    const duplicates = duplicateKeys(source, variable)
+    check(`${name} 的 ${variable} 词典没有重复键（后值会静默覆盖前值）`, duplicates.length === 0, JSON.stringify(duplicates))
+  }
+}
+
 let clientZh
 let clientEn
 try {

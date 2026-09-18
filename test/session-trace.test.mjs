@@ -229,5 +229,19 @@ console.log('=== 6. 把"模型只调了一次"变成检查：--expect / --compar
 }
 
 console.log()
+console.log('=== 7. 未知位置参数必须报错（不能静默忽略）===')
+{
+  const { status, out } = (() => {
+    try {
+      return { status: 0, out: execFileSync(process.execPath, ['tools/session-trace.mjs', '--summary', '/tmp'], { encoding: 'utf8' }) }
+    } catch (error) {
+      return { status: error.status, out: String(error.stdout ?? '') + String(error.stderr ?? '') }
+    }
+  })()
+  check('传路径当参数 → 退出码 2', status === 2, String(status))
+  check('并且说明不认识的参数是什么', /不认识的参数/.test(out) && out.includes('/tmp'), out.slice(0, 120))
+}
+
+console.log()
 console.log(`结果: ${String(passed)} 通过, ${String(failed)} 失败`)
 process.exit(failed === 0 ? 0 : 1)

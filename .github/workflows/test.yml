@@ -83,6 +83,11 @@ jobs:
       - name: 双语配对一致性
         run: node tools/verify-translation-pairing.mjs
 
+      # 文档里的数字也是声明，所以也当检查跑：套件数/检查数/dsh 范围/支持表里的版本，
+      # 全部与实际运行结果对齐（外部审阅一次就找出三处漂移，而测试看不到文档）。
+      - name: 文档数字与实际一致
+        run: node tools/verify-doc-numbers.mjs
+
       # 发布包最容易踩的坑不是"多打了文件"，而是**少打了**：dsh.bundle.patch 指向的补丁、
       # 或浏览器半的 client.js 一旦被 files 白名单漏掉，npm 上的包装了也没用，
       # 而且要等到有人装完才发现。这里对着真实的 packlist 断言。

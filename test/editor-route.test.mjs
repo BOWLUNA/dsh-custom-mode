@@ -460,6 +460,39 @@ console.log('=== 5. POST /custom-mode/state：写盘与校验 ===')
 
 console.log()
 console.log()
+console.log('=== 5.35 并发与文案细节：串行化、显示名、闸门标记 ===')
+{
+  mounted = mount()
+  // 并发保存：审阅在 Windows 上实测 10 并发里有 1 次 EPERM。进程内按助手串行化后，同一助手的并发保存
+  // 不再互相踩；这里断言"全部 200"且磁盘内容是其中之一（不是混合状态）。
+  await call(post('/custom-mode/create', { name: '并发助手' }))
+  const ids = JSON.parse((await call(makeReq('GET', { url: '/custom-mode' }))).body).assistants.map((a) => a.id)
+  const concurrentId = ids[ids.length - 1]
+  const payloads = Array.from({ length: 10 }, (_, i) => `并发第 ${String(i)} 版\n`)
+  const responses = await Promise.all(payloads.map((prompt) => call(post('/custom-mode/state', { id: concurrentId, mode: 'standard', prompt }))))
+  const statuses = responses.map((response) => response.statusCode)
+  check('10 个并发保存全部成功（进程内按助手串行化）', statuses.every((status) => status === 200), JSON.stringify(statuses))
+  const onDisk = readFileSync(join(dirname(editor.COMPOSITION_PATH), '..', concurrentId, 'prompt.md'), 'utf8')
+  check('磁盘上是其中某一版，不是混合状态', payloads.includes(onDisk), JSON.stringify(onDisk))
+
+  // 复制/删除的文案用**显示名**，不是内部目录 id。
+  const copied = JSON.parse((await call(post('/custom-mode/create', { name: '复制体', from: concurrentId }))).body)
+  check('复制结果里的来源是显示名（不是 id）', copied.params?.from === '并发助手', JSON.stringify(copied.params))
+  const removed = JSON.parse((await call(post('/custom-mode/delete', { id: concurrentId }))).body)
+  check('删除结果里是显示名（不是 id）', removed.params?.name === '并发助手', JSON.stringify(removed.params))
+
+  // 审批闸门缺失时，页面拿到一个告警码（由预置侧的标记文件驱动）。
+  const markerDir = dirname(editor.COMPOSITION_PATH)
+  const marker = join(markerDir, 'approval-gate-missing')
+  writeFileSync(marker, 'test marker\n', 'utf8')
+  const withMarker = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('闸门缺失时回 approvalGateMissing 告警', (withMarker.warnings ?? []).includes('approvalGateMissing'), JSON.stringify(withMarker.warnings))
+  rmSync(marker, { force: true })
+  const withoutMarker = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('标记清掉后告警消失', (withoutMarker.warnings ?? []).includes('approvalGateMissing') === false, JSON.stringify(withoutMarker.warnings))
+}
+
+console.log()
 console.log('=== 5.4 服务端回 code：页面按语言渲染，不再混排 ===')
 {
   mounted = mount()

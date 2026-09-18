@@ -33,7 +33,8 @@ const check = (label, condition, detail = '') => {
   }
 }
 
-const { seedPreset, seedPresetWithLog, packagedPresetDir, PRESET_FILES } = await import('../editor/seed.mjs')
+const { seedPreset, seedPresetWithLog, packagedPresetDir, starterComposition, PRESET_FILES } = await import('../editor/seed.mjs')
+const { baseCompositionPath } = await import('../editor/composition.mjs')
 
 console.log()
 console.log('=== 1. 包内预设施集齐全（发布包里必须有这五个文件）===')
@@ -168,6 +169,82 @@ console.log('=== 8. 守卫：包内预设与仓库 preset/ 不许漂移 ===')
     const packedFile = join(source, name)
     check(`editor/preset/${name} 与 preset/${name} 逐字节一致`, readFileSync(repoFile, 'utf8') === readFileSync(packedFile, 'utf8'))
   }
+}
+
+console.log()
+console.log('=== 6. 派生出来的组成文件，在**当前这条线**上必须是健康的（P0 回归）===')
+{
+  // 实测过的 P0：播种文件照搬了另一条线的模板，模板里启用的一行（`workflow-ptc`）在稳定线上根本没有对应
+  // 包 → 平台把整个预设判为 broken → **模式从所有选择器里静默消失**，而设置页照常能打开，所以当时的 UI
+  // 测试全绿。这条检查就是那次缺掉的覆盖。
+  /**
+   * 未禁用、且包名无法在安装树里解析的行。
+   *
+   * @param {string} text - a rendered composition.
+   * @param {string} nodeModules - the install's `node_modules` directory.
+   * @returns {string[]} `id → name` for every problematic row.
+   */
+  const unresolvableRows = (text, nodeModules) => {
+    const lines = text.split('\n')
+    const problems = []
+    for (let i = 0; i < lines.length; i += 1) {
+      const row = /^( {0,4})- id: (.+?)\s*$/.exec(lines[i])
+      if (row === null) continue
+      let name
+      let disabled = false
+      for (let j = i + 1; j < lines.length && /^\s/.test(lines[j]); j += 1) {
+        const nm = /^\s+name: ['"]?(.+?)['"]?\s*$/.exec(lines[j])
+        if (nm !== null && name === undefined) name = nm[1]
+        if (/^\s+disabled: true\s*$/.test(lines[j])) disabled = true
+      }
+      if (name === undefined || name.startsWith('.') || name.startsWith('cordis:')) continue
+      if (disabled) continue
+      // 子路径导出（`@scope/pkg/sub`）按包名判断；非 scoped 的 `pkg/sub` 同理。
+      const parts = name.split('/')
+      const pkg = name.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
+      if (existsSync(join(nodeModules, pkg)) === false) problems.push(`${row[2]} → ${name}`)
+    }
+    return problems
+  }
+
+  const derived = starterComposition({ assistantId: 'custom' })
+  check('能从本机安装的出厂组成派生播种内容', typeof derived === 'string' && derived.length > 500, String(derived === null ? 'null' : derived.length))
+
+  if (typeof derived === 'string') {
+    const baseComposition = readFileSync(baseCompositionPath('standard'), 'utf8')
+    const baseRows = new Set([...baseComposition.matchAll(/^( {0,4})- id: (.+?)\s*$/gm)].map((m) => m[2]))
+    const seededIds = [...derived.matchAll(/^( {0,4})- id: (.+?)\s*$/gm)].map((m) => m[2])
+    // 我们自己的两行（persona 读取器与工具）不属于出厂组成，名字是相对模块 —— 由 unresolvableRows 跳过。
+    const extra = [...new Set(seededIds)].filter((id) => baseRows.has(id) === false && id !== 'custom-prompt-tool')
+    check('播种文件没有引入本线出厂组成之外的其它行', extra.length === 0, JSON.stringify(extra))
+    const missing = [...baseRows].filter((id) => seededIds.includes(id) === false)
+    check('出厂行一行都没丢', missing.length === 0, JSON.stringify(missing))
+
+    // 5 级向上：standard 目录 → presets → dsh-agent-presets → @deepseek-ai → node_modules
+    const nodeModules = join(baseCompositionPath('standard'), '..', '..', '..', '..', '..')
+    const problems = unresolvableRows(derived, nodeModules)
+    check('派生结果里未禁用的行，包都能在本机安装里解析（broken 预设的成因）', problems.length === 0, JSON.stringify(problems))
+
+    // 让这条检查"有牙齿"：包内模板在同一条线上确实有问题时，把它打出来 —— 那正是不能照搬它的原因。
+    const packedProblems = unresolvableRows(readFileSync(join(packagedPresetDir(), 'agent.cordis.yml'), 'utf8'), nodeModules)
+    if (packedProblems.length > 0) {
+      console.log(`说明：包内模板在本线有 ${String(packedProblems.length)} 处不可解析（${packedProblems.slice(0, 4).join('、')}）—— 这正是播种改为"按本线派生"的原因。`)
+    }
+  }
+
+  // 派生失败时必须退回包内模板，而不是写出一个空文件。
+  const fallbackDir = mkdtempSync(join(tmpdir(), 'dsh-seed-fallback-'))
+  const copied = seedPreset(fallbackDir, packagedPresetDir(), { composition: null })
+  check('派生失败（composition=null）时仍会播种包内模板', copied.errors.length === 0 && existsSync(join(fallbackDir, 'agent.cordis.yml')), JSON.stringify(copied))
+  rmSync(fallbackDir, { recursive: true, force: true })
+
+  // 给定 composition 时用它写，且**永不覆盖**已存在的文件。
+  const givenDir = mkdtempSync(join(tmpdir(), 'dsh-seed-given-'))
+  const first = seedPreset(givenDir, packagedPresetDir(), { composition: '# 由本机派生\n' })
+  check('给定 composition 时写入的是它', readFileSync(join(givenDir, 'agent.cordis.yml'), 'utf8') === '# 由本机派生\n', JSON.stringify(first.created))
+  seedPreset(givenDir, packagedPresetDir(), { composition: '# 不该覆盖\n' })
+  check('已存在的组成文件不会被覆盖', readFileSync(join(givenDir, 'agent.cordis.yml'), 'utf8') === '# 由本机派生\n')
+  rmSync(givenDir, { recursive: true, force: true })
 }
 
 console.log()

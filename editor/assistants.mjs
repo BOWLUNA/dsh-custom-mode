@@ -29,6 +29,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 
 import { dirname, join } from 'node:path'
 import { dshHome, PRESET_DIR } from './paths.mjs'
 import { readPresetMeta, writePresetMeta } from './meta.mjs'
+import { writeAtomic } from './atomic.mjs'
 import { seedPreset, seedPresetWithLog } from './seed.mjs'
 
 /**
@@ -289,12 +290,12 @@ export function createAssistantDir({ root, id, composition, templateDir }) {
  * @param {{root: string, templateDir?: string, log?: Function, info?: Function}} input
  * @returns {{created: boolean, repaired: number, adopted: boolean}}
  */
-export function seedOnActivation({ root, templateDir, log = console.error, info = console.log }) {
+export function seedOnActivation({ root, templateDir, composition, log = console.error, info = console.log }) {
   const existing = scanManagedDirs(root)
   let repaired = 0
   for (const dir of existing) {
     // Fill-only, exactly like the original single-preset behaviour.
-    const result = seedPreset(dir, templateDir)
+    const result = seedPreset(dir, templateDir, { composition })
     if (result.created.length > 0) {
       repaired += 1
       info(`custom-mode: 已补全 ${dir} 缺失的模板文件（${result.created.join(', ')}）`)
@@ -308,7 +309,7 @@ export function seedOnActivation({ root, templateDir, log = console.error, info 
     return { created: false, repaired, adopted: true }
   }
 
-  const created = seedPresetWithLog(join(root, LEGACY_ID), log, info, templateDir)
+  const created = seedPresetWithLog(join(root, LEGACY_ID), log, info, templateDir, { composition })
   markSeeded(root)
   return { created: created.created.length > 0, repaired, adopted: false }
 }
@@ -347,11 +348,39 @@ export function reorderAssistant(rows, input, write = writePresetMeta) {
   const [moved] = next.splice(index, 1)
   next.splice(target, 0, moved)
 
+  // N 个 preset.yml 无法一次事务化：先记下原值，写失败就回滚已经写过的那些 —— 否则用户会得到一个
+  // 只排了一半的顺序（审阅点名）。回滚失败只报告，不掩盖原始错误。
+  const snapshot = []
+  const written = []
+  for (const item of next) {
+    const directory = assistantDir(rows, item.id)
+    if (directory === undefined) continue
+    try {
+      snapshot.push({ item, text: readFileSync(presetMetaPath(directory), 'utf8') })
+    } catch {
+      snapshot.push({ item, text: null })
+    }
+  }
   for (const [position, item] of next.entries()) {
     const directory = assistantDir(rows, item.id)
     if (directory === undefined) continue
     const result = write(item.name, item.description, directory, { order: position + 1 })
-    if (result.ok !== true) return result
+    if (result.ok !== true) {
+      const failed = assistantDir(rows, item.id)
+      for (const done of written) {
+        if (done.text === null) continue
+        try {
+          writeAtomic(presetMetaPath(done.directory), done.text)
+        } catch {
+          /* 回滚失败不掩盖原始错误 */
+        }
+      }
+      return {
+        ...result,
+        error: result.error + `（已回滚 ${String(written.length)} 个已写入的顺序；失败的目录：${String(failed)}）`,
+      }
+    }
+    written.push({ directory, text: snapshot.find((entry) => entry.item.id === item.id)?.text ?? null })
   }
   return {
     ok: true,
