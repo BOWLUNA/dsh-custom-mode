@@ -8,6 +8,32 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.1.0]
+
+### New: "Reset to factory prompt"
+
+An edited prompt could previously only be recovered by deleting the assistant and creating it again — there
+was no way back. The system-prompt block now has a third button:
+
+- **「恢复出厂提示词」** puts the **shipped template** (the text a new assistant starts from, i.e.
+  `editor/preset/prompt.md`) back into the editor.
+- It is **draft-only**, like every other edit on the page: nothing is written until you save, and
+  Reload discards it — so a misclick cannot destroy a prompt. The button disables itself when the editor
+  already shows the factory text.
+- The host half sends the template with the state response (`factoryPrompt`); if it cannot be read, the
+  button is disabled rather than writing something wrong, and the reason goes to the host log.
+- The reset text goes through the same `{{…}}` validation as anything typed — a test saves it verbatim to
+  prove the "reset → save" path works.
+
+Verified in a real browser (`tools/browser-verify.mjs`, now 26 checks): the button renders, the click
+replaces the editor text with the factory text, and Reload still restores the pre-click text (i.e. it
+really was a draft).
+
+### Also
+
+- Screenshots regenerated: `05-assistant-manager.png` no longer repeats `01`'s content (it is cropped to
+  the assistant section, 800×292), and the screenshot tool no longer calls the pre-`1.0.3` route path.
+
 ## [1.0.4]
 
 ### Windows support: three platform defects an external review found by testing there

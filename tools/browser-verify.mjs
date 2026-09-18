@@ -191,6 +191,7 @@ try {
       ['「复制一份」按钮', '复制一份'],
       ['「导出提示词」按钮', '导出提示词'],
       ['「导入提示词」按钮', '导入提示词'],
+      ['「恢复出厂提示词」按钮', '恢复出厂提示词'],
       ['系统提示词区块', '系统提示词'],
       ['基础模式区块', '基础模式'],
       ['插件开关区块', '插件开关'],
@@ -213,6 +214,35 @@ try {
       return el === undefined ? null : 'nav';
     })()`)
     check('左侧导航项不是裸键 nav', navLabel === null, String(navLabel))
+
+    // ── 2.5 「恢复出厂提示词」：改坏了要能一键回去 ──────────────────────────
+    //
+    // 这条功能对应用户反馈："提示词改坏之后只能删掉整个助手"。它必须只改**草稿** ——
+    // 一次误点不能落盘，所以这里同时验证「点了能回去」与「重新读取能撤销」。
+    const editorText = () =>
+      session.evaluate(`(() => { const el = document.querySelector('.cpfe-editor'); return el === null ? null : el.value; })()`)
+
+    const beforeReset = await editorText()
+    await session.fill('.cpfe-editor', '被改坏的提示词（浏览器验证）')
+    await session.sleep(300)
+    const broken = await editorText()
+    check('能把编辑器内容改成任意文本（准备阶段）', broken === '被改坏的提示词（浏览器验证）', JSON.stringify(broken))
+
+    await session.clickTextReal('恢复出厂提示词', { exact: false })
+    await session.sleep(600)
+    const afterReset = await editorText()
+    check(
+      '点「恢复出厂提示词」→ 编辑器变回出厂模板',
+      typeof afterReset === 'string' && afterReset.includes('You are a coding agent powered by the {{model}} model'),
+      JSON.stringify(afterReset === null ? null : afterReset.slice(0, 80)),
+    )
+    check('确实与改坏时不同', afterReset !== broken, JSON.stringify(afterReset).slice(0, 60))
+
+    // 只改草稿：磁盘没被写，重新读取即可撤销。
+    await session.clickTextReal('重新读取', { exact: false })
+    await session.sleep(900)
+    const afterReload = await editorText()
+    check('恢复只改草稿：重新读取能回到原来的文本', afterReload === beforeReset, JSON.stringify(afterReload === null ? null : afterReload.slice(0, 60)))
 
     // ── 3. 浏览器里跑一遍增删 ──────────────────────────────────────────────
     const created = '浏览器验证助手'

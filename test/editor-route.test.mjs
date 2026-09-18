@@ -317,6 +317,20 @@ console.log('=== 4. GET /custom-mode/state：一个助手的完整状态 ===')
   check('带路径信息（页面底部显示）', state.compositionPath === compositionPath, String(state.compositionPath))
   check('平台条件在宿主端求值为"已停用"（Linux 上 pwsh）', state.rows.find((row) => row.id === 'tool-pwsh')?.disabledExpression !== null)
 
+  // 「恢复出厂提示词」的数据来源：宿主必须把出厂模板一起给页面，否则那个按钮只能置灰。
+  check(
+    'state 带出厂提示词（新建助手时得到的那一份）',
+    typeof state.factoryPrompt === 'string' && state.factoryPrompt.includes('{{model}}'),
+    JSON.stringify(state.factoryPrompt).slice(0, 70),
+  )
+  check(
+    '出厂提示词与打包模板逐字节一致',
+    state.factoryPrompt === readFileSync(new URL('../editor/preset/prompt.md', import.meta.url), 'utf8'),
+  )
+  // 恢复之后必须能保存：出厂文本若过不了自己的校验，这个按钮就是个陷阱。
+  const savedFactory = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: state.factoryPrompt }))
+  check('出厂提示词能原样保存（恢复 → 保存这条链路成立）', savedFactory.statusCode === 200, `${savedFactory.statusCode} ${savedFactory.body.slice(0, 80)}`)
+
   const unknown = await call(makeReq('GET', { url: '/custom-mode/state?id=nope' }))
   const unknownBody = JSON.parse(unknown.body)
   check('未知 id → 200 且 ok:false（页面能显示原因）', unknown.statusCode === 200 && unknownBody.ok === false, unknown.body.slice(0, 90))

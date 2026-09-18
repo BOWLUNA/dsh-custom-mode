@@ -189,7 +189,26 @@ function unknownAssistant(id) {
  * @param {string} id - the assistant's preset id.
  * @returns {object} the payload the browser half reads.
  */
-export function readState(rows, id) {
+/**
+ * 出厂提示词：新建助手时拿到的那一份（打包在包里的 preset 模板）。
+ *
+ * 设置页用它实现「恢复出厂提示词」—— 在此之前，用户改坏了提示词只能把整个助手删掉重建。
+ * 读不到就返回 null（页面会把那个按钮置灰，而不是给一个会写坏文件的按钮）。
+ */
+let packagedPromptCache
+function packagedPrompt() {
+  if (packagedPromptCache === undefined) {
+    try {
+      packagedPromptCache = readFileSync(join(packagedPresetDir(), 'prompt.md'), 'utf8')
+    } catch (error) {
+      packagedPromptCache = null
+      console.error('custom-mode: 读不到出厂提示词模板（' + describe(error) + '），设置页将不提供「恢复出厂提示词」。')
+    }
+  }
+  return packagedPromptCache
+}
+
+export function readState(rows, id, options = {}) {
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
   const composition = compositionFile(directory)
@@ -212,6 +231,9 @@ export function readState(rows, id) {
     promptPath: promptFile(directory),
     compositionPath: composition,
     presetMetaPath: presetMetaPath(directory),
+    // 回退用的出厂文本。它不是"当前值"，页面只把它填进编辑器，保存前不落盘 —— 所以
+    // 一次误点不会破坏任何东西（重新读取即可丢弃）。
+    factoryPrompt: typeof options.factoryPrompt === 'string' ? options.factoryPrompt : null,
   }
 }
 
@@ -576,7 +598,7 @@ export function apply(ctx) {
         }
         if (request.method === 'GET' && pathname === STATE_PATH) {
           await ensureShipped()
-          return json(readState(await roster(), url.searchParams.get('id') ?? ''))
+          return json(readState(await roster(), url.searchParams.get('id') ?? '', { factoryPrompt: packagedPrompt() }))
         }
 
         // Backstop on request size. `requestBody: 'buffered'` means the platform applies its own

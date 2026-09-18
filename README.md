@@ -82,6 +82,10 @@ plugin switches, system prompt) edit **whichever one is selected**.
 - **Import / export a prompt** — "Export prompt" saves the current text as a `.md`; "Import prompt"
   reads a file into the **editor** (nothing is written until you save), so an import goes through the
   same `{{…}}` validation as anything typed.
+- **Reset to the factory prompt** — one click puts the **shipped template** (the text a new assistant
+  starts from) back into the editor. It is draft-only like every other edit: nothing is written until
+  you save, and Reload discards it. Before this existed, a prompt you had edited into a corner could
+  only be recovered by deleting the assistant and creating it again.
 - **New assistant** — type a name and click "New assistant". It is seeded from the packaged template:
   the full Standard row set plus a starter prompt, selectable in a new session as soon as you save it.
 - **Duplicate** — copies the selected assistant's prompt, base mode and row switches into a new one;
@@ -212,7 +216,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 11 suites, 521 checks; resolves the shipped presets itself
+node test/run.mjs        # 11 suites, 526 checks; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the

@@ -36,6 +36,8 @@ export const zh = {
   'btn.moveDown': '下移',
   'btn.import': '导入提示词',
   'btn.export': '导出提示词',
+  'btn.reset': '恢复出厂提示词',
+  'btn.resetHint': '把编辑器里的内容换成出厂模板（新建助手时得到的那一份）。它同样只改草稿，点保存才落盘 —— 误点可以用「重新读取」撤销。',
   'btn.delete': '删除这个助手',
   'btn.cancel': '取消',
   'msg.created': '已创建。现在可以为它写系统提示词。',
@@ -74,7 +76,7 @@ export const zh = {
 
   'prompt.heading': '系统提示词',
   'prompt.hint':
-    '这段文本在每个模型调用前重新读取，所以保存后下一步即生效，且只影响使用这个助手的会话。「导入」把文件读进编辑器（未保存前不写入任何东西）；「导出」把当前文本存成 .md 文件。',
+    '这段文本在每个模型调用前重新读取，所以保存后下一步即生效，且只影响使用这个助手的会话。「导入」把文件读进编辑器（未保存前不写入任何东西）；「导出」把当前文本存成 .md 文件；「恢复出厂提示词」把出厂模板填回编辑器（同样要保存才写入）。',
 
   'status.enabled': '已启用',
   'status.disabled': '已停用',
@@ -183,6 +185,8 @@ export const en = {
   'btn.moveDown': 'Move down',
   'btn.import': 'Import prompt',
   'btn.export': 'Export prompt',
+  'btn.reset': 'Reset to factory prompt',
+  'btn.resetHint': 'Puts the shipped template back into the editor (the text a new assistant starts from). Like every other edit it only changes the draft — save to apply, or use Reload to discard.',
   'btn.delete': 'Delete this assistant',
   'btn.cancel': 'Cancel',
   'msg.created': 'Created. Now you can write its system prompt.',
@@ -224,7 +228,7 @@ export const en = {
 
   'prompt.heading': 'System prompt',
   'prompt.hint':
-    'This text is re-read before every model call, so a save applies on the next step and only affects sessions on this assistant. "Import" reads a file into the editor (nothing is written until you save); "Export" saves the current text as a .md file.',
+    'This text is re-read before every model call, so a save applies on the next step and only affects sessions on this assistant. "Import" reads a file into the editor (nothing is written until you save); "Export" saves the current text as a .md file; "Reset to factory prompt" puts the shipped template back into the editor (also saved only when you save).',
 
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',
