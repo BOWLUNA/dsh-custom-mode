@@ -8,6 +8,32 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.2.0]
+
+### New: change history for the system prompt
+
+A prompt has three ways to change: this page saves it, the in-session `custom_prompt` tool rewrites it, and
+a human edits the file. The last two were **invisible** — the page only ever showed "the current text".
+Now every change leaves a version, listed under the prompt box with its time and where it came from, and
+any version can be loaded back into the editor.
+
+- **Append-only journal**, one file per assistant (`prompt-history.jsonl`), capped at 30 versions. A
+  corrupted line is skipped rather than costing the user every version — the replay discipline the
+  ecosystem's persona inbox uses, applied here to changes that *already happened* instead of proposals
+  waiting for a yes.
+- **Single writer**: only the host half writes the journal. The preset-side tool does not, because those
+  files ship independently and the format would then have two implementations. Instead the host compares
+  what is on disk with what the journal ends with when the page asks for state, and records an `external`
+  revision when they differ — so a change made in a session shows up as *"changed in a session / by hand"*.
+  The honest limitation: only the state on leaving is recorded, not every intermediate edit; this is an
+  audit trail, not version control.
+- **Versions are keyed by a sequence number, not a timestamp** (measured: two records can land in the same
+  millisecond, and keying on the timestamp returns the neighbour).
+- **Loading a version only edits the draft**, exactly like typing: nothing reaches disk until you save, so
+  browsing history cannot destroy the current prompt (Reload discards it).
+
+Verified in a real browser (`tools/browser-verify.mjs`, 26 → 34 checks).
+
 ## [1.1.0]
 
 ### New: "Reset to factory prompt"

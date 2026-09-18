@@ -251,10 +251,11 @@ console.log('=== 1. 结构：注册在平台带围栏的频道上，且源码里
     '/api/custom-mode',
     '/api/custom-mode/create',
     '/api/custom-mode/delete',
+    '/api/custom-mode/history',
     '/api/custom-mode/reorder',
     '/api/custom-mode/state',
   ]
-  check('注册了 5 条精确路径', mounted.length === 5, String(mounted.length))
+  check('注册了 6 条精确路径', mounted.length === 6, String(mounted.length))
   check('路径集合正确（全部在 /api 之下）', JSON.stringify(paths) === JSON.stringify(expected), JSON.stringify(paths))
   check('每条都声明了 requestBody: buffered', mounted.every((entry) => entry.requestBody === 'buffered'))
   check('每条都有一个 fetch 函数', mounted.every((entry) => typeof entry.fetch === 'function'))
@@ -266,6 +267,10 @@ console.log('=== 1. 结构：注册在平台带围栏的频道上，且源码里
   check(
     'state 同时声明 GET 与 POST',
     JSON.stringify(mounted.find((entry) => entry.path === '/api/custom-mode/state')?.methods) === JSON.stringify(['GET', 'POST']),
+  )
+  check(
+    'history 只声明 GET（取旧版本是读操作）',
+    JSON.stringify(mounted.find((entry) => entry.path === '/api/custom-mode/history')?.methods) === JSON.stringify(['GET']),
   )
 
   // 结构断言：这两样东西的存在本身就是旧漏洞的成因，所以直接对源码断言。
@@ -398,6 +403,38 @@ console.log('=== 5. POST /custom-mode/state：写盘与校验 ===')
 }
 
 console.log()
+console.log()
+console.log('=== 5.5 改动历史：谁改过、能不能取回 ===')
+{
+  mounted = mount()
+  // 保存一版 → 历史上必须有它。
+  const saved = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: '历史第一版\n' }))
+  check('保存成功（准备阶段）', saved.statusCode === 200, saved.body.slice(0, 80))
+
+  const withHistory = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('state 带历史列表', Array.isArray(withHistory.history) && withHistory.history.length >= 1, JSON.stringify(withHistory.history?.length))
+  const newest = withHistory.history[0]
+  check('历史项带序号/时间/来源/预览', Number.isInteger(newest?.n) && typeof newest.at === 'string' && newest.by === 'settings' && newest.preview === '历史第一版', JSON.stringify(newest))
+  check('历史列表不带正文（正文按需取）', newest.text === undefined)
+
+  const version = JSON.parse((await call(makeReq('GET', { url: `/custom-mode/history?id=custom&n=${String(newest.n)}` }))).body)
+  check('按序号取回该版正文', version.ok === true && version.text === '历史第一版\n', JSON.stringify(version).slice(0, 80))
+
+  const missing = await call(makeReq('GET', { url: '/custom-mode/history?id=custom&n=99999' }))
+  check('未知序号 → 404', missing.statusCode === 404, String(missing.statusCode))
+  const unknownId = await call(makeReq('GET', { url: '/custom-mode/history?id=nope&n=1' }))
+  check('未知助手 → 404', unknownId.statusCode === 404, String(unknownId.statusCode))
+
+  // 会话内的工具（或手工编辑）直接改盘：下次读状态必须补记一条 external，
+  // 否则"提示词被改过"这件事对用户永远不可见 —— 这正是这个功能存在的理由。
+  writeFileSync(promptPath, '会话内工具改的\n', 'utf8')
+  const afterExternal = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  const external = afterExternal.history[0]
+  check('设置页之外的改动被记成 external', external.by === 'external' && external.preview === '会话内工具改的', JSON.stringify(external))
+  check('旧版本仍在历史里（只追加）', afterExternal.history.some((entry) => entry.preview === '历史第一版'), JSON.stringify(afterExternal.history.map((e) => e.preview)))
+  check('再读一次不会重复记（文本没变）', JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body).history.length === afterExternal.history.length)
+}
+
 console.log('=== 6. POST /custom-mode/create：从模板建一个助手 ===')
 {
   mounted = mount()

@@ -82,6 +82,11 @@ plugin switches, system prompt) edit **whichever one is selected**.
 - **Import / export a prompt** — "Export prompt" saves the current text as a `.md`; "Import prompt"
   reads a file into the **editor** (nothing is written until you save), so an import goes through the
   same `{{…}}` validation as anything typed.
+- **Change history** — every save, *and* any change made outside this page (the in-session
+  `custom_prompt` tool, a hand edit of `prompt.md`), leaves a version in the history list under the
+  prompt box, labelled with when and where it came from. Loading one only edits the draft: nothing is
+  written until you save, so browsing old versions cannot destroy the current one. Before this, a prompt
+  changed from inside a session was invisible — the page only ever showed "the current text".
 - **Reset to the factory prompt** — one click puts the **shipped template** (the text a new assistant
   starts from) back into the editor. It is draft-only like every other edit: nothing is written until
   you save, and Reload discards it. Before this existed, a prompt you had edited into a corner could
@@ -216,7 +221,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 11 suites, 526 checks; resolves the shipped presets itself
+node test/run.mjs        # 12 suites, 572 checks; resolves the shipped presets itself
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the

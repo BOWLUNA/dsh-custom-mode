@@ -92,6 +92,13 @@ try {
         "msg.reorderFailed": "调整顺序失败",
         "msg.imported": "已导入到编辑器（还没有保存）：检查后点「保存」。",
         "msg.importFailed": "导入失败",
+        "history.label": "改动历史",
+        "history.pick": "选择要载入的版本…",
+        "history.load": "载入这一版",
+        "history.hint": "每次保存、以及会话内工具或手工改动，都会在这里留一版；载入只改草稿，保存前不落盘。",
+        "history.by.settings": "设置页保存",
+        "history.by.external": "会话内/手工改动",
+        "msg.loadFailed": "载入这一版失败",
         "msg.importEmpty": "这个文件是空的。",
         "msg.importTooLarge": "文件太大（上限 1MB）。",
         "msg.exported": "已导出为文件。",
@@ -224,6 +231,13 @@ try {
         "msg.reorderFailed": "Could not reorder",
         "msg.imported": "Imported into the editor (not saved yet) — review it, then click Save.",
         "msg.importFailed": "Import failed",
+        "history.label": "Change history",
+        "history.pick": "Pick a version to load…",
+        "history.load": "Load this version",
+        "history.hint": "Every save — plus changes made in a session or by hand — leaves a version here. Loading one only edits the draft; nothing is written until you save.",
+        "history.by.settings": "saved from this page",
+        "history.by.external": "changed in a session / by hand",
+        "msg.loadFailed": "Could not load that version",
         "msg.importEmpty": "That file is empty.",
         "msg.importTooLarge": "That file is too large (1 MB limit).",
         "msg.exported": "Exported to a file.",
@@ -535,6 +549,7 @@ try {
       const ROUTES = {
         list: ROUTE,
         state: ROUTE + "/state",
+        history: ROUTE + "/history",
         create: ROUTE + "/create",
         delete: ROUTE + "/delete",
         reorder: ROUTE + "/reorder",
@@ -576,6 +591,13 @@ try {
       }
 
       /** The editable draft for one assistant, derived from its loaded state. */
+      /** 时间戳给人看：转本地时间；解析不了就原样显示（历史文件是纯文本，什么都有可能）。 */
+      function formatWhen(at) {
+        const parsed = new Date(at)
+        if (Number.isNaN(parsed.getTime())) return String(at).slice(0, 16)
+        return parsed.toLocaleString()
+      }
+
       function draftOf(state) {
         return {
           id: state.id,
@@ -587,6 +609,9 @@ try {
           // 「恢复出厂提示词」要用它。它不是草稿的一部分，`sameDraft` 不比较它 ——
           // 漏掉这一行按钮会一直置灰（实测：真点了没反应，浏览器验收抓到）。
           factoryPrompt: typeof state.factoryPrompt === "string" ? state.factoryPrompt : null,
+          // 改动历史：列表来自 state（只有元数据），正文点「载入这一版」时按需取。
+          history: Array.isArray(state.history) ? state.history : [],
+          historyPick: "",
         }
       }
 
@@ -913,6 +938,24 @@ try {
           const factory = typeof draft.factoryPrompt === "string" ? draft.factoryPrompt : ""
           if (factory === "") return
           update({ prompt: factory })
+        }
+
+        /** 把某个历史版本载入编辑器。与「恢复出厂」同一条纪律：只改草稿，保存前不落盘。 */
+        const loadVersion = async () => {
+          const picked = typeof draft.historyPick === "string" ? draft.historyPick : ""
+          if (picked === "" || draft.id === undefined) return
+          try {
+            // 版本键是序号（时间戳会在同一毫秒内撞车 —— 单测就是那样抓到它的）。
+            const response = await fetch(ROUTES.history + "?id=" + encodeURIComponent(draft.id) + "&n=" + encodeURIComponent(picked))
+            const payload = await asJson(response)
+            if (payload === null || payload.ok !== true) {
+              setStatus(t("msg.loadFailed"))
+              return
+            }
+            update({ prompt: payload.text })
+          } catch (error) {
+            setStatus(t("msg.loadFailed") + "：" + describeError(error))
+          }
         }
 
         const exportPrompt = () => {
@@ -1314,6 +1357,42 @@ try {
                   "aria-label": t("prompt.heading"),
                   onChange: (event) => update({ prompt: event.target.value }),
                 }),
+                // 改动历史：谁在什么时候改过。之前这里只有"当前文本"，所以会话内的工具
+                // （或手工编辑）改掉提示词时，用户既看不见也回不去。
+                draft.history.length === 0
+                  ? null
+                  : react.createElement(
+                      "div",
+                      { className: "cpfe-history" },
+                      react.createElement("span", { className: "cpfe-history-label" }, t("history.label")),
+                      react.createElement(
+                        "select",
+                        {
+                          value: draft.historyPick,
+                          "aria-label": t("history.label"),
+                          onChange: (event) => update({ historyPick: event.target.value }),
+                        },
+                        react.createElement("option", { value: "" }, t("history.pick")),
+                        ...draft.history.map((entry) =>
+                          react.createElement(
+                            "option",
+                            { key: String(entry.n), value: String(entry.n) },
+                            formatWhen(entry.at) + " · " + t("history.by." + entry.by) + " · " + String(entry.bytes) + " B",
+                          ),
+                        ),
+                      ),
+                      react.createElement(
+                        A.Button,
+                        {
+                          variant: "outline",
+                          size: "sm",
+                          disabled: busy || draft.historyPick === "",
+                          onClick: loadVersion,
+                        },
+                        t("history.load"),
+                      ),
+                      react.createElement("span", { className: "cpfe-history-hint" }, t("history.hint")),
+                    ),
               ),
             ]
           : []

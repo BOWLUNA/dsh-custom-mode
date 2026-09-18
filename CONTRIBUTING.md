@@ -34,7 +34,7 @@ table first).
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode
 cd dsh-custom-mode
-node test/run.mjs          # 526 checks across eleven suites; resolves the shipped presets itself
+node test/run.mjs          # 572 checks across twelve suites; resolves the shipped presets itself
 ```
 
 To try the plugin against a real harness, install it into a **throwaway** `DSH_HOME` so your own

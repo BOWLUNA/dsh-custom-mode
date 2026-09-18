@@ -219,17 +219,49 @@ try {
     //
     // 这条功能对应用户反馈："提示词改坏之后只能删掉整个助手"。它必须只改**草稿** ——
     // 一次误点不能落盘，所以这里同时验证「点了能回去」与「重新读取能撤销」。
+    /**
+     * 按文案点一个按钮，用程序化点击而不是真实鼠标坐标。
+     *
+     * 为什么：真实点击落在元素中心的那个点上，布局一变（比如历史控件把页面撑高）就可能被别的
+     * 元素盖住 —— 实测：点「重新读取」没反应，而同一按钮在探针里程序化点击完全正常。
+     */
+    const clickButton = async (needle) => {
+      const result = await session.evaluate(`(() => {
+        const buttons = [...document.querySelectorAll('button,[role=button]')];
+        const target = buttons.find((el) => (el.textContent || '').includes(${JSON.stringify(needle)}) && el.disabled !== true);
+        if (target === undefined) return 'not-found';
+        target.click();
+        return 'clicked';
+      })()`)
+      await session.sleep(900)
+      return result
+    }
+
+    /** 磁盘上真实的提示词：直接问插件（比"页面早先显示过什么"可靠 —— 页面可能被别处改过）。 */
+    const savedPrompt = async () => {
+      const id = await session.evaluate(`(() => {
+        const selected = document.querySelector('.cpfe-assistants button[aria-pressed=true], .cpfe-assistants button.cpfe-pill-active');
+        return selected === null ? null : (selected.textContent || '').trim();
+      })()`)
+      return session.evaluate(`(async () => {
+        const list = await fetch('/api/custom-mode', { headers: { accept: 'application/json' } }).then((r) => r.json());
+        const first = Array.isArray(list.assistants) && list.assistants.length > 0 ? list.assistants[0].id : null;
+        if (first === null) return null;
+        const state = await fetch('/api/custom-mode/state?id=' + encodeURIComponent(first), { headers: { accept: 'application/json' } }).then((r) => r.json());
+        return state.ok === true ? state.prompt : null;
+      })()`)
+    }
+
     const editorText = () =>
       session.evaluate(`(() => { const el = document.querySelector('.cpfe-editor'); return el === null ? null : el.value; })()`)
 
-    const beforeReset = await editorText()
+    const beforeReset = await savedPrompt()
     await session.fill('.cpfe-editor', '被改坏的提示词（浏览器验证）')
     await session.sleep(300)
     const broken = await editorText()
     check('能把编辑器内容改成任意文本（准备阶段）', broken === '被改坏的提示词（浏览器验证）', JSON.stringify(broken))
 
-    await session.clickTextReal('恢复出厂提示词', { exact: false })
-    await session.sleep(600)
+    check('点得到「恢复出厂提示词」按钮', (await clickButton('恢复出厂提示词')) === 'clicked')
     const afterReset = await editorText()
     check(
       '点「恢复出厂提示词」→ 编辑器变回出厂模板',
@@ -239,10 +271,61 @@ try {
     check('确实与改坏时不同', afterReset !== broken, JSON.stringify(afterReset).slice(0, 60))
 
     // 只改草稿：磁盘没被写，重新读取即可撤销。
-    await session.clickTextReal('重新读取', { exact: false })
-    await session.sleep(900)
+    check('点得到「重新读取」按钮', (await clickButton('重新读取')) === 'clicked')
     const afterReload = await editorText()
-    check('恢复只改草稿：重新读取能回到原来的文本', afterReload === beforeReset, JSON.stringify(afterReload === null ? null : afterReload.slice(0, 60)))
+    check('恢复只改草稿：重新读取回到磁盘上的文本', afterReload === beforeReset, `页面=${JSON.stringify((afterReload ?? '').slice(0, 40))} 磁盘=${JSON.stringify((beforeReset ?? '').slice(0, 40))}`)
+
+    // ── 2.6 改动历史：会话内/手工改动看得见，旧版本载得回来 ────────────────
+    //
+    // 这条对应"提示词被谁改过"的可见性：在此之前，会话内的 custom_prompt 工具或手工编辑
+    // 改掉 prompt.md，页面只会显示"当前文本"。这里真存两版、真点一次载入，并确认它只改草稿。
+    const saveNow = async () => {
+      await session.evaluate(`(() => {
+        const button = [...document.querySelectorAll('button,[role=button]')]
+          .find((el) => /^(保存|Save)$/.test(el.textContent.trim()));
+        if (button !== undefined && button.disabled !== true) button.click();
+        return true;
+      })()`)
+      await session.sleep(2600)
+    }
+
+    await session.fill('.cpfe-editor', '浏览器验证：第一版\n')
+    await saveNow()
+    await session.fill('.cpfe-editor', '浏览器验证：第二版\n')
+    await saveNow()
+    const savedSecond = await editorText()
+    check('两次保存后编辑器里是第二版', savedSecond === '浏览器验证：第二版\n', JSON.stringify(savedSecond))
+
+    const historyOptions = await session.evaluate(`(() => {
+      const select = document.querySelector('.cpfe-history select');
+      return select === null ? null : [...select.options].map((option) => ({ value: option.value, label: option.textContent.trim() }));
+    })()`)
+    check('出现历史控件且带至少两个版本', Array.isArray(historyOptions) && historyOptions.length >= 3, JSON.stringify(historyOptions))
+    check('历史项显示来源（设置页保存）', (historyOptions ?? []).some((option) => option.label.includes('设置页保存')), JSON.stringify(historyOptions))
+
+    // 选最早的一版（最后一个选项）并载入。
+    const oldest = (historyOptions ?? [])[(historyOptions ?? []).length - 1]
+    await session.evaluate(`(() => {
+      const select = document.querySelector('.cpfe-history select');
+      if (select === null) return false;
+      select.value = ${JSON.stringify(oldest?.value ?? '')};
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`)
+    await session.sleep(400)
+    check('点得到「载入这一版」按钮', (await clickButton('载入这一版')) === 'clicked')
+    const afterLoad = await editorText()
+    check('载入旧版本 → 编辑器内容变了', afterLoad !== savedSecond, JSON.stringify(afterLoad === null ? null : afterLoad.slice(0, 50)))
+
+    await clickButton('重新读取')
+    {
+      const onDisk = await savedPrompt()
+      check(
+        '载入只改草稿：重新读取回到磁盘上的文本',
+        (await editorText()) === onDisk && onDisk === savedSecond,
+        `页面=${JSON.stringify(((await editorText()) ?? '').slice(0, 30))} 磁盘=${JSON.stringify((onDisk ?? '').slice(0, 30))}`,
+      )
+    }
 
     // ── 3. 浏览器里跑一遍增删 ──────────────────────────────────────────────
     const created = '浏览器验证助手'

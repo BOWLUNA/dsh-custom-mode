@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 11 suites, 526 checks; resolves the shipped presets itself
+node test/run.mjs                                  # 12 suites, 572 checks; resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing check (what CI runs)
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
@@ -68,6 +68,15 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
    supported is declared in `engines.dsh` + the peer range, and
    `tools/verify-version-consistency.mjs` asserts the CI-pinned dsh version falls inside them. Bump the
    version for every publish; widen the ranges when re-adapting.
+
+11. **The change journal (`editor/journal.mjs`) has ONE writer: the host half.** The preset-side
+    `prompt-tool.mjs` must not append to it — those files ship independently, so the format would end up
+    with two implementations. Changes made outside the page are picked up by comparison at state-read time
+    and recorded as `external`. Versions are keyed by the `n` sequence, never by timestamp (two records can
+    share a millisecond), and loading a version only edits the draft.
+12. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
+    （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。
+    凡是"点了会发生什么"的断言，都用程序化点击，并同时对**磁盘真值**断言，而不是对页面早先显示过什么。
 
 ## Known traps (all measured)
 

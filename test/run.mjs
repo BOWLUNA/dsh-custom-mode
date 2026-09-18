@@ -128,6 +128,7 @@ const suites = [
   'meta.test.mjs',
   'assistants.test.mjs',
   'editor-route.test.mjs',
+  'journal.test.mjs',
   'seed.test.mjs',
   'locales.test.mjs',
   'client-bundle.test.mjs',

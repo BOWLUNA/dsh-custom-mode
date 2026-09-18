@@ -51,6 +51,7 @@ import {
   setShippedPresetsDir,
 } from './composition.mjs'
 import { readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
+import { listHistory, readVersion, recordExternalChange, recordPrompt, HISTORY_SOURCE } from './journal.mjs'
 import { packagedPresetDir } from './seed.mjs'
 import {
   allocateId,
@@ -70,11 +71,13 @@ const STATE_PATH = ROUTE_PATH + '/state'
 const CREATE_PATH = ROUTE_PATH + '/create'
 const DELETE_PATH = ROUTE_PATH + '/delete'
 const REORDER_PATH = ROUTE_PATH + '/reorder'
+const HISTORY_PATH = ROUTE_PATH + '/history'
 
 /** Which verbs each endpoint answers. `undefined` for a path means 404. */
 const METHODS = {
   [ROUTE_PATH]: ['GET'],
   [STATE_PATH]: ['GET', 'POST'],
+  [HISTORY_PATH]: ['GET'],
   [CREATE_PATH]: ['POST'],
   [DELETE_PATH]: ['POST'],
   [REORDER_PATH]: ['POST'],
@@ -217,6 +220,9 @@ export function readState(rows, id, options = {}) {
   const mode = modeOf(text)
   const prompt = readPrompt(directory)
   const meta = readPresetMeta(directory)
+  // 页面要打开时顺便对账：磁盘上的文本若与日志末条不同，说明它在设置页之外被改过
+  // （会话内的 custom_prompt 工具、手工编辑、别处同步）—— 补记一条 external，于是"被改过"看得见。
+  if (prompt.ok === true) recordExternalChange(directory, prompt.text)
   return {
     ok: true,
     id,
@@ -234,6 +240,8 @@ export function readState(rows, id, options = {}) {
     // 回退用的出厂文本。它不是"当前值"，页面只把它填进编辑器，保存前不落盘 —— 所以
     // 一次误点不会破坏任何东西（重新读取即可丢弃）。
     factoryPrompt: typeof options.factoryPrompt === 'string' ? options.factoryPrompt : null,
+    // 改动历史（只有元数据，正文按需取：见 GET /custom-mode/history）。
+    history: listHistory(directory),
   }
 }
 
@@ -311,6 +319,9 @@ export function saveState(rows, input) {
   try {
     writeAtomic(compositionFile(directory), composition)
     writeAtomic(promptFile(directory), prompt)
+    // 改动留痕：三个改动路径（设置页 / 会话内工具 / 手工编辑）里，只有设置页是"当场知道"的。
+    // 另外两条由 readState 对比补记（见 journal.mjs 的单写者说明）。
+    recordPrompt(directory, prompt, HISTORY_SOURCE.settings)
   } catch (error) {
     return { ok: false, error: '写入失败：' + describe(error) }
   }
@@ -599,6 +610,16 @@ export function apply(ctx) {
         if (request.method === 'GET' && pathname === STATE_PATH) {
           await ensureShipped()
           return json(readState(await roster(), url.searchParams.get('id') ?? '', { factoryPrompt: packagedPrompt() }))
+        }
+
+        if (request.method === 'GET' && pathname === HISTORY_PATH) {
+          await ensureShipped()
+          const id = url.searchParams.get('id') ?? ''
+          const directory = assistantDir(await roster(), id)
+          if (directory === undefined) return json(unknownAssistant(id), 404)
+          const text = readVersion(directory, url.searchParams.get('n') ?? '')
+          if (text === null) return json({ ok: false, error: '找不到这个版本（历史可能已被上限裁剪）。' }, 404)
+          return json({ ok: true, id, n: url.searchParams.get('n'), text })
         }
 
         // Backstop on request size. `requestBody: 'buffered'` means the platform applies its own
