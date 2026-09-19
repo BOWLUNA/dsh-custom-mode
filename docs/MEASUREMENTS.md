@@ -1231,3 +1231,26 @@ assistant is selected. Neither is visible to a unit test, and the second is the 
 class this repository has shipped before. Four checks were added for the two complaints (one-line hints, hints
 have a toggle, the description is a `TEXTAREA`, the description is not clipped): 49 → **53** checks.
 
+---
+
+## 22. What the review-driven iterations cost (token accounting)
+
+The user reported the client's own counters for the session that turned four external reviews into releases
+`1.4.0` – `1.9.0`:
+
+```text
+uncached input        3,973,904 tok
+cache reads         711,962,624 tok
+output                1,559,791 tok
+```
+
+Arithmetic used in the README's "Built with" section (same formula as the first pass, so the two lines of
+accounting are comparable):
+
+```text
+iteration total     3,973,904 + 711,962,624 + 1,559,791 = 717,496,319 tokens
+iteration hit rate  711,962,624 / (3,973,904 + 711,962,624) = 99.44%
+project total       126,287,613 + 717,496,319 = 843,783,932 tokens
+project hit rate    (125,638,016 + 711,962,624) / (125,862,074 + 715,936,528) = 99.50%
+```
+

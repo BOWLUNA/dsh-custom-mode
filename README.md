@@ -272,3 +272,18 @@ MIT
 
 The whole project, research and dead ends included, cost the DSH client **126,287,613 tokens** at a
 **99.8%** cache hit rate (cache reads ÷ all input, 125,862,074).
+
+### What the review-driven iterations cost
+
+Four external reviews turned into releases `1.4.0` … `1.9.0` (the stable-line picker fix, the Windows write
+races, the i18n leaks, the portability fixes, the two UI passes). Measured in the same client:
+
+| | |
+| --- | --- |
+| Uncached input | 3,973,904 tok |
+| Cache reads | 711,962,624 tok |
+| Output | 1,559,791 tok |
+
+That is **717,496,319 tokens** (3,973,904 + 711,962,624 + 1,559,791) at a **99.4%** cache hit rate
+(711,962,624 ÷ 715,936,528). Counting the first pass as well, the project stands at **843,783,932 tokens**,
+**99.5%** cached (837,600,640 ÷ 841,798,602).
