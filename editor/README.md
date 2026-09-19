@@ -1,5 +1,7 @@
 # dsh-custom-mode
 
+![dsh-custom-mode — a settings page for dsh agent modes](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
+
 The **settings-page half** of [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode) — a Web UI for
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) agent modes: choose a mode's base
 composition, toggle the plugin rows it mounts, and edit its **system prompt**, which is a plain file the
@@ -14,6 +16,10 @@ Searched for as: custom mode · custom prompt · system-prompt editor · multi-m
 ![Mode name and base mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png)
 
 ![Plugin switches](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png)
+
+![System prompt](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png)
+
+![Mode picker](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png)
 
 ## Install
 
