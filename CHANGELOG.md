@@ -8,6 +8,25 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.8.0]
+
+### The plugin-row list now looks like the shell's own plugin page
+
+Reported from real use: the per-row annotations took too much room, spacing was uneven, and some rows did not
+wrap — "a long bar just hangs there". Measured before: 33 rows, 84–117px tall, two auto-fill columns, and a bare
+row id (`tool-bash`, `planning`, …) as the second line. After: **one row per plugin**, uniform height (56–58px),
+zero horizontal overflow, a single ellipsis-truncated description line (the full text is in `title`), and the
+switch on the right — the shape the shell's own Plugins page uses.
+
+Everything that is developer detail — the row id, the full note, whether the switch is untouched or set by you,
+the platform condition — moved behind a per-row disclosure (▸). Nothing is expanded by default; the disclosure
+is per session and not persisted.
+
+`tools/browser-verify.mjs` grew four checks for exactly the complaints (height ≤ 64px, height spread ≤ 8px, no
+horizontal overflow, every row has a toggle) and went from 44 to **49** checks. The disclosure itself is verified
+by screenshot and DOM reading rather than by an automated click: measured in the WSL lab, the coordinate for a
+pointer click occasionally races with a re-render, and a flaky assertion is worse than none.
+
 ## [1.7.1]
 
 ### Two of the checks added in 1.7.0 were environment-dependent

@@ -98,6 +98,15 @@ try {
         "api.alreadyLast": "「{name}」已经在最后面。",
         "api.badVariableName": "变量引用的写法不合法：{variable} 里的名字只能用小写字母、数字、下划线，且以字母开头。要写字面量花括号，请用单个左花括号，或不闭合的双左花括号。",
         "api.unknownVariable": "{variable} 不是已注册的变量，渲染会报错并让本模式每个请求都失败。可用：{known}。",
+        "aria.expand": "展开详情",
+        "aria.collapse": "收起详情",
+        "detail.id": "行 id",
+        "detail.note": "说明",
+        "detail.state": "开关状态",
+        "detail.explicitOn": "已手动启用",
+        "detail.explicitOff": "已手动停用",
+        "detail.untouched": "未改动（跟随官方默认）",
+        "detail.platform": "平台条件",
         "api.saved": "已保存（{name}，基础模式 {mode}）。新建会话即生效，当前会话保持原配置。",
         "api.created": "已创建「{name}」。现在可以为它写系统提示词。",
         "api.duplicated": "已复制自「{from}」。两份从此各改各的。",
@@ -272,6 +281,15 @@ try {
         "api.alreadyLast": "「{name}」 is already last.",
         "api.badVariableName": "{variable} is not a valid variable reference: names may use lower-case letters, digits and underscores, and must start with a letter. For a literal brace, use a single opening brace or an unclosed double brace.",
         "api.unknownVariable": "{variable} is not a registered variable — rendering would fail every request in this mode. Available: {known}.",
+        "aria.expand": "Show details",
+        "aria.collapse": "Hide details",
+        "detail.id": "Row id",
+        "detail.note": "Note",
+        "detail.state": "Switch",
+        "detail.explicitOn": "Set to on by you",
+        "detail.explicitOff": "Set to off by you",
+        "detail.untouched": "Untouched (follows the shipped default)",
+        "detail.platform": "Platform condition",
         "api.saved": "Saved ({name}, base mode {mode}). A new session picks it up; the current one keeps its configuration.",
         "api.created": "Created 「{name}」. You can write its system prompt now.",
         "api.duplicated": "Copied from 「{from}」. The two are independent from now on.",
@@ -567,14 +585,25 @@ try {
         ".cpfe-actions{display:flex;flex-wrap:wrap;gap:var(--g);align-items:center;margin-top:4px}",
         ".cpfe-newrow{display:flex;gap:var(--g);align-items:center;flex-wrap:wrap;margin-top:10px}",
         ".cpfe-field{display:flex;width:100%;margin-bottom:8px}",
-        ".cpfe-row-head{display:block;font-size:13px;line-height:19px;color:var(--dsw-alias-label-primary)}",
-        ".cpfe-row-switch{flex:0 0 auto;margin-top:2px}",
+        ".cpfe-row-head{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary)}",
+        ".cpfe-row-switch{flex:0 0 auto}",
+        ".cpfe-row-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}",
+        ".cpfe-row-note{min-height:16px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+        ".cpfe-row-toggle{flex:0 0 auto;width:22px;height:22px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:11px;line-height:1}",
+        ".cpfe-row-toggle:hover{background:var(--dsw-alias-bg-layer-2)}",
+        ".cpfe-row-open{border-color:var(--dsw-alias-border-l2)}",
+        ".cpfe-row-detail{display:flex;flex-direction:column;gap:4px;margin:0 0 2px 14px;padding:8px 12px;border-left:.5px solid var(--dsw-alias-border-l1);font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary)}",
+        ".cpfe-detail-line{display:flex;gap:8px;min-width:0}",
+        ".cpfe-detail-key{flex:0 0 62px;color:var(--dsw-alias-label-secondary)}",
+        ".cpfe-detail-value{min-width:0;overflow-wrap:anywhere}",
         ".cpfe-sec-head{display:flex;align-items:center;justify-content:space-between;gap:var(--g);flex-wrap:wrap}",
         ".cpfe-newinput{flex:1;min-width:200px}",
-        ".cpfe-rows{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--g);align-items:stretch;margin-top:4px}",
-        ".cpfe-group{grid-column:1/-1;display:flex;flex-direction:column;gap:var(--g)}",
-        ".cpfe-kids{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:var(--g);padding-left:16px;border-left:.5px solid var(--dsw-alias-border-l1)}",
-        ".cpfe-row{display:flex;gap:12px;align-items:flex-start;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}",
+        // 单列、行高统一（对齐官方插件页的形态）；之前的自适应多列网格会让行高参差不齐。
+        ".cpfe-rows{display:flex;flex-direction:column;gap:6px;margin-top:4px}",
+        ".cpfe-line{display:flex;flex-direction:column;gap:6px;min-width:0}",
+        ".cpfe-group{display:flex;flex-direction:column;gap:6px;margin-top:8px;min-width:0}",
+        ".cpfe-kids{display:flex;flex-direction:column;gap:6px;margin-left:14px;padding-left:14px;border-left:.5px solid var(--dsw-alias-border-l1)}",
+        ".cpfe-row{display:flex;gap:10px;align-items:center;box-sizing:border-box;min-height:52px;padding:8px 12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}",
         ".cpfe-row-meta{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}",
         ".cpfe-row-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap}",
         ".cpfe-editor{box-sizing:border-box;width:100%;min-height:240px;resize:vertical;padding:12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:20px}",
@@ -704,9 +733,17 @@ try {
         return String(template).replace("{name}", name)
       }
 
-      /** Render one row's switch, recursing into a group's children. */
+      /**
+       * One row of the plugin switch list.
+       *
+       * Laid out like the shell's own plugin page: **one compact line per row** — title, status tags, a
+       * one-line truncated description and the switch on the right — with everything else (the row id, the
+       * full note, the tri-state detail, the platform condition) behind a per-row disclosure. Measured before
+       * this change: 33 rows at 274px wide and 84–117px tall with a bare `tool-bash` line each, i.e. uneven
+       * heights and a lot of vertical noise for information most users never read.
+       */
       function RowList(props) {
-        const { rows, overrides, onToggle, depth, t } = props
+        const { rows, overrides, onToggle, expanded, onToggleExpand, depth, t } = props
         return react.createElement(
           "div",
           { className: depth === 0 ? "cpfe-rows" : "cpfe-kids" },
@@ -716,49 +753,109 @@ try {
             const effective = overrides[row.id] !== undefined ? overrides[row.id] : !row.disabled
             const changed = overrides[row.id] !== undefined
             const rowTitle = t("row." + row.id + ".label", row.label)
+            const note = row.note === null || row.note === undefined ? null : t("row." + row.id + ".note", row.note)
+            const open = expanded !== undefined && expanded[row.id] === true
             return react.createElement(
               "div",
-              { key: row.id, className: row.children.length > 0 ? "cpfe-group" : undefined },
+              { key: row.id, className: row.children.length > 0 ? "cpfe-group" : "cpfe-line" },
               react.createElement(
                 "div",
-                { className: "cpfe-row" },
+                { className: "cpfe-row" + (open ? " cpfe-row-open" : "") },
+                react.createElement(
+                  "div",
+                  { className: "cpfe-row-meta" },
+                  react.createElement(
+                    "div",
+                    { className: "cpfe-row-line" },
+                    react.createElement("span", { className: "cpfe-row-head" }, rowTitle),
+                    react.createElement(
+                      "div",
+                      { className: "cpfe-row-badges" },
+                      react.createElement(
+                        A.Tag,
+                        { tone: effective ? "success" : "neutral" },
+                        effective ? t("status.enabled") : t("status.disabled"),
+                      ),
+                      row.essential ? react.createElement(A.Tag, { tone: "warning" }, t("tag.essential")) : null,
+                      row.disabledExpression !== null && row.disabledExpression !== undefined
+                        ? react.createElement(A.Tag, { tone: "outline" }, t("tag.followPlatform"))
+                        : null,
+                      changed ? react.createElement(A.Tag, { tone: "info" }, t("status.changed")) : null,
+                    ),
+                  ),
+                  // 折叠时只留一行说明（超出截断，悬停给全文）。**没有说明就留空**：裸露的行 id
+                  // 是开发者信息，已经在「详情」里 —— 之前它作为副标题占了每行一行。
+                  react.createElement("span", { className: "cpfe-row-note", title: note ?? "" }, note ?? ""),
+                ),
+                react.createElement(
+                  "button",
+                  {
+                    type: "button",
+                    className: "cpfe-row-toggle",
+                    "aria-expanded": open,
+                    "aria-label": t(open ? "aria.collapse" : "aria.expand"),
+                    onClick: () => onToggleExpand(row.id),
+                  },
+                  open ? "▾" : "▸",
+                ),
                 react.createElement(A.Switch, {
                   checked: effective,
                   onChange: (next) => onToggle(row.id, next),
                   // `Switch` renders NO text: its `label` is the accessible name only, so the
-                  // visible title is drawn below (an unlabelled toggle is unusable).
+                  // visible title is drawn next to it (an unlabelled toggle is unusable).
                   label: rowTitle,
                   className: "cpfe-row-switch",
                 }),
-                react.createElement(
-                  "div",
-                  { className: "cpfe-row-meta" },
-                  react.createElement("span", { className: "cpfe-row-head" }, rowTitle),
-                  react.createElement(
-                    "div",
-                    { className: "cpfe-row-badges" },
-                    react.createElement(
-                      A.Tag,
-                      { tone: effective ? "success" : "neutral" },
-                      effective ? t("status.enabled") : t("status.disabled"),
-                    ),
-                    row.essential ? react.createElement(A.Tag, { tone: "warning" }, t("tag.essential")) : null,
-                    row.disabledExpression !== null
-                      ? react.createElement(A.Tag, { tone: "outline" }, t("tag.followPlatform"))
-                      : null,
-                    changed ? react.createElement(A.Tag, { tone: "info" }, t("status.changed")) : null,
-                  ),
-                  react.createElement("span", { className: "cpfe-mono" }, row.id),
-                  row.note !== null
-                    ? react.createElement("span", { className: "cpfe-note" }, t("row." + row.id + ".note", row.note))
-                    : null,
-                ),
               ),
+              open
+                ? react.createElement(
+                    "div",
+                    { className: "cpfe-row-detail" },
+                    react.createElement(
+                      "div",
+                      { className: "cpfe-detail-line" },
+                      react.createElement("span", { className: "cpfe-detail-key" }, t("detail.id")),
+                      react.createElement("span", { className: "cpfe-mono" }, row.id),
+                    ),
+                    note === null
+                      ? null
+                      : react.createElement(
+                          "div",
+                          { className: "cpfe-detail-line" },
+                          react.createElement("span", { className: "cpfe-detail-key" }, t("detail.note")),
+                          react.createElement("span", { className: "cpfe-detail-value" }, note),
+                        ),
+                    react.createElement(
+                      "div",
+                      { className: "cpfe-detail-line" },
+                      react.createElement("span", { className: "cpfe-detail-key" }, t("detail.state")),
+                      react.createElement(
+                        "span",
+                        { className: "cpfe-detail-value" },
+                        changed
+                          ? effective
+                            ? t("detail.explicitOn")
+                            : t("detail.explicitOff")
+                          : t("detail.untouched"),
+                      ),
+                    ),
+                    row.disabledExpression !== null && row.disabledExpression !== undefined
+                      ? react.createElement(
+                          "div",
+                          { className: "cpfe-detail-line" },
+                          react.createElement("span", { className: "cpfe-detail-key" }, t("detail.platform")),
+                          react.createElement("span", { className: "cpfe-mono" }, String(row.disabledExpression)),
+                        )
+                      : null,
+                  )
+                : null,
               row.children.length > 0
                 ? react.createElement(RowList, {
                     rows: row.children,
                     overrides: overrides,
                     onToggle: onToggle,
+                    expanded: expanded,
+                    onToggleExpand: onToggleExpand,
                     depth: depth + 1,
                     t: t,
                   })
@@ -818,6 +915,20 @@ try {
         const [newName, setNewName] = react.useState("")
         const [deleteOpen, setDeleteOpen] = react.useState(false)
         const [acknowledged, setAcknowledged] = react.useState(false)
+        /**
+         * Which rows have their detail open, by row id.
+         *
+         * Per-row and local to the section: the list is long (33 rows measured) and the interesting detail
+         * differs per user, so nothing is expanded by default and nothing is persisted.
+         */
+        const [expandedRows, setExpandedRows] = react.useState({})
+        const toggleRowExpanded = (id) =>
+          setExpandedRows((previous) => {
+            const next = { ...previous }
+            if (next[id] === true) delete next[id]
+            else next[id] = true
+            return next
+          })
         /** Hidden `<input type="file">` behind the 「导入」 button. */
         const fileInput = react.useRef(null)
 
@@ -1377,6 +1488,8 @@ try {
                 react.createElement("h2", { className: "cpfe-h" }, t("rows.heading")),
                 react.createElement("p", { className: "cpfe-sub" }, t("rows.hint")),
                 react.createElement(RowList, {
+                  expanded: expandedRows,
+                  onToggleExpand: toggleRowExpanded,
                   rows: payload.rows,
                   overrides: draft.overrides,
                   onToggle: (id, next) => update({ overrides: { ...draft.overrides, [id]: next } }),

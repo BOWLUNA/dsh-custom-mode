@@ -412,6 +412,32 @@ try {
     const warningsOn = await warningLines()
     check('恢复后告警消失（不许误报）', warningsOn.every((line) => line.includes('不起作用') === false), JSON.stringify(warningsOn))
 
+    // ── 插件行列表：紧凑、等高、可展开（对齐官方插件页的形态）──────────────────
+    //
+    // 这次改动的由来是一句用户反馈："一行行的标注文字太占地方，间距也不统一，有的也不换行，那么大一长条
+    // 就甩在下面"。所以这里断言的就是那三件事：行高统一、没有横向溢出、详情能开能关。
+    const rowFacts = await session.evaluate(`(() => {
+      const rows = [...document.querySelectorAll('.cpfe-row')];
+      const heights = rows.map((r) => Math.round(r.getBoundingClientRect().height));
+      const overflowing = rows.filter((r) => {
+        const box = r.getBoundingClientRect();
+        return r.scrollWidth > r.clientWidth + 1 || [...r.querySelectorAll('*')].some((c) => c.getBoundingClientRect().right > box.right + 1);
+      }).length;
+      return { count: rows.length, min: Math.min(...heights), max: Math.max(...heights), overflowing };
+    })()`)
+    check('插件行渲染出来了', rowFacts.count > 10, JSON.stringify(rowFacts))
+    check('每行都不高于 64px（紧凑、不再是大长条）', rowFacts.max <= 64, JSON.stringify(rowFacts))
+    check('行高统一（最高与最低相差 ≤ 8px）', rowFacts.max - rowFacts.min <= 8, JSON.stringify(rowFacts))
+    check('没有行横向溢出（说明文字截断而不是撑破）', rowFacts.overflowing === 0, JSON.stringify(rowFacts))
+
+    // 每行都要有详情开关。**展开本身不在这里点**：在 WSL 的 headless 实验室里，测量坐标与真实指针点击之间
+    // 存在竞争（同一个按钮偶发点空），而"能失败的检查才叫检查"——一条偶发失败的断言比没有更糟。
+    // 展开的证据是截图与 DOM 读数，记录在 docs/MEASUREMENTS.md §21。
+    const toggles = await session.evaluate(`document.querySelectorAll('.cpfe-row-toggle').length`)
+    const rowsCount = await session.evaluate(`document.querySelectorAll('.cpfe-row').length`)
+    check('每行都有详情开关', toggles === rowsCount && rowsCount > 10, JSON.stringify({ toggles, rowsCount }))
+
+
     // ── 语言：英文界面里，服务端的结果也必须是英文（外部审阅点名的硬伤）──────────
     //
     // 宿主仍回中文 note/error（HTTP API 的兼容面），页面按 `code` 用自己的词典渲染。

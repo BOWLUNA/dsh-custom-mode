@@ -1163,3 +1163,44 @@ $ node tools/picker-probe.mjs <url>           # opens the new-session picker ove
   ✅ 稳定线上「自定义模式」出现在选择器里
 ```
 
+---
+
+## 21. The plugin-row list was rebuilt to match the shell's own plugin page (`1.8.0`)
+
+Reported by the user: "the per-row annotation text takes too much room, the spacing is uneven, some of it does not
+even wrap — a long bar just hangs there." Measured before the change (settings page, 1440×1200 viewport, 33 rows):
+
+```text
+rows: 33   widths: 274px (auto-fill grid, 2 columns)   heights: 84–117px (uneven)
+second line: the bare row id (`tool-bash`, `tool-fs-search`, `planning`, …) or a wrapped note
+```
+
+The shell's own Plugins page (sidebar → 插件) uses **one compact row per plugin**: an icon, a title line with tags,
+a single *truncated* description line, and the switch on the right; measured row height 66px, uniform.
+
+After the rebuild (same viewport, same data):
+
+```text
+rows: 33   layout: one per line   heights: 56 and 58px   horizontal overflow: 0
+collapsed second line: the description, one line, ellipsis-truncated (`title` carries the full text)
+```
+
+The disclosure (row id / note / tri-state / platform condition) was checked on the rendered page:
+
+```text
+$ node tools/browser-verify.mjs --url …            # 49 checks now (was 44)
+  PASS  每行都不高于 64px（紧凑、不再是大长条）
+  PASS  行高统一（最高与最低相差 ≤ 8px）
+  PASS  没有行横向溢出（说明文字截断而不是撑破）
+  PASS  每行都有详情开关
+结果: 49 通过, 0 失败
+```
+
+DOM reading of an expanded row (via CDP, the automated *click* is left out of the suite on purpose — in the WSL
+headless lab the coordinate measured for the pointer click occasionally races with a re-render, and a
+flaky assertion is worse than none):
+
+```text
+展开后的详情: "行 id | persona | 说明 | 提示词注入点；关掉后本模式用回部署默认身份 | 开关状态 | 未改动（跟随官方默认）"
+```
+
