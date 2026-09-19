@@ -8,6 +8,30 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.2]
+
+### Updating a user's install cleanly — and the reason a bare install lags
+
+Three questions from the maintainer turned into one feature and one measurement.
+
+**The measurement**: `dsh plugin --profile web add dsh-custom-mode` (no version) on a clean machine installed
+**1.0.1** while `latest` was 1.9.0. Cause, isolated: `registry` is the real npmjs.org and
+`pnpm config get minimumReleaseAge` is `undefined` — i.e. pnpm 12.4.2 applies its **default 24-hour cooldown**;
+every version from 1.1.0 up had been published within the previous ~16 hours, and the newest one older than 24
+hours was exactly 1.0.1. A pinned `@1.9.x` bypasses it. The README's Updating section now carries the pinned
+command, the reason, and how to check what you actually got.
+
+**The feature**: the settings page now shows the **installed version**, and when an assistant's composition has
+enabled rows this dsh line cannot resolve — the P0 that makes the platform drop the whole mode from every picker —
+it says so and offers **「Fix for this line」**. That action disables exactly those rows *in place*
+(`disableRowsInPlace`), so hand-added or future rows are not silently discarded the way a full re-render would.
+Repairing is idempotent, and the detector refuses to guess: with no `@deepseek-ai/` next to the shipped presets it
+reports nothing rather than crying wolf (a false positive would talk a user into disabling a working row).
+Platform conditions are **evaluated** (`disabled: !!js process.platform === 'win32'`) instead of pattern-matched,
+which was the difference between "this row is off on my platform" and a false alarm.
+
+Tests: 667 → **676** checks, including the report/repair round trip and the "does not touch other rows" assertion.
+
 ## [1.9.1]
 
 ### Three reviews, one pass: documentation made true, two UI regressions fixed

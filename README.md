@@ -34,7 +34,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.1   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.2   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -291,3 +291,30 @@ races, the i18n leaks, the portability fixes, the two UI passes). Measured in th
 That is **717,496,319 tokens** (3,973,904 + 711,962,624 + 1,559,791) at a **99.4%** cache hit rate
 (711,962,624 ÷ 715,936,528). Counting the first pass as well, the project stands at **843,783,932 tokens**,
 **99.5%** cached (837,600,640 ÷ 841,798,602).
+
+## Updating
+
+The plugin lives in the profile's `node_modules` and the platform owns that installation, so updating means
+installing again — your data is not touched:
+
+```sh
+# the pinned form: what you ask for is what you get
+dsh plugin --profile web add dsh-custom-mode@1.9.2
+# then restart the DSH process that serves the web profile
+```
+
+**Do not install by bare name if you want this release.** pnpm applies a release cooldown (`minimumReleaseAge`,
+24 hours by default) and a bare `dsh plugin add dsh-custom-mode` resolves to *the newest version older than 24
+hours*. Measured on a clean machine while 1.9.0 was latest: the bare command installed **1.0.1**. Pinning the
+version bypasses the cooldown, which is why the command above carries `@`.
+
+**How to know what you are running**: the settings page shows the installed version at the bottom (`插件版本`).
+Compare it with `npm view dsh-custom-mode version`.
+
+**What an update does not touch**: `$DSH_HOME/.agent-presets/<your assistants>/` — `prompt.md`, `preset.yml` and
+your row switches are yours. Seeding only fills in *missing* files, so a prompt you wrote is never overwritten.
+
+**If a mode stops appearing in the picker after an update**: an assistant created by an older version keeps its
+old composition file, and if that file enables a plugin row this dsh line does not ship, the platform marks the
+whole preset broken and silently drops it while the settings page keeps working. Open the settings page: it says
+so and offers **「Fix for this line」**, which turns exactly those rows off and leaves everything else alone.

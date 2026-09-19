@@ -49,7 +49,9 @@ const check = (label, condition, detail = '') => {
 
 const registeredRoutes = []
 const dir = mkdtempSync(join(tmpdir(), 'dsh-custom-route-'))
-const shippedDir = join(dir, 'presets')
+// 与真实安装同样的层级：`<root>/node_modules/@deepseek-ai/dsh-agent-presets/presets`。
+// 这样 `<presets>/../../..` 就是夹具自己的 node_modules，unresolvableRows 才谈得上"能判断"。
+const shippedDir = join(dir, 'node_modules', '@deepseek-ai', 'dsh-agent-presets', 'presets')
 const userRoot = join(dir, 'agent-presets')
 const presetDir = join(userRoot, 'custom')
 const promptPath = join(presetDir, 'prompt.md')
@@ -61,7 +63,7 @@ const BASE_COMPOSITION = [
   '# fixture base composition',
   '',
   '- id: persona',
-  "  name: '@deepseek-ai/dsh-persona'",
+  "  name: './persona.mjs'",
   '',
   '- id: tool-bash',
   "  name: '@deepseek-ai/dsh-tool-bash'",
@@ -84,11 +86,19 @@ const BASE_COMPOSITION = [
   "  name: '@deepseek-ai/dsh-tool-web'",
   '',
   '- id: tool-off-by-default',
-  "  name: '@deepseek-ai/dsh-tool-off'",
+  "  name: './tool-off.mjs'",
   '  disabled: true',
   '',
 ].join('\n')
 
+// 夹具自带"像真实安装"的 node_modules：`unresolvableRows` 只在能真正判断时（该根下有 `@deepseek-ai/`）
+// 才报警，否则"查不到"只说明我们不知道。这里放上夹具用到的包名，于是 fixture 里的正常行解析得到、
+// 而测试故意加的那行解析不到 —— 测试因此不依赖这台机器装了哪个 dsh。
+const shippedNodeModules = join(dir, 'node_modules')
+mkdirSync(shippedDir, { recursive: true })
+for (const pkg of ['dsh-tool-bash', 'dsh-tool-pwsh', 'dsh-tool-web']) {
+  mkdirSync(join(shippedNodeModules, '@deepseek-ai', pkg), { recursive: true })
+}
 mkdirSync(join(shippedDir, 'standard'), { recursive: true })
 mkdirSync(join(shippedDir, 'ptc'), { recursive: true })
 mkdirSync(join(shippedDir, 'minimal'), { recursive: true })
@@ -107,7 +117,7 @@ writeFileSync(join(presetDir, 'prompt-tool.mjs'), '// fixture tool\nexport funct
 process.env.DSH_CUSTOM_PROMPT_PATH = promptPath
 process.env.DSH_SHIPPED_PRESETS_DIR = shippedDir
 
-const { renderComposition } = await import('../editor/composition.mjs')
+const { renderComposition, setShippedPresetsDir } = await import('../editor/composition.mjs')
 const { readPresetMeta } = await import('../editor/meta.mjs')
 const editor = await import('../editor/index.mjs')
 
@@ -284,9 +294,11 @@ console.log('=== 1. 结构：注册在平台带围栏的频道上，且源码里
     '/api/custom-mode/delete',
     '/api/custom-mode/history',
     '/api/custom-mode/reorder',
+    '/api/custom-mode/repair',
     '/api/custom-mode/state',
   ]
-  check('注册了 6 条精确路径', mounted.length === 6, String(mounted.length))
+
+  check('注册了 7 条精确路径', mounted.length === 7, String(mounted.length))
   check('路径集合正确（全部在 /api 之下）', JSON.stringify(paths) === JSON.stringify(expected), JSON.stringify(paths))
   check('每条都声明了 requestBody: buffered', mounted.every((entry) => entry.requestBody === 'buffered'))
   check('每条都有一个 fetch 函数', mounted.every((entry) => typeof entry.fetch === 'function'))
@@ -461,6 +473,34 @@ console.log('=== 5. POST /custom-mode/state：写盘与校验 ===')
 }
 
 console.log()
+console.log()
+console.log('=== 5.33 本线无法解析的行：报告 + 一键修复 ===')
+{
+  mounted = mount()
+  // 造一个"老版本留下来的"组成文件：启用了一行本机不存在的包（老版本播种会用另一条线的模板）。
+  const dir = dirname(editor.COMPOSITION_PATH)
+  const file = join(dir, 'agent.cordis.yml')
+  const base = readFileSync(file, 'utf8')
+  // 直接在末尾追加一个顶层行：保证一定写进文件（不依赖夹具里 persona 行的位置）。
+  writeFileSync(file, base + "\n- id: ghost-row\n  name: '@deepseek-ai/definitely-not-installed'\n", 'utf8')
+  check('夹具里确实多了一行虚构的包', readFileSync(file, 'utf8').includes('ghost-row'))
+
+  const state = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('state 报告"不可解析的行"', Array.isArray(state.unresolvable) && state.unresolvable.some((row) => row.id === 'ghost-row'), JSON.stringify(state.unresolvable))
+  check('并给出告警码（页面据此显示修复按钮）', (state.warnings ?? []).includes('unresolvableRows'), JSON.stringify(state.warnings))
+  check('state 带回插件版本（用户据此判断装到哪一版）', typeof state.version === 'string' && /^\d+\.\d+\.\d+$/.test(state.version), String(state.version))
+
+  const repaired = JSON.parse((await call(post('/custom-mode/repair', { id: 'custom' }))).body)
+  check('修复返回 code=repaired 与受影响的行', repaired.code === 'repaired' && String(repaired.params?.ids ?? '').includes('ghost-row'), JSON.stringify(repaired))
+  const afterText = readFileSync(file, 'utf8')
+  check('修复后那一行被显式关闭（disabled: true）', /- id: ghost-row[\s\S]{0,80}disabled: true/.test(afterText), afterText.slice(0, 200))
+  check('其它行没有被顺手改掉（persona 仍在）', afterText.includes('- id: persona'))
+  const state2 = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('修复后不再报警', (state2.warnings ?? []).includes('unresolvableRows') === false && state2.unresolvable.length === 0, JSON.stringify(state2.unresolvable))
+  const again = JSON.parse((await call(post('/custom-mode/repair', { id: 'custom' }))).body)
+  check('再点一次是幂等的（repairNotNeeded）', again.code === 'repairNotNeeded', JSON.stringify(again))
+}
+
 console.log()
 console.log('=== 5.35 并发与文案细节：串行化、显示名、闸门标记 ===')
 {

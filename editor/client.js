@@ -118,6 +118,10 @@ try {
         "detail.explicitOff": "已手动停用",
         "detail.untouched": "未改动（跟随官方默认）",
         "detail.platform": "平台条件",
+        "btn.repair": "按本线修复",
+        "msg.repaired": "已修复",
+        "meta.version": "插件版本",
+        "meta.versionHint": "安装时不钉版本号会受 pnpm 发布冷却期影响（默认 24 小时），可能装到较旧的版本。要换版本请按 README 的钉版本命令重装，然后重启 DSH。",
         "api.saved": "已保存（{name}，基础模式 {mode}）。新建会话即生效，当前会话保持原配置。",
         "api.created": "已创建「{name}」。现在可以为它写系统提示词。",
         "api.duplicated": "已复制自「{from}」。两份从此各改各的。",
@@ -139,6 +143,8 @@ try {
         "api.deleteFailed": "删除失败：{detail}",
         "api.versionMissing": "找不到这个版本（历史可能已被上限裁剪）。",
         "api.badJson": "请求体不是合法 JSON",
+        "warn.approvalGateMissing": "审批闸门未启用：本机这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。见「详情」。",
+        "warn.unresolvableRows": "有行在本机这条 DSH 线上无法解析：平台会把整个模式判为 broken，并从新会话的选择器里**静默丢弃**。点右侧的「按本线修复」即可（只关掉那几行，其它选择不动）。",
         "warn.approvalGateMissing.label": "审批闸门未启用",
         "warn.approvalGateMissing.hint": "这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词**不会**弹审批。设置页不受影响；要恢复保护请升级 DSH，或把「custom_prompt 工具」那一行关掉。",
         "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 你写的提示词现在不起作用。要么打开这一行，要么清空提示词。",
@@ -312,6 +318,10 @@ try {
         "detail.explicitOff": "Set to off by you",
         "detail.untouched": "Untouched (follows the shipped default)",
         "detail.platform": "Platform condition",
+        "btn.repair": "Fix for this line",
+        "msg.repaired": "Repaired",
+        "meta.version": "Plugin version",
+        "meta.versionHint": "Installing without a pinned version is subject to pnpm’s release cooldown (24 h by default) and can land on an older release. To change version, reinstall with the pinned command from the README and restart DSH.",
         "api.saved": "Saved ({name}, base mode {mode}). A new session picks it up; the current one keeps its configuration.",
         "api.created": "Created 「{name}」. You can write its system prompt now.",
         "api.duplicated": "Copied from 「{from}」. The two are independent from now on.",
@@ -336,6 +346,8 @@ try {
         "warn.personaOffWithPrompt": "The \"Identity (system prompt)\" row is off, so prompt.md is never injected — the prompt you wrote has no effect. Turn the row on, or clear the prompt.",
         "warn.toolOff": "The \"custom_prompt tool\" row is off: the agent cannot change the prompt from inside a session, only this page can.",
         "warn.noDescription": "No description: the new-session mode picker will show it as \"no description yet\".",
+        "warn.approvalGateMissing": "The approval gate is off: this DSH build has no tools/pre-execute event, so in-session prompt rewrites do not ask for approval. See the details.",
+        "warn.unresolvableRows": "Some rows cannot be resolved on this DSH line: the platform marks the whole mode broken and **silently drops it** from the new-session picker. Click 「Fix for this line」 — it only turns those rows off and leaves your other choices alone.",
         "warn.approvalGateMissing.label": "Approval gate is off",
         "warn.approvalGateMissing.hint": "This DSH build has no tools/pre-execute event, so in-session prompt rewrites do NOT ask for approval. The settings page is unaffected; upgrade DSH or turn the 「custom_prompt tool」 row off to restore the gate.",
         "warn.noName": "No name: the mode picker will show the directory id (e.g. custom).",
@@ -644,6 +656,8 @@ try {
         ".cpfe-err{color:var(--dsw-alias-state-error-primary)}",
         ".cpfe-dirty{color:var(--dsw-alias-state-warn-primary)}",
         ".cpfe-danger{color:var(--dsw-alias-state-error-primary)}",
+        ".cpfe-meta-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;min-width:0}",
+        ".cpfe-version{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);white-space:nowrap}",
         ".cpfe-path{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         // ── fallback-path controls (unused when the shell provides the atoms) ──
         ".cpfe-btn{appearance:none;cursor:pointer;padding:0 14px;height:32px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
@@ -683,6 +697,7 @@ try {
         create: ROUTE + "/create",
         delete: ROUTE + "/delete",
         reorder: ROUTE + "/reorder",
+        repair: ROUTE + "/repair",
       }
 
       /** Every assistant this feature manages. */
@@ -1000,6 +1015,28 @@ try {
          * differs per user, so nothing is expanded by default and nothing is persisted.
          */
         const [expandedRows, setExpandedRows] = react.useState({})
+        /** 本机这条线上有无法解析的行时，一键把它们关掉（服务端复用保存同一条排版手术）。 */
+        const repairRowsNow = async () => {
+          if (draft === null) return
+          setBusy(true)
+          setFailed(false)
+          try {
+            const result = await postJson(ROUTES.repair, { id: selected })
+            if (result !== null && result.ok === true) {
+              setStatus(apiText(result, "msg.repaired"))
+              await reload()
+            } else {
+              setFailed(true)
+              setStatus(apiText(result, "msg.saveFailed"))
+            }
+          } catch {
+            setFailed(true)
+            setStatus(t("msg.saveFailed"))
+          } finally {
+            setBusy(false)
+          }
+        }
+
         const toggleRowExpanded = (id) =>
           setExpandedRows((previous) => {
             const next = { ...previous }
@@ -1763,7 +1800,19 @@ try {
                 "div",
                 { className: "cpfe-warns" },
                 ...draft.warnings.map((code) =>
-                  react.createElement("p", { key: code, className: "cpfe-warn" }, "⚠ " + t("warn." + code)),
+                  react.createElement(
+                    "div",
+                    { key: code, className: "cpfe-warn-row" },
+                    react.createElement("p", { className: "cpfe-warn" }, "⚠ " + t("warn." + code)),
+                    // 本线无法解析的行可以一键修（只关掉那几行；用户创建它的那个版本可能早于播种改为派生的版本）。
+                    code === "unresolvableRows"
+                      ? react.createElement(
+                          A.Button,
+                          { disabled: busy, onClick: repairRowsNow },
+                          t("btn.repair"),
+                        )
+                      : null,
+                  ),
                 ),
               ),
           ...editorSections,
@@ -1794,7 +1843,14 @@ try {
               dirty ? t("btn.reloadDiscard") : t("btn.reload"),
             ),
             react.createElement("span", { className: statusClass }, shown),
-            react.createElement("span", { className: "cpfe-path" }, editorReady ? payload.compositionPath : ""),
+            react.createElement(
+              "span",
+              { className: "cpfe-meta-line" },
+              // 让用户能自己判断装到的是哪一版：pnpm 的发布冷却期会让"不钉版本"的安装落到旧版
+              // （实测：干净机器上按名安装装到 1.0.1，而 latest 是 1.9.x）。
+              react.createElement("span", { className: "cpfe-version", title: t("meta.versionHint") }, t("meta.version") + " v" + String(payload.version ?? "?")),
+              react.createElement("span", { className: "cpfe-path" }, editorReady ? payload.compositionPath : ""),
+            ),
           ),
           // The confirmation is a portal: rendering it here keeps every piece of this page's
           // state in one component.

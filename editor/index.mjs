@@ -44,11 +44,13 @@ import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.m
 import {
   BASE_MODES,
   collectRows,
-  renderComposition,
+  disableRowsInPlace,
   modeOf,
   overridesOf,
   readBaseComposition,
+  renderComposition,
   setShippedPresetsDir,
+  unresolvableRows,
 } from './composition.mjs'
 import { readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
 import { listHistory, readVersion, recordExternalChange, recordPrompt, HISTORY_SOURCE } from './journal.mjs'
@@ -72,6 +74,7 @@ const STATE_PATH = ROUTE_PATH + '/state'
 const CREATE_PATH = ROUTE_PATH + '/create'
 const DELETE_PATH = ROUTE_PATH + '/delete'
 const REORDER_PATH = ROUTE_PATH + '/reorder'
+const REPAIR_PATH = ROUTE_PATH + '/repair'
 const HISTORY_PATH = ROUTE_PATH + '/history'
 
 /** Which verbs each endpoint answers. `undefined` for a path means 404. */
@@ -82,6 +85,7 @@ const METHODS = {
   [CREATE_PATH]: ['POST'],
   [DELETE_PATH]: ['POST'],
   [REORDER_PATH]: ['POST'],
+  [REPAIR_PATH]: ['POST'],
 }
 
 /** 只告警一次：避免每个请求都刷同一行日志。 */
@@ -89,6 +93,21 @@ let warnedRosterShape = false
 
 /** 应用层请求体上限；平台的 buffered cap 是第一道，这个是我们自己的兜底（见 handler 里的注释）。 */
 const MAX_BODY_BYTES = 4 * 1024 * 1024
+
+/**
+ * 本插件的版本。
+ *
+ * 页面把它显示出来，是因为**用户很难自己判断装到的是哪一版**：pnpm 的发布冷却期（默认 24 小时）会让
+ * 不钉版本的安装落到"超过 24 小时的最新版"，实测在一台干净机器上 `dsh plugin add dsh-custom-mode`
+ * 装到的是 1.0.1 而不是最新的 1.9.x。看见版本号，用户才知道要不要按 README 的钉版本命令重装。
+ */
+const PLUGIN_VERSION = (() => {
+  try {
+    return JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version
+  } catch {
+    return 'unknown'
+  }
+})()
 
 /** Longest display name / description the page accepts, so one paste cannot bloat every picker. */
 const MAX_NAME = 80
@@ -278,12 +297,17 @@ export function readState(rows, id, options = {}) {
     factoryPrompt: typeof options.factoryPrompt === 'string' ? options.factoryPrompt : null,
     // 改动历史（只有元数据，正文按需取：见 GET /custom-mode/history）。
     history: listHistory(directory),
+    // 本插件版本 + 本机装的那条 dsh 线上无法解析的行（页面据此显示版本与"按本线修复"）。
+    version: PLUGIN_VERSION,
+    unresolvable: unresolvableRows(text),
     // 「配置了却不生效」的告警码（文案在页面侧按语言渲染）。
     warnings: [
       ...configWarnings(text, prompt.ok === true ? prompt.text : '', meta),
       // 审批闸门缺失：由预置侧在注册失败时留下标记文件（宿主半看不到那个事件是否真的有人监听）。
       // 诚实地把它变成页面上的告警，而不是只留在 console.error 里。
       ...(existsSync(join(directory, 'approval-gate-missing')) ? ['approvalGateMissing'] : []),
+      // 本线无法解析的启用行 = 平台会把整个预设判为 broken 并从选择器里丢掉（曾经的 P0）。
+      ...(unresolvableRows(text).length > 0 ? ['unresolvableRows'] : []),
     ],
   }
 }
@@ -525,6 +549,42 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
  * @param {object} input - `{ id }`.
  * @param {{remove: (id: string) => Promise<void>}} agentPresets - the roster service.
  */
+/**
+ * 把"本机这条 dsh 线上无法解析的启用行"关掉，让预设重新健康。
+ *
+ * 为什么需要它：老版本创建（或老版本播种）的组成文件会一直留着 —— 播种只补缺失文件、从不覆盖用户数据。
+ * 如果那份文件里有一行启用了本线不提供的插件，平台会把整个预设判为 broken 并从所有选择器里**静默丢弃**
+ * （设置页照常能开，所以用户完全不知道）。这里复用与保存同一条排版手术：读出现有 overrides，把那几行显式
+ * 关闭后重新渲染。用户的其它选择一字不动。
+ */
+export function repairComposition(rows, input) {
+  const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
+  const directory = assistantDir(rows, id)
+  if (directory === undefined) return unknownAssistant(id)
+  const file = compositionFile(directory)
+  if (!existsSync(file)) return { ok: false, code: 'compositionMissing', params: { path: file }, error: '找不到组成文件：' + file }
+  const text = readFileSync(file, 'utf8')
+  const bad = unresolvableRows(text)
+  if (bad.length === 0) {
+    return { ok: true, id, code: 'repairNotNeeded', note: '这个助手在本机没有无法解析的行，无需修复。' }
+  }
+  // **就地**关闭那几行，不重渲染：重渲染会顺手丢掉 base 之外的自有行，而用户的数据不该被这样动。
+  const rendered = disableRowsInPlace(text, bad.map((row) => row.id))
+  try {
+    writeAtomic(file, rendered)
+  } catch (error) {
+    return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
+  }
+  const ids = bad.map((row) => row.id).join('、')
+  return {
+    ok: true,
+    id,
+    code: 'repaired',
+    params: { count: bad.length, ids },
+    note: '已按本机这条 dsh 线关闭 ' + String(bad.length) + ' 个无法解析的行（' + ids + '）。现在这个模式能重新出现在选择器里。',
+  }
+}
+
 export async function deleteAssistant(rows, input, agentPresets) {
   const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
   if (assistantDir(rows, id) === undefined) return unknownAssistant(id)
@@ -742,6 +802,10 @@ export function apply(ctx) {
         if (pathname === CREATE_PATH) {
           // 新建与排序改的是整棵树（根目录 + 每个助手的 preset.yml），所以用同一把"树锁"。
           const result = await serializedWrite('tree', async () => createAssistant(await roster(), parsed))
+          return json(result, result.ok === true ? 200 : 400)
+        }
+        if (pathname === REPAIR_PATH) {
+          const result = await serializedWrite('repair:' + targetId, async () => repairComposition(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === REORDER_PATH) {

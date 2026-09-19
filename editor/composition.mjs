@@ -387,7 +387,7 @@ export function collectRows(text) {
 /**
  * Rewrite one level of rows, applying disabled overrides by id.
  *
- * `overrides` maps a row id to an explicit DISABLED state (already normalised). A row absent from the map is
+ * `overrides` maps a row id to its explicit **enabled** state (`true` = on, `false` = off). A row absent is
  * left byte-for-byte as shipped — that is how an untouched `!!js` platform
  * condition and the rows that ship disabled survive a regeneration.
  *
@@ -559,6 +559,81 @@ function yamlScalar(value) {
 }
 
 /** Read the base mode recorded in a generated composition, defaulting to standard. */
+/**
+ * Enabled rows whose plugin package cannot be resolved in **this** installation.
+ *
+ * Why this exists (measured): a preset with an enabled row whose package this dsh line does not ship is marked
+ * broken by the platform and **silently dropped from every picker**, while the settings page keeps working — the
+ * P0 an external review found. Fresh installs are safe because seeding derives the composition from the installed
+ * line, but an assistant created by an **older** version keeps its old file forever (seeding never overwrites user
+ * data), so this is how the page can tell the user instead of leaving them with an invisible mode.
+ *
+ * Relative modules (`./prompt-reader.mjs`, ours) and `cordis:` pseudo-packages (the runtime's) are skipped.
+ *
+ * @param {string} text - a composition.
+ * @returns {Array<{id: string, name: string}>} enabled rows that cannot resolve.
+ */
+/**
+ * Turn the named rows **off in place**, leaving every other byte of the file alone.
+ *
+ * Used by the "fix for this line" action: the composition a user has may contain rows this dsh line cannot
+ * resolve (typically written by an older version of this plugin), and the platform then drops the whole preset
+ * from every picker. Re-rendering the file from the base would also fix it — but it would silently discard any
+ * row the user (or a future version) added outside the base. This edits only the offending rows.
+ *
+ * @param {string} text - the composition.
+ * @param {Iterable<string>} ids - row ids to disable.
+ * @returns {string} the rewritten composition.
+ */
+export function disableRowsInPlace(text, ids) {
+  const wanted = [...new Set(ids)]
+  if (wanted.length === 0) return text
+  // `applyLevel` 把 Map 的值直接交给 `setDisabled(...)`，所以值是**关闭**布尔（true = 关闭）。
+  const off = new Map(wanted.map((id) => [id, true]))
+  const top = applyLevel(text, true, off, false)
+  return applyLevel(top, false, off, false)
+}
+
+export function unresolvableRows(text) {
+  let root
+  try {
+    root = join(shippedPresetsDir(), '..', '..', '..')
+  } catch {
+    return []
+  }
+  // **判断不了就不要报警**：如果这个根下根本没有 node_modules（例如测试用的是一个临时出厂目录），
+  // 那么"查不到某个包"只说明我们不知道，不说明那行坏了。误报的代价是用户被引导去关掉本来正常的行。
+  if (existsSync(join(root, '@deepseek-ai')) === false) return []
+  const out = []
+  const lines = text.split('\n')
+  for (let index = 0; index < lines.length; index += 1) {
+    const row = /^( {0,4})- id: (.+?)\s*$/.exec(lines[index])
+    if (row === null) continue
+    const indent = row[1].length
+    let name
+    let disabled = false
+    for (let next = index + 1; next < lines.length; next += 1) {
+      const line = lines[next]
+      if (line.trim() !== '' && line.search(/\S/) <= indent) break
+      if (/^\s+name: ['"]?(.+?)['"]?\s*$/.test(line)) name = /^\s+name: ['"]?(.+?)['"]?\s*$/.exec(line)[1]
+      // 平台条件行（`disabled: !!js …`）必须**求值**判定：只看有没有字面 `true` 会把"本平台已启用"的行
+      // 误判成关闭，也会把"本平台本来就关闭"的行（如 Windows 专用的 pwsh）误报成"无法解析"。
+      const flag = /^\s+disabled:\s*(.+?)\s*$/.exec(line)
+      if (flag !== null) {
+        // 字面量直接读，`!!js` 一类交给求值器（它对字面量不做布尔化）。
+        const raw = flag[1].replace(/^['"]|['"]$/g, '')
+        disabled = raw === 'true' ? true : raw === 'false' ? false : evalDisabledExpression(flag[1]) === true
+      }
+    }
+    if (name === undefined || disabled) continue
+    if (name.startsWith('.') || name.startsWith('cordis:')) continue
+    const parts = name.split('/')
+    const pkg = name.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
+    if (existsSync(join(root, pkg)) === false) out.push({ id: row[2], name })
+  }
+  return out
+}
+
 export function modeOf(text) {
   const match = /^# 基础模式: (\S+)\s*$/m.exec(text)
   const id = match === null ? undefined : match[1]
