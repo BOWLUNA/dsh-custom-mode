@@ -43,6 +43,20 @@ jobs:
           node tools/verify-version-consistency.mjs --dsh 0.1.6-alpha.2
           node tools/verify-version-consistency.mjs --dsh 0.1.5-rc.2
 
+      # 凭据自检：改过 npm 密码、或怀疑 token 失效时，用 workflow_dispatch 手动跑一次这条工作流，
+      # 这一步会直接告诉你 NPM_TOKEN 还能不能用（而不是等到下次发版才发现）。
+      - name: 凭据自检（NPM_TOKEN 是否仍有效）
+        working-directory: editor
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "没有配置 NPM_TOKEN —— 发布将走 OIDC（Trusted Publishing）"
+            exit 0
+          fi
+          echo "NPM_TOKEN 存在，验证身份："
+          npm whoami
+
       - name: 发布（已存在的版本直接跳过）
         working-directory: editor
         # 混合认证：若配置了仓库 secret NPM_TOKEN（granular token，可勾 Bypass 2FA），就用它；
