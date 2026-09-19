@@ -1,0 +1,50 @@
+# 打 tag 即发布 —— 这条链路存在的理由：会话内的 npm token 会失效/过期，而 npm 现在走"分阶段发布"，
+# 需要 2FA 批准。用仓库 secret 里的 automation token（或改用 npm trusted publishing / OIDC）就不必每次都人工过一遍。
+#
+# 一次性准备：仓库 Settings → Secrets and variables → Actions → New repository secret，名字 NPM_TOKEN，
+# 值是一个 npm **Automation** token（Automation token 不受"分阶段发布 + 2FA"限制）。
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+
+      # 与 test.yml 相同的守卫：发布前必须全绿，否则一个坏版本就上了 npm。
+      - name: 出厂 preset（测试需要）
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
+      - name: 套件
+        run: node test/run.mjs
+      - name: 双语配对 + 语言纯度
+        run: node tools/verify-translation-pairing.mjs
+      - name: 文档数字
+        run: node tools/verify-doc-numbers.mjs
+      - name: 版本一致性（稳定线与预览线都必须在声明范围内）
+        run: |
+          node tools/verify-version-consistency.mjs --dsh 0.1.6-alpha.2
+          node tools/verify-version-consistency.mjs --dsh 0.1.5-rc.2
+
+      - name: 发布（已存在的版本直接跳过）
+        working-directory: editor
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          VERSION="$(node -p "require('./package.json').version")"
+          if npm view "dsh-custom-mode@${VERSION}" version >/dev/null 2>&1; then
+            echo "dsh-custom-mode@${VERSION} 已经在 npm 上 —— 什么都不做"
+            exit 0
+          fi
+          npm publish --tag latest

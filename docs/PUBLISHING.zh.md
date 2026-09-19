@@ -356,3 +356,18 @@ gh release create v<版本> --title "v<版本>" --notes-file notes.md dsh-custom
 ```
 
 正文里要说明附件导出的宿主版本，并提示导入器可能给出兼容性警告。
+
+## 从 CI 发布（不再依赖会话内 token）
+
+`.github/workflows/release.yml` 在推送 `v*` tag 时发布：先跑与 `test.yml` 相同的守卫（套件、双语配对、文档数字、
+对**两条** dsh 线的版本一致性），然后只在"该版本还不在 npm 上"时才发布。
+
+一次性准备：**Settings → Secrets and variables → Actions → New repository secret**，名字 `NPM_TOKEN`，值是一个 npm
+**Automation** token。Automation token 不受 npm"分阶段发布 + 2FA"流程限制 —— 而正是这个流程让会话内 token 在发布
+中途失效：`npm publish` 成功、版本停在"待批准"，registry 的 `latest` 会一直停在上一版，直到有人人工批准。
+
+```sh
+# 之后的发版路径
+node -e "const p=require('./editor/package.json');p.version='1.9.2';require('fs').writeFileSync('editor/package.json',JSON.stringify(p,null,2)+'\n')"
+git commit -am "release 1.9.2" && git tag v1.9.2 && git push --tags
+```

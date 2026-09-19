@@ -377,3 +377,20 @@ gh release create v<version> --title "v<version>" --notes-file notes.md dsh-cust
 
 Say in the body which host version the attachment was exported from, and warn that the importer may
 report a compatibility warning.
+
+## Publishing from CI (no session token)
+
+`.github/workflows/release.yml` publishes on any `v*` tag: it runs the same guards as `test.yml` (suite, bilingual
+pairing, documented numbers, version consistency against **both** dsh lines) and then publishes only when that
+version is not already on npm.
+
+One-time setup: **Settings → Secrets and variables → Actions → New repository secret**, name `NPM_TOKEN`, value an
+npm **Automation** token. Automation tokens are not subject to npm's staged-publish + 2FA flow, which is what made
+a per-session token stop working mid-release: `npm publish` would succeed, the version would sit in a "staged,
+awaiting approval" state, and the registry's `latest` would stay on the previous version until a human approved it.
+
+```sh
+# the release path after that
+node -e "const p=require('./editor/package.json');p.version='1.9.2';require('fs').writeFileSync('editor/package.json',JSON.stringify(p,null,2)+'\n')"
+git commit -am "release 1.9.2" && git tag v1.9.2 && git push --tags
+```
