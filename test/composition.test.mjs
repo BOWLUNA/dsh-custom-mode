@@ -10,7 +10,9 @@
  * presets are not beside this module there).
  */
 
-import { renderComposition, collectRows, readBaseComposition, BASE_MODES, shippedPresetsDir, modeOf, overridesOf, ROW_META } from '../editor/composition.mjs'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { renderComposition, collectRows, readBaseComposition, BASE_MODES, shippedPresetsDir, modeOf, overridesOf, ROW_META, disableRowsInPlace } from '../editor/composition.mjs'
 
 let passed = 0
 let failed = 0
@@ -258,5 +260,34 @@ console.log('=== 10. 出厂每一行都有显示标签（升级 DSH 时的漂移
 }
 
 console.log()
+console.log('=== 末. 「按本线修复」是就地手术：persona 段必须逐字节保留 ===')
+{
+  // 外部评审实测：disableRowsInPlace 曾经无条件重写 persona 段 → 丢注释 / 多复制一行身份注释。
+  const original = readFileSync(join(shippedPresetsDir(), 'standard', 'agent.cordis.yml'), 'utf8')
+  const withNote = original.replace(/(- id: persona\n)/, '$1      # hand-written note\n')
+  check('夹具：persona 段里有一行注释', withNote.includes('# hand-written note'))
+  const ids = [...withNote.matchAll(/^- id: ([\w-]+)/gm)].map((mm) => mm[1])
+  const victim = ids.find((id) => id !== 'persona') ?? ids[0]
+  const after = disableRowsInPlace(withNote, [victim])
+  const segment = (text) => {
+    const i = text.indexOf('- id: persona')
+    const j = text.indexOf('- id: ', i + 10)
+    return j === -1 ? text.slice(i) : text.slice(i, j)
+  }
+  check('persona 段逐字节不变（注释还在）', segment(after) === segment(withNote),
+    JSON.stringify(segment(after).slice(0, 90)))
+  // 行的 `disabled` 不一定紧跟在 id 后面（name/config 可能在前），所以按"这一行自己的块"判定。
+  const rowBlock = (text, id) => {
+    const i = text.indexOf('- id: ' + id)
+    const j = text.indexOf('- id: ', i + 6)
+    return j === -1 ? text.slice(i) : text.slice(i, j)
+  }
+  check(`目标行 ${victim} 被关掉`, /disabled: true/.test(rowBlock(after, victim)),
+    JSON.stringify(rowBlock(after, victim).slice(0, 90)))
+  check('没有别的行被顺手关掉', (after.match(/disabled: true/g) ?? []).length === (withNote.match(/disabled: true/g) ?? []).length + 1)
+}
+
 console.log(`结果: ${passed} 通过, ${failed} 失败`)
 process.exit(failed === 0 ? 0 : 1)
+
+

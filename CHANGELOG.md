@@ -34,6 +34,10 @@ Tests: 667 → **676** checks, including the report/repair round trip and the "d
 
 ## [1.9.1]
 
+> **Never published to npm.** The registry publish for this version was blocked by an account-side
+> 2FA/token failure, so `latest` went straight from `1.9.0` to `1.9.2`. Everything below shipped in
+> **1.9.2**; pinning `@1.9.1` fails — that is expected, not a packaging bug.
+
 ### Three reviews, one pass: documentation made true, two UI regressions fixed
 
 **Documentation drift was the strongest convergent finding** (one review shipped a D1–D8 table of doc-vs-source

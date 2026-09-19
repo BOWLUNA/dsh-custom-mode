@@ -30,6 +30,9 @@
 import { writeFileSync } from 'node:fs'
 import { connect } from './screenshots/cdp.mjs'
 
+// 记在 README 里的“浏览器 N 项”必须是实测的：这里把它变成断言，改了检查却忘了改文档会失败。
+const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 57)
+
 const argv = process.argv.slice(2)
 const arg = (name, fallback) => {
   const index = argv.indexOf(name)
@@ -132,7 +135,7 @@ try {
         return true;
       })()`)
       let clicked = false
-      for (const label of ['知道了', '我明白', '跳过', '以后再说', '稍后', '关闭', '继续', '开始使用', 'Got it', 'I understand', 'Skip', 'Later', 'Close', 'Continue', 'Dismiss']) {
+      for (const label of ['知道了', '我明白', '跳过', '以后再说', '稍后', 'Configure later', 'Configure now', '关闭', '继续', '开始使用', 'Got it', 'I understand', 'Skip', 'Later', 'Close', 'Continue', 'Dismiss']) {
         try {
           await session.clickTextReal(label, { exact: false })
           clicked = true
@@ -147,6 +150,64 @@ try {
     return -1
   }
   const cleared = await clearOverlays()
+    const switchLanguage = async (option) => {
+      const nav = await session.evaluate(`(() => {
+        const wanted = /^(通用设置|General)$/;
+        const el = [...document.querySelectorAll('button,[role=button],div,span')].find((e) => wanted.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 30);
+        if (el === undefined) return null;
+        const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      })()`)
+      if (nav === null) return 'no-nav'
+      await session.clickAt(nav.x, nav.y); await session.sleep(1200)
+      const opened = await session.evaluate(`(() => {
+        const labels = [...document.querySelectorAll('div,span')].filter((el) => {
+          const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
+          return own === '语言' || own === 'Language';
+        });
+        if (labels.length === 0) return null;
+        let node = labels[0];
+        for (let depth = 0; depth < 6 && node !== null; depth += 1) {
+          const button = node.querySelector === undefined ? null : node.querySelector('button');
+          if (button !== null && button !== undefined) {
+            const rect = button.getBoundingClientRect();
+            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+          }
+          node = node.parentElement;
+        }
+        return null;
+      })()`)
+      if (opened === null) return 'no-control'
+      await session.clickAt(opened.x, opened.y); await session.sleep(900)
+      // shell 的这个下拉依赖真实指针事件：合成 click() 会被忽略（cdp.mjs 的 clickAt 注释里记过这条）。
+      const point = await session.evaluate(`(() => {
+        const el = [...document.querySelectorAll('*')].find((e) => (e.textContent || '').trim() === ${JSON.stringify(option)} && e.children.length <= 3 && e.getBoundingClientRect().height > 8);
+        if (el === undefined) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      })()`)
+      if (point === null) return 'no-option'
+      await session.clickAt(point.x, point.y)
+      await session.sleep(1800)
+      return 'ok'
+    }
+    // 全新实例的界面语言由浏览器 locale 决定 —— 用户什么都没做错，界面就可能是英文，
+    // 于是下面所有中文断言会大面积假失败（外部评审实测：约 20 项 FAIL，看不出真正原因）。
+    // 所以开头就切到中文；切不动就**明确报错退出**，而不是给出一堆看不懂的失败。
+    // `switchLanguage` 假定设置面板已经打开（它点的是面板里的「语言」控件），所以先点开侧栏的 Settings。
+    try {
+      await session.clickTextReal('设置', { exact: true })
+    } catch {
+      try { await session.clickTextReal('Settings', { exact: true }) } catch { /* 面板可能已经开着 */ }
+    }
+    await session.sleep(1600)
+    const uiLanguage = await switchLanguage('中文')
+    if (uiLanguage !== 'ok') {
+      console.error(`browser-verify: 无法把界面切成中文（${uiLanguage}）—— 本脚本的断言基于中文界面。`)
+      console.error('请先在这个实例里把界面语言设成中文，或检查设置页的「通用设置 → 语言」是否可点。')
+      process.exit(2)
+    }
+    check('界面已切到中文（后续断言才有意义）', true)
+
   check('首启遮罩被清掉（否则下面的点击都会被拦）', cleared >= 0, `still present after 8 attempts`)
 
   // ── 打开 设置 → 自定义模式 ─────────────────────────────────────────────────
@@ -494,46 +555,7 @@ try {
     //
     // 宿主仍回中文 note/error（HTTP API 的兼容面），页面按 `code` 用自己的词典渲染。
     // 这条真的切到英文再存一次来验证 —— 而不是只看代码。
-    const switchLanguage = async (option) => {
-      const nav = await session.evaluate(`(() => {
-        const wanted = /^(通用设置|General)$/;
-        const el = [...document.querySelectorAll('button,[role=button],div,span')].find((e) => wanted.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 30);
-        if (el === undefined) return null;
-        const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-      })()`)
-      if (nav === null) return 'no-nav'
-      await session.clickAt(nav.x, nav.y); await session.sleep(1200)
-      const opened = await session.evaluate(`(() => {
-        const labels = [...document.querySelectorAll('div,span')].filter((el) => {
-          const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
-          return own === '语言' || own === 'Language';
-        });
-        if (labels.length === 0) return null;
-        let node = labels[0];
-        for (let depth = 0; depth < 6 && node !== null; depth += 1) {
-          const button = node.querySelector === undefined ? null : node.querySelector('button');
-          if (button !== null && button !== undefined) {
-            const rect = button.getBoundingClientRect();
-            return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-          }
-          node = node.parentElement;
-        }
-        return null;
-      })()`)
-      if (opened === null) return 'no-control'
-      await session.clickAt(opened.x, opened.y); await session.sleep(900)
-      // shell 的这个下拉依赖真实指针事件：合成 click() 会被忽略（cdp.mjs 的 clickAt 注释里记过这条）。
-      const point = await session.evaluate(`(() => {
-        const el = [...document.querySelectorAll('*')].find((e) => (e.textContent || '').trim() === ${JSON.stringify(option)} && e.children.length <= 3 && e.getBoundingClientRect().height > 8);
-        if (el === undefined) return null;
-        const r = el.getBoundingClientRect();
-        return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-      })()`)
-      if (point === null) return 'no-option'
-      await session.clickAt(point.x, point.y)
-      await session.sleep(1800)
-      return 'ok'
-    }
+    // （`switchLanguage` 已上移到脚本开头：必须**先**把界面切成中文，后面的断言才有意义。）
     const openOurSection = async (label) => {
       await session.evaluate(`(() => {
         const wanted = new RegExp('^(' + ${JSON.stringify(label)} + ')$');
@@ -594,6 +616,10 @@ try {
 
 console.log()
 console.log(`结果: ${passed} 通过, ${failed} 失败`)
+if (passed + failed !== EXPECTED_CHECKS) {
+  console.error(`browser-verify: ran ${passed + failed} checks but the README claims ${EXPECTED_CHECKS} — sync the README and this constant.`)
+  process.exitCode = 1
+}
 if (failed > 0 && out !== '') {
   try {
     writeFileSync(`${out}.failed`, 'see the FAIL lines\n')

@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+![dsh-custom-mode — a settings page for dsh agent modes](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
+
 [![npm](https://img.shields.io/npm/v/dsh-custom-mode?label=npm)](https://www.npmjs.com/package/dsh-custom-mode)
 [![CI](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
 [![license](https://img.shields.io/npm/l/dsh-custom-mode?label=license)](LICENSE)
@@ -20,13 +22,13 @@ The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouche
 
 |  |  |
 | --- | --- |
-| ![Mode name and base mode](docs/images/01-mode-switch.png) | ![Plugin switches](docs/images/02-plugin-switches.png) |
-| ![System prompt](docs/images/03-system-prompt.png) | ![Mode picker](docs/images/04-preset-picker.png) |
+| ![Mode name and base mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![Plugin switches](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
+| ![System prompt](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![Mode picker](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
 
 The assistant manager, cropped to its own section (captured on a real instance by
 `tools/screenshots/run-shots.sh`; `tools/browser-verify.mjs` is what checks the page):
 
-![Assistant manager](docs/images/05-assistant-manager.png)
+![Assistant manager](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
 
 ## Install
 
@@ -34,7 +36,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.2   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.3   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -204,7 +206,7 @@ version CI installs and tests falls inside those ranges.
 **Both dsh lines are supported: the latest stable (`0.1.5-rc.2`) and the latest preview (`0.1.6-alpha.2`)** —
 declared as `>=0.1.5-rc.2 <0.2.0-0`, and CI installs *both* lines and runs the whole suite against each.
 Measured on `0.1.5-rc.2`: install, composition tree, the `/api` fence, `state`/`history`/`warnings` and the
-38 browser checks all pass; `tools/pre-execute` (the approval seam) and `connection.fetch.register` (the
+57 browser checks all pass; `tools/pre-execute` (the approval seam) and `connection.fetch.register` (the
 fenced route channel) both exist there too.
 
 Two reasons for the split. A bare `x.y.z` is what directories and markets require before they will
@@ -299,7 +301,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.2
+dsh plugin --profile web add dsh-custom-mode@1.9.3
 # then restart the DSH process that serves the web profile
 ```
 

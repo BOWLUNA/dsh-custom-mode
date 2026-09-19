@@ -187,8 +187,8 @@ $EDITOR ~/.dsh/.agent-presets/custom/prompt.md
 
 ## 7. 版本不匹配
 
-本插件有**自己的稳定版本线**（`1.0.x`）；它*支持哪些* dsh 由 `engines.dsh` 与 peer 范围声明
-（`>=0.1.6-alpha.1 <0.2.0-0`）。（`1.0.0` 之前版本号是镜像 dsh 的 —— 那套做法已于 2026-09-18 取消，
+本插件有**自己的稳定版本线**（`1.y.z` —— 目前是 `1.9.x`）；它*支持哪些* dsh 由 `engines.dsh` 与 peer 范围声明
+（`>=0.1.5-rc.2 <0.2.0-0`）。（`1.0.0` 之前版本号是镜像 dsh 的 —— 那套做法已于 2026-09-18 取消，
 因为有些目录只对裸 `x.y.z` 自动安装。）升级 dsh 之后如果设置页空白或启动时报
 「当前 DSH 版本缺少所需 API」，就是耦合点断了：见 README 的「耦合点清单」，逐条核对。
 
@@ -236,8 +236,12 @@ curl -X POST http://127.0.0.1:3080/custom-mode \
 路由在处理任何请求之前先问平台：
 
 ```js
-const rejection = ctx.get('connection').requestRejection(req)
+ctx.connection.fetch.register({ path, methods, requestBody, fetch })
 ```
+
+路由挂在平台**带围栏的 `/api` 频道**上：信任与鉴权策略（loopback/`trustedHosts` 的 Host 校验、
+`Sec-Fetch-Site`、`Origin`、签名的浏览器会话 cookie）在**分发之前**就由平台施加 —— 这件事不再依赖
+本插件「记得去调它」。（1.0.3 起改为此写法；旧写法 `ctx.get('connection').requestRejection(req)` 已删除。）
 
 修完的实测：
 

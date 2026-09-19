@@ -95,3 +95,24 @@ node tools/screenshots/live-hot-reload.mjs "<token URL>" "$DSH_HOME/.agent-prese
 mouse event, captureScreenshot — and installing a browser-automation framework (plus its own
 downloaded Chromium) for that is not worth it. Playwright would work just as well; the part of the
 script that talks to the browser is self-contained.
+
+## The English set (what GitHub and npm render)
+
+`run-shots.sh` / `screenshots.mjs` are built around pixel crops of a **Chinese** UI; the images on the GitHub
+page and the npm page are read in English, so those are captured by a second, simpler script:
+
+```sh
+# instance must already be in an English locale (`locale.preference: en`) with the plugin installed
+CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?token=…" docs/images
+```
+
+It dismisses the first-run gates (`Configure later` / `Continue`), opens **Settings → Custom mode** by clicking
+the nav item *inside* the settings dialog (the mode chip carries the same label — clicking by text alone hits
+the chip), and then crops each image to the panel itself instead of a full viewport with grey margins. Order
+matters: the mode picker is captured first, because opening the settings page leaves the new-session view.
+
+`docs/images/header.png` (the README banner) is rendered from a plain HTML file with headless Chrome:
+
+```sh
+chrome --headless=new --hide-scrollbars --window-size=1600,420 --screenshot=header.png file:///…/header.html
+```

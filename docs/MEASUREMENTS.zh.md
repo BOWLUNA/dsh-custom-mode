@@ -1290,3 +1290,28 @@ beancookie/awesome-dsh-plugin#183 README.md 与 README.en.md 的「🧑💻 开�
 
 未跟进：`Alex-Yanggg/awesome-DSH-plugin`（最后更新 2026-08-15，已停更）与 `diegosouzapw/awesome-omni-dsh-plugins`（★17）。
 
+---
+
+## 26. 第二轮外部评审（2026-09-19）—— 11 条属实、2 条证伪
+
+四位评审者用的是操作者工程规范目录里的**评审套件**（本仓库的 README/AGENTS/MEASUREMENTS + 一份要求
+"给证据、标护栏覆盖、限长清单"的提示词）。与第一轮不同，这次每条发现都带命令与原始输出，其中 11 条在本机
+复现。`1.9.3` 修复：
+
+| 严重度 | 发现 | 修法 |
+| --- | --- | --- |
+| P1（安全） | 升级从不刷新助手目录里的**代码模块**，1.0.x/1.1.x 首装的用户永远留着没有审批闸门的 `prompt-tool.mjs` | `prompt-reader.mjs` / `prompt-tool.mjs` 内容不一致即刷新（原子写）；`prompt.md`、`preset.yml` 与生成的组成文件仍只补不缺 |
+| P1 | `install.sh` 仍在复制包内那份组成文件（只按一条 DSH 线渲染）→ 另一条线把预设判为 broken，模式从选择器消失 | 安装脚本不再复制；改由插件按本线派生 |
+| P1（护栏） | `tools/picker-probe.mjs` 找的是 `Standard`，而英文界面渲染 `Standard mode` → 探针根本找不到选择器 | 名字表补上英文实际文案 |
+| P1（护栏） | `tools/browser-verify.mjs` 假定中文界面：英文冷启动产出约 20 项莫名其妙的失败 | 先打开 Settings 并把界面切成中文；切不动就**明确报错退出**（已在英文实例上实测：57 项、0 失败） |
+| P2 | 「按本线修复」不是纯就地手术：会重写 persona 段，丢注释或多复制身份行 | 只有完整重新渲染才替换该段（`replacePersona`） |
+| P2 | 播种用裸 `copyFileSync` → 两个实例共用一个 `DSH_HOME` 时 Windows 上 `EBUSY` | 所有写入统一走共享原子写helper |
+| P2 | 被平台静默丢弃的模式只在设置页可见 | 激活时宿主日志告警，带行 id 与处置建议 |
+| P2/P3 | 英文词典泄漏：中文括号、中文顿号分隔符、字面 `**` | 只在 `en` 对象里清理（词典漂移检查锁住两份拷贝 —— 这轮它抓到了我自己两次失误） |
+| P3 | `POST /state` 会清空请求里没带的描述；`publishConfig.tag` 是 `alpha` | 描述保留；tag 改为 `latest` |
+
+证伪（附证据）：那条"模式出现在选择器里但点了没反应"的 P1（切换后新建会话的 `agentPreset = custom`，
+读的是会话记录而不是界面），以及此前那条 `REQUEST_EXTENSION` P0（又四位评审、又多六次会话，仍不复现）。
+
+套件后续：`05-项目已有护栏.md` 需要写明"护栏自己也有盲区"—— 英文 locale 这一条就是。
+

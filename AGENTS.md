@@ -33,6 +33,9 @@ CDP_PORT=9222 node tools/browser-verify.mjs --url "http://127.0.0.1:3082/?token=
 
 # Screenshots for the README (really clicks, saves, switches theme and language), see tools/screenshots/README.md
 DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?token=…" docs/images
+
+# The English set that GitHub and npm render (see tools/screenshots/README.md)
+CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?token=…" docs/images
 ```
 
 ## What must not break
@@ -58,10 +61,13 @@ DSH_HOME=/tmp/dsh-dev ./tools/screenshots/run-shots.sh "http://127.0.0.1:3081/?t
 7. **`editor/preset/` is a packaging copy of `preset/`, not a second source.** npm can only ship
    files inside the package, so the five preset files exist twice; `test/seed.test.mjs` asserts they
    stay byte-identical. Edit `preset/`, copy, or the test fails.
-8. **Seeding never overwrites.** `editor/seed.mjs` fills in only missing files at activation, so a
-   storefront install (`dsh plugin add <pkg>`) is complete on its own, and a user's `prompt.md` or a
-   generated `agent.cordis.yml` survives. It must not throw either: an unwritable `DSH_HOME` is
-   reported and the boot continues.
+8. **Seeding never overwrites user data — but it does refresh our own code modules.** User data
+   (`prompt.md`, `preset.yml`, the generated `agent.cordis.yml`) is only ever filled in when missing, so a
+   storefront install (`dsh plugin add <pkg>`) is complete on its own and a user's edits survive. The two
+   **code** modules shipped into the assistant directory (`prompt-reader.mjs`, `prompt-tool.mjs`) are
+   refreshed when they differ from the packaged ones — a fill-only policy left 1.0.x/1.1.x users running an
+   approval-gate-less `prompt-tool.mjs` forever (external review, 1.9.3). Seeding must not throw either: an
+   unwritable `DSH_HOME` is reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
 10. **The version number is the package's own stable line** (`1.0.0`, `1.0.1`, …) — it does not mirror

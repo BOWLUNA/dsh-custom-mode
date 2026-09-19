@@ -89,6 +89,25 @@ console.log('=== 4. 幂等：再播一次什么都不写、什么都不改 ===')
   const second = seedPreset(target)
   check('第二次没有新建', second.created.length === 0, JSON.stringify(second.created))
   check('第二次全部保留', second.kept.length === PRESET_FILES.length, JSON.stringify(second.kept))
+
+console.log('=== 3b. 升级：刷新我们自己的代码模块，但绝不动用户数据 ===')
+{
+  // 外部评审实测的真实缺口：老版本创建的助手目录里存着一份**旧的可执行模块**，
+  // 而升级只补缺失文件 → 1.0.x/1.1.x 首装的用户即使把插件升到最新，会话内改写提示词的
+  // 审批闸门仍然是缺的。所以模块要刷新，而 prompt.md / preset.yml / 组成文件仍是用户数据。
+  const refreshedDir = mkdtempSync(join(tmpdir(), 'dsh-seed-refresh-'))
+  seedPreset(refreshedDir, packagedPresetDir())
+  writeFileSync(join(refreshedDir, 'prompt-tool.mjs'), '// old shipped copy\n', 'utf8')
+  writeFileSync(join(refreshedDir, 'prompt.md'), '用户自己写的提示词\n', 'utf8')
+  const upgraded = seedPreset(refreshedDir, packagedPresetDir())
+  check('代码模块被刷新', upgraded.refreshed.includes('prompt-tool.mjs'), JSON.stringify(upgraded.refreshed))
+  check('刷新后与包内逐字节一致',
+    readFileSync(join(refreshedDir, 'prompt-tool.mjs'), 'utf8') === readFileSync(join(packagedPresetDir(), 'prompt-tool.mjs'), 'utf8'))
+  check('用户提示词没有被动过', readFileSync(join(refreshedDir, 'prompt.md'), 'utf8') === '用户自己写的提示词\n')
+  check('用户提示词记为"保留"而不是"刷新"',
+    upgraded.kept.includes('prompt.md') && !upgraded.refreshed.includes('prompt.md'), JSON.stringify(upgraded))
+  rmSync(refreshedDir, { recursive: true, force: true })
+}
   check('第二次没有错误', second.errors.length === 0, JSON.stringify(second.errors))
   check('内容与第一次相同', readFileSync(join(target, 'prompt.md'), 'utf8') === before)
   check('第一次确实写过东西', first.created.length === PRESET_FILES.length)

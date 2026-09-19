@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+![dsh-custom-mode —— 给 dsh 模式用的设置页](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
+
 [![npm](https://img.shields.io/npm/v/dsh-custom-mode?label=npm)](https://www.npmjs.com/package/dsh-custom-mode)
 [![CI](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
 [![license](https://img.shields.io/npm/l/dsh-custom-mode?label=license)](LICENSE)
@@ -16,19 +18,19 @@
 
 |  |  |
 | --- | --- |
-| ![模式名称与基础模式](docs/images/01-mode-switch.png) | ![插件开关](docs/images/02-plugin-switches.png) |
-| ![系统提示词](docs/images/03-system-prompt.png) | ![模式选择器](docs/images/04-preset-picker.png) |
+| ![模式名称与基础模式](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![插件开关](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
+| ![系统提示词](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![模式选择器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
 
 多助手管理器（裁到它自己那一段；真机截图由 `tools/screenshots/run-shots.sh` 产出，`tools/browser-verify.mjs` 负责校验界面）：
 
-![助手管理器](docs/images/05-assistant-manager.png)
+![助手管理器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
 
 ## 安装
 
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.2   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.3   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -137,7 +139,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 **同时支持两条 dsh 线：最新稳定版（`0.1.5-rc.2`）与最新预览版（`0.1.6-alpha.2`）** —— 声明为
 `>=0.1.5-rc.2 <0.2.0-0`，CI 会**两条线各装一次**并各跑一遍完整测试。`0.1.5-rc.2` 实测：安装、组合树、
-`/api` 围栏、`state`/`history`/`warnings` 与浏览器 38 项全过；审批缝依赖的 `tools/pre-execute` 与路由
+`/api` 围栏、`state`/`history`/`warnings` 与浏览器 57 项全过；审批缝依赖的 `tools/pre-execute` 与路由
 依赖的 `connection.fetch.register` 在稳定版里同样存在。
 
 包版本走**自己的线** —— `1.0.0`、`1.0.1` …… 它不镜像 DSH 的版本号。本插件支持哪些 dsh，由
@@ -229,7 +231,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.2
+dsh plugin --profile web add dsh-custom-mode@1.9.3
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

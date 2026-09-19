@@ -50,3 +50,13 @@ The READMEs reference these file names, so **renaming one means updating the doc
 ```markdown
 ![Mode name and base mode](docs/images/01-mode-switch.png)
 ```
+
+## English set + banner
+
+The five numbered images are captured from an **English** instance by
+`tools/screenshots/run-shots-en.mjs` (see `tools/screenshots/README.md`); the npm page renders the same files,
+which is why the READMEs link them by absolute `raw.githubusercontent.com` URL rather than a relative path.
+
+`header.png` is the repository banner (dark, monospace) — it is rendered from an HTML file with headless
+Chrome, and the same 1600×420 artwork works as the GitHub **social preview** (upload it under
+Settings → Social preview, which the API cannot set).

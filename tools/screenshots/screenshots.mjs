@@ -184,9 +184,22 @@ async function switchLanguage(optionText) {
 
 console.log('打开应用…')
 await session.goto(url, { waitMs: 4500 })
+// 全新实例会先弹一次「Internal Testing Notice」/ 引导层：它盖住整个界面，什么都点不到。
+// 用户自己的实例上早就关掉了，所以这里以前没暴露过 —— 但在一次性 home 上跑就必须先关掉它。
+for (let round = 0; round < 4; round += 1) {
+  let clicked = false
+  for (const label of ['继续', 'Continue', '稍后配置', 'Configure later', 'Later', '知道了', 'Got it', '关闭', 'Close']) {
+    try { await session.clickTextReal(label, { exact: false }); clicked = true; break } catch { /* 下一个 */ }
+  }
+  if (clicked === false) break
+  await session.sleep(800)
+}
 
 // 统一回中文，避免上一次运行的残留语言影响后续按文案定位
-console.log('设置面板：统一到中文 + 浅色')
+// 截图语言：`SHOT_LOCALE=en` 拍英文界面（README 的 GitHub / npm 页面用英文图）。
+const SHOT_LOCALE = (process.env.SHOT_LOCALE ?? 'zh').toLowerCase() === 'en' ? 'en' : 'zh'
+const SHOT_LANGUAGE = SHOT_LOCALE === 'en' ? 'English' : '中文'
+console.log(`设置面板：统一到 ${SHOT_LANGUAGE} + 浅色`)
 await clickAny(L.settings, { exact: true })
 await clickAny(L.general, { exact: true })
 const languageButton = await session.evaluate(`(() => {
@@ -203,7 +216,7 @@ const languageButton = await session.evaluate(`(() => {
   }
   return null;
 })()`)
-if (languageButton !== '中文') await switchLanguage('中文')
+if (languageButton !== SHOT_LANGUAGE) await switchLanguage(SHOT_LANGUAGE)
 await clickAny(L.light, { exact: true })
 report.theme = '浅色（由界面自己的外观控件切换）'
 
@@ -231,7 +244,7 @@ console.log('截图 05（助手列表：先建一个助手）…')
 await scrollTo('.cpfe > section:nth-of-type(1)')
 try {
   await session.fill('.cpfe-newrow input', '写作助手')
-  await session.clickTextReal('新增助手', { exact: false })
+  await session.clickTextReal('新增助手|New assistant', { exact: false })
   await session.sleep(2600)
 } catch (error) {
   // 截图不该因为这一步失败而整体失败：建不出来就按现状拍。
@@ -265,7 +278,7 @@ await scrollTo('.cpfe-rows')
 // The switch is the shell's own atom now: `[role=switch]` with `aria-checked`, not an
 // `<input type=checkbox>` (measured: 32 rows, 32 `[role=switch]`, 0 checkboxes in the panel).
 // React updates the attribute a tick after the click, so the new state is read separately.
-const ROW_FINDER = `[...document.querySelectorAll('.cpfe-row')].find((el) => el.textContent.includes('网页检索与抓取') || el.textContent.includes('Web search and fetch'))`
+const ROW_FINDER = `[...document.querySelectorAll('.cpfe-row')].find((el) => (el.textContent.includes('网页检索与抓取') || /web search|fetch/i.test(el.textContent)) || el.textContent.includes('Web search and fetch'))`
 report.toggle = await session.evaluate(`(() => {
   const row = ${ROW_FINDER};
   if (row === undefined) return null;

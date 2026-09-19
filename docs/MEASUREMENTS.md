@@ -1349,3 +1349,31 @@ repository has had that topic all along, so the entry is a matter of time.
 Not pursued: `Alex-Yanggg/awesome-DSH-plugin` (last updated 2026-08-15, dormant) and
 `diegosouzapw/awesome-omni-dsh-plugins` (★17).
 
+
+---
+
+## 26. Second external review round (2026-09-19) — eleven verified, two refuted
+
+Four reviewers ran against the review kit in the operator's engineering-guidelines folder (this repository's
+README/AGENTS/MEASUREMENTS plus a prompt that asks for evidence, guard-coverage columns and a bounded list).
+Unlike the first round, every finding arrived with a command and raw output, and eleven of them reproduced
+here. Fixed in `1.9.3`:
+
+| Severity | Finding | Fix |
+| --- | --- | --- |
+| P1 (security) | Upgrades never refreshed the **code modules** inside a managed assistant directory, so a user who first installed `1.0.x`/`1.1.x` kept an approval-gate-less `prompt-tool.mjs` forever | `prompt-reader.mjs` / `prompt-tool.mjs` are refreshed when they differ (atomic write); `prompt.md`, `preset.yml` and the generated composition stay fill-only |
+| P1 | `install.sh` still copied the packaged composition (rendered from one DSH line) → the other line judges the preset broken and the mode vanishes from the picker | the installer no longer copies it; the plugin derives it per line |
+| P1 (guardrail) | `tools/picker-probe.mjs` looked for `Standard`, while an English UI renders `Standard mode` → the probe could not find the picker at all | the name table carries the real English labels |
+| P1 (guardrail) | `tools/browser-verify.mjs` assumed a Chinese UI: an English cold start produced ~20 opaque failures | it opens Settings, switches the UI to Chinese first, and **exits with a clear message** if it cannot (verified on an English instance: 57 checks, 0 failures) |
+| P2 | "Fix for this line" was not purely in-place: it rewrote the persona segment, dropping comments or duplicating the identity row | only a full re-render replaces that segment (`replacePersona`) |
+| P2 | Seeding used a bare `copyFileSync` → `EBUSY` on Windows when two instances share a `DSH_HOME` | all writes go through the shared atomic helper |
+| P2 | A mode the platform silently drops was only visible in the settings page | the host logs a warning at activation, with row ids and what to do |
+| P2/P3 | English dictionary leaks: CJK brackets, a CJK list separator, literal `**` | cleaned in the `en` object only (the dictionary-drift test keeps the two copies aligned — it caught two of this round's own mistakes) |
+| P3 | `POST /state` cleared a description the request omitted; `publishConfig.tag` was `alpha` | the description is preserved; the tag is `latest` |
+
+Refuted, with evidence: the P1 claim that the mode is listed in the picker but selecting it does nothing (a
+session created after switching carries `agentPreset = custom`, read from the session record rather than the
+UI), and the earlier `REQUEST_EXTENSION` P0 (four more reviewers, six more sessions, still no reproduction).
+
+Kit follow-up: `05-项目已有护栏.md` now has to say that the guardrails themselves have blind spots — the
+English-locale gap was exactly that.

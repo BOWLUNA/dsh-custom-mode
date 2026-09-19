@@ -186,8 +186,8 @@ Or temporarily clear the entire prompt down to a single line of plain text, then
 
 ## 7. Version mismatch
 
-This plugin has **its own stable version line** (`1.0.x`); *which* dsh releases it supports is declared in
-`engines.dsh` + the peer range (`>=0.1.6-alpha.1 <0.2.0-0`). (Until `1.0.0` the version mirrored dsh's — that
+This plugin has **its own stable version line** (`1.y.z` — currently `1.9.x`); *which* dsh releases it supports is declared in
+`engines.dsh` + the peer range (`>=0.1.5-rc.2 <0.2.0-0`). (Until `1.0.0` the version mirrored dsh's — that
 was retired on 2026-09-18, because some directories only auto-install a plain `x.y.z`.) After upgrading dsh, if the settings page is blank or startup reports
 "the current DSH version is missing a required API", then a coupling point has broken: see the "coupling point checklist" in the README and verify them one by one.
 
@@ -235,8 +235,12 @@ this is remotely triggerable prompt injection.
 The route asks the platform before handling any request:
 
 ```js
-const rejection = ctx.get('connection').requestRejection(req)
+ctx.connection.fetch.register({ path, methods, requestBody, fetch })
 ```
+
+The route is mounted on the platform's **fenced `/api` channel**, which applies the trust and authentication
+policy (loopback/`trustedHosts` Host check, `Sec-Fetch-Site`, `Origin`, the signed browser-session cookie)
+**before** dispatching — the check no longer depends on this plugin remembering to call it.
 
 Measurements after the fix:
 
