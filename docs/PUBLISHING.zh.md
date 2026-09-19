@@ -371,3 +371,20 @@ gh release create v<版本> --title "v<版本>" --notes-file notes.md dsh-custom
 node -e "const p=require('./editor/package.json');p.version='1.9.2';require('fs').writeFileSync('editor/package.json',JSON.stringify(p,null,2)+'\n')"
 git commit -am "release 1.9.2" && git tag v1.9.2 && git push --tags
 ```
+
+### 推荐：Trusted Publishing（完全不需要 token）
+
+在 npm 的 package 设置里添加 **Trusted Publisher**，Publisher 选 GitHub Actions：
+
+| 字段 | 填什么 |
+| --- | --- |
+| Organization or user | `BOWLUNA` |
+| Repository | `dsh-custom-mode` |
+| Workflow filename | **`release.yml`**（必须与 `.github/workflows/release.yml` 一致；provider/仓库/工作流一旦创建**不可改**，要改只能删掉重建） |
+| Environment name | **留空**（除非你另外配置了带"必须人工批准"的 GitHub Actions environment） |
+| Allowed actions | 勾 **Allow `npm publish`** → 推 tag 即无人值守发布；**不勾**则只允许分阶段发布，每次要你在 npmjs.com 点一次 Approve |
+
+工作流已经声明 `id-token: write`，并且**故意不设** `NODE_AUTH_TOKEN`：走 OIDC 之后 npm token 从流程里消失，
+而那正是本轮反复卡住发布的东西。
+
+`NPM_TOKEN`（npm Automation token，存成仓库 secret）仍然保留为备选：没有配置 trusted publisher 时它生效。

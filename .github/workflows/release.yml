@@ -1,8 +1,11 @@
 # 打 tag 即发布 —— 这条链路存在的理由：会话内的 npm token 会失效/过期，而 npm 现在走"分阶段发布"，
 # 需要 2FA 批准。用仓库 secret 里的 automation token（或改用 npm trusted publishing / OIDC）就不必每次都人工过一遍。
 #
-# 一次性准备：仓库 Settings → Secrets and variables → Actions → New repository secret，名字 NPM_TOKEN，
-# 值是一个 npm **Automation** token（Automation token 不受"分阶段发布 + 2FA"限制）。
+# 一次性准备（推荐，无需任何 token）：在 npm 的 package 设置里建立 Trusted Publisher 连接 ——
+#   Publisher: GitHub Actions / Organization: BOWLUNA / Repository: dsh-custom-mode
+#   Workflow filename: release.yml        ← 必须与这个文件名一致
+#   Allowed actions: 勾选 "Allow npm publish" 则 tag 推上去即发布；不勾则每次发布在 npm 页面点一次 Approve
+# 备选：仓库 secret NPM_TOKEN（npm Automation token），未配置 OIDC 时它会生效。
 name: release
 
 on:
@@ -12,6 +15,9 @@ on:
 
 permissions:
   contents: read
+  # Trusted Publishing (OIDC) 要求这个权限：npm 用 GitHub 的 OIDC 令牌确认"这次发布确实来自本仓库的这个工作流"，
+  # 因此**不需要任何 npm token**（也就不再有 token 失效、绕过 2FA 被限制这些问题）。
+  id-token: write
 
 jobs:
   publish:
@@ -39,8 +45,8 @@ jobs:
 
       - name: 发布（已存在的版本直接跳过）
         working-directory: editor
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # 认证走 OIDC（Trusted Publishing），所以这里**不设** NODE_AUTH_TOKEN：
+        # setup-node 的 registry-url 已经把 registry 写进 .npmrc，npm 会用 OIDC 令牌完成认证。
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           if npm view "dsh-custom-mode@${VERSION}" version >/dev/null 2>&1; then

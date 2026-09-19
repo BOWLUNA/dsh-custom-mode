@@ -394,3 +394,21 @@ awaiting approval" state, and the registry's `latest` would stay on the previous
 node -e "const p=require('./editor/package.json');p.version='1.9.2';require('fs').writeFileSync('editor/package.json',JSON.stringify(p,null,2)+'\n')"
 git commit -am "release 1.9.2" && git tag v1.9.2 && git push --tags
 ```
+
+### Preferred: Trusted Publishing (no token at all)
+
+In the npm package's settings, add a **Trusted Publisher** with the GitHub Actions provider:
+
+| Field | Value |
+| --- | --- |
+| Organization or user | `BOWLUNA` |
+| Repository | `dsh-custom-mode` |
+| Workflow filename | **`release.yml`** (must match `.github/workflows/release.yml`; provider/repo/workflow are fixed once created — to change them, delete the connection and make a new one) |
+| Environment name | leave **empty** unless you set up a GitHub Actions environment with required reviewers |
+| Allowed actions | **Allow `npm publish`** → pushing a tag publishes unattended. Leave it **unchecked** to allow staged publishing only, in which case each release waits for your approval on npmjs.com |
+
+The workflow already requests `id-token: write` and deliberately sets **no** `NODE_AUTH_TOKEN`: with OIDC the npm
+token disappears from the picture entirely, which is what kept failing mid-release.
+
+`NPM_TOKEN` (an npm Automation token stored as a repository secret) remains as a fallback for repositories without
+the trusted-publisher connection.
