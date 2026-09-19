@@ -98,6 +98,13 @@ try {
         "api.alreadyLast": "「{name}」已经在最后面。",
         "api.badVariableName": "变量引用的写法不合法：{variable} 里的名字只能用小写字母、数字、下划线，且以字母开头。要写字面量花括号，请用单个左花括号，或不闭合的双左花括号。",
         "api.unknownVariable": "{variable} 不是已注册的变量，渲染会报错并让本模式每个请求都失败。可用：{known}。",
+        "assistant.short": "每个助手是一个独立模式：自己的系统提示词、基础模式与插件开关。",
+        "name.short": "改名只影响显示，内部标识与已有会话不受影响。",
+        "mode.short": "底子决定「行集合」与工具能力；persona 行始终由本模式替换。",
+        "rows.short": "逐行控制挂载哪些插件；没拨过的行保持官方默认。",
+        "prompt.short": "这段文本就是本模式的系统提示词，保存后下一步生效。",
+        "aria.expandHint": "展开完整说明",
+        "aria.collapseHint": "收起完整说明",
         "aria.expand": "展开详情",
         "aria.collapse": "收起详情",
         "detail.id": "行 id",
@@ -281,6 +288,13 @@ try {
         "api.alreadyLast": "「{name}」 is already last.",
         "api.badVariableName": "{variable} is not a valid variable reference: names may use lower-case letters, digits and underscores, and must start with a letter. For a literal brace, use a single opening brace or an unclosed double brace.",
         "api.unknownVariable": "{variable} is not a registered variable — rendering would fail every request in this mode. Available: {known}.",
+        "assistant.short": "Each assistant is its own mode: its own system prompt, base mode and plugin switches.",
+        "name.short": "Renaming only changes what is displayed — not the internal id or existing sessions.",
+        "mode.short": "The base decides the row set and tool abilities; the persona row is always replaced by this mode.",
+        "rows.short": "Control which plugins this mode mounts, row by row; untouched rows keep the shipped default.",
+        "prompt.short": "Saving this text makes it the system prompt of this mode, and it takes effect on the next step.",
+        "aria.expandHint": "Show the full explanation",
+        "aria.collapseHint": "Hide the full explanation",
         "aria.expand": "Show details",
         "aria.collapse": "Hide details",
         "detail.id": "Row id",
@@ -578,6 +592,14 @@ try {
         ".cpfe{--g:8px;display:flex;flex-direction:column;gap:24px;width:100%;max-width:900px;box-sizing:border-box;padding-bottom:16px}",
         ".cpfe-h{margin:0 0 4px;font-size:15px;line-height:22px;color:var(--dsw-alias-label-primary)}",
         ".cpfe-sub{margin:0 0 12px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
+        // 一行提示 + 详情下拉（与插件行同一套语言）
+        ".cpfe-hint{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px}",
+        ".cpfe-hint-line{flex:1;min-width:0;font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+        ".cpfe-hint-toggle{flex:0 0 auto;width:20px;height:20px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:11px;line-height:1}",
+        ".cpfe-hint-toggle:hover{background:var(--dsw-alias-bg-layer-2)}",
+        ".cpfe-hint-detail{flex:1 0 100%;margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}",
+        // 描述：多行、自适应高度（没有多行输入组件，所以用 textarea + 同一批语义变量）
+        ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:200px;resize:vertical;padding:8px 12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
         ".cpfe-note{display:block;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
         ".cpfe-mono{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         ".cpfe-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}",
@@ -731,6 +753,41 @@ try {
       /** `「名称」副本`-style copy name, from a locale template. */
       function copyName(template, name) {
         return String(template).replace("{name}", name)
+      }
+
+      /**
+       * A section's one-line hint, with the full explanation behind a disclosure.
+       *
+       * The sections used to open with a paragraph each. On a real screen that is a wall of text above the
+       * controls the user came for, and the same "compact line + open on demand" language as the row list keeps
+       * the page scannable without dropping a word of the explanation.
+       */
+      function SectionHint(props) {
+        const { id, hint, detail, expanded, onToggleExpand, t } = props
+        const open = expanded[id] === true
+        const collapsible = typeof detail === "string" && detail !== "" && detail !== hint
+        return react.createElement(
+          "div",
+          { className: "cpfe-hint" },
+          react.createElement("span", { className: "cpfe-hint-line", title: hint }, hint),
+          collapsible === false
+            ? null
+            : react.createElement(
+                "button",
+                {
+                  type: "button",
+                  className: "cpfe-hint-toggle",
+                  "aria-expanded": open,
+                  "aria-label": t(open ? "aria.collapse" : "aria.expandHint"),
+                  title: t(open ? "aria.collapse" : "aria.expandHint"),
+                  onClick: () => onToggleExpand(id),
+                },
+                open ? "▾" : "▸",
+              ),
+          open === true && collapsible === true
+            ? react.createElement("p", { className: "cpfe-hint-detail" }, detail)
+            : null,
+        )
       }
 
       /**
@@ -934,6 +991,17 @@ try {
 
         const entry = selected === "" ? undefined : entries[selected]
         const draft = entry === undefined ? null : entry.value
+
+        /** 描述框：随内容长高，避免双语描述被单行截断。draft 在未选中助手时是 null，依赖项要先取出来。 */
+        const descriptionRef = react.useRef(null)
+        const draftDescription = draft === null ? "" : draft.description
+        react.useEffect(() => {
+          const el = descriptionRef.current
+          if (el === null || el === undefined) return
+          el.style.height = "auto"
+          el.style.height = String(Math.min(el.scrollHeight, 200)) + "px"
+        }, [draftDescription, selected])
+
         const payload = entry === undefined ? null : entry.payload
         const editorReady = draft !== null && payload !== null
         const dirty = editorReady && !sameDraft(draft, entry.saved)
@@ -1327,7 +1395,14 @@ try {
           "section",
           null,
           react.createElement("h2", { className: "cpfe-h" }, t("assistant.heading")),
-          react.createElement("p", { className: "cpfe-sub" }, t("assistant.hint")),
+          react.createElement(SectionHint, {
+                  id: "hint:assistant",
+                  hint: t("assistant.short", t("assistant.hint")),
+                  detail: t("assistant.hint"),
+                  expanded: expandedRows,
+                  onToggleExpand: toggleRowExpanded,
+                  t: t,
+                }),
           list === null
             ? react.createElement("p", { className: "cpfe-sub" }, t("assistant.loadingList"))
             : assistants.length === 0
@@ -1395,7 +1470,14 @@ try {
                 "section",
                 { key: "name" },
                 react.createElement("h2", { className: "cpfe-h" }, t("name.heading")),
-                react.createElement("p", { className: "cpfe-sub" }, t("name.hint")),
+                react.createElement(SectionHint, {
+                  id: "hint:name",
+                  hint: t("name.short", t("name.hint")),
+                  detail: t("name.hint"),
+                  expanded: expandedRows,
+                  onToggleExpand: toggleRowExpanded,
+                  t: t,
+                }),
                 react.createElement(A.Input, {
                   className: "cpfe-field",
                   value: draft.name,
@@ -1403,9 +1485,13 @@ try {
                   "aria-label": t("name.heading"),
                   onChange: (event) => update({ name: event.target.value }),
                 }),
-                react.createElement(A.Input, {
-                  className: "cpfe-field",
+                // 描述用 textarea 而不是单行 Input：shell 的组件里没有多行输入，而双语描述在单行框里
+                // 会被截断（实测界面上只看到 "… / Ful"）。高度随内容自适应，样式沿用同一批语义变量。
+                react.createElement("textarea", {
+                  ref: descriptionRef,
+                  className: "cpfe-field cpfe-desc",
                   value: draft.description,
+                  rows: 2,
                   placeholder: t("name.descriptionPlaceholder"),
                   "aria-label": t("name.descriptionPlaceholder"),
                   onChange: (event) => update({ description: event.target.value }),
@@ -1464,7 +1550,14 @@ try {
                 "section",
                 { key: "mode" },
                 react.createElement("h2", { className: "cpfe-h" }, t("mode.heading")),
-                react.createElement("p", { className: "cpfe-sub" }, t("mode.hint")),
+                react.createElement(SectionHint, {
+                  id: "hint:mode",
+                  hint: t("mode.short", t("mode.hint")),
+                  detail: t("mode.hint"),
+                  expanded: expandedRows,
+                  onToggleExpand: toggleRowExpanded,
+                  t: t,
+                }),
                 react.createElement(
                   "div",
                   { className: "cpfe-pills" },
@@ -1486,7 +1579,14 @@ try {
                 "section",
                 { key: "rows" },
                 react.createElement("h2", { className: "cpfe-h" }, t("rows.heading")),
-                react.createElement("p", { className: "cpfe-sub" }, t("rows.hint")),
+                react.createElement(SectionHint, {
+                  id: "hint:rows",
+                  hint: t("rows.short", t("rows.hint")),
+                  detail: t("rows.hint"),
+                  expanded: expandedRows,
+                  onToggleExpand: toggleRowExpanded,
+                  t: t,
+                }),
                 react.createElement(RowList, {
                   expanded: expandedRows,
                   onToggleExpand: toggleRowExpanded,
@@ -1560,7 +1660,14 @@ try {
                     }),
                   ),
                 ),
-                react.createElement("p", { className: "cpfe-sub" }, t("prompt.hint")),
+                react.createElement(SectionHint, {
+                  id: "hint:prompt",
+                  hint: t("prompt.short", t("prompt.hint")),
+                  detail: t("prompt.hint"),
+                  expanded: expandedRows,
+                  onToggleExpand: toggleRowExpanded,
+                  t: t,
+                }),
                 react.createElement("textarea", {
                   className: "cpfe-editor",
                   value: draft.prompt,

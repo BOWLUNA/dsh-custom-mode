@@ -8,6 +8,24 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.0]
+
+### Section copy and the description field, from the same report
+
+- Each of the four sections opened with a paragraph of 60–120 characters above the controls. They now show **one
+  hint line** with a ▸ that opens the full explanation — the same pattern as the plugin rows, sharing the same
+  expanded-state map. Not a word of the explanations was dropped.
+- The **description field** was a single-line input while the description is bilingual, so the page showed
+  `完整编码能力… / Ful` — it clipped its own content. It is now a `textarea` that grows with what it holds (the
+  shell has no multi-line input primitive; the styling uses the same semantic variables as everything else).
+
+Measured after: the description's `scrollHeight` fits inside its `clientHeight`, i.e. nothing is hidden.
+
+**Both bugs this change introduced were caught by the browser verification, not by the suites**: the settings page
+was throwing `ReferenceError: Cannot access 'draft' before initialization` (a `useEffect` above the state it reads)
+and `TypeError: Cannot read properties of null (reading 'description')` (no assistant selected) while all 13
+suites stayed green. Fixed, and four checks now cover the two complaints: 49 → **53** browser checks.
+
 ## [1.8.0]
 
 ### The plugin-row list now looks like the shell's own plugin page

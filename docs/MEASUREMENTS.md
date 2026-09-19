@@ -1203,4 +1203,31 @@ flaky assertion is worse than none):
 ```text
 展开后的详情: "行 id | persona | 说明 | 提示词注入点；关掉后本模式用回部署默认身份 | 开关状态 | 未改动（跟随官方默认）"
 ```
+### Same pass, the second half: section copy and the description field
+
+Two more things from the same report — the four sections each opened with a paragraph, and the description field
+clipped its own content:
+
+```text
+before: 助手 / 模式名称 / 基础模式 / 插件开关  →  a paragraph of 60–120 characters above every control
+        description field: single-line input, bilingual text, rendered as "完整编码能力… / Ful"   ← clipped
+after:  each section shows one hint line with a ▸ that opens the full explanation
+        description field is a textarea that grows with its content (measured: scrollHeight <= clientHeight)
+```
+
+The section hints reuse the row list's language (one compact line, detail on demand) and the same expanded-state
+map, so there is one interaction pattern on the page instead of two.
+
+**The browser verification earned its keep here**: all 13 suites passed while the settings page was in fact
+throwing, twice, both from this change —
+
+```text
+[error] slot entry crashed in 'settings.section': ReferenceError: Cannot access 'draft' before initialization
+[error] slot entry crashed in 'settings.section': TypeError: Cannot read properties of null (reading 'description')
+```
+
+The first was a `useEffect` placed above the `draft` it reads; the second read `draft.description` when no
+assistant is selected. Neither is visible to a unit test, and the second is the exact "page silently missing"
+class this repository has shipped before. Four checks were added for the two complaints (one-line hints, hints
+have a toggle, the description is a `TEXTAREA`, the description is not clipped): 49 → **53** checks.
 

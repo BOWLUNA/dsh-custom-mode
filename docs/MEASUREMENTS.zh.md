@@ -1156,4 +1156,27 @@ $ node tools/browser-verify.mjs --url …            # 49 项（原来 44）
 ```text
 展开后的详情: "行 id | persona | 说明 | 提示词注入点；关掉后本模式用回部署默认身份 | 开关状态 | 未改动（跟随官方默认）"
 ```
+### 同一轮的后半：段落说明与描述框
+
+同一份反馈里的另外两件事 —— 四段说明每段都以一整段文字开场，而描述框会把自己的内容截掉：
+
+```text
+改前：助手 / 模式名称 / 基础模式 / 插件开关  →  每个控件上方都压着 60–120 字的整段说明
+      描述框：单行输入、内容是双语的，界面上只显示到「完整编码能力… / Ful」   ← 被截断
+改后：每段只有一行提示，右侧一个 ▸ 展开完整说明
+      描述框换成随内容长高的 textarea（实测：scrollHeight <= clientHeight，即没有隐藏内容）
+```
+
+段落说明复用插件行的语言（一行 + 按需展开），也复用同一个展开状态表 —— 页面上只有一套交互，而不是两套。
+
+**这次浏览器验收真的值回票价**：13 个套件全绿的同时，设置页其实**崩了两次**，两次都来自这次改动 ——
+
+```text
+[error] slot entry crashed in 'settings.section': ReferenceError: Cannot access 'draft' before initialization
+[error] slot entry crashed in 'settings.section': TypeError: Cannot read properties of null (reading 'description')
+```
+
+第一处是把 `useEffect` 放在了它所读取的 `draft` 声明之前；第二处是在没有选中助手（`draft === null`）时读了
+`draft.description`。两处单元测试都看不见，而第二处正是"页面静默不出现"那一类 —— 本仓库以前吃过一次。针对这两条
+反馈新增了四条检查（提示是一行、提示有展开开关、描述是 `TEXTAREA`、描述没有被截断）：49 → **53** 项。
 

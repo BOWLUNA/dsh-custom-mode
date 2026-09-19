@@ -6,6 +6,22 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.9.0]
+
+### 同一份反馈里的段落说明与描述框
+
+- 四段说明每段都在控件上方压着一整段 60–120 字的文字。现在每段只有**一行提示**，右侧 ▸ 展开完整说明 ——
+  与插件行同一套模式，并且共用同一个展开状态表。说明文字一个字都没少。
+- **描述框**原本是单行输入，而描述是双语的，于是界面只显示到 `完整编码能力… / Ful` —— 它在截断自己的内容。
+  现在换成随内容长高的 `textarea`（shell 没有多行输入组件；样式沿用同一批语义变量）。
+
+改后实测：描述的 `scrollHeight` 能装进 `clientHeight`，也就是没有任何内容被藏起来。
+
+**这次改动引入的两个 bug 都是浏览器验收抓到的，套件一个都没看见**：设置页在抛
+`ReferenceError: Cannot access 'draft' before initialization`（`useEffect` 放在它读取的 state 之前）与
+`TypeError: Cannot read properties of null (reading 'description')`（未选中助手时）时，13 个套件依然全绿。
+已修，并针对这两条反馈新增四条检查：浏览器验收 49 → **53** 项。
+
 ## [1.8.0]
 
 ### 插件行列表改成 shell 自带插件页的样子

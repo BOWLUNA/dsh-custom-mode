@@ -412,6 +412,32 @@ try {
     const warningsOn = await warningLines()
     check('恢复后告警消失（不许误报）', warningsOn.every((line) => line.includes('不起作用') === false), JSON.stringify(warningsOn))
 
+    // ── 说明文字与描述框：段落收成一行、描述不再被截断（用户反馈的另一半）──────
+    //
+    // 实测过的缺陷：描述字段是单行 Input，而描述现在是双语的，界面上只显示到 "… / Ful"。
+    const hintFacts = await session.evaluate(`(() => {
+      const hints = [...document.querySelectorAll('.cpfe-hint-line')];
+      return {
+        count: hints.length,
+        overflowing: hints.filter((h) => h.scrollWidth > h.clientWidth + 1 && h.getBoundingClientRect().width > 40).length,
+        toggles: document.querySelectorAll('.cpfe-hint-toggle').length,
+      };
+    })()`)
+    check('每段说明都收成一行（不再是整段文字压在控件上方）', hintFacts.count >= 4 && hintFacts.overflowing === 0, JSON.stringify(hintFacts))
+    check('每段说明都有展开完整说明的开关', hintFacts.toggles === hintFacts.count, JSON.stringify(hintFacts))
+
+    const descFacts = await session.evaluate(`(() => {
+      const el = document.querySelector('.cpfe-desc');
+      if (el === null) return null;
+      return { tag: el.tagName, scroll: el.scrollHeight, client: el.clientHeight, value: (el.value || '').length };
+    })()`)
+    check('描述框是多行输入而不是单行', descFacts !== null && descFacts.tag === 'TEXTAREA', JSON.stringify(descFacts))
+    check(
+      '描述完整可见（没有内容被截断）',
+      descFacts !== null && descFacts.value > 0 && descFacts.scroll <= descFacts.client + 2,
+      JSON.stringify(descFacts),
+    )
+
     // ── 插件行列表：紧凑、等高、可展开（对齐官方插件页的形态）──────────────────
     //
     // 这次改动的由来是一句用户反馈："一行行的标注文字太占地方，间距也不统一，有的也不换行，那么大一长条
