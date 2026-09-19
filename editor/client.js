@@ -1848,7 +1848,13 @@ try {
               { className: "cpfe-meta-line" },
               // 让用户能自己判断装到的是哪一版：pnpm 的发布冷却期会让"不钉版本"的安装落到旧版
               // （实测：干净机器上按名安装装到 1.0.1，而 latest 是 1.9.x）。
-              react.createElement("span", { className: "cpfe-version", title: t("meta.versionHint") }, t("meta.version") + " v" + String(payload.version ?? "?")),
+              react.createElement(
+                "span",
+                { className: "cpfe-version", title: t("meta.versionHint") },
+                // payload 在"还没读到任何助手"时是 null —— 页脚仍然会渲染，所以必须判空
+                // （同一条错误这一轮被浏览器验收抓到过三次，单元测试一次都看不到）。
+                payload === null ? "" : t("meta.version") + " v" + String(payload.version ?? "?"),
+              ),
               react.createElement("span", { className: "cpfe-path" }, editorReady ? payload.compositionPath : ""),
             ),
           ),
