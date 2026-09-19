@@ -45,8 +45,10 @@ jobs:
 
       - name: 发布（已存在的版本直接跳过）
         working-directory: editor
-        # 认证走 OIDC（Trusted Publishing），所以这里**不设** NODE_AUTH_TOKEN：
-        # setup-node 的 registry-url 已经把 registry 写进 .npmrc，npm 会用 OIDC 令牌完成认证。
+        # 混合认证：若配置了仓库 secret NPM_TOKEN（granular token，可勾 Bypass 2FA），就用它；
+        # 没配置时该 env 为空，npm 会回退到 OIDC（Trusted Publishing）。两条路都不需要交互式 2FA。
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION="$(node -p "require('./package.json').version")"
           if npm view "dsh-custom-mode@${VERSION}" version >/dev/null 2>&1; then
