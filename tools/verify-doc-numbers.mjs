@@ -26,7 +26,8 @@ const problems = []
 
 /** Run the suite and return the real totals. */
 function measure() {
-  const output = execFileSync(process.execPath, [join(REPO, 'test', 'run.mjs')], { cwd: REPO, encoding: 'utf8' })
+  // stderr 单独吞掉：套件里有一些故意失败的演示（比如 session-trace 的 --expect 反例），它们不是这里的问题。
+  const output = execFileSync(process.execPath, [join(REPO, 'test', 'run.mjs')], { cwd: REPO, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
   // Node < 22.15 没有 zstd，session-trace 套件会跳过一部分检查 —— 于是同一份代码在不同运行时上检查数不同。
   // 文档写的是**完整运行时**的数字（那才是开发者会看到的），所以这里只在"跳过"时放宽下界并说明原因。
   const skipped = output.includes('zstd 部分已跳过')
@@ -88,6 +89,17 @@ const range = manifest.engines.dsh
 for (const rel of ['README.md', 'editor/README.md']) {
   const text = readFileSync(join(REPO, rel), 'utf8')
   if (text.includes(range) === false) problems.push(`${rel} 里没有出现声明的 dsh 范围 ${range}`)
+}
+
+// 2.5) README 的安装示例钉的版本必须就是当前版本（审阅抓到它停在 @1.7.0 而包已是 1.9.x）
+for (const rel of ['README.md', 'README.zh.md']) {
+  const text = readFileSync(join(REPO, rel), 'utf8')
+  const pinned = [...text.matchAll(/dsh-custom-mode@(\d+\.\d+\.\d+)/g)].map((match) => match[1])
+  for (const version of new Set(pinned)) {
+    if (version !== manifest.version) {
+      problems.push(`${rel} 的安装示例钉的是 @${version}，而包版本是 ${manifest.version}`)
+    }
+  }
 }
 
 // 3) SECURITY 的支持表第一行必须写当前版本

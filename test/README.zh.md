@@ -10,25 +10,12 @@ node test/run.mjs
 `@deepseek-ai/dsh-agent-presets`）：
 
 ```
-出厂 preset 目录: /…/dsh-agent-presets/presets
-（来源：$DSH_HOME/profiles/node_modules）
+Shipped presets directory: /…/dsh-agent-presets/presets
+(source: $DSH_HOME/profiles/node_modules)
 ──────── composition.test.mjs ────────
-… 结果: 63 通过, 0 失败
-──────── composition-edge.test.mjs ────────
-… 结果: 26 通过, 0 失败
-──────── prompt-reader.test.mjs ────────
-… 结果: 15 通过, 0 失败
-──────── prompt-tool.test.mjs ────────
-… 结果: 37 通过, 0 失败
-──────── meta.test.mjs ────────
-… 结果: 45 通过, 0 失败
-──────── editor-route.test.mjs ────────
-… 结果: 51 通过, 0 失败
-──────── seed.test.mjs ────────
-… 结果: 31 通过, 0 失败
-──────── locales.test.mjs ────────
-… 结果: 65 通过, 0 失败
-8 个套件全部通过（presets 来源：$DSH_HOME/profiles/node_modules）
+… result: N passed, 0 failed
+… one such block per suite …
+all 13 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
 合计 **333 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余七个自带夹具、临时目录与桩，

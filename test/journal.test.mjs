@@ -154,9 +154,11 @@ console.log('=== 7.6 写入不留下临时文件，且临时名带随机性 ==='
   recordPrompt(tmp, '一版\n', HISTORY_SOURCE.settings)
   const left = readdirSync(tmp).filter((name) => name.includes('.tmp-'))
   check('目录里没有 .tmp- 残留', left.length === 0, JSON.stringify(left))
-  // 连续两次写入会产生两个不同的临时名（进程内并发才不会互踩）——用源码断言钉住这条意图。
-  const source = readFileSync(new URL('../editor/journal.mjs', import.meta.url), 'utf8')
-  check('临时名含随机后缀', /\.tmp-\$\{String\(process\.pid\)\}-\$\{randomBytes/.test(source), 'no random suffix in journal.mjs')
+  // 临时名与重试现在只有一份实现（editor/atomic.mjs）——审阅指出三份拷贝会各自漂移。
+  const journalSource = readFileSync(new URL('../editor/journal.mjs', import.meta.url), 'utf8')
+  const atomicSource = readFileSync(new URL('../editor/atomic.mjs', import.meta.url), 'utf8')
+  check('journal 用共享的原子写（不再自己留一份）', /import \{ writeAtomic \} from '\.\/atomic\.mjs'/.test(journalSource) && /writeFileSync\(temporary/.test(journalSource) === false, 'journal.mjs still writes its own temporary')
+  check('共享实现里临时名含随机后缀', /\.tmp-\$\{String\(process\.pid\)\}-\$\{randomBytes/.test(atomicSource), 'no random suffix in atomic.mjs')
   rmSync(tmp, { recursive: true, force: true })
 }
 

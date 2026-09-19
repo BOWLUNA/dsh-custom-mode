@@ -59,9 +59,12 @@ These are the invariants the tests and the docs exist for. Each one was a real b
   a row the user never touched must keep its `!!js` platform condition and its shipped `disabled`
   state. A round-trip through a YAML parser would silently change platform behaviour.
 - **The switch is tri-state**, not a boolean: untouched / explicitly on / explicitly off.
-- **The settings route runs the platform's own check first.** It is registered on the raw
-  `webServer` table, which is *outside* the browser-trust fence; `ctx.connection.requestRejection(req)`
-  is what puts it back inside, and it must fail **closed** when that service is missing.
+- **The settings route is registered on the platform's fenced channel** — `ctx.connection.fetch.register(...)`,
+  whose paths include the `/api` prefix. The carrier applies the browser-trust fence (Host/Origin + session
+  auth) **before** dispatch, so the plugin never hand-rolls a check.
+  *(History, so nobody "restores" it: until `1.0.3` this page registered on the raw `webServer` table and called
+  `ctx.connection.requestRejection` itself, which is how an unauthenticated GET could read the prompt. See
+  `SECURITY.md`; `test/editor-route.test.mjs` now asserts the source contains neither call.)*
 - **The plugin row activates everywhere.** Waiting for services belongs in a scoped `ctx.inject`, not
   in the row's own `inject` — otherwise a profile without a web server prints the same
   "did not activate" warning a broken installation does.

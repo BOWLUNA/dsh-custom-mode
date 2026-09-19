@@ -13,25 +13,16 @@ in this repository; it comes from the installed `@deepseek-ai/dsh-agent-presets`
 Shipped presets directory: /…/dsh-agent-presets/presets
 (source: $DSH_HOME/profiles/node_modules)
 ──────── composition.test.mjs ────────
-… result: 63 passed, 0 failed
-──────── composition-edge.test.mjs ────────
-… result: 26 passed, 0 failed
-──────── prompt-reader.test.mjs ────────
-… result: 15 passed, 0 failed
-──────── prompt-tool.test.mjs ────────
-… result: 37 passed, 0 failed
-──────── meta.test.mjs ────────
-… result: 45 passed, 0 failed
-──────── editor-route.test.mjs ────────
-… result: 51 passed, 0 failed
-──────── seed.test.mjs ────────
-… result: 31 passed, 0 failed
-──────── locales.test.mjs ────────
-… result: 65 passed, 0 failed
+… result: N passed, 0 failed
+… one such block per suite …
 all 13 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-**662 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other twelve bring
+Per-suite counts are deliberately **not** listed here: they change with every test edit, and a review
+caught this section still showing eight suites and a 333 total. The one number the docs do state — the
+total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
+
+**667 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other twelve bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 There are three resolution paths, and any one of them hitting is enough: the

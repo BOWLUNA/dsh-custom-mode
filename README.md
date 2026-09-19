@@ -2,6 +2,10 @@
 
 English | [中文](README.zh.md)
 
+[![npm](https://img.shields.io/npm/v/dsh-custom-mode?label=npm)](https://www.npmjs.com/package/dsh-custom-mode)
+[![CI](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
+[![license](https://img.shields.io/npm/l/dsh-custom-mode?label=license)](LICENSE)
+
 A custom mode for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh). Its
 system prompt is a plain file you can edit on the Web settings page, and an edit takes effect on the
 **next model step** — no restart, no new session.
@@ -30,7 +34,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.7.0   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.1   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls

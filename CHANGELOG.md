@@ -8,6 +8,48 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.1]
+
+### Three reviews, one pass: documentation made true, two UI regressions fixed
+
+**Documentation drift was the strongest convergent finding** (one review shipped a D1–D8 table of doc-vs-source
+contradictions), and every row was real:
+
+- `CONTRIBUTING.md` still told contributors the settings route lives on the **raw `webServer` table with a
+  hand-rolled `requestRejection`** — the architecture removed in `1.0.3`. Rewritten (both languages) to describe
+  the fenced `/api` channel, with the old shape kept only as a "do not restore this" history note.
+- `.github/PULL_REQUEST_TEMPLATE.md` asked contributors to confirm "8 suites (… = 333)", that
+  `requestRejection(req)` still runs, and that the version mirrors the dsh release. All three were years (well,
+  days) out of date; it now points at `tools/verify-doc-numbers.mjs` instead of pasting counts.
+- `SECURITY.md`'s support table listed a `1.0.0`–`1.0.6` range (only `1.0.0`–`1.0.4` were ever published) and
+  marked two different rows as the "current development and verification target". Rebuilt from the registry.
+- `README`'s install example was pinned to `@1.7.0`; `test/README.md` listed eight suites totalling 333.
+- `tools/verify-doc-numbers.mjs` now also asserts that the README's pinned install version **is** the package
+  version, so that class of drift fails in CI instead of waiting for a reviewer.
+
+**Two UI regressions** (one of them mine):
+
+- The mode's description in the picker was a **bilingual concatenation** ("完整编码能力…… / Full coding
+  ability…") — the fix for the English-UI leak in `1.7.0` produced a string that is Chinese-first in an English
+  UI and long enough to stretch the picker card. Shortened to one short bilingual line.
+- The row **metadata claimed default states** that hold on one dsh line but not the other ("Ralph: off by
+  default" — enabled in the stable line's shipped composition). The claims are gone; the row's details now show
+  the **actual shipped state**, derived from the file (`row.disabled`), which is correct on any line. A lint
+  fails the test suite if a row note claims a default state again.
+- Switching the base mode now says so when it is changed but unsaved: the row list below is rendered from the
+  **saved** composition, which a review read as "my click did nothing".
+
+**Also fixed**: the 4 MB body cap trusted `content-length` (a chunked request could skip it) — it now checks the
+bytes actually read, with a streamed-body test; and the change journal now uses the shared atomic write instead
+of keeping a third private copy.
+
+**Three claims checked and found wrong** (recorded in `docs/MEASUREMENTS.md` §23): "no GitHub Releases" (there are
+v1.3.0–v1.9.0), the `1.0.0`–`1.0.6` range above, and "concurrent `GET /state` can interleave journal records"
+(the append is synchronous and Node runs one callback at a time — cross-process contention is documented and is
+a different thing).
+
+Tests: 662 → **667** checks, browser verification 53 → **56**.
+
 ## [1.9.0]
 
 ### Section copy and the description field, from the same report

@@ -412,6 +412,32 @@ try {
     const warningsOn = await warningLines()
     check('恢复后告警消失（不许误报）', warningsOn.every((line) => line.includes('不起作用') === false), JSON.stringify(warningsOn))
 
+    // ── 底子切换：改过但未保存时必须明说（审阅记成"点了没反应"）──────────────
+    {
+      const before = await session.evaluate(`document.querySelectorAll('.cpfe-base-pending').length`)
+      check('未改底子时没有多余提示', before === 0, String(before))
+      // 必须点一个**不是当前底子**的 pill：点已经是当前底子的那个，按设计不会出现提示。
+      const clicked = await session.evaluate(`(() => {
+        const wanted = ['PTC 模式', '极简模式', 'Cordis 模式', 'PTC mode', 'Minimal', 'Cordis mode'];
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        if (el === undefined) return null;
+        el.click();
+        return (el.textContent || '').trim();
+      })()`)
+      await session.sleep(700)
+      const hint = await session.evaluate(`(() => { const el = document.querySelector('.cpfe-base-pending'); return el === null ? null : el.textContent.trim(); })()`)
+      check('点了另一个底子后出现"保存后重算"的提示', typeof hint === 'string' && hint.length > 0, `${JSON.stringify(clicked)} → ${JSON.stringify(hint)}`)
+      // 换回去（不保存），后面的检查仍按原底子跑。
+      await session.evaluate(`(() => {
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        if (el !== undefined) el.click();
+        return true;
+      })()`)
+      await session.sleep(500)
+      const cleared = await session.evaluate(`document.querySelectorAll('.cpfe-base-pending').length`)
+      check('换回原底子后提示消失', cleared === 0, String(cleared))
+    }
+
     // ── 说明文字与描述框：段落收成一行、描述不再被截断（用户反馈的另一半）──────
     //
     // 实测过的缺陷：描述字段是单行 Input，而描述现在是双语的，界面上只显示到 "… / Ful"。

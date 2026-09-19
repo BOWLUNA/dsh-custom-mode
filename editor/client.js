@@ -101,6 +101,7 @@ try {
         "assistant.short": "每个助手是一个独立模式：自己的系统提示词、基础模式与插件开关。",
         "name.short": "改名只影响显示，内部标识与已有会话不受影响。",
         "mode.short": "底子决定「行集合」与工具能力；persona 行始终由本模式替换。",
+        "mode.pendingRows": "底子已改为「{mode}」：保存后，下面的行列表会按新底子重算。",
         "rows.short": "逐行控制挂载哪些插件；没拨过的行保持官方默认。",
         "prompt.short": "这段文本就是本模式的系统提示词，保存后下一步生效。",
         "aria.expandHint": "展开完整说明",
@@ -108,6 +109,9 @@ try {
         "aria.expand": "展开详情",
         "aria.collapse": "收起详情",
         "detail.id": "行 id",
+        "detail.shipped": "出厂状态",
+        "detail.shippedOn": "启用",
+        "detail.shippedOff": "关闭",
         "detail.note": "说明",
         "detail.state": "开关状态",
         "detail.explicitOn": "已手动启用",
@@ -210,15 +214,15 @@ try {
         "row.tool-subagent-control.label": "子代理控制",
         "row.tool-subagent-list-agents.label": "列出子代理",
         "row.tool-subagent-codex.label": "Codex 子代理",
-        "row.tool-subagent-codex.note": "默认关闭：需要先安装对应 Bundle",
+        "row.tool-subagent-codex.note": "需要先安装对应 Bundle 才能用；出厂状态见「详情」",
         "row.tool-subagent-claude-code.label": "Claude Code 子代理",
-        "row.tool-subagent-claude-code.note": "默认关闭：需要先安装对应 Bundle",
+        "row.tool-subagent-claude-code.note": "需要先安装对应 Bundle 才能用；出厂状态见「详情」",
         "row.workflow-ptc.label": "工作流引擎",
         "row.workflow-worker-thread.label": "工作流 Worker 线程",
         "row.workflow-worker-thread.note": "把工作流跑在独立的 worker 线程里",
         "row.tool-workflow.label": "工作流工具",
         "row.tool-ralph.label": "Ralph 工作流",
-        "row.tool-ralph.note": "默认关闭",
+        "row.tool-ralph.note": "Ralph 工作流工具；出厂状态见「详情」",
         "row.tool-web.label": "网页检索与抓取",
         "row.tool-skill.label": "技能工具",
         "row.skill-filesystem.label": "技能发现",
@@ -291,6 +295,7 @@ try {
         "assistant.short": "Each assistant is its own mode: its own system prompt, base mode and plugin switches.",
         "name.short": "Renaming only changes what is displayed — not the internal id or existing sessions.",
         "mode.short": "The base decides the row set and tool abilities; the persona row is always replaced by this mode.",
+        "mode.pendingRows": "Base changed to 「{mode}」: the row list below is recomputed from the new base when you save.",
         "rows.short": "Control which plugins this mode mounts, row by row; untouched rows keep the shipped default.",
         "prompt.short": "Saving this text makes it the system prompt of this mode, and it takes effect on the next step.",
         "aria.expandHint": "Show the full explanation",
@@ -298,6 +303,9 @@ try {
         "aria.expand": "Show details",
         "aria.collapse": "Hide details",
         "detail.id": "Row id",
+        "detail.shipped": "Shipped",
+        "detail.shippedOn": "enabled",
+        "detail.shippedOff": "disabled",
         "detail.note": "Note",
         "detail.state": "Switch",
         "detail.explicitOn": "Set to on by you",
@@ -400,15 +408,15 @@ try {
         "row.tool-subagent-control.label": "Subagent control",
         "row.tool-subagent-list-agents.label": "List subagents",
         "row.tool-subagent-codex.label": "Codex subagent",
-        "row.tool-subagent-codex.note": "Off by default: install the matching Bundle first",
+        "row.tool-subagent-codex.note": "Needs its Bundle installed first; the shipped state is in the details",
         "row.tool-subagent-claude-code.label": "Claude Code subagent",
-        "row.tool-subagent-claude-code.note": "Off by default: install the matching Bundle first",
+        "row.tool-subagent-claude-code.note": "Needs its Bundle installed first; the shipped state is in the details",
         "row.workflow-ptc.label": "Workflow engine",
         "row.workflow-worker-thread.label": "Workflow worker thread",
         "row.workflow-worker-thread.note": "Runs workflows on a separate worker thread",
         "row.tool-workflow.label": "Workflow tool",
         "row.tool-ralph.label": "Ralph workflow",
-        "row.tool-ralph.note": "Off by default",
+        "row.tool-ralph.note": "The Ralph workflow tool; the shipped state is in the details",
         "row.tool-web.label": "Web search and fetch",
         "row.tool-skill.label": "Skill tool",
         "row.skill-filesystem.label": "Skill discovery",
@@ -600,6 +608,7 @@ try {
         ".cpfe-hint-detail{flex:1 0 100%;margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}",
         // 描述：多行、自适应高度（没有多行输入组件，所以用 textarea + 同一批语义变量）
         ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:200px;resize:vertical;padding:8px 12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
+        ".cpfe-base-pending{color:var(--dsw-alias-state-warn-primary)}",
         ".cpfe-note{display:block;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
         ".cpfe-mono{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         ".cpfe-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}",
@@ -885,6 +894,18 @@ try {
                     react.createElement(
                       "div",
                       { className: "cpfe-detail-line" },
+                      react.createElement("span", { className: "cpfe-detail-key" }, t("detail.shipped")),
+                      // 出厂状态来自**本机实际文件**（row.disabled），不是写死的文案：同一个行在两条 dsh 线上
+                      // 的出厂状态可能不同（实测：Ralph 在稳定线出厂是启用的，在预览线是关闭的）。
+                      react.createElement(
+                        "span",
+                        { className: "cpfe-detail-value" },
+                        row.disabled ? t("detail.shippedOff") : t("detail.shippedOn"),
+                      ),
+                    ),
+                    react.createElement(
+                      "div",
+                      { className: "cpfe-detail-line" },
                       react.createElement("span", { className: "cpfe-detail-key" }, t("detail.state")),
                       react.createElement(
                         "span",
@@ -995,6 +1016,11 @@ try {
         /** 描述框：随内容长高，避免双语描述被单行截断。draft 在未选中助手时是 null，依赖项要先取出来。 */
         const descriptionRef = react.useRef(null)
         const draftDescription = draft === null ? "" : draft.description
+        // 已保存的底子：用来提示"改了但还没保存"—— 行列表是按它渲染的。
+        const savedMode =
+          entry === undefined || entry === null || entry.saved === null || entry.saved === undefined
+            ? null
+            : entry.saved.mode
         react.useEffect(() => {
           const el = descriptionRef.current
           if (el === null || el === undefined) return
@@ -1574,6 +1600,14 @@ try {
                   { className: "cpfe-note" },
                   payload.modes.reduce((note, mode) => (mode.id === draft.mode ? t("base." + mode.id + ".note", mode.note) : note), ""),
                 ),
+                // 底子改过但还没保存时明说一句：行列表是按**已保存**的组成渲染的，审阅把它记成了"点了没反应"。
+                draft.mode !== savedMode
+                  ? react.createElement(
+                      "p",
+                      { className: "cpfe-note cpfe-base-pending" },
+                      fillPlaceholders(t("mode.pendingRows"), { mode: t("base." + draft.mode + ".label", draft.mode) }),
+                    )
+                  : null,
               ),
               react.createElement(
                 "section",

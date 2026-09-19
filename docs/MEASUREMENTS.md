@@ -1254,3 +1254,46 @@ project total       126,287,613 + 717,496,319 = 843,783,932 tokens
 project hit rate    (125,638,016 + 711,962,624) / (125,862,074 + 715,936,528) = 99.50%
 ```
 
+---
+
+## 23. The three-review pass: what was real, what was wrong (1.9.1)
+
+Three independent reviews arrived together. The convergent finding — documentation drift — was real in every
+case, and two of their three status claims about the repository were wrong. Recording both directions, because a
+review is evidence too and this file is where evidence lives.
+
+**Claims checked and refuted**
+
+```text
+claim: "no GitHub Releases (only tags)"
+$ gh release list --limit 20 | head -4
+  v1.9.0 … v1.8.0 … v1.7.1 … v1.7.0 …            ← nine releases, v1.3.0 onwards
+→ wrong; the review read a stale page.
+
+claim: "SECURITY.md lists 1.0.0–1.0.6, but only 1.0.4 exists"
+$ curl -s https://registry.npmjs.org/dsh-custom-mode | …versions…
+  0.1.6-alpha.1, 0.1.6-alpha.1.rev1, 0.1.6-alpha.2, 1.0.0, 1.0.1, 1.0.2, 1.0.3, 1.0.4, 1.1.0 … 1.9.0
+→ the table was wrong about the range (1.0.0–1.0.4) and the review was right that it was wrong; it also
+  flagged the duplicated "current target" rows, which were there.
+
+claim: "concurrent GET /state can interleave/lose a journal record"
+→ refuted for one process: the append is synchronous (`writeFileSync` + `rename`) and Node runs one callback at
+  a time, so two handlers cannot interleave inside it; the atomic rename means a reader never sees a partial
+  file. Cross-process contention on one DSH_HOME is documented as out of scope and is a different claim.
+```
+
+**Confirmed and fixed** (details in the CHANGELOG): the D1–D8 documentation table (CONTRIBUTING's removed
+architecture, the PR template's three stale items, SECURITY's table, the README's `@1.7.0` pin, `test/README.md`'s
+eight-suite/333 transcript), the bilingual description in the picker (a regression from `1.7.0`), row metadata
+claiming a default state that only holds on one dsh line, the base-switch-without-save silence, the
+`content-length`-only body cap, and the journal's third copy of the atomic write.
+
+**Numbers after this pass**
+
+```text
+node test/run.mjs                   13 suites, 667 checks      (was 662)
+tools/browser-verify.mjs            56 checks                  (was 53)
+tools/verify-doc-numbers.mjs        ✓ 13 / 667 / dsh range / version 1.9.1
+tools/verify-translation-pairing.mjs ✓ bilingual pairing + language purity
+```
+

@@ -2,6 +2,10 @@
 
 [English](README.md) | 中文
 
+[![npm](https://img.shields.io/npm/v/dsh-custom-mode?label=npm)](https://www.npmjs.com/package/dsh-custom-mode)
+[![CI](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
+[![license](https://img.shields.io/npm/l/dsh-custom-mode?label=license)](LICENSE)
+
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的自定义模式。它的系统提示词是一个普通文件，可以在 Web 设置页里编辑，**改完下一步模型调用即生效** —— 不用重启，也不用新建会话。
 
 一句话：**给 dsh 的 agent 模式用的设置页** —— 选这个模式的基础组成、逐行开关它挂载的插件、并编辑它的系统提示词；提示词每个模型调用前重新读取。可以并存多个模式（「助手」），各自的提示词互不影响。
@@ -24,7 +28,7 @@
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.7.0   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.1   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。

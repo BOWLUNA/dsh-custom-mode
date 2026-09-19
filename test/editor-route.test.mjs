@@ -234,6 +234,8 @@ async function call(req) {
     method: req.method,
     headers: req.headers,
     ...req.body === undefined ? {} : { body: req.body },
+    // 流式请求体在 Node 的 fetch 里必须显式声明 duplex（用来测 chunked 绕过 content-length 的场景）。
+    ...req.duplex === undefined ? {} : { duplex: req.duplex },
   })
   const response = await route.fetch(request)
   return { statusCode: response.status, body: await response.text(), headers: Object.fromEntries(response.headers) }
@@ -490,6 +492,23 @@ console.log('=== 5.35 并发与文案细节：串行化、显示名、闸门标�
   rmSync(marker, { force: true })
   const withoutMarker = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
   check('标记清掉后告警消失', (withoutMarker.warnings ?? []).includes('approvalGateMissing') === false, JSON.stringify(withoutMarker.warnings))
+}
+
+console.log()
+console.log('=== 5.31 请求体上限：chunked（没有 content-length）也不能绕过 ===')
+{
+  mounted = mount()
+  // 只信 content-length 的检查会被流式请求绕过；这里用 ReadableStream 发一个超过上限的体。
+  const big = new TextEncoder().encode(JSON.stringify({ id: 'custom', mode: 'standard', prompt: 'x'.repeat(4 * 1024 * 1024 + 64) }))
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(big)
+      controller.close()
+    },
+  })
+  const response = await call({ method: 'POST', url: '/custom-mode/state', headers: { 'content-type': 'application/json' }, body: stream, duplex: 'half' })
+  check('流式超大体被拒（413），而不是靠 content-length 头', response.statusCode === 413, `${String(response.statusCode)} ${response.body.slice(0, 80)}`)
+  check('拒绝原因回 code=bodyTooLarge', /bodyTooLarge/.test(response.body), response.body.slice(0, 120))
 }
 
 console.log()

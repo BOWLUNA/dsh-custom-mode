@@ -148,6 +148,21 @@ function duplicateKeys(source, variable) {
   return [...seen.entries()].filter(([, count]) => count > 1).map(([key]) => key)
 }
 
+/**
+ * Row notes must not claim a **default state**.
+ *
+ * Measured cross-line drift (review finding F1/U2): the note for `tool-ralph` said "Off by default" while the
+ * stable line's shipped composition enables that row — the metadata had been written from the preview line.
+ * The state belongs to the *file*, and the page already shows the real shipped state (derived from
+ * `row.disabled`) in each row's details.
+ */
+for (const [name, source] of [['locales.mjs', readFileSync(new URL('../editor/locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')]]) {
+  const offenders = [...source.matchAll(/["']row\.[\w.-]+\.note["']:\s*["']([^"']*)["']/g)]
+    .filter((match) => /默认关闭|默认启用|Off by default|enabled by default/.test(match[1]))
+    .map((match) => match[0].slice(0, 60))
+  check(`${name} 的行标注不写死默认状态（跨线会变成假话）`, offenders.length === 0, JSON.stringify(offenders))
+}
+
 for (const [name, source] of [['locales.mjs', readFileSync(new URL('../editor/locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')]]) {
   for (const variable of ['ZH', 'EN']) {
     const duplicates = duplicateKeys(source, variable)

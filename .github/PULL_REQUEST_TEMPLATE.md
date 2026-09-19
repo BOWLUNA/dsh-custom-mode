@@ -12,9 +12,12 @@ The checklist below exists for exactly those failure modes.
 
 ## Self-check
 
-- [ ] `node test/run.mjs` is green across all 8 suites (63 + 26 + 15 + 37 + 45 + 51 + 31 + 65 = 333)
+- [ ] `node test/run.mjs` is green across all 13 suites, and `node tools/verify-doc-numbers.mjs` agrees with
+      whatever number the docs claim (it runs the suite itself — do not paste counts by hand)
 - [ ] Changed a string in `editor/client.js` → also changed `editor/locales.mjs` (section 6 catches drift)
-- [ ] Changed the private route in `editor/index.mjs` → it still runs `ctx.connection.requestRejection(req)` first, and still fails **closed** when that service is missing
+- [ ] Changed anything about the private route in `editor/index.mjs` → it is still registered through
+      `ctx.connection.fetch.register(...)` on the fenced `/api` channel (never the raw `webServer` table), and
+      `test/editor-route.test.mjs` still passes
 - [ ] Changed the text surgery in `composition.mjs` → untouched rows are still byte-identical to the shipped ones (including `!!js` conditions and rows that ship disabled)
 - [ ] Added a composition row → `ROW_META` in `composition.mjs` and `row.<id>.label` in `locales.mjs` both cover it (otherwise the row renders as a bare id)
 - [ ] Documentation has no contradicting statements (for example whether editing `client.js` needs a restart) and no stale paths

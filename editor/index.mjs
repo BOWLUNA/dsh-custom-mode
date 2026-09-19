@@ -717,13 +717,19 @@ export function apply(ctx) {
         // an unbounded amount; the platform's cap remains the primary guard.
         const declared = Number(request.headers.get('content-length') ?? '')
         if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
-          return json({ ok: false, error: `请求体过大（上限 ${String(MAX_BODY_BYTES)} 字节）` }, 413)
+          return json({ ok: false, code: 'bodyTooLarge', params: { max: MAX_BODY_BYTES }, error: `请求体过大（上限 ${String(MAX_BODY_BYTES)} 字节）` }, 413)
         }
 
         // Everything below writes, so the body is read and parsed exactly once.
         let parsed
         try {
-          parsed = await request.json()
+          // 只信 `content-length` 会被 chunked（或不带该头）的请求绕过 —— 所以读完再按**实际字节**判一次。
+          // 平台自己的 buffered cap 仍是第一道；这一道保证"我们绝不 buffer 一个无上限的请求体"。
+          const raw = await request.text()
+          if (Buffer.byteLength(raw, 'utf8') > MAX_BODY_BYTES) {
+            return json({ ok: false, code: 'bodyTooLarge', params: { max: MAX_BODY_BYTES }, error: `请求体过大（上限 ${String(MAX_BODY_BYTES)} 字节）` }, 413)
+          }
+          parsed = JSON.parse(raw)
         } catch {
           return json({ ok: false, code: 'badJson', error: '请求体不是合法 JSON' }, 400)
         }

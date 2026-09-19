@@ -52,9 +52,11 @@ DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open     # 打开它打印的那�
 - **没碰过的行必须逐字节不变。** 编译器用文本手术改写出厂组合；用户没动过的行必须保留它的
   `!!js` 平台条件与出厂 `disabled` 状态。走一遍 YAML 解析再序列化会静默改变平台行为。
 - **开关是三态的**，不是布尔：未触碰 / 显式开启 / 显式关闭。
-- **设置页路由先过平台自己的检查。** 它注册在裸 `webServer` 表上，那是在浏览器信任栅栏**之外**；
-  `ctx.connection.requestRejection(req)` 才是把它放回栅栏内的东西，而且该服务缺失时必须
-  **失败关闭**。
+- **设置页路由注册在平台的带围栏频道上** —— `ctx.connection.fetch.register(...)`，路径含 `/api` 前缀；
+  载体在分发**之前**施加浏览器信任栅栏（Host/Origin + 会话鉴权），插件不自己手搓检查。
+  *（历史，写在这里是为了没人"改回去"：`1.0.3` 之前这一页注册在裸 `webServer` 表上、自己调
+  `ctx.connection.requestRejection` —— 未鉴权的 GET 因此能读到提示词。见 `SECURITY.md`；
+  `test/editor-route.test.mjs` 现在断言源码里这两个调用都不存在。）*
 - **插件行在任何 profile 都要能激活。** 等服务的写法属于作用域化的 `ctx.inject`，不能写进行级
   `inject` —— 否则没有 web 服务器的 profile 会打印出与"安装损坏"完全相同的那行警告。
 - **两份 `{{…}}` 校验必须同步**（`editor/index.mjs` 与 `preset/prompt-tool.mjs`）。它们是有意重复的；
