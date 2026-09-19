@@ -34,7 +34,7 @@ mkdirSync(out, { recursive: true })
 
 const session = await connect()
 await session.newPage()
-await session.setViewport(1440, 1100, 1)
+await session.setViewport(1280, 720, 1)
 console.log('打开应用…')
 await session.goto(url, { waitMs: 6000 })
 
@@ -64,14 +64,13 @@ const clickText = async (pattern, exact = false) => {
   }
 }
 
-/** Capture a clip of the page through CDP (viewport shots carry too much empty space around the dialog). */
-const shootClip = async (file, clip) => {
-  const shot = await session.send('Page.captureScreenshot', {
-    format: 'png',
-    clip: { ...clip, scale: 1 },
-    captureBeyondViewport: true,
-  })
-  writeFileSync(join(out, file), Buffer.from(shot.data, 'base64'))
+/**
+ * Every image is the **same frame** (1280×720 viewport, panel scrolled to the subject). Earlier versions cropped
+ * to the panel, which produced five different sizes and aspect ratios in one README table; a review of our own
+ * docs called that out, so uniformity wins over tight crops.
+ */
+const shootFrame = async (file) => {
+  await session.screenshot(join(out, file))
   console.log(`  ✓ ${file}`)
 }
 
@@ -156,12 +155,7 @@ for (const [file, selector, offset] of [
     continue
   }
   await session.sleep(700)
-  const clip = await dialogClip()
-  if (clip === null) {
-    console.log(`  ! ${file}: 找不到对话框`)
-    continue
-  }
-  await shootClip(file, clip)
+  await shootFrame(file)
 }
 
 session.close()

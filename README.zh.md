@@ -8,6 +8,9 @@
 [![CI](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
 [![license](https://img.shields.io/npm/l/dsh-custom-mode?label=license)](LICENSE)
 
+<!-- 社区入口 / community：第二排徽章在每个新仓库里都要加（见 Engineering Guidelines/仓库门面模板.md） -->
+[![bilibili](https://img.shields.io/badge/bilibili-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white)](https://b23.tv/qJ4Ev0W) [![抖音](https://img.shields.io/badge/抖音-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white)](https://v.douyin.com/VWh0M03Fa4Y/) [![小红书](https://img.shields.io/badge/小红书-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-%235865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/pz97SfAfSy) [![讨论区](https://img.shields.io/badge/讨论区-%230969DA?style=flat-square&logo=github&logoColor=white)](https://github.com/BOWLUNA/dsh-custom-mode/discussions)
+
 给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的自定义模式。它的系统提示词是一个普通文件，可以在 Web 设置页里编辑，**改完下一步模型调用即生效** —— 不用重启，也不用新建会话。
 
 一句话：**给 dsh 的 agent 模式用的设置页** —— 选这个模式的基础组成、逐行开关它挂载的插件、并编辑它的系统提示词；提示词每个模型调用前重新读取。可以并存多个模式（「助手」），各自的提示词互不影响。
@@ -30,7 +33,7 @@
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.4   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.5   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -231,7 +234,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.4
+dsh plugin --profile web add dsh-custom-mode@1.9.5
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

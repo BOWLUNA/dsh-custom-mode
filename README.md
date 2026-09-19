@@ -8,6 +8,9 @@ English | [中文](README.zh.md)
 [![CI](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml)
 [![license](https://img.shields.io/npm/l/dsh-custom-mode?label=license)](LICENSE)
 
+<!-- 社区入口 / community: 第二排徽章必须在**每个新仓库**里都加上（见 Engineering Guidelines/仓库门面模板.md） -->
+[![bilibili](https://img.shields.io/badge/bilibili-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white)](https://b23.tv/qJ4Ev0W) [![Douyin](https://img.shields.io/badge/Douyin-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white)](https://v.douyin.com/VWh0M03Fa4Y/) [![RedNote](https://img.shields.io/badge/RedNote-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-%235865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/pz97SfAfSy) [![Discussions](https://img.shields.io/badge/Discussions-%230969DA?style=flat-square&logo=github&logoColor=white)](https://github.com/BOWLUNA/dsh-custom-mode/discussions)
+
 A custom mode for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh). Its
 system prompt is a plain file you can edit on the Web settings page, and an edit takes effect on the
 **next model step** — no restart, no new session.
@@ -36,7 +39,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.4   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.5   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -301,7 +304,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.4
+dsh plugin --profile web add dsh-custom-mode@1.9.5
 # then restart the DSH process that serves the web profile
 ```
 

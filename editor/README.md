@@ -2,6 +2,8 @@
 
 ![dsh-custom-mode — a settings page for dsh agent modes](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
 
+[![bilibili](https://img.shields.io/badge/bilibili-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white)](https://b23.tv/qJ4Ev0W) [![Douyin](https://img.shields.io/badge/Douyin-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white)](https://v.douyin.com/VWh0M03Fa4Y/) [![RedNote](https://img.shields.io/badge/RedNote-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-%235865F2?style=flat-square&logo=discord&logoColor=white)](https://discord.gg/pz97SfAfSy) [![Discussions](https://img.shields.io/badge/Discussions-%230969DA?style=flat-square&logo=github&logoColor=white)](https://github.com/BOWLUNA/dsh-custom-mode/discussions)
+
 The **settings-page half** of [dsh-custom-mode](https://github.com/BOWLUNA/dsh-custom-mode) — a Web UI for
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh) agent modes: choose a mode's base
 composition, toggle the plugin rows it mounts, and edit its **system prompt**, which is a plain file the
