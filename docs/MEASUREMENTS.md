@@ -1297,3 +1297,55 @@ tools/verify-doc-numbers.mjs        ✓ 13 / 667 / dsh range / version 1.9.1
 tools/verify-translation-pairing.mjs ✓ bilingual pairing + language purity
 ```
 
+---
+
+## 24. The third review's P0 ("`REQUEST_EXTENSION` on both lines") — **does not reproduce** (2026-09-19)
+
+That review reported: any custom-mode assistant fails ~2s after any message with
+`DeepSeek request extension preparation failed / REQUEST_EXTENSION`, on **both** the alpha and the stable line, while
+the same instance's official 「标准模式」 replies normally.
+
+Re-checked with one real session per line (throwaway `DSH_HOME` each, plugin either from the working tree or from
+npm as published):
+
+| Line | Host | Plugin | Result |
+| --- | --- | --- | --- |
+| preview | `0.1.6-alpha.2` (global install) | working tree, 1.9.2 | **normal reply** (8.7K tok, 1 turn / 1 step) |
+| stable | `0.1.5-rc.2` (temp prefix) | **npm 1.9.2** (pinned install) | **normal reply** (8.8K tok); seeded composition has **0** `workflow-ptc` rows |
+
+Page tail from the stable run:
+
+```text
+… 用量 8.8K tok / 用时 1秒 / 1 轮 1 步·256 tok/s …
+```
+
+i.e. request **preparation succeeded** — otherwise the extension error would have come first, not a normal reply.
+
+Supporting evidence: the derived seed's row list is **equivalent** to the packaged template's (20 vs 19 rows; the
+extra one is this line's own `tool-plugin-manager`), and the plugin's own resolver check reports **0 unresolvable
+rows** on both lines.
+
+**Conclusion: not reproducible here, on either line.** The review's observation may be environment-specific (an API
+endpoint/credential problem surfacing during preparation, or its 1.9.0 install carrying an older composition file).
+Its host log would settle it — this repository does not treat "we cannot reproduce it" as "it did not happen".
+
+---
+
+## 25. Community directory status (2026-09-19)
+
+Already listed: `awesome-dsh-plugin/awesome-dsh-plugin`, `imsai-sh/awesome-deepseek-harness-plugins`,
+`unStone/dsh-xray`, `anbeime/skill`.
+
+Submitted this round:
+
+```text
+bruc3van/awesome-dsh-plugin#123   SHOWCASE.md「作者自荐」+「Author showcase」各加一行（自动抓取+人工复核的清单）
+beancookie/awesome-dsh-plugin#183 README.md + README.en.md 的「🧑💻 开发与运行时 / Development & Runtime」各加一行
+```
+
+Automatic: `AdamPlatin123/dsh-plugin-radar` documents "carry the `dsh-plugin` topic → auto-discovered within 8h"; the
+repository has had that topic all along, so the entry is a matter of time.
+
+Not pursued: `Alex-Yanggg/awesome-DSH-plugin` (last updated 2026-08-15, dormant) and
+`diegosouzapw/awesome-omni-dsh-plugins` (★17).
+

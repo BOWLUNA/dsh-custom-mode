@@ -1241,3 +1241,52 @@ tools/browser-verify.mjs             56 项                 （原 53）
 tools/verify-doc-numbers.mjs         ✓ 13 / 667 / dsh 范围 / 版本 1.9.1
 tools/verify-translation-pairing.mjs ✓ 双语配对 + 语言纯度
 ```
+
+---
+
+## 24. 第三份审阅的 P0（"两条线都 REQUEST_EXTENSION"）——**不复现**（2026-09-19）
+
+那份审阅说：任意自定义模式助手发任意消息，约 2 秒即
+`DeepSeek request extension preparation failed / REQUEST_EXTENSION`，alpha 与 stable **两条线都复现**，
+而同实例切官方「标准模式」正常回复。
+
+我们每条线各跑了一次真会话复核（各自一次性 `DSH_HOME`，插件分别取工作树与 **npm 上的已发布版本**）：
+
+| 线 | 宿主 | 插件 | 结果 |
+| --- | --- | --- | --- |
+| 预览 | `0.1.6-alpha.2`（本机全局） | 工作树 1.9.2 | **正常回复**（8.7K tok，1 轮 1 步） |
+| 稳定 | `0.1.5-rc.2`（临时前缀） | **npm 1.9.2**（钉版本安装） | **正常回复**（8.8K tok）；播种文件里 `workflow-ptc` 行数 **0** |
+
+稳定线那次的页面尾部原文：
+
+```text
+… 用量 8.8K tok / 用时 1秒 / 1 轮 1 步·256 tok/s …
+```
+
+也就是说**请求准备阶段通过了** —— 否则先出现的是扩展错误，而不是正常回复。
+
+补充证据：派生播种文件的行清单与包内模板**等价**（20 vs 19 行，多出来的是本线出厂自带的 `tool-plugin-manager`），
+插件自带的可解析性检查在两条线上都报 **0 行无法解析**。
+
+**结论：在本机、两条线上均不复现。** 审阅看到的现象可能是其环境特有（例如 API 端点/凭据问题在准备阶段的表现，
+或当时装的 1.9.0 搭配了更早的组成文件）。它的宿主日志可以定性 —— 本仓库不会因为"我们复现不了"就当它不存在。
+
+---
+
+## 25. 社区目录收录状态（2026-09-19）
+
+已收录：`awesome-dsh-plugin/awesome-dsh-plugin`、`imsai-sh/awesome-deepseek-harness-plugins`、
+`unStone/dsh-xray`、`anbeime/skill`。
+
+本轮提交：
+
+```text
+bruc3van/awesome-dsh-plugin#123   SHOWCASE.md 的「作者自荐」与「Author showcase」各加一行（自动抓取 + 人工复核的清单）
+beancookie/awesome-dsh-plugin#183 README.md 与 README.en.md 的「🧑💻 开发与运行时 / Development & Runtime」各加一行
+```
+
+自动收录：`AdamPlatin123/dsh-plugin-radar` 明说"带 `dsh-plugin` topic → 8 小时内自动收录"；本仓库一直带着这个 topic，
+所以只是时间问题。
+
+未跟进：`Alex-Yanggg/awesome-DSH-plugin`（最后更新 2026-08-15，已停更）与 `diegosouzapw/awesome-omni-dsh-plugins`（★17）。
+
