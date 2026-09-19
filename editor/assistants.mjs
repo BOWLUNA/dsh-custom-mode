@@ -30,6 +30,7 @@ import { dirname, join } from 'node:path'
 import { dshHome, PRESET_DIR } from './paths.mjs'
 import { readPresetMeta, writePresetMeta } from './meta.mjs'
 import { writeAtomic } from './atomic.mjs'
+import { unresolvableRows } from './composition.mjs'
 import { seedPreset, seedPresetWithLog } from './seed.mjs'
 
 /**
@@ -301,6 +302,25 @@ export function seedOnActivation({ root, templateDir, composition, log = console
       info(`custom-mode: 已补全 ${dir} 缺失的模板文件（${result.created.join(', ')}）`)
     }
     for (const error of result.errors) log(`custom-mode: 补全 ${dir} 失败 —— ${error}`)
+  }
+
+  // 启动告警：组成文件里有本机这条线解析不到的行时，平台会把整个预设判为 broken 并从选择器里**静默丢弃**。
+  // 以前这件事只在设置页可见 —— 用户从不打开设置页就完全无感知（外部评审实测）。这里至少在宿主日志里喊一声。
+  for (const dir of [...existing, join(root, LEGACY_ID)]) {
+    try {
+      const file = join(dir, 'agent.cordis.yml')
+      if (existsSync(file) === false) continue
+      const bad = unresolvableRows(readFileSync(file, 'utf8'))
+      if (bad.length > 0) {
+        log(
+          `custom-mode: ${dir} 的组成文件里有 ${String(bad.length)} 行在这条 dsh 线上无法解析` +
+            `（${bad.map((row) => row.id).join(', ')}）—— 平台会把整个模式从新建会话的选择器里丢弃。` +
+            '打开 设置 → 自定义模式 并点「按本线修复」。',
+        )
+      }
+    } catch {
+      /* 启动告警失败不能影响激活 */
+    }
   }
 
   if (isSeeded(root)) return { created: false, repaired, adopted: false }

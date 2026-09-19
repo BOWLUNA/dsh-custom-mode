@@ -21,7 +21,7 @@
  *  3. **Idempotent.** A second activation writes nothing and changes nothing.
  */
 
-import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { renderComposition } from './composition.mjs'
 import { writeAtomic } from './atomic.mjs'
 import { dirname, join } from 'node:path'
@@ -91,8 +91,19 @@ export function starterComposition(options = {}) {
  * @param {{composition?: string|null}} [options] - a rendered composition to write instead of copying
  *   `agent.cordis.yml`; see {@link starterComposition}.
  */
+/**
+ * 我们自己的**代码**模块（相对于"用户数据"）。
+ *
+ * 这两个文件是随助手目录一起分发的**代码**，不是用户内容：老版本创建的助手会一直留着旧副本，
+ * 于是 1.0.x / 1.1.x 首装的用户即使把插件升到最新，会话内改写提示词的**审批闸门仍然是缺的** ——
+ * 外部评审实测到了这一点（P1 安全）。所以它们在升级时**刷新**。
+ * `prompt.md` / `preset.yml` / `agent.cordis.yml` 是用户数据（提示词、开关、名字），保持"只补不缺"。
+ */
+const REFRESHABLE_MODULES = ['prompt-reader.mjs', 'prompt-tool.mjs']
+
 export function seedPreset(presetDir, sourceDir = packagedPresetDir(), options = {}) {
   const created = []
+  const refreshed = []
   const kept = []
   const errors = []
 
@@ -111,7 +122,22 @@ export function seedPreset(presetDir, sourceDir = packagedPresetDir(), options =
 
   for (const name of PRESET_FILES) {
     const target = join(presetDir, name)
+    const source = join(sourceDir, name)
     if (existsSync(target)) {
+      // 代码模块：内容与包内不一致就升级（用原子写，带 Windows 重试）。
+      if (REFRESHABLE_MODULES.includes(name) && existsSync(source)) {
+        try {
+          const shipped = readFileSync(source, 'utf8')
+          if (readFileSync(target, 'utf8') !== shipped) {
+            writeAtomic(target, shipped)
+            refreshed.push(name)
+            continue
+          }
+        } catch (error) {
+          errors.push(`刷新 ${name} 失败: ${describe(error)}`)
+          continue
+        }
+      }
       kept.push(name)
       continue
     }
@@ -126,19 +152,19 @@ export function seedPreset(presetDir, sourceDir = packagedPresetDir(), options =
         continue
       }
     }
-    const source = join(sourceDir, name)
     if (!existsSync(source)) {
       errors.push(`包内缺少 ${name}`)
       continue
     }
     try {
-      copyFileSync(source, target)
+      // 原子写（内部带 Windows 重试）：原先裸 copyFileSync 在两个实例共抢一个 DSH_HOME 首启时会 EBUSY。
+      writeAtomic(target, readFileSync(source, 'utf8'))
       created.push(name)
     } catch (error) {
       errors.push(`写入 ${name} 失败: ${describe(error)}`)
     }
   }
-  return { created, kept, errors }
+  return { created, refreshed, kept, errors }
 }
 
 /**
@@ -162,6 +188,9 @@ export function seedPresetWithLog(presetDir, log = console.error, info = console
     // can never stop the host from booting.
     log(`custom-mode: 播种 preset 时出现意外错误（已忽略）: ${describe(error)}`)
     return { created: [], kept: [], errors: [describe(error)] }
+  }
+  if (result.refreshed !== undefined && result.refreshed.length > 0) {
+    info(`custom-mode: 已刷新 ${presetDir} 里的代码模块（${result.refreshed.join(', ')}）`)
   }
   if (result.created.length > 0) {
     info(`custom-mode: 已播种 preset 到 ${presetDir}（新建 ${result.created.length} 个文件: ${result.created.join(', ')}）`)

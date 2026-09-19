@@ -161,7 +161,7 @@ export function checkPromptText(text) {
       return {
         ok: false,
         code: 'unknownVariable',
-        params: { variable: '{{' + variable + '}}', known: KNOWN_VARIABLES.map((item) => '{{' + item + '}}').join('、') },
+        params: { variable: '{{' + variable + '}}', known: KNOWN_VARIABLES.map((item) => '{{' + item + '}}').join(', ') },
         error:
           '保存被拒绝：{{' +
           variable +
@@ -372,8 +372,12 @@ export function saveState(rows, input) {
   if (name.length > MAX_NAME) {
     return { ok: false, code: 'nameTooLong', params: { max: MAX_NAME }, error: '保存被拒绝：模式名称过长（上限 ' + String(MAX_NAME) + ' 个字符）。' }
   }
+  // 请求里**没带** description 时保留原值：API 调用方只改提示词，不该顺手把描述清空（外部评审实测）。
+  const meta = readPresetMeta(directory)
   const rawDescription =
-    input !== null && typeof input === 'object' && typeof input.description === 'string' ? input.description : ''
+    input !== null && typeof input === 'object' && typeof input.description === 'string'
+      ? input.description
+      : (typeof meta.description === 'string' ? meta.description : '')
   const description = rawDescription.replace(/\r?\n/g, ' ').trim()
   if (description.length > MAX_DESCRIPTION) {
     return { ok: false, code: 'descriptionTooLong', params: { max: MAX_DESCRIPTION }, error: '保存被拒绝：模式描述过长（上限 ' + String(MAX_DESCRIPTION) + ' 个字符）。' }

@@ -397,14 +397,17 @@ export function collectRows(text) {
  * @param {boolean} nested - whether this call rewrites a group's contents.
  * @returns {string} the rewritten level.
  */
-function applyLevel(text, topLevel, overrides, nested) {
+function applyLevel(text, topLevel, overrides, nested, replacePersona = true) {
   const { lead, segments } = splitSegments(text, topLevel)
   if (segments.length === 0) return text
   const rendered = segments.map((segment) => {
     // The persona row is always replaced by this feature's own reader row: the
     // shipped one is a static-string persona whose text cannot be edited, so
     // keeping it would silently disable the editable prompt.
-    if (!nested && segment.id === 'persona') {
+    // `replacePersona` 只有**重新渲染**时才为真：那时整段 persona 换成我们的读取器行是对的。
+    // 但"按本线修复"是**就地**手术，它必须连 persona 段里的注释都原样保留 ——
+    // 之前这里无条件替换，导致每次修复都会丢注释 / 或多复制一行身份注释（外部评审实测）。
+    if (!nested && segment.id === 'persona' && replacePersona === true) {
       return setDisabled(PERSONA_ROW, overrides.get('persona'))
     }
     let body = segment.text
@@ -590,8 +593,8 @@ export function disableRowsInPlace(text, ids) {
   if (wanted.length === 0) return text
   // `applyLevel` 把 Map 的值直接交给 `setDisabled(...)`，所以值是**关闭**布尔（true = 关闭）。
   const off = new Map(wanted.map((id) => [id, true]))
-  const top = applyLevel(text, true, off, false)
-  return applyLevel(top, false, off, false)
+  const top = applyLevel(text, true, off, false, false)
+  return applyLevel(top, false, off, false, false)
 }
 
 export function unresolvableRows(text) {

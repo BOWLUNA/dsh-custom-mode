@@ -65,7 +65,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "tag": "alpha"
+    "tag": "latest"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/dsh": {

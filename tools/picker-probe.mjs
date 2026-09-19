@@ -31,7 +31,12 @@ if (url === undefined) {
 }
 
 /** Mode names the shell may show in the picker. */
-const KNOWN = ['标准模式', '自定义模式', 'PTC 模式', '极简模式', 'Cordis 模式', 'Standard', 'Custom mode', 'PTC mode', 'Minimal', 'Cordis mode']
+// 注意英文侧的实际文案：dsh 的英文界面是 `Standard mode` / `PTC mode` / `Minimal mode` / `Cordis mode`
+// （外部评审实测：老列表里写的是 `Standard`，于是英文 UI 下探针**根本找不到**控件、直接报"打不开"）。
+const KNOWN = [
+  '标准模式', '自定义模式', 'PTC 模式', '极简模式', 'Cordis 模式',
+  'Standard mode', 'Custom mode', 'PTC mode', 'Minimal mode', 'Cordis mode',
+]
 
 const session = await connect()
 await session.newPage()

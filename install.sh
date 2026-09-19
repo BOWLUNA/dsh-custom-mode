@@ -74,11 +74,13 @@ if [ -e "$PRESET_DIR/prompt.md" ]; then
   # 已装过：只更新模式定义，保留用户已经写好的提示词。
   echo "    检测到已存在的 prompt.md，保留它（只更新模式文件）"
   mkdir -p "$PRESET_DIR"
-  cp "$ROOT/preset/agent.cordis.yml" "$ROOT/preset/preset.yml" \
+  # 组成文件**故意不复制**：包内那份是按某一条 dsh 线渲染的，另一条线可能没有它的某些行 →
+# 平台会把整个预设判为 broken 并从选择器里静默丢弃。改由插件在激活时按**本机这条线**派生。
+  cp "$ROOT/preset/preset.yml" \
      "$ROOT/preset/prompt-reader.mjs" "$ROOT/preset/prompt-tool.mjs" "$PRESET_DIR/"
 else
   mkdir -p "$PRESET_DIR"
-  cp "$ROOT/preset/agent.cordis.yml" "$ROOT/preset/preset.yml" "$ROOT/preset/prompt.md" \
+  cp "$ROOT/preset/preset.yml" "$ROOT/preset/prompt.md" \
      "$ROOT/preset/prompt-reader.mjs" "$ROOT/preset/prompt-tool.mjs" "$PRESET_DIR/"
 fi
 chmod 644 "$PRESET_DIR"/* 2>/dev/null || true
