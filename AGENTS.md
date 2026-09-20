@@ -20,6 +20,12 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 node test/run.mjs                                  # 13 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself
 node tools/verify-translation-pairing.mjs          # bilingual pairing + language-purity check (what CI runs)
 node tools/verify-doc-numbers.mjs                  # documented counts vs the real run (what CI runs)
+
+# 提交前把这三道守卫都跑一遍（漏一条就会在 CI 上红）：
+#   1) node test/run.mjs                      —— 改了检查数量就要同步文档里的数字
+#   2) node tools/verify-translation-pairing.mjs --write   —— 改了任一语言文件都要重录配对哈希
+#   3) node tools/verify-doc-numbers.mjs      —— 最后再确认一次数字一致
+# 本仓库真的因为"改了数字忘了重录配对哈希"而让四条 CI 矩阵全红过一次，别重复它。
 bash -n install.sh && bash -n uninstall.sh         # syntax of the two scripts
 
 # Against a real harness: always use a throwaway DSH_HOME, never the one in use
