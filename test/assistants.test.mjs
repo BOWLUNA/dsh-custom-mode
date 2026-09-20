@@ -49,6 +49,7 @@ const {
   seedOnActivation,
   userPresetRoot,
 } = await import('../editor/assistants.mjs')
+const { unresolvableRows } = await import('../editor/composition.mjs')
 
 const dir = mkdtempSync(join(tmpdir(), 'dsh-custom-assistants-'))
 const root = join(dir, 'agent-presets')
@@ -172,7 +173,17 @@ console.log('=== 7. seedOnActivation：首次播种 / 收养 / 不复活 ===')
   const quiet = { logs: logs.length, infos: infos.length }
   const second = seedOnActivation({ root, templateDir: TEMPLATE, log: (m) => logs.push(m), info: (m) => infos.push(m) })
   check('第二次不重复创建', second.created === false)
-  check('第二次完全安静', logs.length === quiet.logs && infos.length === quiet.infos, JSON.stringify({ logs: logs.slice(quiet.logs), infos: infos.slice(quiet.infos) }))
+  // "第二次完全安静"原本要求一条日志都没有 —— 但 1.9.3 之后，激活时若组成文件里有**本线解析不到的行**
+  // 会主动喊一声（这是有意的功能，而且稳定线上真会触发）。所以这里改成：**除了那条按需告警，不该有别的日志**，
+  // 并用同一判据自证"有则喊、没有则沉默" —— 预览线与稳定线都能过。
+  const newLogs = logs.slice(quiet.logs)
+  const warns = newLogs.filter((m) => m.includes('无法解析'))
+  const others = newLogs.filter((m) => !m.includes('无法解析'))
+  check('第二次不再有其它日志', others.length === 0 && infos.length === quiet.infos,
+    JSON.stringify({ others, infos: infos.slice(quiet.infos) }))
+  const expectedWarn = unresolvableRows(readFileSync(join(root, 'custom', 'agent.cordis.yml'), 'utf8')).length > 0
+  check('「本线无法解析」告警按需出现（有则喊、没有则沉默）', (warns.length > 0) === expectedWarn,
+    JSON.stringify({ warns, expectedWarn }))
 
   // 用户删掉唯一一个助手：重启不能把它变回来。
   rmSync(join(root, 'custom'), { recursive: true, force: true })
