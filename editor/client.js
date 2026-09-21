@@ -683,6 +683,13 @@ try {
         ".cpfe-btn-ghost{border-color:transparent;background:transparent}",
         ".cpfe-input{box-sizing:border-box;width:100%;height:34px;padding:0 12px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
         ".cpfe-switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;line-height:19px;color:var(--dsw-alias-label-primary)}",
+        // 忙碌期间禁掉草稿类控件的交互（issue #6）。
+        // 状态层已经拦住了改动（`update()` 在 busy 时直接返回），但对**受控组件**来说，
+        // 光拦状态还不够：DOM 会先显示用户敲进去的字/翻过去的开关，等下一次重渲染才被拉回来 ——
+        // 那就是"我明明改了，它自己弹回去了"。`pointer-events` 让点击根本到不了控件，
+        // 视觉上也给一个明确的"此刻不能动"。
+        ".cpfe-busy .cpfe-switch,.cpfe-busy .cpfe-row-toggle,.cpfe-busy .cpfe-input,.cpfe-busy .cpfe-field,.cpfe-busy .cpfe-editor{pointer-events:none;opacity:.65}",
+        ".cpfe-busy .cpfe-editor{cursor:progress}",
         ".cpfe-tag{font-size:11px;line-height:16px;padding:0 5px;border-radius:4px;border:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary)}",
         ".cpfe-tag-success,.cpfe-tag-info{color:var(--dsw-alias-state-success-primary)}",
         ".cpfe-tag-warning{color:var(--dsw-alias-state-warn-primary)}",
@@ -1597,6 +1604,9 @@ try {
                   className: "cpfe-field cpfe-desc",
                   value: draft.description,
                   rows: 2,
+                  // 忙碌期间只读（issue #6）。**描述框在 DOM 里排在提示词编辑器前面**，
+                  // 所以只给 `.cpfe-editor` 加 readOnly 是不够的 —— 实测就是这么漏掉的。
+                  readOnly: busy === true,
                   placeholder: t("name.descriptionPlaceholder"),
                   "aria-label": t("name.descriptionPlaceholder"),
                   onChange: (event) => update({ description: event.target.value }),
@@ -1835,7 +1845,9 @@ try {
 
         return react.createElement(
           "div",
-          { className: "cpfe" },
+          // `cpfe-busy` 是 issue #6 的兜底：面板里**所有**会改草稿的控件在忙碌期间一律不可交互。
+          // 逐个控件加 `disabled` 会漏（本轮就漏了行开关与描述框），一个根类 + 一条 CSS 反而漏不掉。
+          { className: busy === true ? "cpfe cpfe-busy" : "cpfe" },
           assistantList,
           react.createElement("p", { className: "cpfe-note" }, t("assistant.switchHint")),
           // 配了却不生效的项：主动点名，而不是让用户对着"我明明写了"发呆。

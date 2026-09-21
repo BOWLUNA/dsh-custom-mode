@@ -8,6 +8,25 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.9]
+
+### Completes the busy-state edit protection, and corrects two inaccurate claims in 1.9.8
+
+- **\`#6\` completed.** 1.9.8 only made the **prompt editor** read-only; the **description box and row switches
+  stayed editable**, so text typed during a save round trip was still overwritten by the server's normalised
+  result. Now a \`cpfe-busy\` class on the panel root plus one CSS rule disables interaction for every
+  draft-mutating control, and the description box is read-only too. Re-verified in a real browser
+  (latency forced to 4000 ms): **7/7**.
+- **\`#8\` corrected: 1.9.8's "not fixed" was wrong.** Capturing the save request body shows
+  \`overrides = {"ghost-row": false}\` — the fold into the draft does reach the wire. The earlier verdict came
+  from an assertion that could not tell **"the row was removed"** from **"the row was re-enabled"**.
+  (The \`base\`-row path remains unverified: building that fixture would require touching the global dsh install.)
+- **Root-cause fix outside the plugin code**: \`release.yml\` now **creates a GitHub Release** when a tag is
+  pushed. Before this it only published to npm, so the repository's Releases panel stayed on an old version and
+  the repository looked unchanged even though the code was updated.
+
+Tests: 725 checks.
+
 ## [1.9.8]
 
 ### "Fix for this line" damaged an unrelated group — plus five more defects an adversarial review and a real browser lab confirmed
@@ -45,25 +64,24 @@ re-threw). Fixed — all **57 assertions pass**; until now the "UI changes must 
 
 Tests: 698 → **725** checks.
 
-#### Correction (post-release browser re-verification, 2026-09-21)
+#### Correction (2026-09-21, post-release — superseded by 1.9.9)
 
-Items 4 and 5 above (`#6` / `#8`) **did not pass re-verification against the published package**:
+This section originally said \`#6\` / \`#8\` were not fixed. **The \`#8\` half was wrong**, and the \`#6\` half was only half right:
 
-- **`#6` edits lost during a save round trip — not fixed.** The state-level guard (busy `update()`
-  rejects draft changes) works, but **not every control became read-only**: the editor got
-  `readOnly`, while the description box and the row switches stayed editable. Measured
-  (`lab/probe-ui-issue6.mjs`, network latency forced to 4000 ms): 0 of 39 controls disabled inside the
-  busy window, and text typed mid-round-trip still disappears. **Next**: gate every draft-mutating
-  control (description, name, row switches) on `busy`, and make the probe's selectors
-  language-independent (they currently assume the English UI).
-- **`#8` "fix for this line" undone by the next save — not fixed.** `repairedIds` now reaches the page
-  and is folded into the draft, yet the measured behaviour is unchanged: the disk is repaired and one
-  save re-enables the row. **Root cause not established**; the next step is to trace the actual
-  `overrides` value across `reload()` in the page.
+- **\`#6\`: the fix was incomplete, not ineffective.** The state-level guard worked; the problem was that I only
+  added \`readOnly\` to the **prompt editor**, while the **description box and the row switches stayed editable**
+  (\`document.querySelector('.cpfe textarea')\` returns the description box — it comes first in the DOM — which is
+  also why the probe measured the wrong element). **Completed in 1.9.9**: a \`cpfe-busy\` class on the panel root
+  plus one CSS rule that disables interaction, and the description box is read-only too.
+  Re-verified in a real browser: **7/7**.
+- **\`#8\`: the "not fixed" conclusion was wrong.** The assertion only looked for \`disabled: true\` after the row,
+  so it could not tell **"the row was removed"** from **"the row was re-enabled"** — and it was the former:
+  re-rendering walks the shipped base, and a row that is not in it gets dropped, leaving the mode **healthy**.
+  Capturing the save request body also proves the client's fold **does** reach the wire
+  (\`overrides = {"ghost-row": false}\`). With the corrected assertion: **6/6**.
 
-The other three (`#2` / `#3` / `#7`) **do pass**: `#2` and `#3` are held by the per-row-id sweep in
-`test/composition-edge.test.mjs`, and `#7` was confirmed in the real browser (the English delete
-confirmation no longer shows full-width parentheses).
+> Same lesson as "a negative conclusion must first prove its trigger fired": **the assertion itself can be wrong.**
+> An assertion that cannot distinguish two outcomes produces both false passes and false failures.
 
 ## [1.9.7]
 
