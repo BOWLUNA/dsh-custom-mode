@@ -14,7 +14,10 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # ★ contents 必须是 write：除了发 npm，这一步还要**创建 GitHub Release**。
+  #   原先这里是 read，于是 tag 推上去之后仓库的 Releases 面板从不动 ——
+  #   代码明明更新了，看首页却像"什么都没发生"（2026-09-21 实测踩到过这个误判）。
+  contents: write
   # Trusted Publishing (OIDC) 要求这个权限：npm 用 GitHub 的 OIDC 令牌确认"这次发布确实来自本仓库的这个工作流"，
   # 因此**不需要任何 npm token**（也就不再有 token 失效、绕过 2FA 被限制这些问题）。
   id-token: write
@@ -70,3 +73,25 @@ jobs:
             exit 0
           fi
           npm publish --tag latest
+
+      # ★ 建 GitHub Release。原先这条工作流只发 npm，所以仓库的 Releases 面板一直停在旧版本，
+      #   而 README / 代码其实早就更新了 —— 一个纯粹"看不见"的缺口。
+      #   正文直接从 CHANGELOG 抠出本 tag 那一节，不另写一份会漂移的文案。
+      - name: 建 GitHub Release（正文取自 CHANGELOG）
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VER="${TAG#v}"
+          node -e '
+            const fs = require("fs");
+            const [ver, file, out] = process.argv.slice(1);
+            const text = fs.readFileSync(file, "utf8");
+            const start = text.indexOf("## [" + ver + "]");
+            if (start === -1) { console.error("CHANGELOG 里找不到 " + ver); process.exit(1); }
+            const rest = text.slice(start + 1);
+            const next = rest.indexOf("\n## [");
+            fs.writeFileSync(out, (next === -1 ? rest : rest.slice(0, next)).trimEnd() + "\n");
+          ' "$VER" CHANGELOG.md /tmp/release-notes.md
+          gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md
