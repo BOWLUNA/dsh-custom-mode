@@ -8,6 +8,118 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.7]
+
+### The approval gate could be walked around — and ten other defects confirmed by review
+
+Three independent read-only reviews of the whole plugin turned up 15 reproducible defects. This release fixes the
+ones that are security-relevant, violate a documented invariant, or leave a promise the code does not keep; the
+rest are filed as issues with their reproductions.
+
+**P0 — the in-session approval gate had a one-word hole.** The gate asked only for `action === 'write' | 'append'`,
+while `execute` treated *any* action that was not exactly `read` or `append` as a full-file replace. So
+`action: "replace"` — or `"Write"`, `"overwrite"`, `""`, or `"append "` with one trailing space — overwrote the
+user's system prompt **with no approval panel**, which is precisely the failure the gate exists to prevent. The
+gate now asks for everything that is not a pure read, and `execute` rejects unknown verbs explicitly instead of
+falling through into the write path. Two independent layers, so a future edit to either cannot reopen it.
+
+**P0 — a missing import made the "approval gate is off" warning permanent.** `rmSync` was used to clear the marker
+file but never imported, so the `ReferenceError` was swallowed by the silent `catch`: once written, the marker
+stayed, and the settings page warned "The approval gate is off" forever even on a host where the gate works.
+
+**One bad journal file made an assistant unopenable, and made successful saves lie.** `readEntries` read
+`prompt-history.jsonl` unguarded, so a root-owned (`chmod 000`) or directory-shaped history file 500'd every state
+and history read — the page's entry point for that assistant — and made a save that *had* already written
+`prompt.md` report `writeFailed`, leaving the page stuck on a stale draft. The read is now guarded (a bad file
+costs the history, not the assistant), and the audit record runs outside the write `try`, because a record that
+fails must never fail a save.
+
+**A second missing import, in the reorder rollback.** `presetMetaPath` was used twice in `assistants.mjs` but never
+imported, so the snapshot/rollback path threw, the error was swallowed, and the rollback loop skipped every entry.
+A failed reorder was left half-applied on disk while the page said it had rolled back.
+
+**Every user-visible result now carries a `code` — including the five that did not.** The page renders results
+from its own bilingual dictionary; without a `code` it falls back to the host's Chinese string, so the English UI
+turned Chinese at exactly the moments something went wrong. Fixed: `unknownAssistant()`, the four failure returns
+of `createAssistantDir`, and `writePresetMeta`'s empty-name branch. Three codes that had **no dictionary entry at
+all** (`bodyTooLarge`, `repaired`, `repairNotNeeded`) got one in each language.
+
+**A control character in a name no longer bricks `preset.yml`.** `yamlScalar` escaped only `"` and `\`, so a BEL,
+VT or NUL in a name or description produced a file the platform's js-yaml cannot parse — the mode then degraded to
+its bare directory id in every picker, with description and `order` lost, while this plugin's own page still showed
+the name. It now emits through `JSON.stringify`, whose escaping is exactly what a YAML double-quoted scalar needs;
+output for ordinary names is byte-identical to before.
+
+- `journal.mjs`'s two early returns also contradicted their own JSDoc by omitting `n`; they now always return it
+  (`0` when nothing was recorded).
+
+**A new guard (section 12)** asserts both halves against the source of **every** host module: every `ok: false`
+return carries a `code`, and every code has a Chinese *and* an English entry in `locales.mjs`. It was validated
+with a mutated copy, and immediately earned its keep: it caught a sixth code-less return the first time it ran,
+and the first version of its own scanner was too weak to see one of them (a regex that paired an apostrophe in an
+English comment with the next real quote and blanked a whole function) — fixed, because a guard that silently
+checks less than it claims is worse than none.
+
+**Documentation**: 1.9.3–1.9.6 were published without changelog entries; they are backfilled here.
+
+Tests: 685 → **698** checks.
+
+## [1.9.6]
+
+### One badge style, not two
+
+The two badge rows mixed shields' default style (rounded, taller) with flat-square, which is why no amount of
+spacing tweaking made them line up. Row one (npm / CI / license) is now flat-square + logo as well, CI moving from
+GitHub's own `badge.svg` to shields' workflow-status badge; the in-package README carries both rows too, since npm
+renders that one. Measured and recorded: GitHub strips HTML `style="display:flex"` (verified with `POST /markdown`),
+so spacing in a README cannot come from flex — matching the styles is the fix.
+
+## [1.9.5]
+
+### Storefront tidy-up
+
+- The header image becomes **1280×640** (GitHub's recommended social-preview size), rendered by the jointly
+  committed `docs/images/header.html` through headless Chrome, with a `header@2x.png` alongside it.
+- All five screenshots become **1280×720 full-screen views** (they used to be cropped to each panel, so one table
+  showed five different aspect ratios).
+- A second community badge row (bilibili / Douyin / RedNote / Discord / Discussions), and CONTRIBUTING points at
+  the now-enabled Discussions.
+
+## [1.9.4]
+
+### The npm page gets the header and screenshots too
+
+npm renders the README **that sits next to `package.json`** — `editor/README.md` — not the repository root one, so
+1.9.3's header and English screenshots only ever appeared on GitHub. The in-package README now carries the header
+and the four screenshots as well, using the same absolute raw links.
+
+## [1.9.3]
+
+### Second external review — 11 confirmed defects fixed
+
+Of four external reviews, 11 findings reproduced on this machine and were fixed:
+
+- **P1 security**: upgrading never refreshed the **code modules** inside an assistant directory, so anyone who
+  first installed on 1.0.x / 1.1.x kept a `prompt-tool.mjs` with no approval gate forever. The two code modules are
+  now refreshed (atomic write) whenever they differ, while user data (`prompt.md`, `preset.yml`, the generated
+  composition) stays fill-only.
+- **P1**: `install.sh` still copied the packaged composition, which is rendered for one dsh line — moving to the
+  other line made the platform mark the preset broken and drop the mode from every picker. It is no longer copied;
+  the plugin derives it for the line actually installed.
+- **P1 guards**: `picker-probe` looked for `Standard` while the English UI says `Standard mode`; `browser-verify`
+  assumed a Chinese UI and failed ~20 checks on a cold English instance. It now switches to Chinese first and exits
+  loudly if it cannot (measured on a real English instance: 57 checks, 0 failures).
+- **P2**: "Fix for this line" no longer rewrites the persona section and loses comments; seeding uses the shared
+  atomic write (Windows hit EBUSY when two processes shared `DSH_HOME`); a mode the platform dropped silently now
+  logs a host warning on activation; Chinese punctuation in the English dictionary, `POST /state` clearing an
+  unprovided description, and `publishConfig.tag` were all fixed.
+- **Disproved** (with evidence): "the mode is visible but cannot be selected", and the REQUEST_EXTENSION P0, did not
+  reproduce on either dsh line.
+
+Images and docs: `docs/images` became **English-UI** screenshots (new script `tools/screenshots/run-shots-en.mjs`,
+cropped to the panel), a new header `docs/images/header.png`, and README absolute raw links so the npm page can
+render them.
+
 ## [1.9.2]
 
 ### Updating a user's install cleanly — and the reason a bare install lags

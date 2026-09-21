@@ -55,8 +55,18 @@ export function historyFile(directory) {
 export function readEntries(directory) {
   const file = historyFile(directory)
   if (!existsSync(file)) return []
+  let raw = ''
+  try {
+    raw = readFileSync(file, 'utf8')
+  } catch {
+    // **坏的是文件本身**（不是某一行）：被 chmod 000（一次 sudo 跑 dsh 就会把 root 属主留在
+    // 日志上）、被改成目录、或读到一半的 EIO。此前这里裸读，于是这一个文件能同时做到两件坏事 ——
+    // 让 GET state（页面打开某个助手的入口）永远 500，以及让一次**已经写成功**的保存报 writeFailed。
+    // 模块自己的承诺是"坏一行不该赔上全部版本"，那么坏一个文件更不该赔上这个助手。
+    return []
+  }
   const entries = []
-  for (const line of readFileSync(file, 'utf8').split('\n')) {
+  for (const line of raw.split('\n')) {
     if (line.trim() === '') continue
     try {
       const parsed = JSON.parse(line)
@@ -82,13 +92,16 @@ export function readEntries(directory) {
  * @param {string} directory - one assistant's preset directory.
  * @param {string} text - the prompt content **after** the change.
  * @param {string} by - {@link HISTORY_SOURCE}.
- * @returns {{ recorded: boolean, at: string, n: number }} whether a line was appended.
+ * @returns {{ recorded: boolean, at: string, n: number }} whether a line was appended. `n` is the
+ *   revision this text already corresponds to when `recorded` is false, and `0` when the input could
+ *   not be recorded at all — never `undefined`, so a caller can feed it straight back to
+ *   {@link readVersion} without a guard that nobody would remember to write.
  */
 export function recordPrompt(directory, text, by = HISTORY_SOURCE.settings) {
-  if (typeof text !== 'string') return { recorded: false, at: '' }
+  if (typeof text !== 'string') return { recorded: false, at: '', n: 0 }
   const entries = readEntries(directory)
   const newest = entries[entries.length - 1]
-  if (newest !== undefined && newest.text === text) return { recorded: false, at: newest.at }
+  if (newest !== undefined && newest.text === text) return { recorded: false, at: newest.at, n: newest.n }
 
   const at = new Date().toISOString()
   const n = entries.length === 0 ? 1 : entries[entries.length - 1].n + 1

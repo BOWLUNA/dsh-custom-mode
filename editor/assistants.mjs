@@ -28,7 +28,10 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { dshHome, PRESET_DIR } from './paths.mjs'
-import { readPresetMeta, writePresetMeta } from './meta.mjs'
+// `presetMetaPath` 曾被漏掉：reorderAssistant 用它做"快照 → 失败回滚"，于是两处调用都抛
+// ReferenceError 被 try/catch 吞掉，回滚循环 continue 掉每一条 —— 用户看到的"已回滚"从未发生，
+// 磁盘上留下改了一半的 order。少一个导入就能让一整段安全网变成死代码（外部评审复现）。
+import { readPresetMeta, writePresetMeta, presetMetaPath } from './meta.mjs'
 import { writeAtomic } from './atomic.mjs'
 import { unresolvableRows } from './composition.mjs'
 import { seedPreset, seedPresetWithLog } from './seed.mjs'
@@ -256,20 +259,22 @@ export function allocateId(name, taken) {
  * @returns {{ok: true, id: string, dir: string} | {ok: false, error: string}}
  */
 export function createAssistantDir({ root, id, composition, templateDir }) {
+  // 每个用户可见的结果都带 `code`（AGENTS.md 第 13 条）：没有它，页面只能显示下面这串中文，
+  // 英文界面就在这一刻掉回中文。前三条还会被设置页原样显示给用户。
   if (!PRESET_ID.test(String(id ?? ''))) {
-    return { ok: false, error: `助手标识不合法：${String(id)}（只能是 a-z0-9 与连字符）` }
+    return { ok: false, code: 'badAssistantId', params: { id: String(id) }, error: `助手标识不合法：${String(id)}（只能是 a-z0-9 与连字符）` }
   }
   const dir = join(root, id)
-  if (existsSync(dir)) return { ok: false, error: `目录已存在：${dir}` }
+  if (existsSync(dir)) return { ok: false, code: 'dirExists', params: { path: dir }, error: `目录已存在：${dir}` }
 
   const seeded = seedPreset(dir, templateDir)
   if (seeded.errors.length > 0) {
-    return { ok: false, error: '复制模式模板失败：' + seeded.errors.join('；') }
+    return { ok: false, code: 'seedFailed', params: { detail: seeded.errors.join('；') }, error: '复制模式模板失败：' + seeded.errors.join('；') }
   }
   try {
     writeFileSync(join(dir, COMPOSITION_FILE), composition, 'utf8')
   } catch (error) {
-    return { ok: false, error: '写入组成文件失败：' + describe(error) }
+    return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入组成文件失败：' + describe(error) }
   }
   return { ok: true, id, dir }
 }

@@ -157,6 +157,36 @@ console.log('=== 1.5 审批闸门：改写提示词必须过平台的审批缝 =
 }
 
 console.log()
+console.log('=== 1.6 绕过回归：不认识的 action 既不能静默替换，也不能不弹审批 ===')
+{
+  // 本轮修复的 P0。闸门过去只拦 `write` / `append` 两个字面量，而 execute 把"既不是 read 也不是
+  // append"的**任何** action 都当成整体替换 —— 于是拼成 `replace` / `Write` / 空串 / 末尾多一个
+  // 空格就能绕过审批面板直接改掉用户的提示词。两层都要钉住：闸门对"一切非纯读取"发问，
+  // execute 拒绝未知动词。只用一层的话，另一层日后被改回原样就没人拦得住。
+  const handlers = []
+  const ctx = {
+    effect: (fn) => fn(),
+    on: (event, handler) => { handlers.push({ event, handler }); return () => {} },
+    tools: { register: () => () => {} },
+  }
+  tool.apply(ctx)
+  const gate = handlers[0].handler
+  const next = async () => ({ kind: 'gate-passed-through' })
+
+  for (const odd of ['replace', 'Write', 'WRITE', 'overwrite', 'set', '', 'append ']) {
+    const verdict = await gate({ name: 'custom_prompt', arguments: { action: odd, text: '任意内容' } }, next)
+    check(`闸门对未知 action ${JSON.stringify(odd)} 发问（不静默放行）`, verdict?.kind === 'ask', JSON.stringify(verdict))
+  }
+
+  const before = await definition.execute({ action: 'read' })
+  for (const odd of ['replace', 'Write', 'append ']) {
+    const answer = await definition.execute({ action: odd, text: 'SHOULD-NOT-LAND\n' })
+    check(`execute 拒绝未知 action ${JSON.stringify(odd)}`, /写入被拒绝/.test(answer), String(answer).slice(0, 80))
+  }
+  check('未知 action 之后磁盘上的提示词一字未动', (await definition.execute({ action: 'read' })) === before)
+}
+
+console.log()
 console.log('=== 2. 缺文件时的读取：给出可读提示，而不是空串 ===')
 {
   rmSync(promptPath, { force: true })

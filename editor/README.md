@@ -16,7 +16,8 @@ agent loop re-reads before every model step — **a save applies on the next ste
 session**. Several modes ("assistants") live side by side, each with its own prompt.
 
 Searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants ·
-自定义模式 · 自定义提示词 · 多助手／多模式.
+multi-agent · roleplay (RP) / chat personas ·
+自定义模式 · 自定义提示词 · 多助手／多模式 · 角色扮演／聊天人格（RP）.
 
 ![Assistant manager](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
 

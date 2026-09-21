@@ -196,8 +196,12 @@ export function readPrompt(directory) {
 
 /** The isolation message for an id the roster does not describe as a managed assistant. */
 function unknownAssistant(id) {
+  // 带 `code`：两个标签页同时开着、在 B 里删掉这个助手、回到 A 点保存时走的就是这条 ——
+  // 没有 code 时英文界面会显示下面这串中文，而词典里的 `api.unknownAssistant` 反而永远用不上。
   return {
     ok: false,
+    code: 'unknownAssistant',
+    params: { id: String(id) },
     error:
       '找不到助手「' +
       String(id) +
@@ -414,11 +418,20 @@ export function saveState(rows, input) {
       [compositionFile(directory), composition],
       [promptFile(directory), prompt],
     ])
-    // 改动留痕：三个改动路径（设置页 / 会话内工具 / 手工编辑）里，只有设置页是"当场知道"的。
-    // 另外两条由 readState 对比补记（见 journal.mjs 的单写者说明）。
-    recordPrompt(directory, prompt, HISTORY_SOURCE.settings)
   } catch (error) {
     return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
+  }
+
+  // 改动留痕：三个改动路径（设置页 / 会话内工具 / 手工编辑）里，只有设置页是"当场知道"的。
+  // 另外两条由 readState 对比补记（见 journal.mjs 的单写者说明）。
+  //
+  // **在写入 try 之外**：这是一条审计记录，它失败不该让一次已经落盘的保存报 writeFailed
+  // ——外部评审复现过：日志文件被 chmod 000 时，prompt.md 已经写成功而页面显示"保存失败"，
+  // 页面又不会重新读取，于是它永远停在旧草稿上。留痕失败只降级为"这一版没记上"。
+  try {
+    recordPrompt(directory, prompt, HISTORY_SOURCE.settings)
+  } catch {
+    /* 审计记录失败不影响保存本身 */
   }
 
   // A name the user cleared is left alone rather than written as an empty scalar:
@@ -511,7 +524,10 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
       ? renderComposition('standard', new Map(), { modeName: name, assistantId: id })
       : renderComposition(source.mode, source.overrides, { modeName: name, assistantId: id })
   } catch (error) {
-    return { ok: false, error: '生成组成文件失败：' + describe(error) }
+    // 与保存路径的 `renderFailed` 同一套：**每个**用户可见的结果都要带 `code`，否则页面无从本地化
+    // —— client.js 的 apiText 在没有 code 时直接退回下面这串中文，英文界面会在这一刻掉回中文
+    // （AGENTS.md 第 13 条）。这条曾经是宿主半唯一漏掉 code 的普通返回。
+    return { ok: false, code: 'renderFailed', params: { detail: describe(error) }, error: '生成组成文件失败：' + describe(error) }
   }
 
   const created = createAssistantDir({ root, id, composition, templateDir })
@@ -819,7 +835,9 @@ export function apply(ctx) {
         const result = await serializedWrite('delete:' + targetId, async () => deleteAssistant(await roster(), parsed, scope.agentPresets))
         return json(result, result.ok === true ? 200 : 400)
       } catch (error) {
-        return json({ ok: false, error: describe(error) }, 500)
+        // 兜底也要带 code：这是**意料之外**的异常，页面拿到的是 Node 的原始错误串，方向反着也一样糟
+        // ——中文界面里会蹦出一句英文。带 code 后页面用自己的词典渲染，原始串只作为 `detail` 参数。
+        return json({ ok: false, code: 'internalError', params: { detail: describe(error) }, error: describe(error) }, 500)
       }
     }
 

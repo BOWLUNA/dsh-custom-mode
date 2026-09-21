@@ -86,7 +86,12 @@ export function readPresetMeta(directory = PRESET_DIR) {
 /** Quote and flatten a value into a single-line YAML scalar. */
 function yamlScalar(value) {
   const flat = String(value).replace(/\r?\n/g, ' ').trim()
-  return '"' + flat.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'
+  // `JSON.stringify` 恰好就是 YAML 双引号标量需要的转义：除了 `"` 与 `\`，它还会把控制字符写成
+  // `\u0007` 这类转义序列。此前手工只转前两个，于是名字里一个 BEL / VT / NUL 就会写出平台
+  // js-yaml 解析不了的 preset.yml —— 这个模式在**所有选择器**里退化成裸目录 id，description 与
+  // order 一起丢，而本插件自己的页面还显示着那个名字（外部评审实测）。
+  // 对普通名字（含中文）输出与旧实现逐字节相同，所以这次替换不会动任何既有文件。
+  return JSON.stringify(flat)
 }
 
 /**
@@ -104,7 +109,7 @@ function yamlScalar(value) {
  */
 export function writePresetMeta(name, description, directory = PRESET_DIR, options = {}) {
   const cleanName = typeof name === 'string' ? name.replace(/\r?\n/g, ' ').trim() : ''
-  if (cleanName === '') return { ok: false, error: '模式名称不能为空。' }
+  if (cleanName === '') return { ok: false, code: 'nameRequired', error: '模式名称不能为空。' }
   const lines = ['name: ' + yamlScalar(cleanName)]
   if (typeof description === 'string' && description.trim() !== '') {
     lines.push('description: ' + yamlScalar(description))
@@ -118,7 +123,11 @@ export function writePresetMeta(name, description, directory = PRESET_DIR, optio
     // 实测审阅指出这里原先用的是裸 writeFileSync，与设置页的纪律不一致；现在共用同一份实现。
     writeAtomic(presetMetaPath(directory), lines.join('\n') + '\n')
   } catch (error) {
-    return { ok: false, error: '写入 preset.yml 失败：' + String((error && error.message) || error) }
+    // 带 `code`：这条是保存路径上最后一个没有 code 的用户可见失败，英文界面此前会在这里显示中文。
+    // 它发生得尤其难受 —— 组成文件与提示词**已经写成功**了，只有 preset.yml 没写成，所以页面
+    // 说"失败"而磁盘上是新提示词 + 旧名字（外部评审复现）。
+    const detail = String((error && error.message) || error)
+    return { ok: false, code: 'metaWriteFailed', params: { detail }, error: '写入 preset.yml 失败：' + detail }
   }
   return { ok: true, name: cleanName }
 }

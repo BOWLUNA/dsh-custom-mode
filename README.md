@@ -19,7 +19,8 @@ In one line: **a settings page for dsh agent modes** — choose a mode's base co
 rows it mounts, and edit its system prompt, which the agent loop re-reads before every model step. Several
 modes ("assistants") can live side by side, each with its own prompt.
 
-Also searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants.
+Also searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants ·
+multi-agent · roleplay (RP) / chat personas.
 
 The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouched.
 
@@ -39,7 +40,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.6   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.7   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -304,7 +305,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.6
+dsh plugin --profile web add dsh-custom-mode@1.9.7
 # then restart the DSH process that serves the web profile
 ```
 

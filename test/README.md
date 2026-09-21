@@ -22,7 +22,7 @@ Per-suite counts are deliberately **not** listed here: they change with every te
 caught this section still showing eight suites and a 333 total. The one number the docs do state — the
 total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
 
-**685 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other twelve bring
+**698 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other twelve bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 There are three resolution paths, and any one of them hitting is enough: the

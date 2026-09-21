@@ -27,7 +27,7 @@
 
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
 /** Absolute path of the prompt file this preset reads. */
@@ -216,6 +216,17 @@ function makeDefinition(modeName) {
         }
       }
 
+      // **显式白名单，不再靠"落到最后就当写入"。** 这段代码到这儿只剩整体替换，此前它对任何
+      // 不认识的 action（`replace` / `Write` / `overwrite` / 空串 / `append ` 末尾多一个空格）
+      // 都静默照做，而审批闸门只认识 write/append —— 一个词的拼写差异就能把用户的提示词整体
+      // 换掉且不弹审批（外部评审实测）。不认识的动词现在一律拒绝并说明，模型据此改对再调。
+      if (action !== 'write') {
+        return (
+          '写入被拒绝：未知的 action「' + action + '」。只接受 read / write / append' +
+          '（未指定 action 按 read 处理）；append 必须精确拼写，末尾多一个空格不算。'
+        )
+      }
+
       if (typeof args.text !== 'string' || args.text.trim() === '') {
         return '写入被拒绝：action 为 "write" 时必须提供非空的 text。'
       }
@@ -263,9 +274,17 @@ function registerApprovalGate(ctx) {
     () => ctx.on('tools/pre-execute', (exec, next) => {
       if (exec === null || typeof exec !== 'object' || exec.name !== TOOL_NAME) return next()
       const args = exec.arguments
-      const action = args !== null && typeof args === 'object' ? args.action : undefined
-      // 拦所有会改文件的动作：write 与 append 都在改系统提示词；未指定 action 时按 read 处理，不拦。
-      if (action !== 'write' && action !== 'append') return next()
+      // **只放行真正的读取。** 未指定 action 与 execute 一样按 read 处理；其余一律发问。
+      //
+      // 此前这里只拦 `write` / `append` 两个字面量，而 execute 把"既不是 read 也不是 append"的
+      // **任何** action 都当成整体替换 —— 于是 `replace` / `Write` / 空串 / 末尾多一个空格都能
+      // 绕过审批面板直接改掉用户的提示词（外部评审实测复现）。闸门要盖住"一切可能改文件的调用"，
+      // 不能只认识它恰好想到的那两个词。execute 那边同时加了显式白名单，两层各自独立。
+      const raw = args !== null && typeof args === 'object' ? args.action : undefined
+      // 只有"没提供 action"才等同 read（execute 也是这样兜的）；**提供了但不认识**（含空串）
+      // 一律发问 —— 闸门的判据是"这次调用会不会改文件"，不是"这个动词我认不认识"。
+      const action = typeof raw === 'string' ? raw : 'read'
+      if (action === 'read') return next()
       const verb = action === 'append' ? '追加到' : '整体替换为'
       const text = typeof args.text === 'string' ? args.text : ''
       const firstLine = text.split('\n').find((line) => line.trim() !== '') ?? ''

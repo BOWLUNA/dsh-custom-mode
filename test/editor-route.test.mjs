@@ -760,6 +760,124 @@ console.log('=== 11. 缺文件时的行为（不能崩） ===')
   writeFileSync(compositionPath, saved, 'utf8')
 }
 
+console.log()
+console.log('=== 12. 每个用户可见的结果都带 code，且每个 code 都有中英词典 ===')
+{
+  /**
+   * 为什么这一节存在："英文界面在出错那一刻掉回中文"是本项目被外部审阅点名的硬伤，纪律写在
+   * AGENTS.md 第 13 条 —— 宿主半的每个用户可见结果都要带 `code`，页面拿 `code` 查自己的词典。
+   * 这一轮抓到的两处漏网都只在"那条分支真的被走到"时才现形，单元测试看不见：
+   *   - `create` 路径的渲染失败返回漏了 `code`（英文界面直接显示宿主的中文串）；
+   *   - `bodyTooLarge` / `repaired` / `repairNotNeeded` 三个 code 在词典里**根本没有条目**
+   *     （查不到同样退回宿主文案）。
+   * 所以这里对着**源码**断言，与"源里不得出现 webServer.register"是同一手法。client.js 那份
+   * 手抄词典由 locales.test.mjs 与 locales.mjs 逐条比对，因此不必在这里重复。
+   */
+  const localesSource = readFileSync(new URL('../editor/locales.mjs', import.meta.url), 'utf8')
+
+  /**
+   * 把字符串与注释替换成等长空白（保留换行，下标不变），只留可判定的代码。
+   *
+   * **必须单遍扫描**：先前的写法是"先用正则剥字符串、再剥注释"，而英文注释里的撇号（`user's`）
+   * 会和后面真正的引号错配，把中间一大段（包括 `unknownAssistant` 的整个函数体）吞成空白 ——
+   * 守卫于是漏掉了一处真实的漏网 code。这类正则的失效方式正是"安静地少检查"。
+   */
+  const blankNonCode = (source) => {
+    const out = source.split('')
+    const n = source.length
+    const blank = (from, to) => {
+      for (let k = from; k < to && k < n; k += 1) if (out[k] !== '\n') out[k] = ' '
+    }
+    let i = 0
+    while (i < n) {
+      const ch = source[i]
+      const next = source[i + 1]
+      if (ch === '/' && next === '/') {
+        const end = source.indexOf('\n', i)
+        const stop = end === -1 ? n : end
+        blank(i, stop)
+        i = stop
+        continue
+      }
+      if (ch === '/' && next === '*') {
+        const end = source.indexOf('*/', i + 2)
+        const stop = end === -1 ? n : end + 2
+        blank(i, stop)
+        i = stop
+        continue
+      }
+      if (ch === "'" || ch === '"' || ch === '`') {
+        let j = i + 1
+        while (j < n) {
+          if (source[j] === '\\') { j += 2; continue }
+          if (source[j] === ch) { j += 1; break }
+          j += 1
+        }
+        blank(i, j)
+        i = j
+        continue
+      }
+      i += 1
+    }
+    return out.join('')
+  }
+
+  /** `ok: false` 所在的对象字面量的下标范围：向前找最近的未配对 `{`，再配到它的 `}`。 */
+  const enclosingLiteralRange = (source, at) => {
+    let depth = 0
+    for (let i = at; i >= 0; i -= 1) {
+      if (source[i] === '}') depth += 1
+      else if (source[i] === '{') {
+        if (depth === 0) {
+          let forward = 0
+          for (let j = i; j < source.length; j += 1) {
+            if (source[j] === '{') forward += 1
+            else if (source[j] === '}') {
+              forward -= 1
+              if (forward === 0) return [i, j + 1]
+            }
+          }
+          return null
+        }
+        depth -= 1
+      }
+    }
+    return null
+  }
+
+  // **每个宿主模块都要扫**，不只 index.mjs：这一轮真实漏网的五处里，四处来自 assistants.mjs
+  // （创建路径的四个失败返回），只扫 index.mjs 会让它们全部溜过去。locales.mjs 是词典、
+  // client.js 是浏览器半，都不在这里的范围内。
+  const hostModules = readdirSync(new URL('../editor', import.meta.url))
+    .filter((name) => name.endsWith('.mjs') && name !== 'locales.mjs')
+
+  const naked = []
+  const missing = []
+  for (const moduleName of hostModules) {
+    const hostSource = readFileSync(new URL(`../editor/${moduleName}`, import.meta.url), 'utf8')
+    const blank = blankNonCode(hostSource)
+
+    for (const hit of blank.matchAll(/ok:\s*false/g)) {
+      const range = enclosingLiteralRange(blank, hit.index)
+      // 诊断用**原文**切片（blank 版把字符串抹成了空白，报错会看不懂），判定仍看 blank 版。
+      if (range !== null && !/\bcode:/.test(blank.slice(range[0], range[1]))) {
+        const line = hostSource.slice(0, hit.index).split('\n').length
+        naked.push(`${moduleName}:${String(line)} ${hostSource.slice(range[0], range[1]).replace(/\s+/g, ' ').trim().slice(0, 70)}`)
+      }
+    }
+
+    for (const m of hostSource.matchAll(/code:\s*([^,}\n]+)/g)) {
+      for (const s of m[1].matchAll(/'([A-Za-z][A-Za-z0-9]*)'/g)) {
+        // 中英各一条：`'api.x':` 在 locales.mjs 里必须恰好出现两次（多的那次是重复键）。
+        const twice = localesSource.split(`'api.${s[1]}':`).length - 1
+        if (twice !== 2) missing.push(`${moduleName}: ${s[1]}(${twice})`)
+      }
+    }
+  }
+  check(`宿主半每个模块的 ok: false 都带 code（扫了 ${String(hostModules.length)} 个）`, naked.length === 0, naked.join(' | '))
+  check('每个 code 在 locales.mjs 里都有中英两条', missing.length === 0, missing.join(', '))
+}
+
 rmSync(dir, { recursive: true, force: true })
 
 console.log()
