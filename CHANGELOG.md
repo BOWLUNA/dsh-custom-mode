@@ -8,6 +8,43 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.8]
+
+### "Fix for this line" damaged an unrelated group — plus five more defects an adversarial review and a real browser lab confirmed
+
+After 1.9.7 came a round of **adversarial review plus real-browser lab testing** (79 assertions, 20 failing).
+This release fixes five of them:
+
+- **"Fix for this line" turned off unrelated capabilities** (data-corruption class). The flat second pass
+  inside `disableRowsInPlace` delimited segments by "the next 4-space `- id:`", so a group's **last child
+  swallowed the following top-level content** and `disabled` was written into the **next group**. Measured:
+  with `dsh-plan-mode` missing, clicking fix turned off `plan-mode` and **`compaction` together** while
+  reporting only the requested row. The pass was redundant (the top-level pass already recurses into every
+  group via its `isGroup` branch); removing it takes collateral damage 7 → **0** and structural anomalies
+  (line count Δ=+2) 6 → **0**.
+- **`unresolvableRows` reported a healthy group as broken.** It walked the whole subtree, so `name` came
+  from the **last child** — the page named a healthy group and "fix for this line" would disable it entirely.
+  It now reads only the keys at the row's **own** indentation.
+- **A broken prompt journal made an assistant impossible to open.** The write-through in `readState`
+  (`recordExternalChange`) had no guard while 1.9.7 only guarded the read half, so the same corruption still
+  turned GET state into a 500. It now follows the same rule as `saveState`: a failed audit line degrades to
+  "this revision was not recorded" and never breaks the read.
+- **The English UI could show Chinese punctuation.** Nine places that concatenated a translated sentence with
+  hard-coded full-width punctuation now go through the dictionary (a new `status.detail` template, and
+  `delete.description` now takes `{id}`). Measured: the English delete confirmation rendered
+  `… cannot be undone.（custom）`.
+- **Edits made during a save round trip were dropped silently.** While busy, `update()` no longer accepts
+  draft changes (one place covering every draft field) and the editor becomes read-only; the result of
+  "fix for this line" is now folded **into the draft** instead of being undone by the next save. Measured:
+  text typed mid-round-trip went 108 → 83 characters, and a row switch flipped back.
+
+Tooling: `tools/browser-verify.mjs`'s `openSection` **always failed on a clean instance** (`设置` is a
+toggle while the code treated it as "open", and its retry loop was dead code because both `catch` blocks
+re-threw). Fixed — all **57 assertions pass**; until now the "UI changes must be clicked through" gate that
+`AGENTS.md` requires was red.
+
+Tests: 698 → **725** checks.
+
 ## [1.9.7]
 
 ### The approval gate could be walked around — and ten other defects confirmed by review

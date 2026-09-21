@@ -212,18 +212,28 @@ try {
 
   // ── 打开 设置 → 自定义模式 ─────────────────────────────────────────────────
   const openSection = async () => {
+    // ★ 两处实测修出来的东西（2026-09-21，干净实例上这道闸门原本**必红**）：
+    //
+    //  1. `设置` 是**开关**语义，不是"打开"。本函数前面为了断言中文界面调过
+    //     `switchLanguage('中文')`，而它假定面板已经开着（点的是面板里的语言控件）——
+    //     所以那一刻面板是开的，再点一次 `设置` 会把它**关掉**，随后自然找不到 `自定义模式`。
+    //     修法：先判开合，开着就别再点。
+    //  2. 原来的两个 `catch` 会**把第二次尝试的异常继续往外抛**，于是 `for attempt`
+    //     永远只跑一轮就整体挂掉 —— 那层"最多试三次"的重试从来没生效过。
+    const panelAlreadyOpen = async () =>
+      (await session.evaluate(`document.querySelector('[class*=navCell]') !== null`)) === true
+    const clickEither = async (labels) => {
+      for (const label of labels) {
+        try { await session.clickTextReal(label, { exact: true }); return true } catch { /* 试下一个 */ }
+      }
+      return false
+    }
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        await session.clickTextReal('设置', { exact: true })
-      } catch {
-        await session.clickTextReal('Settings', { exact: true })
+      if ((await panelAlreadyOpen()) === false) {
+        await clickEither(['设置', 'Settings'])
+        await session.sleep(1200)
       }
-      await session.sleep(1200)
-      try {
-        await session.clickTextReal('自定义模式', { exact: true })
-      } catch {
-        await session.clickTextReal('Custom mode', { exact: true })
-      }
+      await clickEither(['自定义模式', 'Custom mode'])
       await session.sleep(2200)
       const ready = await session.evaluate(`document.querySelector('.cpfe') !== null`)
       if (ready === true) return true

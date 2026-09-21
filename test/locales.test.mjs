@@ -200,6 +200,31 @@ if (clientZh !== undefined && clientEn !== undefined) {
   drift(clientEn, en, 'EN')
 }
 
+// ── 7. 拼装出来的整句不许带硬编码标点（issue #7）─────────────────────────────
+//
+// 上面第 6 节比的是**词典条目本身**，所以它看不见这个失败模式：词典两边都是对的，
+// 毛病出在**拼装**那一层 —— `setStatus(t("msg.saveFailed") + "：" + detail)` 把一句已翻译的话
+// 和一个底层细节用硬编码的全角冒号接起来，于是英文界面在**出错那一刻**掉回中文标点
+// （实测：英文界面删除确认弹窗渲染出 `… cannot be undone.（custom）`）。
+// 这条断言直接扫源码：任何 `t("…") + "<全角标点>"` 都是回归。
+{
+  const clientSource = readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')
+  // 只找"翻译调用后面紧跟硬编码全角标点"的形状；词典条目里的全角标点不受影响
+  // （那是文案本身，中文本来就要用全角）。
+  const offenders = [...clientSource.matchAll(/\bt\((["'][^"']+["'])[^)]*\)\s*\+\s*(["'])([（）【】：，。！？；、「」])\2/g)]
+  check(
+    '没有"翻译调用 + 硬编码全角标点"的拼装（issue #7）',
+    offenders.length === 0,
+    offenders.map((m) => `${m[1]} + "${m[3]}"`).join(', '),
+  )
+  // 需要插值时应当走 fillPlaceholders + 一个词典模板，而不是手拼标点。
+  check(
+    '插值走 fillPlaceholders（词典模板里保留 {…} 占位符）',
+    /fillPlaceholders\(\s*t\(/.test(clientSource),
+    'client.js 里没有 fillPlaceholders(t(...)) 的用法',
+  )
+}
+
 console.log()
 console.log(`结果: ${passed} 通过, ${failed} 失败`)
 process.exit(failed === 0 ? 0 : 1)

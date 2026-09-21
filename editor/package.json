@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "1.9.7",
+  "version": "1.9.8",
   "description": "Custom modes and custom prompts for DeepSeek Harness (dsh): edit a mode's system prompt on the settings page (it takes effect on the next model step), pick its base mode, switch plugin rows one by one, and keep several assistants side by side — coding, chat or roleplay (RP) personas (multi-mode / multi-agent).",
   "license": "MIT",
   "type": "module",

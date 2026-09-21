@@ -170,7 +170,7 @@ try {
         "msg.exported": "已导出为文件。",
         "msg.exportFailed": "导出失败",
         "delete.title": "永久删除这个助手？",
-        "delete.description": "这会删除磁盘上的模式目录，连同它的系统提示词一起消失，无法撤销。正在使用它的会话不受影响；新建会话时它不再出现在选择器里。",
+        "delete.description": "这会删除磁盘上的模式目录，连同它的系统提示词一起消失，无法撤销。正在使用它的会话不受影响；新建会话时它不再出现在选择器里。（{id}）",
         "delete.acknowledge": "我明白这个助手的提示词会被永久删除",
         "delete.confirm": "永久删除",
         "delete.close": "关闭",
@@ -200,6 +200,7 @@ try {
         "msg.readFailed": "读取失败",
         "msg.saveFailed": "保存失败",
         "msg.saved": "已保存。新建会话即生效，当前会话保持原配置。",
+        "status.detail": "{message}：{detail}",
         "row.persona.label": "身份（系统提示词）",
         "row.persona.note": "提示词注入点；关掉后本模式用回部署默认身份",
         "row.custom-prompt-tool.label": "custom_prompt 工具",
@@ -377,7 +378,7 @@ try {
         "msg.exported": "Exported to a file.",
         "msg.exportFailed": "Export failed",
         "delete.title": "Delete this assistant permanently?",
-        "delete.description": "This removes the mode directory from disk, system prompt included, and cannot be undone. Sessions already using it keep running; new sessions no longer offer it.",
+        "delete.description": "This removes the mode directory from disk, system prompt included, and cannot be undone. Sessions already using it keep running; new sessions no longer offer it. ({id})",
         "delete.acknowledge": "I understand this assistant's prompt will be deleted permanently",
         "delete.confirm": "Delete permanently",
         "delete.close": "Close",
@@ -407,6 +408,7 @@ try {
         "msg.readFailed": "Load failed",
         "msg.saveFailed": "Save failed",
         "msg.saved": "Saved. A new session picks it up; the current one keeps its configuration.",
+        "status.detail": "{message}: {detail}",
         "row.persona.label": "Identity (system prompt)",
         "row.persona.note": "Where the prompt is injected; turning it off falls back to the deployment identity",
         "row.custom-prompt-tool.label": "custom_prompt tool",
@@ -1038,6 +1040,19 @@ try {
             const result = await postJson(ROUTES.repair, { id: selected })
             if (result !== null && result.ok === true) {
               setStatus(apiText(result, "msg.repaired"))
+              // ★ 把修复折进**草稿**（issue #8）。
+              //
+              // 修复在磁盘上是生效的，但草稿里那几行仍然是"启用"。而 `reload()` 对脏草稿是
+              // **保留**的（`open()` 的 `!sameDraft(...)` 保护），所以草稿不会自己更新；
+              // 于是下一次保存会按草稿重渲染，把刚修好的行原样打开 —— 模式再次从所有选择器里消失。
+              // 实测（2026-09-21）：修复后磁盘上 ghost-row 已关闭，保存一次就又被打开了。
+              const repairedIds = Array.isArray(result.params?.repairedIds) ? result.params.repairedIds : []
+              if (repairedIds.length > 0 && draft !== null) {
+                // 草稿里的 `overrides` 是"显式**启用**"语义，所以关闭 = false。
+                const nextOverrides = { ...draft.overrides }
+                for (const rowId of repairedIds) nextOverrides[rowId] = false
+                update({ overrides: nextOverrides }, { force: true })
+              }
               await reload()
             } else {
               setFailed(true)
@@ -1183,7 +1198,7 @@ try {
             } catch (error) {
               if (alive) {
                 setFailed(true)
-                setStatus(t("msg.readFailed") + "：" + describeError(error))
+                setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.readFailed"), detail: describeError(error) }))
               }
             } finally {
               if (alive) setBusy(false)
@@ -1195,7 +1210,20 @@ try {
         }, [])
 
         /** Change one field of the selected assistant's draft. */
-        const update = (patch) => {
+        const update = (patch, options) => {
+          // ★ 忙碌期间**不接受**对草稿的修改（issue #6）。
+          //
+          // 为什么必须在这里拦：保存成功后（下面 `save()` 里）会用服务器归一化的结果
+          // `value: normalized` **无条件**覆盖草稿。于是往返期间敲进去的字、翻过的行开关都会
+          // 凭空消失，而页面还显示 "Saved" —— 用户丢的是手写的系统提示词。
+          //
+          // 拦在这一层而不是逐个控件加 `disabled`，是因为它一处覆盖**所有**草稿字段
+          // （name / description / prompt / overrides），漏掉任何一个都会重新打开那条丢失路径。
+          // 视觉上控件仍可点，但点了不会改状态，所以不会出现"开关翻过去又弹回来"这种骗人的反馈。
+          //
+          // `{ force: true }` 是给**内部**调用用的（例如「按本线修复」把结果折进草稿）：
+          // 那不是用户输入，不受这条守护约束。
+          if (busy === true && options?.force !== true) return
           setEntries((previous) => {
             const current = previous[selected]
             if (current === undefined) return previous
@@ -1215,7 +1243,7 @@ try {
             await open(id)
           } catch (error) {
             setFailed(true)
-            setStatus(t("msg.readFailed") + "：" + describeError(error))
+            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.readFailed"), detail: describeError(error) }))
           } finally {
             setBusy(false)
           }
@@ -1247,7 +1275,7 @@ try {
             }
           } catch (error) {
             setFailed(true)
-            setStatus(t("msg.createFailed") + "：" + describeError(error))
+            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.createFailed"), detail: describeError(error) }))
           } finally {
             setBusy(false)
           }
@@ -1275,7 +1303,7 @@ try {
             }
           } catch (error) {
             setFailed(true)
-            setStatus(t("msg.reorderFailed") + "：" + describe(error))
+            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.reorderFailed"), detail: describe(error) }))
           } finally {
             setBusy(false)
           }
@@ -1308,7 +1336,7 @@ try {
             }
             update({ prompt: payload.text })
           } catch (error) {
-            setStatus(t("msg.loadFailed") + "：" + describeError(error))
+            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.loadFailed"), detail: describeError(error) }))
           }
         }
 
@@ -1327,7 +1355,7 @@ try {
             setStatus(t("msg.exported"))
           } catch (error) {
             setFailed(true)
-            setStatus(t("msg.exportFailed") + "：" + describe(error))
+            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.exportFailed"), detail: describe(error) }))
           }
         }
 
@@ -1389,7 +1417,7 @@ try {
             }
           } catch (error) {
             setFailed(true)
-            setStatus(t("msg.deleteFailed") + "：" + describeError(error))
+            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.deleteFailed"), detail: describeError(error) }))
           } finally {
             setBusy(false)
           }
@@ -1452,7 +1480,7 @@ try {
             }
           } catch (error) {
             setFailed(true)
-            setStatus(t("msg.saveFailed") + "：" + describeError(error))
+            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.saveFailed"), detail: describeError(error) }))
           } finally {
             setBusy(false)
           }
@@ -1757,6 +1785,11 @@ try {
                   className: "cpfe-editor",
                   value: draft.prompt,
                   spellCheck: false,
+                  // 忙碌期间只读（issue #6）：`update()` 那一层已经会丢弃改动，这里再给一个
+                  // **看得见**的信号 —— 否则用户会以为自己在编辑，而字根本没进去。
+                  // 用 readOnly 而不是 disabled：仍然可以选中/复制，只是改不了。
+                  readOnly: busy === true,
+                  "aria-busy": busy === true,
                   "aria-label": t("prompt.heading"),
                   onChange: (event) => update({ prompt: event.target.value }),
                 }),
@@ -1878,7 +1911,7 @@ try {
             ? react.createElement(A.RiskConfirmation, {
                 open: deleteOpen,
                 title: t("delete.title"),
-                description: t("delete.description") + "（" + draft.id + "）",
+                description: fillPlaceholders(t("delete.description"), { id: draft.id }),
                 acknowledgeLabel: t("delete.acknowledge"),
                 cancelLabel: t("btn.cancel"),
                 closeLabel: t("delete.close"),

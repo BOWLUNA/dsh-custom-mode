@@ -593,8 +593,15 @@ export function disableRowsInPlace(text, ids) {
   if (wanted.length === 0) return text
   // `applyLevel` 把 Map 的值直接交给 `setDisabled(...)`，所以值是**关闭**布尔（true = 关闭）。
   const off = new Map(wanted.map((id) => [id, true]))
-  const top = applyLevel(text, true, off, false, false)
-  return applyLevel(top, false, off, false, false)
+  // **只跑顶级这一遍。** 它已经通过 applyLevel 的 `isGroup` 分支递归进每个分组，
+  // 所以原先跟在后面的那次扁平扫描（`applyLevel(top, false, …)`）纯属重复 —— 而且有害：
+  // 它以「下一个 4 空格 `- id:`」界定片段，于是**分组的最后一个子行会吞掉后续的顶层内容**
+  // （包括下一个分组的 `name:` 头），`ownKeyIndent` 随即算出缩进 2，把 `disabled` 写进了
+  // **下一个分组**。实测（2026-09-21，4 个模式 × 每个行 id 全扫）：连带损害 7 例
+  // （关 plan-mode 会连带关掉整个 compaction 分组；关 tool-result-pruner 会连带关掉整个
+  // delegation 分组）、行数 Δ=+2 的结构异常 6 例、以及若干"目标行根本没被改到"的空操作。
+  // 删掉这一遍之后：连带 0 例、结构异常 0 例，正确生效 81 → 87。
+  return applyLevel(text, true, off, false, false)
 }
 
 export function unresolvableRows(text) {
@@ -613,15 +620,25 @@ export function unresolvableRows(text) {
     const row = /^( {0,4})- id: (.+?)\s*$/.exec(lines[index])
     if (row === null) continue
     const indent = row[1].length
+    // 这一行**自己的键**所在的列（`- id:` 再进两格）。只有这一列上的 `name:` / `disabled:`
+    // 才属于它 —— 否则会读到子树里的键。
+    const keyIndent = indent + 2
     let name
     let disabled = false
     for (let next = index + 1; next < lines.length; next += 1) {
       const line = lines[next]
-      if (line.trim() !== '' && line.search(/\S/) <= indent) break
-      if (/^\s+name: ['"]?(.+?)['"]?\s*$/.test(line)) name = /^\s+name: ['"]?(.+?)['"]?\s*$/.exec(line)[1]
+      if (line.trim() === '') continue
+      const column = line.search(/\S/)
+      if (column <= indent) break
+      // **跳过比自己深的行**（子行的键、子行的键的子行……）。
+      // 原先这里没有这一层过滤，于是顶层分组会一路走完整个子树，`name` 被**最后一个子行**覆盖：
+      // 一个健康的分组因此被报成"解析不了"（外部实测：`grp` 被报成坏行，name 取自 child-last），
+      // 后果是页面点名它、启动日志喊它、而"按本线修复"会**关掉整个分组**。
+      if (column !== keyIndent) continue
+      if (/^name: ['"]?(.+?)['"]?\s*$/.test(line.slice(keyIndent))) name = /^name: ['"]?(.+?)['"]?\s*$/.exec(line.slice(keyIndent))[1]
       // 平台条件行（`disabled: !!js …`）必须**求值**判定：只看有没有字面 `true` 会把"本平台已启用"的行
       // 误判成关闭，也会把"本平台本来就关闭"的行（如 Windows 专用的 pwsh）误报成"无法解析"。
-      const flag = /^\s+disabled:\s*(.+?)\s*$/.exec(line)
+      const flag = /^disabled:\s*(.+?)\s*$/.exec(line.slice(keyIndent))
       if (flag !== null) {
         // 字面量直接读，`!!js` 一类交给求值器（它对字面量不做布尔化）。
         const raw = flag[1].replace(/^['"]|['"]$/g, '')

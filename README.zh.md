@@ -34,7 +34,7 @@ DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用�
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.7   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.8   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -235,7 +235,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.7
+dsh plugin --profile web add dsh-custom-mode@1.9.8
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

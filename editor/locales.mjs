@@ -129,7 +129,7 @@ export const zh = {
   'msg.exported': '已导出为文件。',
   'msg.exportFailed': '导出失败',
   'delete.title': '永久删除这个助手？',
-  'delete.description': '这会删除磁盘上的模式目录，连同它的系统提示词一起消失，无法撤销。正在使用它的会话不受影响；新建会话时它不再出现在选择器里。',
+  'delete.description': '这会删除磁盘上的模式目录，连同它的系统提示词一起消失，无法撤销。正在使用它的会话不受影响；新建会话时它不再出现在选择器里。（{id}）',
   'delete.acknowledge': '我明白这个助手的提示词会被永久删除',
   'delete.confirm': '永久删除',
   'delete.close': '关闭',
@@ -168,6 +168,9 @@ export const zh = {
   'msg.readFailed': '读取失败',
   'msg.saveFailed': '保存失败',
   'msg.saved': '已保存。新建会话即生效，当前会话保持原配置。',
+  // 把「一句已翻译的话 + 一个底层细节」拼起来时，中间那个标点也必须**按语言**走 ——
+  // 硬编码全角冒号会让英文界面在出错那一刻出现中文标点（issue #7）。
+  'status.detail': '{message}：{detail}',
 
   // ── row labels ────────────────────────────────────────────────────────────
   'row.persona.label': '身份（系统提示词）',
@@ -352,7 +355,7 @@ export const en = {
   'msg.exported': 'Exported to a file.',
   'msg.exportFailed': 'Export failed',
   'delete.title': 'Delete this assistant permanently?',
-  'delete.description': 'This removes the mode directory from disk, system prompt included, and cannot be undone. Sessions already using it keep running; new sessions no longer offer it.',
+  'delete.description': 'This removes the mode directory from disk, system prompt included, and cannot be undone. Sessions already using it keep running; new sessions no longer offer it. ({id})',
   'delete.acknowledge': 'I understand this assistant\'s prompt will be deleted permanently',
   'delete.confirm': 'Delete permanently',
   'delete.close': 'Close',
@@ -394,6 +397,7 @@ export const en = {
   'msg.readFailed': 'Load failed',
   'msg.saveFailed': 'Save failed',
   'msg.saved': 'Saved. A new session picks it up; the current one keeps its configuration.',
+  'status.detail': '{message}: {detail}',
 
   // ── row labels ────────────────────────────────────────────────────────────
   'row.persona.label': 'Identity (system prompt)',

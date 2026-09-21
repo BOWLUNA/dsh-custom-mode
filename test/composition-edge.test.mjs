@@ -240,6 +240,95 @@ console.log('=== 8. 往返：反推的开关再渲染，行集合一致 ===')
   )
 }
 
+// ── 「按本线修复」的两条不变量（issue #2 / #3）──────────────────────────────
+//
+// 背景：`disableRowsInPlace` 是「按本线修复」的落地实现 —— 它必须**只**关掉被点名的那几行。
+// 实测（对抗性审阅，2026-09-21）发现它会连带关掉无关的分组：嵌套层只用「下一个 4 空格 - id:」
+// 界定片段，于是**分组的最后一个子行吞掉了后续内容**（含顶层行的 name: 头），
+// `ownKeyIndent` 随即算出缩进 2，把 disabled 写进了**下一个分组**。
+// 现有用例恰好绕开了它（受害者取的是顶层行 / 往文件尾追加），所以这一节补齐：
+// **每个行 id 都试一遍**，且用"分组在中间、后面还跟着顶层行"的形状。
+{
+  const { disableRowsInPlace, unresolvableRows } = await import('../editor/composition.mjs')
+
+  // ★ 嵌套行必须是**正好 4 个空格**：`collectRows` 的 rowIdAt 只认 `^ {4}- id: `
+  //   （出厂文件就是这个形状，bug 也正出在这里）。用 2 空格的话子行会整个不可见，
+  //   下面的逐 id 扫描就白跑了 —— 第一版就踩了这个坑。
+  const SHAPE = [
+    '- id: head-row',
+    "  name: '@deepseek-ai/dsh-real-pkg'",
+    '',
+    '- id: grp',
+    '  name: cordis:group',
+    '  group: true',
+    '    - id: child-a',
+    "      name: '@deepseek-ai/dsh-real-pkg'",
+    '',
+    '    - id: child-last',
+    "      name: '@deepseek-ai/dsh-no-such-package'",
+    '',
+    '- id: tail-row',
+    "  name: '@deepseek-ai/dsh-real-pkg'",
+    '',
+    '',
+  ].join('\n')
+
+  /** 行集合（含被关状态），用于逐 id 比对 */
+  const state = (text) => {
+    const out = new Map()
+    const walk = (rows) => { for (const r of rows) { out.set(r.id, r.disabled); walk(r.children ?? []) } }
+    walk(collectRows(text))
+    return out
+  }
+
+  const ids = [...state(SHAPE).keys()]
+  check('合成形状里能看到全部 5 行（含两个嵌套子行）', ids.length === 5, JSON.stringify(ids))
+
+  for (const target of ids) {
+    const before = state(SHAPE)
+    const after = state(disableRowsInPlace(SHAPE, [target]))
+
+    const collaterals = [...after.entries()].filter(([id, off]) => id !== target && before.get(id) !== off).map(([id]) => id)
+    check(`关闭 ${target} 不牵连其它行`, collaterals.length === 0, `被牵连：${collaterals.join(', ')}`)
+    check(`关闭 ${target} 真的关掉了它`, after.get(target) === true, `实际 ${String(after.get(target))}`)
+
+    const beforeLines = SHAPE.split('\n').length
+    const afterLines = disableRowsInPlace(SHAPE, [target]).split('\n').length
+    check(`关闭 ${target} 行数增量 ≤ 1（不丢行也不多插）`, afterLines - beforeLines <= 1 && afterLines - beforeLines >= 0,
+      `Δ${String(afterLines - beforeLines)}`)
+    check(`关闭 ${target} 行集合不变`, after.size === before.size, `${String(before.size)} → ${String(after.size)}`)
+  }
+
+  // ── #3：`unresolvableRows` 报出的 (id, name) 必须真的是那一行自己的 ──────────
+  // 用受控的假安装布局：<dir>/node_modules/@deepseek-ai/dsh-agent-presets/presets/<mode>，
+  // 并让 dsh-real-pkg 存在、dsh-does-not-exist 不存在。
+  const prevShipped = process.env.DSH_SHIPPED_PRESETS_DIR
+  const fakeRoot = join(dir, 'fake-install')
+  const fakePresets = join(fakeRoot, 'node_modules/@deepseek-ai/dsh-agent-presets/presets')
+  mkdirSync(join(fakeRoot, 'node_modules/@deepseek-ai/dsh-real-pkg'), { recursive: true })
+  for (const mode of ['standard', 'ptc', 'minimal', 'cordis']) {
+    mkdirSync(join(fakePresets, mode), { recursive: true })
+    writeFileSync(join(fakePresets, mode, 'agent.cordis.yml'), SHAPE, 'utf8')
+  }
+  process.env.DSH_SHIPPED_PRESETS_DIR = fakePresets
+  {
+    const found = unresolvableRows(SHAPE)
+    check('只报真正缺失的那一行', found.map((r) => r.id).join(',') === 'child-last',
+      `实际：[${found.map((r) => r.id).join(', ')}]（分组 grp 被误报 = 它从最后一个子行读了 name）`)
+    check('报出的名字属于它自己那一行', found.length === 1 && found[0].name === '@deepseek-ai/dsh-no-such-package',
+      JSON.stringify(found))
+
+    // 修复必须真的把问题解决干净 —— 这正是"按本线修复"对用户的承诺。
+    // （它也是本轮修复的端到端断言：把报出来的行关掉之后，本线上不该再有任何解析不了的行。）
+    const repaired = disableRowsInPlace(SHAPE, found.map((r) => r.id))
+    const leftover = unresolvableRows(repaired)
+    check('按报出的行修复之后，不再有解析不了的行', leftover.length === 0, JSON.stringify(leftover))
+    check('修复只动了被报出的那一行', /- id: child-last[\s\S]{0,120}?disabled: true/.test(repaired) && !/- id: grp[\s\S]{0,40}?disabled: true/.test(repaired),
+      repaired)
+  }
+  process.env.DSH_SHIPPED_PRESETS_DIR = prevShipped
+}
+
 rmSync(dir, { recursive: true, force: true })
 
 console.log()

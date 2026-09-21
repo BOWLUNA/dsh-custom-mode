@@ -281,7 +281,19 @@ export function readState(rows, id, options = {}) {
   const meta = readPresetMeta(directory)
   // 页面要打开时顺便对账：磁盘上的文本若与日志末条不同，说明它在设置页之外被改过
   // （会话内的 custom_prompt 工具、手工编辑、别处同步）—— 补记一条 external，于是"被改过"看得见。
-  if (prompt.ok === true) recordExternalChange(directory, prompt.text)
+  //
+  // **必须包起来**：这是一次"写透"（recordPrompt → writeAtomic），而日志路径本身可能是坏的
+  // （被换成目录、被 chmod 000、一次 sudo 跑 dsh 留下的 root 属主）。1.9.7 给 readEntries 加的
+  // 守卫只覆盖了**读**那一半，于是同一个损坏场景会在这里重新把整个 GET state 打成 500 ——
+  // 页面打不开这个助手，用户既看不到也改不了自己的提示词（外部实测：EISDIR on rename）。
+  // 留痕失败降级为"这一版没记上"，与 saveState 里已经做过的处置一致。
+  if (prompt.ok === true) {
+    try {
+      recordExternalChange(directory, prompt.text)
+    } catch {
+      /* 审计留痕失败不影响读取 */
+    }
+  }
   return {
     ok: true,
     id,
@@ -507,7 +519,14 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     // 显示名（`rows` 里的 name）优先于内部 id —— 与删除一致。
     const fromRow = rows.find((item) => item !== null && typeof item === 'object' && item.id === from)
     if (typeof fromRow?.name === 'string' && fromRow.name.trim() !== '') fromDisplayName = fromRow.name
-    const text = readFileSync(fromComposition, 'utf8')
+    // 与 readState 同一条纪律：**坏的源文件要给类型化错误，不能把异常抛到路由层**
+    // （抛上去就变成 500 internalError，页面只能显示 Node 的原始错误串）。
+    let text
+    try {
+      text = readFileSync(fromComposition, 'utf8')
+    } catch (error) {
+      return { ok: false, code: 'compositionMissing', params: { path: fromComposition, detail: describe(error) }, error: '读不到源助手的组成文件：' + describe(error) }
+    }
     const sourceMode = modeOf(text)
     const sourcePrompt = readPrompt(fromDir)
     source = {
@@ -600,7 +619,10 @@ export function repairComposition(rows, input) {
     ok: true,
     id,
     code: 'repaired',
-    params: { count: bad.length, ids },
+    // `ids` 是给人看的一串；`repairedIds` 是给**页面**用的数组 —— 页面必须把这几行写进它自己的
+    // 草稿，否则下一次保存会按草稿重渲染，把刚才的修复原样撤销（issue #8 实测：
+    // 修复写进了磁盘，但草稿里那几行仍是启用的，于是保存后 ghost 行又回来了）。
+    params: { count: bad.length, ids, repairedIds: bad.map((row) => row.id) },
     note: '已按本机这条 dsh 线关闭 ' + String(bad.length) + ' 个无法解析的行（' + ids + '）。现在这个模式能重新出现在选择器里。',
   }
 }
