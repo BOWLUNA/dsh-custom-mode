@@ -45,6 +45,26 @@ re-threw). Fixed — all **57 assertions pass**; until now the "UI changes must 
 
 Tests: 698 → **725** checks.
 
+#### Correction (post-release browser re-verification, 2026-09-21)
+
+Items 4 and 5 above (`#6` / `#8`) **did not pass re-verification against the published package**:
+
+- **`#6` edits lost during a save round trip — not fixed.** The state-level guard (busy `update()`
+  rejects draft changes) works, but **not every control became read-only**: the editor got
+  `readOnly`, while the description box and the row switches stayed editable. Measured
+  (`lab/probe-ui-issue6.mjs`, network latency forced to 4000 ms): 0 of 39 controls disabled inside the
+  busy window, and text typed mid-round-trip still disappears. **Next**: gate every draft-mutating
+  control (description, name, row switches) on `busy`, and make the probe's selectors
+  language-independent (they currently assume the English UI).
+- **`#8` "fix for this line" undone by the next save — not fixed.** `repairedIds` now reaches the page
+  and is folded into the draft, yet the measured behaviour is unchanged: the disk is repaired and one
+  save re-enables the row. **Root cause not established**; the next step is to trace the actual
+  `overrides` value across `reload()` in the page.
+
+The other three (`#2` / `#3` / `#7`) **do pass**: `#2` and `#3` are held by the per-row-id sweep in
+`test/composition-edge.test.mjs`, and `#7` was confirmed in the real browser (the English delete
+confirmation no longer shows full-width parentheses).
+
 ## [1.9.7]
 
 ### The approval gate could be walked around — and ten other defects confirmed by review
