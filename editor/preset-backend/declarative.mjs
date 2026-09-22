@@ -1,0 +1,180 @@
+/**
+ * declarative 后端：dsh ≥ 0.1.7 的「声明式注册表」。
+ *
+ * ## 与 legacy 后端的差别，一句话
+ *
+ * 旧线上，插件只是**把文件写到磁盘**（`$DSH_HOME/.agent-presets/<id>/`），平台自己去扫、去挂；
+ * 新线上没有目录扫描，插件必须**自己把 preset 注册进注册表**，并持有返回的 disposer。
+ *
+ * ## 三条由实测定下来的硬约束（0.1.7-alpha.2）
+ *
+ *  1. **相对模块说明符不工作。** 本插件的 composition 里有 `name: './prompt-reader.mjs'` 这类
+ *     相对路径；旧线上它相对 preset 目录解析，而 `register()` 在 profile 的 baseUrl 下挂载。
+ *     实测：相对路径 → `broken: … never started`；绝对 `file://` URL → 正常 mount。
+ *     ⇒ `toPluginRows()` 必须把相对说明符改写成绝对 URL。
+ *  2. **`register()` 的返回值是 disposer**，注销唯一手段；服务上没有 `remove()`。
+ *  3. **同一个 id 重复注册会抛 `Duplicate agent preset`**
+ *     ⇒ 重新挂载前必须先 dispose 旧的。
+ *
+ * ## 不写任何文件
+ *
+ * 新线不需要把 preset「落到磁盘」才生效，所以这里只读 composition、只动内存注册表。
+ * `agent.cordis.yml` 仍然写盘 —— 它是用户可见、可迁移、可手改的真相，也是旧线唯一的输入。
+ */
+
+import { existsSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { parseComposition } from './parse-composition.mjs'
+
+export const BACKEND_ID = 'declarative'
+
+/** Evaluate a `!!js` predicate. Only ever applied to text this feature itself wrote. */
+function resolveDisabled(value) {
+  if (value !== null && typeof value === 'object' && typeof value.__js === 'string') {
+    try {
+      // eslint-disable-next-line no-new-func
+      return Boolean(new Function(`"use strict"; return (${value.__js});`)())
+    } catch {
+      // 表达式求值不了时按"关掉"处理：宁可少一行能力，也不要让整条 preset 挂载失败。
+      return true
+    }
+  }
+  return value === true
+}
+
+/** A `./x.mjs` specifier becomes an absolute file:// URL; package specifiers pass through. */
+export function absoluteSpecifier(specifier, presetDir) {
+  if (typeof specifier !== 'string' || !specifier.startsWith('.')) return specifier
+  return pathToFileURL(join(presetDir, specifier)).href
+}
+
+/**
+ * Turn parsed composition rows into the row objects `register()` takes.
+ *
+ * Group rows keep their `isolate` realm and their children: the composition's own comments require a
+ * service row to sit inside such a group, or it publishes into the root realm and collides.
+ *
+ * @param {Array<object>} rows - rows from {@link parseComposition}.
+ * @param {string} presetDir - the assistant's directory, the base for relative specifiers.
+ * @returns {Array<object>} plugin rows.
+ */
+export function toPluginRows(rows, presetDir) {
+  if (!Array.isArray(rows)) return []
+  const out = []
+  for (const row of rows) {
+    if (row === null || typeof row !== 'object' || typeof row.id !== 'string') continue
+    const plugin = { id: row.id }
+    if (typeof row.name === 'string') plugin.name = absoluteSpecifier(row.name, presetDir)
+    if (row.group === true) {
+      plugin.group = true
+      if (row.isolate !== undefined && row.isolate !== null) plugin.isolate = row.isolate
+      plugin.config = toPluginRows(row.config, presetDir)
+    } else if (row.config !== undefined && row.config !== null) {
+      plugin.config = row.config
+    }
+    if (row.disabled !== undefined) plugin.disabled = resolveDisabled(row.disabled)
+    out.push(plugin)
+  }
+  return out
+}
+
+/**
+ * @param {{
+ *   scope: object,
+ *   log?: (m: string) => void,
+ *   warn?: (m: string) => void,
+ * }} deps
+ */
+export function createDeclarativeBackend({ scope, log = console.log, warn = console.error }) {
+  /** presetId → { dispose, dir } —— 当前挂在注册表里的东西，注销的唯一凭据。 */
+  const mounted = new Map()
+
+  async function unmount(id) {
+    const entry = mounted.get(id)
+    if (entry === undefined) return
+    mounted.delete(id)
+    try {
+      await entry.dispose()
+    } catch (error) {
+      warn(`custom-mode: 注销 preset "${id}" 时出错（已忽略）: ${describe(error)}`)
+    }
+  }
+
+  /** Build the definition for one assistant directory, or null when it has no composition. */
+  function buildDefinition(assistant) {
+    const file = join(assistant.dir, 'agent.cordis.yml')
+    if (!existsSync(file)) return null
+    const rows = parseComposition(readFileSync(file, 'utf8'))
+    const plugins = toPluginRows(rows, assistant.dir)
+    if (plugins.length === 0) return null
+    const definition = { id: assistant.id, plugins }
+    if (assistant.name !== undefined && assistant.name !== '') definition.name = assistant.name
+    if (assistant.description !== undefined && assistant.description !== '') definition.description = assistant.description
+    if (Number.isFinite(assistant.order)) definition.order = assistant.order
+    return definition
+  }
+
+  /**
+   * (Re)mount one assistant. Idempotent: an already-mounted id is disposed first, because the
+   * registry refuses a duplicate id outright.
+   */
+  async function mountOne(assistant) {
+    let definition
+    try {
+      definition = buildDefinition(assistant)
+    } catch (error) {
+      // 解析失败是**用户可见**的问题（手改坏了 composition），要显式说，不能静默跳过。
+      warn(`custom-mode: 预设 "${assistant.id}" 的 composition 解析失败 —— ${describe(error)}。该助手不会出现在选择器里。`)
+      await unmount(assistant.id)
+      return { ok: false, error: describe(error) }
+    }
+    if (definition === null) {
+      await unmount(assistant.id)
+      return { ok: false, error: 'no composition' }
+    }
+    await unmount(assistant.id)
+    try {
+      const dispose = await scope.agentPresets.register(definition)
+      mounted.set(assistant.id, { dispose, dir: assistant.dir })
+      return { ok: true }
+    } catch (error) {
+      // register 会抛（Duplicate / id 空 / 已存在）：说清是哪个助手、哪条错误。
+      warn(`custom-mode: 注册预设 "${assistant.id}" 失败 —— ${describe(error)}`)
+      return { ok: false, error: describe(error) }
+    }
+  }
+
+  /** Bring the registry in line with the given assistant list: mount all, drop the rest. */
+  async function sync(assistants) {
+    const results = []
+    for (const assistant of assistants) results.push({ id: assistant.id, ...(await mountOne(assistant)) })
+    const wanted = new Set(assistants.map((a) => a.id))
+    for (const id of [...mounted.keys()]) {
+      if (!wanted.has(id)) {
+        await unmount(id)
+        results.push({ id, ok: true, unmounted: true })
+      }
+    }
+    return results
+  }
+
+  async function disposeAll() {
+    for (const id of [...mounted.keys()]) await unmount(id)
+  }
+
+  return {
+    id: BACKEND_ID,
+    /** 新线不把 preset 落到磁盘，注册表就是唯一真相。 */
+    writesPresetFiles: false,
+    sync,
+    mountOne,
+    unmount,
+    disposeAll,
+    mountedIds: () => [...mounted.keys()],
+  }
+}
+
+function describe(error) {
+  return String((error && error.message) || error)
+}

@@ -47,7 +47,7 @@ The mode is **web-profile only**: `agent-presets`, the service that mounts prese
 
 ## Requirements
 
-- **dsh `>=0.1.5-rc.2 <0.2.0-0`**（latest stable `0.1.5-rc.2` and latest preview `0.1.6-alpha.2`）** — declared in `engines.dsh` and as an *optional* peer range. This package never
+- **dsh `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0`**（latest stable `0.1.5-rc.2` and the preview line `0.1.6-alpha.2` / `0.1.7-alpha.*`）** — declared in `engines.dsh` and as an *optional* peer range. This package never
   imports `@deepseek-ai/dsh`; it only reads the host services dsh injects.
 - **No build step, no dependencies**: the source is published as-is and uses only Node's standard library.
 - The package version is its own line (`1.0.0`, `1.0.1`, …). Which dsh it supports is declared in

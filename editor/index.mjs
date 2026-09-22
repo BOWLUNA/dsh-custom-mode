@@ -38,6 +38,14 @@
  */
 
 import { writeAtomic, writeAtomicPair } from './atomic.mjs'
+import {
+  BACKEND_DECLARATIVE,
+  BACKEND_UNUSABLE,
+  createDeclarativeBackend,
+  describeBackend,
+  detectPresetBackend,
+  effectiveRosterRows,
+} from './preset-backend/index.mjs'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
@@ -48,6 +56,7 @@ import {
   modeOf,
   overridesOf,
   readBaseComposition,
+  setKnownModuleNames,
   renderComposition,
   setShippedPresetsDir,
   unresolvableRows,
@@ -692,6 +701,11 @@ const API_PREFIX = '/api'
 const WEB_SERVICES = ['connection', 'agentPresets']
 
 export function apply(ctx) {
+  // 助手目录的根（`$DSH_HOME/.agent-presets`）。
+  // 两条线共用它：旧线由平台扫描这个目录，新线不再扫描但**插件仍然把 composition 写在这里**
+  // —— 它是用户可见、可迁移、可手改的真相，也是旧线唯一的输入。
+  const assistantRoot = dirname(PRESET_DIR)
+
   // Before anything else: make sure the preset tree on disk is complete.
   //
   // A storefront install is a single command (`dsh plugin --profile web add
@@ -706,7 +720,7 @@ export function apply(ctx) {
   // the assistant registry for why a deleted assistant must not come back.
   try {
     seedOnActivation({
-      root: dirname(PRESET_DIR),
+      root: assistantRoot,
       templateDir: packagedPresetDir(),
       // 组成文件**不照搬包内模板**，而是按本机装的那条 dsh 线派生：模板是某一条线渲染出来的，
       // 另一条线可能根本没有它的某些行（实测：预览线的 workflow-ptc 在稳定线上不存在，
@@ -717,24 +731,50 @@ export function apply(ctx) {
     console.error('custom-mode: 初始化 preset 目录时出现意外错误（已忽略）: ' + describe(error))
   }
 
-  ctx.inject(WEB_SERVICES, (scope) => {
+  try {
+    ctx.inject(WEB_SERVICES, (scope) => {
     // Compatibility guard: this plugin reads host APIs that a future DSH release could
     // reshape. Check them once and say so plainly, instead of letting every request
     // fail with an opaque 500.
     // 数据表形式：以后新增一处耦合点，只要在这里加一行 —— README 的耦合点清单与本表同源，
     // 让"上游改了 API 形状"在启动日志里就能看见，而不是等用户报"设置页白屏"。
-    const REQUIRED_APIS = [
+    //
+    // ★ 分两级，而不是一张"缺一即死"的表。理由是一次实测：`agentPresets.remove()` 在
+    //   dsh 0.1.7 上**不存在**（preset 定义改在内存里，删除要走 register() 返回的 disposer），
+    //   而本插件早已为它写了 noRemoveApi 降级文案 —— 把它列进必需项，会让**整个设置页**
+    //   在 0.1.7 上被自己关掉（实测 stderr：'设置页将不可用'）。
+    //   能力缺失该逐个降级，不该一票否决整页。
+    const CORE_APIS = [
       ['agentPresets.list()', () => typeof scope.agentPresets?.list === 'function'],
-      ['agentPresets.remove()', () => typeof scope.agentPresets?.remove === 'function'],
       ['connection.fetch.register()', () => typeof scope.connection?.fetch?.register === 'function'],
     ]
-    const missing = REQUIRED_APIS.filter(([, probe]) => !probe()).map(([name]) => name)
-    if (missing.length > 0) {
+    const OPTIONAL_APIS = [
+      // 旧线的文件系统语义；新线由 preset-backend 的 declarative 后端用 disposer 补上。
+      ['agentPresets.remove()', () => typeof scope.agentPresets?.remove === 'function'],
+      ['agentPresets.copy()', () => typeof scope.agentPresets?.copy === 'function'],
+    ]
+    const missingCore = CORE_APIS.filter(([, probe]) => !probe()).map(([name]) => name)
+    if (missingCore.length > 0) {
       console.error(
-        'custom-mode: 当前 DSH 版本缺少所需 API：' +
-          missing.join('、') +
+        'custom-mode: 当前 DSH 版本缺少必需 API：' +
+          missingCore.join('、') +
           '。设置页将不可用，请核对 DSH 版本或提 issue。',
       )
+      return
+    }
+    const absentOptional = OPTIONAL_APIS.filter(([, probe]) => !probe()).map(([name]) => name)
+
+    // 判据是**能力**不是版本号：0.1.7 仍是 alpha，按版本号写的分支会在下一次发布时静默失配。
+    const backendVerdict = detectPresetBackend(scope)
+    console.log(
+      'custom-mode: ' +
+        describeBackend(backendVerdict) +
+        (absentOptional.length > 0 ? ' · 可选能力缺失: ' + absentOptional.join('、') : ''),
+    )
+    if (backendVerdict.id === BACKEND_UNUSABLE) {
+      for (const reason of backendVerdict.reasons) console.error('custom-mode: ' + reason)
+      // 显式不可用，好过用错后端去写用户的 preset。
+      console.error('custom-mode: 设置页将不可用（本插件不会写入任何 preset）。')
       return
     }
 
@@ -759,8 +799,17 @@ export function apply(ctx) {
       return shippedReady
     }
 
-    /** The roster, or an empty list — discovery itself reports broken rows rather than throwing. */
-    const roster = async () => {
+    /**
+     * 声明式注册表（dsh ≥ 0.1.7）下 preset 必须由插件自己注册；旧线只需把文件写到磁盘、平台自己去扫。
+     * 这里是后端的唯一实例（旧线为 null，所有相关分支都是空操作）。
+     */
+    const declarative =
+      backendVerdict.id === BACKEND_DECLARATIVE
+        ? createDeclarativeBackend({ scope, log: console.log, warn: console.error })
+        : null
+
+    /** 原始 roster：只读、无副作用。同步逻辑走它，避免与 {@link roster} 互相递归。 */
+    const rawRoster = async () => {
       const rows = await scope.agentPresets.list()
       if (!Array.isArray(rows)) {
         // 形状变了：静默返回空列表会让页面显示"一个助手都没有"，比报错更难查（曾经就因为
@@ -771,8 +820,113 @@ export function apply(ctx) {
         }
         return []
       }
-      return rows
+      // 新线的 list() 只有显示元数据（没有 trust / path），而 roster 的消费者（assistants.mjs、
+      // 整个路由层）都建立在这两个字段上。在这里从磁盘补出来，下游就不必做线判断。
+      return effectiveRosterRows(rows, { root: assistantRoot, backendId: backendVerdict.id })
     }
+
+    /**
+     * 把磁盘上的助手同步进注册表 —— **仅新线**（旧线上 `declarative` 为 null，整体是空操作）。
+     *
+     * 新线没有目录扫描，注册与注销都由本插件负责：不跑这一步，用户在设置页里新建/改名/删除的
+     * 助手就不会出现在选择器里。所以每次**写操作之后**都要重来一遍。
+     */
+    const doSync = async () => {
+      // 先把"本机有哪些模块"喂给 composition 层。
+      //
+      // 它原本靠文件系统探测出厂目录（`shippedPresetsDir()` 往上推三层找 node_modules），
+      // 而 **0.1.7 没有那个目录**：探测抛错、catch 返回 []、于是"本行能否在本机运行"的检查
+      // **静默失效**（不报错，也不报警）。新线上有更好的来源 ——注册表自己就知道每个已注册
+      // preset 的每一行的 moduleName。
+      // 放在这里而不是外面：`ctx.inject` 的回调不是 async（写成 await 会让模块直接语法错误）。
+      if (declarative !== null) {
+        try {
+          const inventory = await scope.agentPresets.compositionInventory()
+          const rows = (Array.isArray(inventory) ? inventory : []).flatMap((preset) => preset?.rows ?? [])
+          const names = rows.map((row) => row.moduleName).filter((name) => typeof name === 'string')
+          if (names.length > 0) {
+            setKnownModuleNames(names)
+            console.log(`custom-mode: 已注入 ${names.length} 个出厂行模块名（compositionInventory），供"本行能否在本机运行"的判定使用`)
+          }
+        } catch (error) {
+          // 注入不了就退回文件系统判定 —— 那是旧线的正常路径，不是错误状态。
+          console.error('custom-mode: 读取 compositionInventory 失败（回退文件系统判定）: ' + describe(error))
+        }
+      }
+      if (declarative === null) return
+      try {
+        const rows = await rawRoster()
+        const targets = []
+        for (const assistant of assistantsFromRoster(rows)) {
+          const dir = assistantDir(rows, assistant.id)
+          if (dir !== undefined) targets.push({ ...assistant, dir })
+        }
+        const results = await declarative.sync(targets)
+
+        // 核对每个助手的 composition：有没有"本机装不了的启用行"。
+        //
+        // 为什么必须由我们说出来：新线没有出厂 composition 可派生（`seedOnActivation` 只能回落到
+        // 包内模板），而模板可能来自**另一条** dsh 线。平台对含未知行的 preset 的处置是
+        // **静默把整个模式从所有选择器里丢掉**，设置页却照常工作 —— 用户只会看到"我的模式不见了"。
+        // 这一步把它变成一条指名道姓的日志。
+        for (const target of targets) {
+          try {
+            const text = readFileSync(join(target.dir, 'agent.cordis.yml'), 'utf8')
+            const bad = unresolvableRows(text)
+            if (bad.length > 0) {
+              console.error(
+                `custom-mode: 助手 "${target.id}" 有 ${bad.length} 行在本机装不了 —— ` +
+                  bad.map((b) => `${b.id}(${b.name})`).join('、') +
+                  '。含这种行的模式会被平台静默地从选择器里丢掉；可在设置页用"按本线修复"关掉它们。',
+              )
+            }
+          } catch (error) {
+            // 读不到就没法判 —— 不猜。
+            console.error(`custom-mode: 无法核对助手 "${target.id}" 的 composition: ${describe(error)}`)
+          }
+        }
+        const ok = results.filter((r) => r.ok === true)
+        const failed = results.filter((r) => r.ok === false)
+        // 成功也要说：新线上「设置页里能看到助手」完全取决于这一步，
+        // 而它此前是静默的 —— 出问题时没有任何一行日志能说明"到底同步了几个"。
+        console.log(
+          `custom-mode: 声明式注册表同步完成 —— 目标 ${targets.length} 个助手，成功 ${ok.length} 个` +
+            (failed.length > 0 ? `，失败 ${failed.length} 个` : '') +
+            `（${ok.map((r) => r.id).join(', ') || '无'}）`,
+        )
+        if (failed.length > 0) {
+          console.error(`custom-mode: ${failed.length} 个助手的 preset 未能挂载 —— 见上面的具体原因。`)
+        }
+      } catch (error) {
+        console.error('custom-mode: 同步 preset 到注册表失败（已忽略）: ' + describe(error))
+      }
+    }
+
+    /**
+     * 路由层用的 roster：首次调用会等**启动同步**完成，之后不再等。
+     *
+     * 为什么不是简单地 await 一次：`ctx.inject` 的回调不是 async（实测写成 `await` 会让模块
+     * 直接语法错误、插件加载失败），所以启动同步只能在这里补等；而它只该等一次 ——
+     * 写操作之后的重同步由 `resyncPresets` 负责，不该让每个请求都等一遍。
+     */
+    let startupSync = null
+    const roster = async () => {
+      if (startupSync !== null) {
+        const pending = startupSync
+        startupSync = null
+        await pending
+      }
+      return rawRoster()
+    }
+
+    /** 写操作之后调用：重新对齐注册表。失败已在内部记录，不抛出。 */
+    const resyncPresets = async () => {
+      startupSync = null
+      await doSync()
+    }
+
+    // 启动即同步：新线不是"写盘即生效"，第一次进来必须先注册。
+    startupSync = doSync()
 
     /**
      * One Fetch-shaped handler for the whole surface.
@@ -872,12 +1026,24 @@ export function apply(ctx) {
           path: API_PREFIX + pathname,
           methods: [...methods],
           requestBody: 'buffered',
-          fetch: (request) => handle(request, pathname),
+          fetch: async (request) => {
+            const response = await handle(request, pathname)
+            // 写成功之后，把注册表同步到磁盘的新状态。
+            // 旧线上 `declarative` 是 null，这里恒为空操作；新线上没有它，用户在设置页
+            // 新建/改名/删除的助手就不会出现在选择器里 —— 是本插件最容易被漏掉的一步。
+            if (declarative !== null && request.method !== 'GET' && response.ok) await resyncPresets()
+            return response
+          },
         }),
         'custom-mode.route' + pathname,
       )
     }
-  })
+    })
+  } catch (error) {
+    // ctx.inject 自身抛错（例如宿主改了它的签名）会让整段装配静默消失：没有路由、没有日志。
+    // 这一层是把它变成一条可读的错误。
+    console.error('custom-mode: ctx.inject 注册失败（这是个 bug，请提 issue）: ' + describe(error))
+  }
 }
 
 /**

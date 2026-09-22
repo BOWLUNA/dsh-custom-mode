@@ -78,18 +78,41 @@ function compare(a, b) {
 }
 
 /**
- * A range, as a conjunction of comparators separated by spaces: `>=0.1.6-alpha.1`,
- * `>=0.1.0 <0.2.0`, `1.2.3`. Anything else (`^`, `~`, `||`) is refused **loudly** rather than
- * silently answered wrong — extend this function if the declared range ever needs it.
+ * A range: one or more `||`-separated alternatives, each a conjunction of comparators
+ * separated by spaces (`>=0.1.6-alpha.1`, `>=0.1.0 <0.2.0`, `1.2.3`).
+ *
+ * Anything else (`^`, `~`, `x`-ranges) is refused **loudly** rather than silently answered
+ * wrong — extend this function if the declared range ever needs it.
+ *
+ * **The prerelease gate below is not optional.** The declared range is consumed by npm, pnpm and
+ * the marketplaces — i.e. by node-semver — not by this script. node-semver lets a prerelease
+ * version satisfy a comparator set only when some comparator in that set carries a prerelease
+ * **and** its `[major,minor,patch]` tuple equals the version's. Concretely
+ * `>=0.1.5-rc.2 <0.2.0-0` does **not** match `0.1.7-alpha.2`: the only prerelease-bearing
+ * comparators have tuples 0.1.5 and 0.2.0, while the version's is 0.1.7 — even though every
+ * comparator compares true in isolation. Without this rule the check is **looser than npm** and
+ * reports OK for a range npm refuses, which is exactly the failure this script exists to prevent.
+ * (The same defect was found in dsh-zcode-git's copy of this script and fixed there.)
  */
 function satisfies(version, range) {
+  const alternatives = String(range).split('||')
+  if (alternatives.some((a) => a.trim() === '')) throw new Error('范围里有空的 || 分支')
+  return alternatives.some((alternative) => satisfiesConjunction(version, alternative))
+}
+
+/** One `||` branch: every comparator must hold, and the prerelease gate must allow the version. */
+function satisfiesConjunction(version, range) {
   const parts = String(range).trim().split(/\s+/).filter((p) => p !== '')
   if (parts.length === 0) throw new Error('范围是空的')
+  const comparators = []
   for (const part of parts) {
     const match = /^(>=|<=|>|<|=)?(.+)$/.exec(part)
     const operator = match[1] ?? '='
     const bound = parseVersion(match[2])
     if (bound === null) throw new Error(`不支持的比较符或版本：${part}`)
+    comparators.push({ operator, bound })
+  }
+  for (const { operator, bound } of comparators) {
     const order = compare(version, bound)
     const ok = operator === '>=' ? order >= 0
       : operator === '<=' ? order <= 0
@@ -98,7 +121,38 @@ function satisfies(version, range) {
             : order === 0
     if (!ok) return false
   }
+  // node-semver 的预发布门：见函数头的说明。少了它，本脚本会比 npm 宽松。
+  if (version.prerelease.length > 0) {
+    const unlocked = comparators.some(
+      (c) => c.bound.prerelease.length > 0 && c.bound.tuple.join('.') === version.tuple.join('.'),
+    )
+    if (!unlocked) return false
+  }
   return true
+}
+
+// 自检：这四条就是本仓真正踩过的坑（见文件头与 README 的兼容范围一节）。
+// 它们变红说明 satisfies 又和 node-semver 脱节了 —— 那是"守卫开始说谎"的信号。
+for (const [label, expected, version, range] of [
+  ['旧范围不覆盖更新的 alpha（预发布门生效）', false, '0.1.7-alpha.2', '>=0.1.5-rc.2 <0.2.0-0'],
+  ['显式 || 分支覆盖它', true, '0.1.7-alpha.2', '>=0.1.5-rc.2 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0'],
+  ['元组一致时预发布放行', true, '0.1.6-alpha.2', '>=0.1.6-alpha.1 <0.2.0-0'],
+  ['正式版不受预发布门影响', true, '0.1.5', '>=0.1.5-rc.2 <0.2.0-0'],
+  ['下界之前的版本仍被拒', false, '0.1.4', '>=0.1.5-rc.2 <0.2.0-0'],
+]) {
+  let got
+  try {
+    got = satisfies(parseVersion(version), range)
+  } catch (error) {
+    got = `throw:${error.message}`
+  }
+  if (got !== expected) {
+    fail([
+      `范围自检失败：${label}`,
+      `  satisfies(${version}, ${JSON.stringify(range)}) = ${got}，期望 ${expected}`,
+      '  这四条对应 node-semver 的真实语义；改坏它们等于让本脚本比 npm 宽松。',
+    ])
+  }
 }
 
 const declared = []

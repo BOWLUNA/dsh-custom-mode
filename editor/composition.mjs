@@ -348,6 +348,74 @@ function evalDisabledExpression(expression) {
 }
 
 /** Build one row's UI description from its segment text. */
+/**
+ * A row's module specifier: the `name:` line.
+ *
+ * Needed by the declarative backend (dsh ≥ 0.1.7), which must hand `register()` a real row list
+ * rather than a composition file on disk. It is also where the **relative specifiers this feature
+ * emits** (`'./prompt-reader.mjs'`, `'./prompt-tool.mjs'`) surface: on the file-scanning line those
+ * resolve against the preset directory, but `register()` mounts under the *profile's* baseUrl, so the
+ * caller has to rewrite them to absolute `file://` URLs. Measured on 0.1.7-alpha.2: a relative
+ * specifier yields `broken: … never started`, an absolute one mounts.
+ *
+ * @param {string} segmentText - one row's text.
+ * @returns {string|null} the specifier with surrounding quotes stripped, or null when the row has none.
+ */
+export function moduleNameOf(segmentText) {
+  const match = /^\s*name:\s*(.+?)\s*$/m.exec(segmentText)
+  if (match === null) return null
+  return match[1].replace(/^['"]|['"]$/g, '')
+}
+
+/**
+ * A row's `config:` block, as a plain object.
+ *
+ * Deliberately a **small, strict YAML subset**, not a general parser: the only files this reads are
+ * the ones this feature writes (`renderComposition`), whose config blocks are flat scalars. Anything
+ * it cannot represent is skipped rather than guessed — a wrong value here would silently change what
+ * the model sees. Callers that need certainty should compare against {@link moduleNameOf}.
+ *
+ * @param {string} segmentText - one row's text.
+ * @returns {object|null} the config object, or null when the row has no `config:` block.
+ */
+export function configOf(segmentText) {
+  const lines = segmentText.split('\n')
+  const start = lines.findIndex((line) => /^\s*config:\s*$/.test(line))
+  if (start === -1) return null
+  const baseIndent = lines[start].search(/\S/)
+  const out = {}
+  let any = false
+  for (let i = start + 1; i < lines.length; i += 1) {
+    const line = lines[i]
+    if (line.trim() === '') continue
+    const indent = line.search(/\S/)
+    if (indent <= baseIndent) break
+    const match = /^\s*([A-Za-z_][\w-]*):\s*(.*?)\s*$/.exec(line)
+    if (match === null) continue
+    out[match[1]] = parseScalar(match[2])
+    any = true
+  }
+  return any ? out : null
+}
+
+/** Parse one YAML scalar into a JS value, staying conservative: unknown shapes stay strings. */
+function parseScalar(raw) {
+  const value = raw.trim()
+  if (value === '') return ''
+  if (value === 'true') return true
+  if (value === 'false') return false
+  if (value === 'null' || value === '~') return null
+  if (/^-?\d+$/.test(value)) return Number(value)
+  if (/^"(?:[^"\\]|\\.)*"$/.test(value) || /^'(?:[^']|'')*'$/.test(value)) {
+    try {
+      return JSON.parse(value[0] === '"' ? value : `"${value.slice(1, -1).replace(/'/g, "\\'")}"`)
+    } catch {
+      return value.slice(1, -1)
+    }
+  }
+  return value
+}
+
 function describeRow(id, segmentText, children) {
   const own = disabledOf(segmentText)
   const meta = ROW_META[id] ?? {}
@@ -361,6 +429,9 @@ function describeRow(id, segmentText, children) {
     group: children.length > 0,
     disabled: literalOff || fromExpression === true,
     disabledExpression: own.present && own.value.startsWith('!!js') ? own.value : null,
+    // 新线（声明式注册表）要把行交给 register()，需要模块说明符与 config —— 见 moduleNameOf。
+    moduleName: moduleNameOf(segmentText),
+    config: configOf(segmentText),
     label: meta.label ?? id,
     essential: meta.essential === true,
     note: meta.note ?? null,
@@ -604,16 +675,45 @@ export function disableRowsInPlace(text, ids) {
   return applyLevel(text, true, off, false, false)
 }
 
+/**
+ * Module names this installation actually has, injected by the host half.
+ *
+ * Why this exists: {@link unresolvableRows} decides "can this line run here?" by walking the install's
+ * `node_modules`. That works on the file-scanning dsh line, but **0.1.7 has no `dsh-agent-presets`
+ * package and therefore no directory for `shippedPresetsDir()` to find** — the lookup threw, the catch
+ * returned `[]`, and the check silently stopped checking anything. On that line the host half has a
+ * better source: `agentPresets.compositionInventory()` reports every row of every registered preset with
+ * its `moduleName`, which is exactly this set.
+ *
+ * When a set is injected it **replaces** the filesystem probe (it is strictly better information on the
+ * line that needs it). `null` means "not injected" — legacy behaviour.
+ */
+let knownModuleNames = null
+
+/** @param {Iterable<string>|null} names - module specifiers known to be installable here. */
+export function setKnownModuleNames(names) {
+  knownModuleNames = names === null || names === undefined ? null : new Set(names)
+}
+
+/** The injected set, or null when the filesystem probe is in charge. Exported for tests/diagnostics. */
+export function knownModuleNamesInjected() {
+  return knownModuleNames
+}
+
 export function unresolvableRows(text) {
   let root
-  try {
-    root = join(shippedPresetsDir(), '..', '..', '..')
-  } catch {
-    return []
+  let fromFilesystem = false
+  if (knownModuleNames === null) {
+    try {
+      root = join(shippedPresetsDir(), '..', '..', '..')
+      fromFilesystem = true
+    } catch {
+      return []
+    }
+    // **判断不了就不要报警**：如果这个根下根本没有 node_modules（例如测试用的是一个临时出厂目录），
+    // 那么"查不到某个包"只说明我们不知道，不说明那行坏了。误报的代价是用户被引导去关掉本来正常的行。
+    if (existsSync(join(root, '@deepseek-ai')) === false) return []
   }
-  // **判断不了就不要报警**：如果这个根下根本没有 node_modules（例如测试用的是一个临时出厂目录），
-  // 那么"查不到某个包"只说明我们不知道，不说明那行坏了。误报的代价是用户被引导去关掉本来正常的行。
-  if (existsSync(join(root, '@deepseek-ai')) === false) return []
   const out = []
   const lines = text.split('\n')
   for (let index = 0; index < lines.length; index += 1) {
@@ -649,7 +749,12 @@ export function unresolvableRows(text) {
     if (name.startsWith('.') || name.startsWith('cordis:')) continue
     const parts = name.split('/')
     const pkg = name.startsWith('@') ? parts.slice(0, 2).join('/') : parts[0]
-    if (existsSync(join(root, pkg)) === false) out.push({ id: row[2], name })
+    // 注入了集合就用集合（新线：来自 compositionInventory 的 moduleName）——
+    // 子路径说明符（`@scope/pkg/sub`）与它的包名都算命中，否则会把健康行误报成坏行。
+    const present = fromFilesystem
+      ? existsSync(join(root, pkg))
+      : knownModuleNames.has(name) || knownModuleNames.has(pkg)
+    if (present === false) out.push({ id: row[2], name })
   }
   return out
 }

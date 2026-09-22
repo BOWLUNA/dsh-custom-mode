@@ -79,7 +79,12 @@ export function starterComposition(options = {}) {
   } catch (error) {
     console.error(
       'custom-mode: 无法从本机安装的出厂组成派生播种文件（' + describe(error) + '），改用包内模板。' +
-        '如果这条 dsh 线与该模板的差异行不匹配，模式可能被判为 broken 而不出现在选择器里。',
+        // 0.1.7 起这条是**预期**的：那条线不再有 `@deepseek-ai/dsh-agent-presets` 包，
+        // 因而没有 presets/ 目录可派生 —— 出厂定义改成了 web-app bundle 里的声明行。
+        // 模板能不能用不靠猜：宿主半边随后会用 `compositionInventory()` 的模块名集合
+        // 逐行核对，装不了的行会指名报出来（见 index.mjs 的 doSync）。
+        '若该 dsh 线已改用声明式 preset（0.1.7+），这是预期回退：那条线没有 presets/ 目录。' +
+        '插件随后会核对模板的每一行能否在本机运行，装不了的行会被指名报出。',
     )
     return null
   }

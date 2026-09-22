@@ -8,6 +8,42 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.10]
+
+### Runs on both dsh lines: the file-scanning one **and** the declarative one (0.1.7+)
+
+0.1.7 replaced the agent-preset mechanism: the platform no longer scans `$DSH_HOME/.agent-presets/`,
+so a plugin has to register its presets itself. This release teaches the settings page both ways.
+
+- **New `editor/preset-backend/`.** The backend is chosen by **capability, not version number** —
+  0.1.7 is still an alpha and its interface has moved before; a version check would silently misfire on
+  the next release, while a capability probe follows it. When both mechanisms' fingerprints appear at
+  once the plugin refuses to guess and disables the page instead of writing with the wrong backend.
+- **The page no longer switches itself off on 0.1.7.** `REQUIRED_APIS` was a "one missing ⇒ dead" list
+  and `agentPresets.remove()` does not exist on 0.1.7 — so the very gate meant to report an upstream
+  change was killing the entire settings page. Capabilities are now split CORE / OPTIONAL and degrade
+  one at a time.
+- **Presets are registered at runtime on the new line** and unregistered through the disposer
+  `register()` returns. Relative module specifiers are rewritten to absolute `file://` URLs: measured
+  on 0.1.7-alpha.2, `'./prompt-reader.mjs'` yields `broken: … never started` whereas an absolute URL
+  mounts.
+- **"Can this line actually run this row?" is answered from the registry.** `unresolvableRows()` used
+  to walk the install's `node_modules`; on 0.1.7 that lookup threw and the check silently stopped
+  checking anything. The host half now feeds it the module names from
+  `agentPresets.compositionInventory()`, so a row written by another dsh line is named in the log
+  instead of leaving the user with a mode that quietly vanished from every picker.
+- **`ctx.inject` is wrapped**: a host that changes its signature made the whole assembly disappear —
+  no route, no log, no error. It is one readable line now.
+
+Measured on 0.1.7-alpha.2 (web profile, throwaway instance): `backend=declarative`; the `custom` preset
+registers and mounts (`list()` reports it `ok`); the "settings page will be unavailable" error is gone
+(stderr 552 → 419 bytes).
+
+The declared range now also covers `0.1.6-alpha.*` and `0.1.7-alpha.*`, and CI gained a third leg so the
+preview line, the previous preview line and the stable line are all installed and tested.
+
+Tests: 725 checks.
+
 ## [1.9.9]
 
 ### Completes the busy-state edit protection, and corrects two inaccurate claims in 1.9.8
