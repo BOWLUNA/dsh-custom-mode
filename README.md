@@ -40,7 +40,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.11   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.12   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -210,6 +210,9 @@ version CI installs and tests falls inside those ranges.
 **Both dsh lines are supported: the latest stable (`0.1.5-rc.3`) and the preview line (`0.1.6-alpha.2`,
 `0.1.7-alpha.*`, `0.1.7-rc.*`)** — declared as `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0`,
 and CI installs the stable and preview lines and runs the whole suite against each.
+**The official desktop app (DeepSeek Harness Desktop) is covered too**: it bundles `dsh 0.1.7-rc.2` on
+win32, which is exactly the combination the CI matrix pins, and the plugin was verified on Windows with
+a real boot (seeding, declarative registration, the platform-conditional rows all evaluated correctly).
 Measured on `0.1.5-rc.2`: install, composition tree, the `/api` fence, `state`/`history`/`warnings` and the
 57 browser checks all pass; `tools/pre-execute` (the approval seam) and `connection.fetch.register` (the
 fenced route channel) both exist there too.
@@ -306,7 +309,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.11
+dsh plugin --profile web add dsh-custom-mode@1.9.12
 # then restart the DSH process that serves the web profile
 ```
 

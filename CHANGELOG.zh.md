@@ -6,6 +6,28 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.9.12]
+
+### 官方桌面端也在覆盖范围内 —— 它跑的正是 CI 钉的那个版本
+
+**DeepSeek Harness Desktop**（官方 Electron 壳）自带一份 dsh runtime。2026-09-24 拆验：
+`runtime.json` 声明 **`desktopVersion: 0.1.7-rc.2`**（win32、node 24.21、pnpm 11.7），
+其 `@deepseek-ai/dsh-desktop-runtime` 依赖 `@deepseek-ai/dsh 0.1.7-rc.2` 且整个生态同步 lockstep。
+插件管理 UI 就是同一套 dsh 插件机制 —— 所以真正要回答的适配问题只有两个：**rc.2 上能不能跑**、
+**Windows 上能不能跑**。
+
+- **`0.1.7-rc.2` 实测**（全新一次性实例，从 npm 装）：与 rc.1 完全一致 ——
+  `backend=declarative`、注入 95 个模块名、`custom` 注册并挂载成功。没有代码要改。
+- **Windows 真启动实测**（win32、Windows 路径、平台条件行 `tool-bash`/`tool-pwsh` 真实求值）：
+  播种、声明式注册全部正确。这正是桌面端发行的组合。
+- **CI 主轴升到 `0.1.7-rc.2`**（注释里写明原因：桌面端 bundled 的就是它），
+  稳定腿保持 `0.1.5-rc.3`，`0.1.6-alpha.2` 作为机制切换前的最后一版保留。
+
+本版没有任何插件代码改动；它存在的意义是让声明与文档说出真实情况，并让市场展示一个
+覆盖桌面端的版本。
+
+测试：725 项检查。
+
 ## [1.9.11]
 
 ### 已在当前稳定版（`0.1.5-rc.3`）与正式候选（`0.1.7-rc.1`）上实测

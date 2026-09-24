@@ -8,6 +8,29 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.12]
+
+### The official desktop app is covered — and it runs exactly what CI pins
+
+**DeepSeek Harness Desktop** (the official Electron shell) bundles its own dsh runtime. Taken apart on
+2026-09-24: `runtime.json` declares **`desktopVersion: 0.1.7-rc.2`** on `win32`, node 24.21, pnpm 11.7 —
+and its `@deepseek-ai/dsh-desktop-runtime` package depends on `@deepseek-ai/dsh 0.1.7-rc.2` with the
+whole ecosystem in lockstep. The plugin-manager UI is the same dsh plugin mechanism, so the only real
+adaptation question was: does the plugin work on **rc.2** and on **Windows**?
+
+- **Measured on `0.1.7-rc.2`** (fresh throwaway instance, from npm): identical to rc.1 —
+  `backend=declarative`, 95 module names injected, `custom` registers and mounts. No code change.
+- **Measured on Windows with a real boot** (win32, Windows paths, the platform-conditional rows
+  `tool-bash`/`tool-pwsh` actually evaluated): seeding, declarative registration — all correct.
+  This is the exact combination the desktop app ships.
+- **CI's main axis moved to `0.1.7-rc.2`** with a comment explaining why (it is what the desktop
+  bundles), keeping the stable leg at `0.1.5-rc.3` and `0.1.6-alpha.2` as the pre-switch line.
+
+No plugin code changed in this release; it exists so the declared support and the docs say what is
+actually true, and so the market shows a version that covers the desktop app.
+
+Tests: 725 checks.
+
 ## [1.9.11]
 
 ### Verified against the current stable (`0.1.5-rc.3`) and the release candidate (`0.1.7-rc.1`)

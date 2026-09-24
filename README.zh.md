@@ -34,7 +34,7 @@ DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用�
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.11   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.12   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -143,6 +143,9 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 **同时支持两条 dsh 线：最新稳定版（`0.1.5-rc.3`）与预览线（`0.1.6-alpha.2`、`0.1.7-alpha.*`、`0.1.7-rc.*`）** —— 声明为
 `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0`，CI 会**两条线各装一次**
+并各跑一遍完整测试。**官方桌面端（DeepSeek Harness Desktop）也在覆盖范围内**：它 bundled 的就是
+`dsh 0.1.7-rc.2`（win32），与 CI 主轴钉的正是同一组合；插件已在 Windows 上以真启动验证
+（播种、声明式注册、平台条件行求值全部正确）。
 并各跑一遍完整测试。`0.1.5-rc.2` 实测：安装、组合树、
 `/api` 围栏、`state`/`history`/`warnings` 与浏览器 57 项全过；审批缝依赖的 `tools/pre-execute` 与路由
 依赖的 `connection.fetch.register` 在稳定版里同样存在。
@@ -236,7 +239,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.11
+dsh plugin --profile web add dsh-custom-mode@1.9.12
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 
