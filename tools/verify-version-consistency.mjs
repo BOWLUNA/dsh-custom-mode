@@ -37,6 +37,32 @@ const PEER = '@deepseek-ai/dsh'
 const pkg = JSON.parse(readFileSync(join(REPO, 'editor', 'package.json'), 'utf8'))
 const workflow = readFileSync(join(REPO, '.github', 'workflows', 'test.yml'), 'utf8')
 
+/**
+ * Every dsh version the CI matrix will install, in declaration order.
+ *
+ * **Why the matrix rather than a literal** — see the call site for the full story. Short version:
+ * a literal can be found inside a *comment*, so writing one there silently changes what this script
+ * asserts about. Reading the matrix asserts the thing CI actually installs.
+ *
+ * Both spellings are handled: the base list (`dsh: ['a', 'b']`) and an include leg's singular form
+ * (`dsh: 'a'`). Comments are stripped first, so `# dsh: 'x'` is never read as a declaration.
+ *
+ * @param {string} text - the workflow file's contents.
+ * @returns {string[]} version strings, deduplicated, in order.
+ */
+function pinnedDshVersions(text) {
+  const stripped = text
+    .split('\n')
+    .map((line) => line.replace(/(^|\s)#.*$/, ''))
+    .join('\n')
+  const out = []
+  for (const match of stripped.matchAll(/^\s*dsh:\s*\[([^\]]*)\]/gm)) {
+    for (const item of match[1].matchAll(/['"]([^'"]+)['"]/g)) out.push(item[1])
+  }
+  for (const match of stripped.matchAll(/^\s*dsh:\s*['"]([^'"]+)['"]\s*$/gm)) out.push(match[1])
+  return [...new Set(out)]
+}
+
 const fail = (lines) => {
   for (const line of lines) console.error(line)
   process.exit(1)
@@ -214,39 +240,52 @@ if (dshFlag !== -1) {
   process.exit(0)
 }
 
-// 2. The DSH version CI installs must be inside every declared range.
-const pinned = /@deepseek-ai\/dsh@([0-9A-Za-z.\-+]+)/.exec(workflow)
-if (pinned === null) {
+// 2. Every DSH version CI installs must be inside every declared range.
+//
+// ★ 从**矩阵**读，不从字面量读。
+//
+// 早先这里抓的是「全 workflow 里第一个 `@deepseek-ai/dsh@<版本>` 字面量」。那个写法有两个洞，
+// 而本仓 2026-09-24 实际撞上过：
+//   · 注释里也能捞到 —— 在注释里写个版本号就**换掉了断言标的**，而检查照样绿（"静默改标准"）。
+//   · 真正的矩阵值写作 `@deepseek-ai/dsh@${{ matrix.dsh }}`，字符类匹配不到 `$`，所以能过的
+//     唯一原因就是**恰好有一处注释写着字面量**。把那句注释改掉，守卫立刻报"找不到钉定" ——
+//     它一直在检查注释，而不是检查 CI 真正会装什么。
+// 现在：两种矩阵写法都读（主轴列表 + include 腿），先剥掉整行/行尾注释，并断言**每一条腿**。
+const testedVersions = pinnedDshVersions(workflow)
+if (testedVersions.length === 0) {
   fail([
-    '版本一致性: 无法在 CI workflow 里找到 @deepseek-ai/dsh@<version> 的钉定。',
-    '若 CI 改成从别处取版本，请同步更新本脚本。',
+    '版本一致性: 无法从 CI workflow 的矩阵里读出任何 dsh 版本。',
+    "  期望写法：主轴 `dsh: ['x', 'y']` 或 include 腿里的 `dsh: 'x'`。",
+    '  若 CI 改成从别处取版本，请同步更新本脚本。',
   ])
 }
-const tested = pinned[1]
-const testedVersion = parseVersion(tested)
-if (testedVersion === null) {
-  fail([`版本一致性: CI 钉的 dsh 版本不是合法语义化版本：${JSON.stringify(tested)}`])
+const parsedTested = testedVersions.map((raw) => ({ raw, version: parseVersion(raw) }))
+const unparsable = parsedTested.filter((p) => p.version === null)
+if (unparsable.length > 0) {
+  fail([`版本一致性: CI 矩阵里有不是合法语义化版本的 dsh：${unparsable.map((p) => JSON.stringify(p.raw)).join('、')}`])
 }
 
 const misses = []
-for (const { where, range } of declared) {
-  let ok
-  try {
-    ok = satisfies(testedVersion, range)
-  } catch (error) {
-    fail([
-      `版本一致性: 无法解析 ${where} 的范围 ${JSON.stringify(range)} —— ${error.message}`,
-      '本脚本只支持用空格连接的 >= > <= < = 比较符；扩了写法就要同步扩本脚本。',
-    ])
+for (const { raw, version } of parsedTested) {
+  for (const { where, range } of declared) {
+    let ok
+    try {
+      ok = satisfies(version, range)
+    } catch (error) {
+      fail([
+        `版本一致性: 无法解析 ${where} 的范围 ${JSON.stringify(range)} —— ${error.message}`,
+        '本脚本只支持用空格连接的 >= > <= < = 比较符；扩了写法就要同步扩本脚本。',
+      ])
+    }
+    if (!ok) misses.push({ where, range, tested: raw })
   }
-  if (!ok) misses.push({ where, range })
 }
 
 if (misses.length > 0) {
   fail([
     '版本一致性: CI 实测的 dsh 版本不在声明的兼容范围内。',
-    `  CI 安装并测试的 dsh         ${tested}`,
-    ...misses.map((m) => `  ${m.where.padEnd(26)} ${m.range}   ← 不覆盖 ${tested}`),
+    '  CI 安装并测试的 dsh         ' + parsedTested.map((p) => p.raw).join('、'),
+    ...misses.map((m) => `  ${m.where.padEnd(26)} ${m.range}   ← 不覆盖 ${m.tested}`),
     '',
     '升 dsh 时把范围放宽到覆盖新版本，或在真的不再支持旧版本时改写下界；',
     '否则发布的包会声称支持一个从未跑过测试的运行时。',
@@ -255,4 +294,4 @@ if (misses.length > 0) {
 
 console.log(`版本一致性: OK —— 包版本 ${pkg.version}（稳定线）；`)
 for (const { where, range } of declared) console.log(`  ${where} = ${range}`)
-console.log(`  覆盖 CI 实测的 dsh ${tested} ✔`)
+console.log(`  覆盖 CI 实测的 dsh ${parsedTested.map((p) => p.raw).join('、')} ✔（共 ${parsedTested.length} 条腿）`)

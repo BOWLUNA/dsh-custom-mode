@@ -40,7 +40,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.10   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.11   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -207,8 +207,8 @@ What this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh
 `editor/package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
 version CI installs and tests falls inside those ranges.
 
-**Both dsh lines are supported: the latest stable (`0.1.5-rc.2`) and the preview line (`0.1.6-alpha.2`,
-`0.1.7-alpha.*`)** — declared as `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0`,
+**Both dsh lines are supported: the latest stable (`0.1.5-rc.3`) and the preview line (`0.1.6-alpha.2`,
+`0.1.7-alpha.*`, `0.1.7-rc.*`)** — declared as `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0`,
 and CI installs the stable and preview lines and runs the whole suite against each.
 Measured on `0.1.5-rc.2`: install, composition tree, the `/api` fence, `state`/`history`/`warnings` and the
 57 browser checks all pass; `tools/pre-execute` (the approval seam) and `connection.fetch.register` (the
@@ -306,7 +306,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.10
+dsh plugin --profile web add dsh-custom-mode@1.9.11
 # then restart the DSH process that serves the web profile
 ```
 

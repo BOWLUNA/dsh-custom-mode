@@ -8,6 +8,32 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.11]
+
+### Verified against the current stable (`0.1.5-rc.3`) and the release candidate (`0.1.7-rc.1`)
+
+Both shipping lines moved since the last release. **No plugin code had to change** — the declared range
+already covered them — but the "latest" pins in the docs and in CI were stale, which is exactly the kind
+of drift that makes a reader conclude the plugin lags the platform.
+
+- **Measured on `0.1.5-rc.3`** (npm `latest` — what the plugin market installs): seeds all five preset
+  files, `backend=legacy-dir`, **stderr empty**.
+- **Measured on `0.1.7-rc.1`** (the preview line's release candidate): `backend=declarative`, 95 module
+  names injected from `compositionInventory()`, and the `custom` preset registers and mounts. Its
+  dependency set is identical to `0.1.7-alpha.2`'s — that is why no code changed.
+- **CI now installs these two** (`0.1.7-rc.1` on the main axis, `0.1.5-rc.3` on the stable leg) and keeps
+  `0.1.6-alpha.2` as the last release before the preset mechanism changed.
+
+**A guard was lying, and this release is mostly about that.** `verify-version-consistency.mjs` read the
+DSH version CI installs by grepping the workflow for the first `@deepseek-ai/dsh@<version>` **literal** —
+and a literal can live inside a *comment*. Editing one comment (while updating the matrix) made it report
+"cannot find the pin", which is how the real behaviour surfaced: the only reason it had ever passed is
+that some comment happened to contain a version number. It now reads the **matrix** — both spellings,
+comments stripped — and asserts **every leg**, not one. Two mutations cover it: a range-excluded version
+on the axis must fail, and a bogus literal inside a comment must be ignored.
+
+Tests: 725 checks.
+
 ## [1.9.10]
 
 ### Runs on both dsh lines: the file-scanning one **and** the declarative one (0.1.7+)

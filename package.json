@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "1.9.10",
+  "version": "1.9.11",
   "private": true,
   "description": "A custom agent mode for DeepSeek Harness (dsh): an editable system prompt that takes effect on the next step, per-row plugin switches, a settings page, and several assistants — coding, chat or roleplay (RP) personas — side by side.",
   "license": "MIT",
