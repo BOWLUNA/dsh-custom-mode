@@ -402,10 +402,12 @@ function serializedWrite(key, work) {
  * 的行集合也就不变，这是所有选项里破坏性最小的一个。
  *
  * @param {string} directory - the assistant's preset directory.
- * @param {{id: string, mode: string, prompt: string, name: string, description: string}} input - the validated save.
+ * @param {{id: string, mode: string, prompt: string, name: string, description: string, displayName?: string}} input
+ *   - the validated save; `name` decides whether `preset.yml` is written, `displayName` is what the response
+ *   reports (the disk name when the request omitted one — issue #9).
  * @returns {object} the shape `saveState` returns, with `code: 'savedPromptOnly'`.
  */
-export function savePromptOnly(directory, { id, mode, prompt, name, description }) {
+export function savePromptOnly(directory, { id, mode, prompt, name, description, displayName }) {
   // 与正常保存同一条纪律：提示词与 preset.yml 一起换名，失败则两个都不动。
   let metaText = null
   if (name !== '') {
@@ -431,7 +433,8 @@ export function savePromptOnly(directory, { id, mode, prompt, name, description 
     id,
     mode,
     code: 'savedPromptOnly',
-    params: { name: name === '' ? id : name, mode },
+    // 响应里的名字用**磁盘上的那个**（issue #9）：请求省略 name 时不该把 params.name 报成裸目录 id。
+    params: { name: (displayName === undefined || displayName === '' ? name : displayName) === '' ? id : (displayName === undefined || displayName === '' ? name : displayName), mode },
     note: '已保存系统提示词（本机取不到基础模式的出厂组成，插件开关与基础模式未改动）。新建会话即生效。',
   }
 }
@@ -462,6 +465,12 @@ export function saveState(rows, input) {
   }
   // 请求里**没带** description 时保留原值：API 调用方只改提示词，不该顺手把描述清空（外部评审实测）。
   const meta = readPresetMeta(directory)
+  // ★ 请求里没带 name（或页面清空）时，渲染组成仍要用**磁盘上那个名字**（issue #9）。
+  //   组成里 custom-prompt-tool 行的 config.modeName 是"会话内工具知道自己在改哪个助手"的唯一凭据；
+  //   用空串渲染会把它整块删掉，而 preset.yml 又（有意）保留旧名字 —— 两处就此不一致，
+  //   同时成功响应还会把 params.name 报成裸目录 id。请求**没带** name 与"用户把名字清空"在这里
+  //   是同一个语义：保持现状，而不是把它抹掉。
+  const effectiveName = name !== '' ? name : typeof meta.name === 'string' ? meta.name : ''
   const rawDescription =
     input !== null && typeof input === 'object' && typeof input.description === 'string'
       ? input.description
@@ -481,14 +490,14 @@ export function saveState(rows, input) {
 
   let composition
   try {
-    composition = renderComposition(mode, overrides, { modeName: name, assistantId: id })
+    composition = renderComposition(mode, overrides, { modeName: effectiveName, assistantId: id })
   } catch (error) {
     // 拿不到出厂组成：这一页**降级**但不能全废 —— 提示词仍可单独保存（组成文件原样不动）。
     // 页面在降级态下把基础模式与开关都设为不可编辑，所以开关集合必为空；HTTP API 直接调用
     // 还想改开关时明确拒绝，而不是悄悄丢掉用户的意图。
     if (isBaseCompositionUnavailable(error)) {
       if (overrides.size === 0 && existsSync(compositionFile(directory))) {
-        return savePromptOnly(directory, { id, mode, prompt, name, description })
+        return savePromptOnly(directory, { id, mode, prompt, name, description, displayName: effectiveName })
       }
       return {
         ok: false,
@@ -547,7 +556,7 @@ export function saveState(rows, input) {
     id,
     mode,
     code: 'saved',
-    params: { name: name === '' ? id : name, mode },
+    params: { name: effectiveName === '' ? id : effectiveName, mode },
     note: '已保存（' + (name === '' ? id : name) + '，基础模式 ' + mode + '）。新建会话即生效，当前会话保持原配置。',
   }
 }

@@ -252,6 +252,20 @@ console.log('=== 4. 降级：读得到提示词、存得下提示词、开关被
   check('恢复后能渲染组成', rendered.includes('- id: persona') && rendered.includes('custom-prompt-tool'))
   check('overridesOf 能在宿主文本上工作', typeof overridesOf(rendered, 'standard') === 'object')
 
+  // 4f. 请求里**没带** name：组成仍要带上磁盘上的名字（issue #9）。放在恢复之后跑，
+  //     因为要验的是**正常渲染路径**（降级路径只写提示词，本来就不会渲染组成）。
+  const metaBefore = readFileSync(join(presetDir, 'preset.yml'), 'utf8')
+  const keepName = saveState(rows, { id: 'custom', mode: 'standard', overrides: {}, prompt: '又改了一版\n' })
+  check('省略 name 的保存成功', keepName.ok === true, JSON.stringify(keepName).slice(0, 160))
+  check('响应用磁盘上的名字，而不是裸目录 id', keepName.params !== undefined && keepName.params.name === '测试助手', JSON.stringify(keepName.params))
+  const writtenComposition = readFileSync(compositionPath, 'utf8')
+  check(
+    '组成里的 custom-prompt-tool 仍带 modeName（issue #9）',
+    /modeName:\s*"?测试助手"?/.test(writtenComposition),
+    writtenComposition.split('\n').filter((l) => l.includes('modeName')).join(' | ') || '(no modeName line)',
+  )
+  check('preset.yml 没有被这次保存改写（请求里没带 name 就不动它）', readFileSync(join(presetDir, 'preset.yml'), 'utf8') === metaBefore)
+
   delete process.env.DSH_PRESET_PATCH_DIR
   resetBaseCompositionCachesForTests()
 }

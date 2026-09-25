@@ -25,7 +25,7 @@
  * file work, so it can be tested without a running harness.
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { dshHome, PRESET_DIR } from './paths.mjs'
 // `presetMetaPath` 曾被漏掉：reorderAssistant 用它做"快照 → 失败回滚"，于是两处调用都抛
@@ -267,14 +267,31 @@ export function createAssistantDir({ root, id, composition, templateDir }) {
   const dir = join(root, id)
   if (existsSync(dir)) return { ok: false, code: 'dirExists', params: { path: dir }, error: `目录已存在：${dir}` }
 
+  // ★ 失败必须**撤干净**（issue #4）。上面的 existsSync 已经证明这个目录是本函数刚创建的，所以
+  //   失败时把它整体删掉是安全的。不这么做的话：用户看到"没建成"，磁盘上却留下一个半成品目录，
+  //   重启后它作为助手出现在选择器里，而且这个名字被**永久占用**（再建同名直接报"目录已存在"）。
+  //   删除本身也做失败兜底：删不掉时如实说明"留下了什么"，而不是假装干净。
+  const rollback = (result) => {
+    try {
+      rmSync(dir, { recursive: true, force: true })
+      return result
+    } catch (error) {
+      return {
+        ...result,
+        params: { ...result.params, leftover: dir, cleanupFailed: describe(error) },
+        error: result.error + '；且未能清理半成品目录 ' + dir + '（' + describe(error) + '）',
+      }
+    }
+  }
+
   const seeded = seedPreset(dir, templateDir)
   if (seeded.errors.length > 0) {
-    return { ok: false, code: 'seedFailed', params: { detail: seeded.errors.join('；') }, error: '复制模式模板失败：' + seeded.errors.join('；') }
+    return rollback({ ok: false, code: 'seedFailed', params: { detail: seeded.errors.join('；') }, error: '复制模式模板失败：' + seeded.errors.join('；') })
   }
   try {
     writeFileSync(join(dir, COMPOSITION_FILE), composition, 'utf8')
   } catch (error) {
-    return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入组成文件失败：' + describe(error) }
+    return rollback({ ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入组成文件失败：' + describe(error) })
   }
   return { ok: true, id, dir }
 }

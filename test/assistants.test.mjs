@@ -155,6 +155,19 @@ console.log('=== 6. createAssistantDir：从模板建目录 ===')
   const bad = createAssistantDir({ root, id: '../escape', composition: '# x\n', templateDir: TEMPLATE })
   check('越界的 id → 拒绝', bad.ok === false && /不合法/.test(bad.error), JSON.stringify(bad))
   check('越界 id 没有在根目录外建东西', !existsSync(join(dir, 'escape')))
+
+  // ★ issue #4：模板坏了的时候，**不能留下一个半成品目录**。留下来的后果不是"多个空目录"：
+  //   重启后它会作为助手出现在选择器里，而且这个名字被永久占用（再建同名报"目录已存在"）。
+  //   判据是"报告失败 + 磁盘上没有它 + 同一个名字还能再用"。
+  const brokenTemplate = join(dir, 'broken-template')
+  mkdirSync(brokenTemplate, { recursive: true })
+  const ghost = createAssistantDir({ root, id: 'ghost', composition: '# x\n', templateDir: brokenTemplate })
+  check('模板缺文件 → 报告失败', ghost.ok === false && ghost.code === 'seedFailed', JSON.stringify(ghost))
+  check('失败时没有留下半成品目录（issue #4）', !existsSync(join(root, 'ghost')), 'leftover: ' + join(root, 'ghost'))
+  const retry = createAssistantDir({ root, id: 'ghost', composition: '# good\n', templateDir: TEMPLATE })
+  check('同一个名字还能再用（没有被永久占用）', retry.ok === true, JSON.stringify(retry))
+  check('第二次确实建成了', existsSync(join(root, 'ghost', 'prompt.md')))
+  rmSync(join(root, 'ghost'), { recursive: true, force: true })
 }
 
 console.log()

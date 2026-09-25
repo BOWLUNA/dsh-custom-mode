@@ -18,7 +18,7 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 14 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **774 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十三个自带夹具、临时目录与桩，
+合计 **782 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十三个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 解析链有四条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析

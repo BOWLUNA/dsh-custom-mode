@@ -8,6 +8,29 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.14]
+
+### Two issues from the 2026-09-21 review are actually closed now — plus repo hygiene
+
+- **#4 — a failed "new assistant" no longer leaves a ghost directory.** `createAssistantDir` reported a failure
+  but left the half-seeded directory on disk: after a restart it showed up in the picker as a real assistant, and
+  the name was taken forever (every retry hit `dirExists`). It now removes the directory it just created — the
+  `existsSync` check at the top is what makes that safe — and says so explicitly if the cleanup itself fails,
+  instead of pretending the tree is clean.
+- **#9 — a save that omits `name` no longer strips `modeName` out of the composition.** The `custom-prompt-tool`
+  row's `config.modeName` is the only thing that tells the in-session tool which assistant it is editing;
+  rendering with an empty name deleted it, while `preset.yml` deliberately kept the old one, and the response
+  reported the bare directory id. The effective name now falls back to `preset.yml` (and that file is still left
+  untouched — omitting a name means "keep it", not "clear it").
+- **Repo hygiene**: the root `package.json` is back to having no `dependencies` (a local `npm install` had added
+  the test fixture as one, plus a `package-lock.json` — which is why the `0.1.5-rc.3` CI leg went red for one
+  push), and `package-lock.json` is ignored from now on.
+- **Storefront**: both READMEs open with a compatibility table (one row per real CI leg) and end with a
+  ⭐/feedback line, and the Chinese README's first line finally has the `[` it had been missing — it had been
+  rendering as plain text followed by a broken link on both GitHub and npm.
+
+Tests: 782 checks (14 suites).
+
 ## [1.9.13]
 
 ### The settings page works on 0.1.7 again — the line the desktop app runs
