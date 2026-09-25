@@ -20,8 +20,10 @@ jobs:
     timeout-minutes: 25
     env:
       DSH_HOME: ${{ github.workspace }}/.ci-home
-      # 实例与日志都放 runner 的临时目录，失败时整包上传。
-      LOGS: ${{ runner.temp }}/logs
+      # ★ 不要在这里写 `LOGS: ${{ runner.temp }}/logs`：`runner` 上下文在 **job 级 env** 里不可用，
+      #   GitHub 会把整个工作流判为无效 —— 表现为"这次 run 有 0 个 job"，而 workflows 列表里 state 仍是
+      #   active，报错信息只在网页端（API 的 run 对象里没有）。实测踩过一次。日志目录在第一个 step 里
+      #   用 $GITHUB_ENV 传下去。
 
     steps:
       - uses: actions/checkout@v4
@@ -29,6 +31,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+
+      - name: 准备日志目录
+        run: |
+          echo "LOGS=$RUNNER_TEMP/logs" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/logs"
 
       # 与 test.yml 同一条主轴：官方桌面端内置的那条，也是这次修复要保住的那条。
       - name: 安装 DSH 0.1.7-rc.2（当前主轴）
@@ -69,7 +76,7 @@ jobs:
           if [ -z "$BROWSER" ]; then echo "::error::runner 上没有 Chrome"; exit 1; fi
           "$BROWSER" --version
           nohup "$BROWSER" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
-            --remote-debugging-port=9222 --user-data-dir="${{ runner.temp }}/chrome" \
+            --remote-debugging-port=9222 --user-data-dir="$RUNNER_TEMP/chrome" \
             --window-size=1440,900 about:blank > "$LOGS/chrome.log" 2>&1 &
           for i in $(seq 1 30); do
             curl -sf http://127.0.0.1:9222/json/version > /dev/null && break
