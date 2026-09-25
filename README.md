@@ -40,8 +40,9 @@ The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouche
 | ![Mode name and base mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![Plugin switches](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
 | ![System prompt](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![Mode picker](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
 
-The assistant manager, cropped to its own section (captured on a real instance by
-`tools/screenshots/run-shots.sh`; `tools/browser-verify.mjs` is what checks the page):
+The assistant manager, cropped to its own section. All five images are English, at most 800x800, and shot
+on a throwaway `DSH_HOME` with no sessions by `tools/screenshots/shoot-fresh.mjs` (the rendered page is
+what `tools/browser-verify.mjs` checks):
 
 ![Assistant manager](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
 

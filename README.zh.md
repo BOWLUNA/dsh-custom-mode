@@ -34,7 +34,8 @@
 | ![模式名称与基础模式](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![插件开关](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
 | ![系统提示词](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![模式选择器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
 
-多助手管理器（裁到它自己那一段；真机截图由 `tools/screenshots/run-shots.sh` 产出，`tools/browser-verify.mjs` 负责校验界面）：
+多助手管理器（裁到它自己那一段）。五张图都是英文、最大 800x800，由一个**没有会话记录的**一次性
+`DSH_HOME` 拍出，脚本是 `tools/screenshots/shoot-fresh.mjs`（渲染后的页面由 `tools/browser-verify.mjs` 校验）：
 
 ![助手管理器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
 
