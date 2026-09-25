@@ -22,13 +22,16 @@ modes ("assistants") can live side by side, each with its own prompt.
 Also searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants ·
 multi-agent · roleplay (RP) / chat personas.
 
-**Works on both shipping dsh lines** — and that is checked on every push, not claimed:
+**Two dsh lines are supported: the latest stable and the latest preview** — both checked on every push,
+neither merely claimed:
 
-| dsh | status |
-| --- | --- |
-| `0.1.7-rc.2` (what the official desktop app bundles) | ✅ CI + a real instance (the settings page is verified rendered on this line) |
-| `0.1.6-alpha.2` (last line before the preset mechanism changed) | ✅ CI |
-| `0.1.5-rc.3` (current stable) | ✅ CI |
+| dsh | role | status |
+| --- | --- | --- |
+| `0.1.7-rc.2` | latest preview (what the official desktop app bundles) | ✅ CI (ubuntu node 20/24 + **windows**) + a real instance: the settings page is verified rendered on this line |
+| `0.1.5-rc.3` | latest stable (`npm` `latest` — what the catalogue's one-click install gives most people) | ✅ CI |
+
+Older preview builds (`0.1.6-alpha.*`) use the same mechanism as the stable line and remain inside the
+declared peer range, but they no longer get a CI leg of their own.
 
 The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouched.
 
@@ -221,9 +224,10 @@ What this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh
 `editor/package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
 version CI installs and tests falls inside those ranges.
 
-**Both dsh lines are supported: the latest stable (`0.1.5-rc.3`) and the preview line (`0.1.6-alpha.2`,
-`0.1.7-alpha.*`, `0.1.7-rc.*`)** — declared as `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0`,
-and CI installs the stable and preview lines and runs the whole suite against each.
+**Two lines are supported: the latest stable (`0.1.5-rc.3`) and the latest preview (`0.1.7-rc.2`)** — declared as
+`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0` (the extra clauses exist because
+semver only matches a pre-release inside a range that names its own `major.minor.patch`), and CI installs each of
+the two and runs the whole suite against it.
 **The official desktop app (DeepSeek Harness Desktop) is covered too**: it bundles `dsh 0.1.7-rc.2` on
 win32, which is exactly the combination the CI matrix pins, and the plugin was verified on Windows with
 a real boot (seeding, declarative registration, the platform-conditional rows all evaluated correctly).
@@ -301,7 +305,7 @@ MIT
 | | |
 | --- | --- |
 | Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
-| Runtime | DeepSeek Harness **0.1.6-alpha.2** (`@deepseek-ai/dsh`, preview) |
+| Runtime | DeepSeek Harness **0.1.7-rc.2** (preview) / **0.1.5-rc.3** (stable) — the two supported lines; the token figures below are from an earlier `0.1.6-alpha.2` session |
 | Uncached input | 224,058 tok |
 | Cache reads | 125,638,016 tok |
 | Output | 425,539 tok |

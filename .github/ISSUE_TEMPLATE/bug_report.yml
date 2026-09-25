@@ -19,7 +19,7 @@ body:
     attributes:
       label: DSH version
       description: 'the output of `dsh --version`'
-      placeholder: 0.1.6-alpha.2
+      placeholder: 0.1.7-rc.2（或正式版 0.1.5-rc.3）
     validations:
       required: true
 

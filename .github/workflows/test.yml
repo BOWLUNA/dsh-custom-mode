@@ -26,7 +26,9 @@ jobs:
         os: [ubuntu-latest]
         # 20 是保守下限（只用标准库），24 是当前开发版本。
         node-version: ['20', '24']
-        # 只测开发主线（预览线）；稳定线与上一条预览线单独列在 include 里。
+        # 支持策略（2026-09-25 明确）：**只承诺两个"最新"** —— 最新正式版（0.1.5-rc.3）与最新预览版
+        # （0.1.7-rc.2，官方桌面端内置的那条）。更早的预览线（0.1.6-alpha.*）与两条线共用同一套机制，
+        # peer 范围仍然接纳它，但**不再单独占一条 CI 腿**：跟着每条历史预览线跑，成本翻倍而收益递减。
         # 主轴钉 0.1.7-rc.2：官方桌面端（DeepSeek Harness Desktop）bundled 的就是这个版本
         # （runtime.json 的 desktopVersion，2026-09-24 实测拆验）。
         dsh: ['0.1.7-rc.2']
@@ -42,11 +44,6 @@ jobs:
           - os: ubuntu-latest
             node-version: '24'
             dsh: '0.1.5-rc.3'
-          # 上一条预览线。0.1.6-alpha.2 是 preset 机制切换前的**最后一版**（复数包到此为止），
-          # 而它仍在生产上跑（开发机的实际环境就是它），所以保留一腿。
-          - os: ubuntu-latest
-            node-version: '24'
-            dsh: '0.1.6-alpha.2'
     steps:
       - uses: actions/checkout@v7
 
@@ -69,7 +66,7 @@ jobs:
       #   `@deepseek-ai/dsh-web-app/presets/<mode>.patch.yml` 里抽出声明，落到仓库根的
       #   `node_modules/@deepseek-ai/dsh-agent-presets/presets`（**必须在仓库根**：`unresolvableRows()`
       #   是从 presets 目录往上推三层找 `node_modules/@deepseek-ai` 的，放临时目录会让判定静默变松）。
-      #   旧线（≤0.1.6）本来就自带复数包，这条派生不会触发。
+      #   旧线（≤0.1.6，包括我们还测的 0.1.5-rc.3）本来就自带复数包，这条派生不会触发。
       - name: 安装 DSH（夹具由 test/run.mjs 从已安装的声明派生）
         shell: bash
         run: |

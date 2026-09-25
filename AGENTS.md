@@ -76,28 +76,34 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
    unwritable `DSH_HOME` is reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-10. **The version number is the package's own stable line** (`1.0.0`, `1.0.1`, …) — it does not mirror
+10. **支持策略：只跟两个"最新的"** —— 最新正式版与最新预览版（当前 `0.1.5-rc.3` / `0.1.7-rc.2`），
+    也就是 `test.yml` 的两条腿 + `release.yml` 发布前各跑一遍的那两条。更早的预览线
+    （`0.1.6-alpha.*`）与正式版共用同一套机制，peer 范围仍然接纳它，但**不为每条历史预览线加 CI 腿**：
+    成本随版本数线性增长，而两条线之间的机制差异只有一次（≤0.1.6 扫描目录 / ≥0.1.7 声明式注册表）。
+    换主轴版本时，两处都要改：`test.yml` 的 matrix 和 `release.yml` 的两次安装。
+
+11. **The version number is the package's own stable line** (`1.0.0`, `1.0.1`, …) — it does not mirror
    dsh, and it must stay a bare `x.y.z` so directories and markets will auto-install it. Which dsh is
    supported is declared in `engines.dsh` + the peer range, and
    `tools/verify-version-consistency.mjs` asserts the CI-pinned dsh version falls inside them. Bump the
    version for every publish; widen the ranges when re-adapting.
 
-11. **The change journal (`editor/journal.mjs`) has ONE writer: the host half.** The preset-side
+12. **The change journal (`editor/journal.mjs`) has ONE writer: the host half.** The preset-side
     `prompt-tool.mjs` must not append to it — those files ship independently, so the format would end up
     with two implementations. Changes made outside the page are picked up by comparison at state-read time
     and recorded as `external`. Versions are keyed by the `n` sequence, never by timestamp (two records can
     share a millisecond), and loading a version only edits the draft.
-12. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
+13. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
     （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。
     凡是"点了会发生什么"的断言，都用程序化点击，并同时对**磁盘真值**断言，而不是对页面早先显示过什么。
 
-13. **Every user-visible host result carries a `code`** (plus `params`); the page renders it from its own
+14. **Every user-visible host result carries a `code`** (plus `params`); the page renders it from its own
     bilingual dictionary. The Chinese `note`/`error` strings stay as the HTTP API's compatibility face — but
     they must never be what the *page* shows, or the English UI turns Chinese exactly when something happens.
     `tools/browser-verify.mjs` switches the interface to English and saves once to keep this honest. Names
     inside those messages are user data and are never translated.
 
-14. **Where a base composition comes from is the THIRD thing the two dsh lines disagree about.** That is what
+15. **Where a base composition comes from is the THIRD thing the two dsh lines disagree about.** That is what
     `editor/base-composition.mjs` exists for. Legacy lines (≤ 0.1.6) ship
     `@deepseek-ai/dsh-agent-presets/presets/<mode>/agent.cordis.yml`; 0.1.7+ publishes no such package and the
     host hands the declaration over through `agentPresets.readDocument(<mode>).content` — the entry-list YAML,
@@ -108,7 +114,7 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     `saveState` / `savePromptOnly` save the prompt while **refusing** (with a typed code) any switch change.
     `test/base-composition.test.mjs` pins the route order, the typed failure and the degraded save.
 
-15. **「删除助手」在两条线上都必须真的删掉。** 声明式线（0.1.7+）没有 `agentPresets.remove()` —— 注销只有
+16. **「删除助手」在两条线上都必须真的删掉。** 声明式线（0.1.7+）没有 `agentPresets.remove()` —— 注销只有
     `register()` 返回的 disposer 一条路 —— 所以删除由声明式后端自己做：**先注销、再删目录**。找不到目录时
     返回类型化的 `noDirectory`，**不许**报告"已删除"却把目录留在磁盘上：下次同步会把它挂回来，用户看到的
     是"删了又回来了"。宿主那半按后端选删除入口（`presetRemover()`），只有两套都没有时才可以回

@@ -282,7 +282,7 @@ SyntaxError: The requested module '@deepseek-ai/dsh-app-boot' does not provide a
 ```
 
 进程在 `profile-boot` 阶段就退出，**发生在任何插件被加载之前**。与本插件无关；如果你在 `0.1.6-alpha.1` 上，
-请换到 `0.1.6-alpha.2`（或同样受支持的稳定线 `0.1.5-rc.2`，见 README 的 Versioning 一节）。
+请换到最新预览版 `0.1.7-rc.2`（或同样受支持的正式版 `0.1.5-rc.3`，见 README 的 Versioning 一节）。
 
 ## 10. 装进 tui / headless 之类的 profile：能用的比预期少
 

@@ -284,7 +284,7 @@ SyntaxError: The requested module '@deepseek-ai/dsh-app-boot' does not provide a
 ```
 
 The process exits during `profile-boot`, **before any plugin is loaded**. Nothing about this plugin is
-involved; if you are on `0.1.6-alpha.1`, move to `0.1.6-alpha.2` (or the stable line `0.1.5-rc.2`, which is
+involved; if you are on `0.1.6-alpha.1`, move to the preview line `0.1.7-rc.2` (or the stable line `0.1.5-rc.3`, which is
 also supported — see the README's Versioning section).
 
 ## 10. Installing into a profile such as tui / headless: less works than expected

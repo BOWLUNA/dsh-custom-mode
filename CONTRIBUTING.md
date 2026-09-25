@@ -28,7 +28,7 @@ asks for the two things that separate "installed but inert" from "not installed 
 ## Development loop
 
 Prerequisites: Node.js ≥ 20, `git`, and a `dsh` matching the version in
-`editor/package.json` (currently `0.1.6-alpha.2`; if it differs, check the README's coupling-point
+`editor/package.json` (currently `0.1.7-rc.2`; if it differs, check the README's coupling-point
 table first).
 
 ```sh

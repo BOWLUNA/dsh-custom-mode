@@ -47,12 +47,13 @@ jobs:
       - name: 套件（当前主轴）
         run: node test/run.mjs
 
-      # 旧线（≤0.1.6）也要在**发布前**过一遍：那条线的 preset 机制完全不同（扫目录 + 复数包），
-      # 而本包声明支持它。换装 0.1.6-alpha.2 会连带把 @deepseek-ai/dsh-agent-presets 装到仓库根
-      # （实测），于是 test/run.mjs 走它的第一解析顺位，测到的是真实的旧线形态。
-      - name: 换装 0.1.6-alpha.2，旧线再跑一遍
+      # 稳定线也要在**发布前**过一遍：它的 preset 机制与预览线完全不同（扫目录 + 复数包）。
+      # 支持策略是"两个最新的"：最新正式版 0.1.5-rc.3 + 最新预览版 0.1.7-rc.2（上面那条）。
+      # 换装 0.1.5-rc.3 会连带把 @deepseek-ai/dsh-agent-presets 装到仓库根（实测），
+      # 于是 test/run.mjs 走它的第一解析顺位，测到的是真实的稳定线形态。
+      - name: 换装 0.1.5-rc.3（最新正式版），稳定线再跑一遍
         run: |
-          npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
+          npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.5-rc.3
           ls -d node_modules/@deepseek-ai/dsh-agent-presets/presets
           node test/run.mjs
       - name: 双语配对 + 语言纯度
@@ -61,8 +62,8 @@ jobs:
         run: node tools/verify-doc-numbers.mjs
       - name: 版本一致性（稳定线与预览线都必须在声明范围内）
         run: |
+          # 两个"最新的"：最新预览版 + 最新正式版（见 AGENTS.md 第 10 条的支持策略）
           node tools/verify-version-consistency.mjs --dsh 0.1.7-rc.2
-          node tools/verify-version-consistency.mjs --dsh 0.1.6-alpha.2
           node tools/verify-version-consistency.mjs --dsh 0.1.5-rc.3
 
       # 凭据自检：改过 npm 密码、或怀疑 token 失效时，用 workflow_dispatch 手动跑一次这条工作流，
