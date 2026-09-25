@@ -26,6 +26,13 @@ mirrored the DSH release) and are kept as history.
   `Page.handleJavaScriptDialog` unfroze it immediately. `tools/screenshots/cdp.mjs` now answers native dialogs
   itself and records them, so `tools/browser-verify.mjs` runs to the end — and its delete assertions now cover
   **both** confirmation paths and check the disk (the API list) rather than the page.
+- **`picker-probe` was giving a false negative in CI.** It anchored on a known mode name and climbed to a
+  common ancestor, which returned an empty list on a clean instance — indistinguishable from "the mode is
+  gone", which is the one thing that check exists to notice. It now reads the popup's own `[role=menuitem]`
+  rows (measured: 316×66 each, name = the first short leaf inside), clicks the composer control
+  **programmatically** (a real mouse click at those coordinates does not open the picker on this line — the
+  trap AGENTS.md §12 records), waits for the control to render, and closes the popup when done. Verified twice
+  on a Chinese instance and three times on a fresh English one: five modes read every time.
 - **CI runs the browser gate on every push** (`.github/workflows/browser.yml`): install into a throwaway
   `DSH_HOME`, boot the instance, drive a headless Chrome, then `picker-probe` and `browser-verify`. It is the
   only check that can see a rendered page, and until now it only ran by hand on a lab machine.

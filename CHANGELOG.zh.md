@@ -21,6 +21,11 @@
   `Page.handleJavaScriptDialog` 关掉对话框后立刻恢复。现在 `tools/screenshots/cdp.mjs` 自己接管原生对话框
   并留痕，`tools/browser-verify.mjs` 能跑到结尾；它的删除断言同时覆盖**两条确认路径**，并且对**磁盘真值**
   （API 列表）断言，而不是只看页面。
+- **`picker-probe` 在 CI 上给出的是假阴性。** 它锚定一个已知模式名、再爬公共祖先，在干净实例上返回空数组 ——
+  而那是"探测失败"与"模式真的不见了"无法区分的状态，偏偏后者才是这个检查唯一存在的理由。现在它读弹层自己的
+  `[role=menuitem]` 选项行（实测每项 316×66，名称取该项内部第一个短叶子文本），**程序化**点击 composer 上的
+  模式控件（这条线上真实鼠标坐标点不开它 —— 就是 AGENTS.md 第 12 条记录的那个坑），等控件出现，结束时收起弹层。
+  中文实例验 2 次、全新英文实例验 3 次：每次都读到 5 个模式。
 - **CI 每次 push 都跑浏览器闸门**（`.github/workflows/browser.yml`）：装进一次性 `DSH_HOME`、启动实例、
   驱动 headless Chrome，然后跑 `picker-probe` 与 `browser-verify`。它是唯一能看见渲染页面的检查，此前
   只在人工 lab 上跑过。

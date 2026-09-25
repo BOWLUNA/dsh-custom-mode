@@ -62,28 +62,54 @@ for (let round = 0; round < 4; round += 1) {
 // 触发控件：优先 composer 里的模式锚点（实测 0.1.7-rc.2 的 class 带 `menuAnchor`），退而求其次找
 // 「文本恰好等于某个已知模式名」的可见按钮。老版本只认后者、还额外要求 y>300，于是同一实例连跑两次
 // 时第二次就报「找不到按钮」（实测）—— 那是探测自己的问题，不是产品问题。
-const trigger = await session.evaluate(`(() => {
-  const names = ${JSON.stringify(KNOWN)};
-  const visible = (el) => {
-    const rect = el.getBoundingClientRect();
-    return rect.width > 0 && rect.height > 0;
-  };
-  const anchor = [...document.querySelectorAll('[class*=menuAnchor]')].filter(visible)[0];
-  const byText = [...document.querySelectorAll('button,[role=button]')]
-    .filter((el) => visible(el) && names.includes((el.textContent || '').trim()))[0];
-  const cand = anchor === undefined ? byText : anchor.querySelector('button') || anchor;
-  if (cand === undefined || cand === null) return null;
-  const rect = cand.getBoundingClientRect();
-  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, text: (cand.textContent || '').trim().slice(0, 24) };
-})()`)
+// 触发控件：优先 composer 里的模式锚点（实测 0.1.7-rc.2 的 class 带 menuAnchor），退而求其次找
+// 「文本恰好等于某个已知模式名」的可见按钮。**要等它出现**：干净实例首屏先渲染 "Choose workspace"，
+// composer 与模式按钮要晚一点才出来（实测：连跑时第 2、3 次就撞上这个窗口，报「找不到按钮」）。
+// 找到后用**程序化点击**（真实鼠标坐标点在这条线上打不开选择器 —— 见下面那段注释）。
+const findAndClick = () =>
+  session.evaluate(`(() => {
+    const names = ${JSON.stringify(KNOWN)};
+    const visible = (el) => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
+    const anchor = [...document.querySelectorAll('[class*=menuAnchor]')].filter(visible)[0];
+    const byText = [...document.querySelectorAll('button,[role=button]')]
+      .filter((el) => visible(el) && names.includes((el.textContent || '').trim()))[0];
+    const cand = anchor === undefined ? byText : anchor.querySelector('button') || anchor;
+    if (cand === undefined || cand === null) return null;
+    const rect = cand.getBoundingClientRect();
+    // ★ **程序化点击**，不是真实鼠标点击。实测 2026-09-25（英文干净实例）：真实鼠标点在这个 composer
+    //   控件上打不开选择器（读到的模式是空数组），而同一个控件的程序化 click() 正常 —— 与 AGENTS.md
+    //   第 12 条记录的是同一个坑（真实坐标被别的东西盖住）。CI 上那次假阴性就是这么来的。
+    cand.click();
+    return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, text: (cand.textContent || '').trim().slice(0, 24) };
+  })()`)
+
+let trigger = null;
+for (let attempt = 0; attempt < 8 && trigger === null; attempt += 1) {
+  trigger = await findAndClick();
+  if (trigger === null) await session.sleep(2000);
+}
 if (trigger === null) {
   console.error('打不开模式选择器：页面上找不到显示当前模式的控件（选择器没渲染，或遮罩没关掉）。')
   console.error('页面可见文本：' + (await session.visibleText()).replace(/\n+/g, ' | ').slice(0, 300))
   process.exit(2)
 }
 console.log(`  当前模式按钮：${JSON.stringify(trigger.text)}`)
-await session.clickAt(trigger.x, trigger.y)
 await session.sleep(1400)
+
+// 兜底：程序化点击没打开时，再试一次真实鼠标（有的实现只认 pointer 事件），并如实报告结果。
+const menuCount = async () => session.evaluate(`document.querySelectorAll('[role=menuitem]').length`)
+if ((await menuCount()) === 0) {
+  try {
+    await session.clickAt(trigger.x, trigger.y)
+    await session.sleep(1200)
+  } catch {
+    /* 坐标点击失败也不致命：下面会把读到的东西如实报出来 */
+  }
+  if ((await menuCount()) === 0) console.error('提示：点击后一个 [role=menuitem] 都没有 —— 下面如实报告读到的内容。')
+}
 
 /**
  * Collect every mode the opened picker offers.
