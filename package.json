@@ -41,8 +41,5 @@
     "client": {
       "platform": "web"
     }
-  },
-  "dependencies": {
-    "@deepseek-ai/dsh-agent-presets": "^0.1.6-alpha.2"
   }
 }

@@ -1,2 +1,6 @@
 node_modules/
 *.log
+
+# npm 在本地跑 --no-save 安装时会顺手写这个文件；本仓库的根清单是插件清单，
+# 不带依赖（CI 也用 --no-save），所以不要让它进版本库。
+package-lock.json
