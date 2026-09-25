@@ -11,12 +11,20 @@
 <!-- 徽章：两排统一"深色标签 + 彩色值"的两段式；新仓库照抄这一块 -->
 [![bilibili](https://img.shields.io/badge/bilibili-视频-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white&labelColor=1f2430)](https://b23.tv/qJ4Ev0W) [![抖音](https://img.shields.io/badge/抖音-短视频-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white&labelColor=1f2430)](https://v.douyin.com/VWh0M03Fa4Y/) [![小红书](https://img.shields.io/badge/小红书-笔记-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white&labelColor=1f2430)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-群组-%235865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1f2430)](https://discord.gg/pz97SfAfSy) [![GitHub](https://img.shields.io/github/discussions/BOWLUNA/dsh-custom-mode?label=GitHub&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode/discussions)
 
-DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的自定义模式。它的系统提示词是一个普通文件，可以在 Web 设置页里编辑，**改完下一步模型调用即生效** —— 不用重启，也不用新建会话。
+[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的自定义模式。它的系统提示词是一个普通文件，可以在 Web 设置页里编辑，**改完下一步模型调用即生效** —— 不用重启，也不用新建会话。
 
 一句话：**给 dsh 的 agent 模式用的设置页** —— 选这个模式的基础组成、逐行开关它挂载的插件、并编辑它的系统提示词；提示词每个模型调用前重新读取。可以并存多个模式（「助手」），各自的提示词互不影响。
 
 常见的叫法：自定义模式 · 自定义提示词 · 系统提示词编辑 · 多助手／多模式 · 多个 Agent 模式 ·
 角色扮演／聊天人格（RP）。
+
+**两条在跑的 dsh 线都支持** —— 而且是每次 push 都验，不是声明：
+
+| dsh | 状态 |
+| --- | --- |
+| `0.1.7-rc.2`（官方桌面端内置的那条） | ✅ CI + 真机（这条线上设置页是**渲染后**验过的） |
+| `0.1.6-alpha.2`（preset 机制切换前的最后一条） | ✅ CI |
+| `0.1.5-rc.3`（当前稳定版） | ✅ CI |
 
 官方四个模式（`standard` / `ptc` / `minimal` / `cordis`）不受影响。
 
@@ -199,6 +207,12 @@ node test/run.mjs        # 14 个套件；自己解析出厂 preset 目录（0.1
 ```
 
 改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。
+
+## 如果它有用
+
+在 GitHub 上点个 ⭐，是让一个插件在几千个条目的目录里被看见的唯一办法 —— 它不花你什么，却正是这个项目
+还在被维护的理由。如果它在你的 dsh 线上**不好用**，带上 `dsh --version` 提个 issue：那是最快的修法，
+上面那张兼容表就是上一次这么来的。
 
 ## License
 

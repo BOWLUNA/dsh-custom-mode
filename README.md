@@ -22,6 +22,14 @@ modes ("assistants") can live side by side, each with its own prompt.
 Also searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants ·
 multi-agent · roleplay (RP) / chat personas.
 
+**Works on both shipping dsh lines** — and that is checked on every push, not claimed:
+
+| dsh | status |
+| --- | --- |
+| `0.1.7-rc.2` (what the official desktop app bundles) | ✅ CI + a real instance (the settings page is verified rendered on this line) |
+| `0.1.6-alpha.2` (last line before the preset mechanism changed) | ✅ CI |
+| `0.1.5-rc.3` (current stable) | ✅ CI |
+
 The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouched.
 
 |  |  |
@@ -268,6 +276,13 @@ Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` abo
 host half (`index.mjs`, `composition.mjs`, `meta.mjs`, `paths.mjs`) needs a restart. See
 [`test/README.md`](test/README.md) for what each suite protects, and [`CONTRIBUTING.md`](CONTRIBUTING.md)
 before changing behaviour.
+
+## If it helps
+
+A ⭐ on GitHub is what makes a plugin findable in a catalogue of thousands — it costs you nothing and it is
+the whole reason this page keeps getting maintenance. If it is **not** working on your dsh line, open an issue
+with the output of `dsh --version`: that is the fastest path to a fix, and the compatibility table above is
+what came out of the last one.
 
 ## License
 
