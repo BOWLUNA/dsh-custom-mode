@@ -39,10 +39,22 @@ jobs:
       # —— 1.9.10 … 1.9.12 三个版本就是这么发出去的，而设置页在那条线上整体不可用。
       - name: 安装 DSH 0.1.7-rc.2（当前主轴；夹具由其声明派生）
         run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
-      - name: 旧线夹具（0.1.6-alpha.2 仍在支持范围内）
-        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2
-      - name: 套件
+
+      # ★ 不要在这里单独装 0.1.6 的 presets 夹具包。实测（2026-09-25，本仓库第一次推 v1.9.13）：
+      #   在 0.1.7 的 peer 树上跑 npm i @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2 会 **ERESOLVE
+      #   失败**，而 GitHub 的 bash -e 直接判这一步失败 —— 闸门红了，宁可不发布。同一类错误此前让
+      #   test.yml 的三条 0.1.7 腿红了三个版本（见 1.9.13 的 CHANGELOG），所以两边都改成「不装旧包」。
+      - name: 套件（当前主轴）
         run: node test/run.mjs
+
+      # 旧线（≤0.1.6）也要在**发布前**过一遍：那条线的 preset 机制完全不同（扫目录 + 复数包），
+      # 而本包声明支持它。换装 0.1.6-alpha.2 会连带把 @deepseek-ai/dsh-agent-presets 装到仓库根
+      # （实测），于是 test/run.mjs 走它的第一解析顺位，测到的是真实的旧线形态。
+      - name: 换装 0.1.6-alpha.2，旧线再跑一遍
+        run: |
+          npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
+          ls -d node_modules/@deepseek-ai/dsh-agent-presets/presets
+          node test/run.mjs
       - name: 双语配对 + 语言纯度
         run: node tools/verify-translation-pairing.mjs
       - name: 文档数字
