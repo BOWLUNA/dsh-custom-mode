@@ -170,6 +170,7 @@ const suites = [
   'meta.test.mjs',
   'assistants.test.mjs',
   'editor-route.test.mjs',
+  'preset-backend.test.mjs',
   'journal.test.mjs',
   'session-trace.test.mjs',
   'seed.test.mjs',

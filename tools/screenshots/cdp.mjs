@@ -36,6 +36,20 @@ class Session {
     this.pending = new Map()
     this.listeners = []
     this.sessionId = undefined
+    /**
+     * Native JS dialogs seen on this session, oldest first.
+     *
+     * They are not a detail: window.confirm **blocks the renderer synchronously**, and a
+     * headless browser has nobody to click it — every following CDP command just times out
+     * (CDP timeout: Input.dispatchMouseEvent), which reads as "the browser wedged" when the
+     * real cause is a dialog. Measured on dsh 0.1.7-rc.2: the plugin's delete goes through
+     * window.confirm (that shell's client seed table only hands a third-party plugin
+     * Button/Input/Switch/Tag/Pill), the page froze at CPU 0%, and dismissing the dialog over
+     * CDP brought it back immediately.
+     */
+    this.dialogs = []
+    /** 'accept' | 'dismiss' — set CDP_DIALOG=dismiss to decline every dialog instead. */
+    this.dialogPolicy = process.env.CDP_DIALOG === 'dismiss' ? 'dismiss' : 'accept'
     socket.addEventListener('message', (event) => this.onMessage(String(event.data)))
   }
 
@@ -90,6 +104,15 @@ class Session {
     this.sessionId = sessionId
     await this.send('Page.enable')
     await this.send('Runtime.enable')
+    // 接管原生对话框：不问就没人问，页面会一直冻着（headless 下没有可点的按钮）。
+    this.listeners.push((message) => {
+      if (message.method !== 'Page.javascriptDialogOpening') return
+      const params = message.params ?? {}
+      const accept = this.dialogPolicy === 'accept'
+      this.dialogs.push({ type: params.type, message: params.message, accepted: accept, at: new Date().toISOString() })
+      this.send('Page.handleJavaScriptDialog', { accept }).catch(() => undefined)
+      console.error(`[cdp] 自动${accept ? '接受' : '取消'}原生对话框 ${params.type}: ${String(params.message).slice(0, 90)}`)
+    })
     return this
   }
 

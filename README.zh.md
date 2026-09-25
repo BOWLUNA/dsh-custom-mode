@@ -42,7 +42,7 @@
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.14   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.15   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -105,7 +105,7 @@ cd dsh-custom-mode
   `persona` 行替换成自己的读取器（`complete: false`），所以底子的**提示词语义不会被继承**。最明显的是
   「极简模式」：你拿到的是极简的工具集，不是极简的提示词。
 - **切换助手不会丢草稿** —— 每个助手各自留着未保存的修改，列表上用「未保存」标出来；唯一会放弃修改的是「放弃修改并重新读取」（有草稿时按钮会改名说明）。
-- **删除** —— 用壳自己的风险确认弹窗，需要勾选「我明白……会被永久删除」。删除只移除磁盘上的模式目录：**正在使用它的会话不受影响**（组成在会话创建时就已读取），新建会话时不再出现。
+- **删除** —— 先确认，再由插件自己动手删。确认形态取决于这条线：壳把 `RiskConfirmation` 交给第三方客户端插件时，是壳自己的弹窗（需勾选）；而 `0.1.7-rc.2` 的客户端种子表只暴露 `Button/Input/Switch/Tag/Pill`，于是退化为原生 `confirm`（护栏不变，少一个勾选框）。删除两条线都能用：`0.1.6` 及更早有 `agentPresets.remove()`，`0.1.7`+ 根本没有这个调用 —— 那里由插件自己注销注册表项并删掉目录。删除只移除磁盘上的模式目录：**正在使用它的会话不受影响**（组成在会话创建时就已读取），新建会话时不再出现。
 - **直接对 agent 说** —— 每个助手都自带 `custom_prompt` 工具，会话里可以读取或改写**它自己**的提示词。
 - **直接改文件** —— `$DSH_HOME/.agent-presets/<助手 id>/prompt.md` 是那个助手的唯一事实来源。
 
@@ -145,7 +145,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 行开关是三态。没碰过的行与出厂行逐字节相同，包括 `!!js` 平台条件与出厂 `disabled`；显式开或关才会把那个条件替换成布尔值。平台表达式在宿主端求值，所以页面显示的是这台机器上实际生效的状态，而不是"有没有这个键"。
 
-多助手不需要机制上的新能力：`dsh-agent-presets` 本来就会扫描用户预设根目录下的**每一个**目录，而且每次读 roster 都重新扫盘，所以一个刚建的目录在下一次选会话时就可见。每个助手的 `prompt-reader.mjs` / `prompt-tool.mjs` 都是按**自己模块位置**解析 `prompt.md` 的，N 份拷贝等于 N 套互不干扰的提示词。新增用包内模板播种，删除交给平台的 `agentPresets.remove()`（它会拒绝删出厂 preset，并再确认目录确实在可写根目录下）。
+多助手不需要机制上的新能力：`dsh-agent-presets` 本来就会扫描用户预设根目录下的**每一个**目录，而且每次读 roster 都重新扫盘，所以一个刚建的目录在下一次选会话时就可见。每个助手的 `prompt-reader.mjs` / `prompt-tool.mjs` 都是按**自己模块位置**解析 `prompt.md` 的，N 份拷贝等于 N 套互不干扰的提示词。新增用包内模板播种；删除在有 `agentPresets.remove()` 的线上交给平台（它会拒绝删出厂 preset，并再确认目录确实在可写根目录下），在 `0.1.7`+ 上由本插件自己注销注册表项并删目录。
 
 ## 版本
 
@@ -155,7 +155,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 `dsh 0.1.7-rc.2`（win32），与 CI 主轴钉的正是同一组合；插件已在 Windows 上以真启动验证
 （播种、声明式注册、平台条件行求值全部正确）。
 并各跑一遍完整测试。`0.1.5-rc.2` 实测：安装、组合树、
-`/api` 围栏、`state`/`history`/`warnings` 与浏览器 57 项全过；审批缝依赖的 `tools/pre-execute` 与路由
+`/api` 围栏、`state`/`history`/`warnings` 与浏览器 58 项全过；审批缝依赖的 `tools/pre-execute` 与路由
 依赖的 `connection.fetch.register` 在稳定版里同样存在。
 
 包版本走**自己的线** —— `1.0.0`、`1.0.1` …… 它不镜像 DSH 的版本号。本插件支持哪些 dsh，由
@@ -177,7 +177,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 | `ctx.connection.fetch.register({ path, methods, requestBody, fetch })` | 设置页 404 —— 什么都没注册 |
 | `kind: 'prefix'` 同时匹配 `path` 与 `path/…` | 只有列表能打开，`/state`、`/create`、`/delete` 全部 404 |
 | `agentPresets.list()` 行里有 `id` / `trust` / `path`，`preset.yml` 提供 `name` / `description` | 助手列表为空或认不出助手 |
-| `agentPresets.remove(id)`，且拒绝 `trust: 'system'` | 删除失败（页面会显示平台给的原因） |
+| `agentPresets.remove(id)`（仅旧线），且拒绝 `trust: 'system'` | 0.1.7+ 的删除不再需要它 —— 声明式后端自己注销注册表项并删目录 |
 | `ctx.connection.requestRejection(req)` | 设置页失败关闭（503），不再提供服务 |
 | `ctx.inject(deps, cb)`（作用域化等待） | 在没有 web 服务器的 profile 里，整行会停在 `pending` |
 | `dsh.client` + `exports["./client"]`，且客户端 bundle id 等于包名 | 浏览器半不会被发现 |
@@ -203,7 +203,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 ## 开发
 
 ```sh
-node test/run.mjs        # 14 个套件；自己解析出厂 preset 目录（0.1.7+ 从宿主声明派生）
+node test/run.mjs        # 15 个套件；自己解析出厂 preset 目录（0.1.7+ 从宿主声明派生）
 ```
 
 改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。
@@ -254,7 +254,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.14
+dsh plugin --profile web add dsh-custom-mode@1.9.15
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

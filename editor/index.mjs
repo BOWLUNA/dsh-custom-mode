@@ -733,11 +733,14 @@ export function repairComposition(rows, input) {
   }
 }
 
-export async function deleteAssistant(rows, input, agentPresets) {
+export async function deleteAssistant(rows, input, remover) {
   const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
-  if (assistantDir(rows, id) === undefined) return unknownAssistant(id)
-  if (typeof agentPresets?.remove !== 'function') {
-    return { ok: false, code: 'noRemoveApi', error: '当前 DSH 版本没有 agentPresets.remove()，无法删除。' }
+  const directory = assistantDir(rows, id)
+  if (directory === undefined) return unknownAssistant(id)
+  // `remover` 是**按后端选出来的**删除入口（见 {@link presetRemover}）：旧线是平台的
+  // `agentPresets.remove()`，新线是声明式后端的 dispose + 删目录。两边都没有时才是真的做不到。
+  if (remover === undefined || remover === null || typeof remover.remove !== 'function') {
+    return { ok: false, code: 'noRemoveApi', error: '当前 DSH 版本没有可用的删除入口（agentPresets.remove() 与声明式后端都不可用），无法删除。' }
   }
   // 文案用**显示名**，不用内部目录 id（复制/删除的状态行曾把 id 暴露给用户，审阅点名）。
   const displayName = (() => {
@@ -745,9 +748,17 @@ export async function deleteAssistant(rows, input, agentPresets) {
     return typeof row?.name === 'string' && row.name.trim() !== '' ? row.name : id
   })()
   try {
-    await agentPresets.remove(id)
+    const outcome = await remover.remove(id, directory)
+    if (outcome !== null && typeof outcome === 'object' && outcome.ok === false) {
+      // 字面量 code（不用三元表达式）：test/editor-route.test.mjs 会扫 `code:` 后面的字符串字面量，
+      // 要求每个都在词典里中英各一条 —— 三元里的 'string' 会被它当成一个 code。
+      if (outcome.code === 'noDirectory') {
+        return { ok: false, code: 'noDirectory', params: { path: directory }, error: '删除失败：找不到「' + displayName + '」的目录。' }
+      }
+      return { ok: false, code: 'deleteFailed', params: { detail: describe(outcome.code ?? 'unknown'), path: directory }, error: '删除失败：' + describe(outcome.code ?? 'unknown') }
+    }
   } catch (error) {
-    return { ok: false, code: 'deleteFailed', params: { detail: describe(error) }, error: '删除失败：' + describe(error) }
+    return { ok: false, code: 'deleteFailed', params: { detail: describe(error), path: directory }, error: '删除失败：' + describe(error) }
   }
   return { ok: true, id, code: 'deleted', params: { name: displayName }, note: '已删除「' + displayName + '」。正在使用它的会话不受影响；新建会话时不再出现。' }
 }
@@ -911,6 +922,18 @@ export function apply(ctx) {
       backendVerdict.id === BACKEND_DECLARATIVE
         ? createDeclarativeBackend({ scope, log: console.log, warn: console.error })
         : null
+
+    /**
+     * 删除入口，按后端选。新线上服务**没有** `remove()`（唯一手段是 `register()` 的 disposer），
+     * 所以由声明式后端自己 dispose + 删目录；旧线继续用平台的文件系统语义。
+     *
+     * 这里返回 `undefined` 只发生在"两套都没有"的线上，那时才允许报 `noRemoveApi`。
+     */
+    const presetRemover = () => {
+      if (declarative !== null) return { remove: (id, dir) => declarative.remove(id, dir) }
+      if (typeof scope.agentPresets?.remove === 'function') return { remove: (id) => scope.agentPresets.remove(id) }
+      return undefined
+    }
 
     /** 原始 roster：只读、无副作用。同步逻辑走它，避免与 {@link roster} 互相递归。 */
     const rawRoster = async () => {
@@ -1134,7 +1157,7 @@ export function apply(ctx) {
           const result = await serializedWrite('tree', async () => reorderAssistant(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
-        const result = await serializedWrite('delete:' + targetId, async () => deleteAssistant(await roster(), parsed, scope.agentPresets))
+        const result = await serializedWrite('delete:' + targetId, async () => deleteAssistant(await roster(), parsed, presetRemover()))
         return json(result, result.ok === true ? 200 : 400)
       } catch (error) {
         // 兜底也要带 code：这是**意料之外**的异常，页面拿到的是 Node 的原始错误串，方向反着也一样糟

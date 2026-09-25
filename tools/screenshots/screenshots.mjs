@@ -275,16 +275,20 @@ await shotDialog('01-mode-switch.png')
 // ── 功能实测 A：拨开关 ────────────────────────────────────────────────────
 console.log('实测 A：关闭「网页检索与抓取」（不保存，先让「已改」徽标出现）…')
 await scrollTo('.cpfe-rows')
-// The switch is the shell's own atom now: `[role=switch]` with `aria-checked`, not an
-// `<input type=checkbox>` (measured: 32 rows, 32 `[role=switch]`, 0 checkboxes in the panel).
+// Two shapes, decided by the line (measured 2026-09-25): with the shell's atom library the row
+// switch is `[role=switch]` with `aria-checked` (measured once: 32 rows, 32 switches); on
+// 0.1.7-rc.2 the shell does **not** hand a third-party client plugin that module, so the plugin
+// renders its own fallback `input[type=checkbox]`. Read state from whichever is present.
 // React updates the attribute a tick after the click, so the new state is read separately.
 const ROW_FINDER = `[...document.querySelectorAll('.cpfe-row')].find((el) => (el.textContent.includes('网页检索与抓取') || /web search|fetch/i.test(el.textContent)) || el.textContent.includes('Web search and fetch'))`
+const READ_STATE = `(control) => control.matches('[role=switch]') ? control.getAttribute('aria-checked') === 'true' : control.checked === true`
 report.toggle = await session.evaluate(`(() => {
   const row = ${ROW_FINDER};
   if (row === undefined) return null;
-  const box = row.querySelector('[role=switch]');
+  const read = ${READ_STATE};
+  const box = row.querySelector('[role=switch]') ?? row.querySelector('input[type=checkbox]');
   if (box === null) return { missingSwitch: true };
-  const before = box.getAttribute('aria-checked') === 'true';
+  const before = read(box);
   if (before !== true) return { alreadyOff: true };
   box.click();
   return { before };
@@ -292,8 +296,9 @@ report.toggle = await session.evaluate(`(() => {
 await session.sleep(500)
 report.toggleAfter = await session.evaluate(`(() => {
   const row = ${ROW_FINDER};
-  const box = row === undefined ? null : row.querySelector('[role=switch]');
-  return box === null ? null : box.getAttribute('aria-checked') === 'true';
+  const read = ${READ_STATE};
+  const box = row === undefined ? null : (row.querySelector('[role=switch]') ?? row.querySelector('input[type=checkbox]'));
+  return box === null ? null : read(box);
 })()`)
 console.log('  tool-web 开关:', JSON.stringify({ ...report.toggle, after: report.toggleAfter }))
 await session.sleep(300)

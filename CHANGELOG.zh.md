@@ -6,6 +6,27 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.9.15]
+
+### 0.1.7 上终于能删助手了 —— 而且浏览器闸门终于能看见页面
+
+- **dsh ≥ 0.1.7 上，设置页根本删不掉助手。** 声明式那条线没有 `agentPresets.remove()` —— 注销 preset 的
+  唯一手段是 `register()` 返回的 disposer —— 而宿主那半恰恰要求这个 API，拿不到就回一个类型化的
+  `noRemoveApi`。于是确认框弹了、请求 400、目录还在磁盘上。现在声明式后端**自己做删除**：先注销注册表项、
+  再删目录；找不到目录时如实返回类型化的 `noDirectory`，而不是报告"已删除"。这条是**浏览器闸门抓到的**，
+  不是单元测试：此前没有任何一个套件覆盖删除。
+- **浏览器闸门一直卡在第 30 项，原因是原生对话框。** 这条线上的删除确认是普通的 `window.confirm`，它会
+  **同步阻塞渲染进程**；headless Chrome 没有人去点它，于是之后每一条 CDP 命令都超时
+  （`CDP timeout: Input.dispatchMouseEvent`），整轮死在 57 项里的第 30 项。实测：渲染进程 CPU 0%，用
+  `Page.handleJavaScriptDialog` 关掉对话框后立刻恢复。现在 `tools/screenshots/cdp.mjs` 自己接管原生对话框
+  并留痕，`tools/browser-verify.mjs` 能跑到结尾；它的删除断言同时覆盖**两条确认路径**，并且对**磁盘真值**
+  （API 列表）断言，而不是只看页面。
+- **CI 每次 push 都跑浏览器闸门**（`.github/workflows/browser.yml`）：装进一次性 `DSH_HOME`、启动实例、
+  驱动 headless Chrome，然后跑 `picker-probe` 与 `browser-verify`。它是唯一能看见渲染页面的检查，此前
+  只在人工 lab 上跑过。
+
+测试：782 → 797 项（15 个套件）。
+
 ## [1.9.14]
 
 ### 2026-09-21 那轮评审里剩下的两个 issue 真正关掉了 —— 外加仓库卫生

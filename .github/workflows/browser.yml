@@ -1,0 +1,99 @@
+# 浏览器闸门：唯一能看见**渲染后页面**的检查。
+#
+# 为什么单独一个 workflow：它要装一次插件、起一个实例、跑一个 headless 浏览器（约 3–5 分钟），
+# 而 test.yml 的矩阵只跑单元套件。二者失败的含义不同 —— 单元套件证明"宿主答得对"，这里证明
+# "页面真的画出来了、真的点得动"。此前它只在人工 lab 上跑过，于是 1.9.13 那次"设置页在 0.1.7 上
+# 整页 500"是靠人工发现的，而删除在 0.1.7 上根本不可用则一直没人发现（见 1.9.15 的 CHANGELOG）。
+#
+# 这条流水线**全部跑在 GitHub 的 runner 上**，不占任何一台开发机的资源。
+name: browser
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      DSH_HOME: ${{ github.workspace }}/.ci-home
+      # 实例与日志都放 runner 的临时目录，失败时整包上传。
+      LOGS: ${{ runner.temp }}/logs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # 与 test.yml 同一条主轴：官方桌面端内置的那条，也是这次修复要保住的那条。
+      - name: 安装 DSH 0.1.7-rc.2（当前主轴）
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
+
+      # `dsh plugin` 是把参数转发给 PATH 上的 pnpm（见 install.sh 里那段 WSL 注释）。
+      - name: pnpm（`dsh plugin` 会转发给它）
+        run: |
+          npm install -g --no-audit --no-fund pnpm@10
+          pnpm --version
+          echo "$PWD/node_modules/.bin" >> "$GITHUB_PATH"
+
+      - name: 装进一个一次性 DSH_HOME
+        run: |
+          mkdir -p "$LOGS"
+          ./install.sh 2>&1 | tee "$LOGS/install.log"
+
+      - name: 启动实例并取出带 token 的 URL
+        run: |
+          nohup dsh web --port 3081 --no-open > "$LOGS/dsh.log" 2>&1 &
+          for i in $(seq 1 60); do
+            grep -q "token=" "$LOGS/dsh.log" && break
+            sleep 2
+          done
+          if ! grep -q "token=" "$LOGS/dsh.log"; then
+            echo "::error::实例没有起来"
+            cat "$LOGS/dsh.log"
+            exit 1
+          fi
+          grep -o "http://127.0.0.1:3081/?token=[A-Za-z0-9_-]*" "$LOGS/dsh.log" | head -1 > "$LOGS/url.txt"
+          echo "URL=$(cat "$LOGS/url.txt")"
+          # 出厂组成必须真的取到：取不到时页面会降级，而"降级"不该在 CI 里静默通过。
+          grep -E "custom-mode: (backend=|已取回)" "$LOGS/dsh.log"
+
+      - name: 启动 headless Chrome（runner 镜像自带）
+        run: |
+          BROWSER=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)
+          if [ -z "$BROWSER" ]; then echo "::error::runner 上没有 Chrome"; exit 1; fi
+          "$BROWSER" --version
+          nohup "$BROWSER" --headless=new --no-sandbox --disable-gpu --disable-dev-shm-usage \
+            --remote-debugging-port=9222 --user-data-dir="${{ runner.temp }}/chrome" \
+            --window-size=1440,900 about:blank > "$LOGS/chrome.log" 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:9222/json/version > /dev/null && break
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:9222/json/version > /dev/null || { echo "::error::CDP 没起来"; cat "$LOGS/chrome.log"; exit 1; }
+
+      - name: 模式在选择器里（渲染后）
+        run: CDP_PORT=9222 node tools/picker-probe.mjs --url "$(cat "$LOGS/url.txt")" --expect 自定义模式 --out "$LOGS/picker.png"
+
+      - name: 设置页整套（渲染后，含新建/删除往返）
+        run: CDP_PORT=9222 node tools/browser-verify.mjs --url "$(cat "$LOGS/url.txt")" --out "$LOGS/verify.png"
+
+      - name: 失败时上传日志与截图
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-verify-logs
+          path: |
+            ${{ runner.temp }}/logs/**
+          retention-days: 14
+
+      - name: 收尾（无论如何都把实例与浏览器停掉）
+        if: always()
+        run: |
+          pkill -f "[c]hrome --headless" || true
+          pkill -f "[d]sh web --port 3081" || true

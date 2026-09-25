@@ -12,7 +12,8 @@
  *     相对路径；旧线上它相对 preset 目录解析，而 `register()` 在 profile 的 baseUrl 下挂载。
  *     实测：相对路径 → `broken: … never started`；绝对 `file://` URL → 正常 mount。
  *     ⇒ `toPluginRows()` 必须把相对说明符改写成绝对 URL。
- *  2. **`register()` 的返回值是 disposer**，注销唯一手段；服务上没有 `remove()`。
+ *  2. **`register()` 的返回值是 disposer**，注销唯一手段；服务上没有 `remove()` —— 所以"删除助手"
+ *     由本后端的 {@link remove} 自己做（dispose + 删目录），宿主那半不再要求平台提供 `remove()`。
  *  3. **同一个 id 重复注册会抛 `Duplicate agent preset`**
  *     ⇒ 重新挂载前必须先 dispose 旧的。
  *
@@ -22,7 +23,7 @@
  * `agent.cordis.yml` 仍然写盘 —— 它是用户可见、可迁移、可手改的真相，也是旧线唯一的输入。
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseComposition } from './parse-composition.mjs'
@@ -164,6 +165,29 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
   }
 
   /**
+   * 删除一个助手：**先注销，再删目录**。
+   *
+   * 这条线上服务没有 `remove()`（唯一手段是 `register()` 返回的 disposer），所以"删除"必须由本插件
+   * 自己完成 —— 而这正是设置页在 0.1.7 上**根本删不掉助手**的原因：宿主那半只认 `agentPresets.remove()`，
+   * 拿不到就回一个类型化的 `noRemoveApi`，页面弹完确认框只显示"删除失败"。
+   *
+   * 顺序不能反：先注销，选择器立刻不再提供它；再删目录。删目录失败时**如实抛出**（调用方转成
+   * `deleteFailed` 并把路径带给用户），而不是报告"已删除"却把目录留在磁盘上 —— 那样下次同步
+   * 会把它重新挂回来，用户看到的是"删了又回来了"。
+   *
+   * @param {string} id - assistant id.
+   * @param {string} [dir] - its directory; when omitted, the one remembered at mount time is used.
+   */
+  async function remove(id, dir) {
+    const remembered = mounted.get(id)?.dir
+    await unmount(id)
+    const target = typeof dir === 'string' && dir !== '' ? dir : remembered
+    if (typeof target !== 'string' || target === '') return { ok: false, code: 'noDirectory', id }
+    rmSync(target, { recursive: true, force: true })
+    return { ok: true, id, dir: target }
+  }
+
+  /**
    * Fetch the shipped base compositions the host declares, as entry-list YAML.
    *
    * `readDocument()` is the 0.1.7 replacement for the presets directory the composer used to read:
@@ -205,6 +229,7 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
     sync,
     mountOne,
     unmount,
+    remove,
     disposeAll,
     fetchBaseCompositions,
     mountedIds: () => [...mounted.keys()],

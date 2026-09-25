@@ -48,7 +48,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.14   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.15   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -141,9 +141,14 @@ plugin switches, system prompt) edit **whichever one is selected**.
 - **Switching assistants never discards drafts** — each keeps its own unsaved edits, marked
   "Unsaved" in the list; the only path that throws edits away is the reload button, which renames
   itself to say so.
-- **Delete** — the shell's own risk-confirmation dialog, which requires ticking an acknowledgement.
-  Deletion only removes the mode directory from disk: **sessions already using it keep running** (their
-  composition was read when they started), and new sessions no longer offer it.
+- **Delete** — a confirmation, then the plugin does the removal itself. Which confirmation depends on the
+  line: when the shell hands a third-party client plugin its `RiskConfirmation` atom you get the shell's own
+  dialog with a tick-box; on `0.1.7-rc.2` the client seed table only exposes `Button/Input/Switch/Tag/Pill`,
+  so it degrades to a native `confirm` (same guardrail, one prompt instead of a dialog). Removal works on both
+  lines: `0.1.6` and older have `agentPresets.remove()`, while `0.1.7`+ has no such call at all — there the
+  plugin disposes its own registration and removes the directory. It only removes the mode directory from disk:
+  **sessions already using it keep running** (their composition was read when they started), and new sessions
+  no longer offer it.
 - **Ask the agent** — every assistant ships a `custom_prompt` tool, so a session can read or rewrite
   **its own** prompt.
 - **Edit the file** — `$DSH_HOME/.agent-presets/<assistant id>/prompt.md` is that assistant's single
@@ -205,7 +210,8 @@ Several assistants need no new mechanism: `dsh-agent-presets` already scans **ev
 the user preset root, and re-reads those roots on each roster call, so a directory created just now is
 selectable the next time a session is started. Each assistant's `prompt-reader.mjs` / `prompt-tool.mjs`
 resolves `prompt.md` relative to **its own module location**, so N copies are N independent prompts.
-Creation seeds the packaged template; deletion goes through the platform's `agentPresets.remove()`,
+Creation seeds the packaged template; deletion goes through the platform's `agentPresets.remove()` where it
+exists and through the plugin's own dispose-and-remove path where it does not (0.1.7+),
 which refuses a shipped preset and re-checks that the directory really lives under the writable root.
 
 ## Versioning
@@ -242,7 +248,7 @@ below exist, which is what the ranges are for.
 | `ctx.connection.fetch.register({ path, methods, requestBody, fetch })` | settings page 404s — nothing is registered |
 | `kind: 'prefix'` matching both `path` and `path/…` | only the list opens; `/state`, `/create`, `/delete` all 404 |
 | `agentPresets.list()` rows carrying `id` / `trust` / `path`, with `preset.yml` supplying `name` / `description` | the assistant list is empty or unrecognisable |
-| `agentPresets.remove(id)`, refusing `trust: 'system'` | deletion fails (the page shows the platform's reason) |
+| `agentPresets.remove(id)` (legacy only), refusing `trust: 'system'` | 0.1.7+ deletion no longer needs it — the declarative backend disposes the registration and deletes the directory instead |
 | the `/api` channel's fence (Host/Origin + browser auth) | the page cannot authenticate at all; do **not** "fix" it by moving the route to the raw `webServer` table |
 | `ctx.inject(deps, cb)` (scoped wait) | the row parks in `pending` in profiles without a web server |
 | `dsh.client` + `exports["./client"]`, client bundle id == package name | the browser half is not discovered |
@@ -269,7 +275,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 14 suites; resolves the shipped presets itself (0.1.7+ derives them from the host)
+node test/run.mjs        # 15 suites; resolves the shipped presets itself (0.1.7+ derives them from the host)
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the
@@ -325,7 +331,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.14
+dsh plugin --profile web add dsh-custom-mode@1.9.15
 # then restart the DSH process that serves the web profile
 ```
 

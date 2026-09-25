@@ -8,6 +8,30 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.15]
+
+### Deleting an assistant works on 0.1.7 — and the browser gate can finally see the page
+
+- **The settings page could not delete an assistant on dsh ≥ 0.1.7.** The declarative line has no
+  `agentPresets.remove()` — the only way to unregister a preset is the disposer `register()` returns — and the
+  host half demanded exactly that API, answering a typed `noRemoveApi`. So the confirmation appeared, the
+  request came back 400, and the directory stayed on disk. The declarative backend now performs the removal
+  itself: **dispose the registration, then delete the directory**, and report honestly (typed `noDirectory`)
+  when it cannot find the directory instead of claiming success. Found by the browser gate, not by a unit test:
+  no suite covered deletion at all.
+- **The browser gate had been hanging at check 30 — the cause was a native dialog.** On this line the delete
+  confirmation is a plain `window.confirm`, which **blocks the renderer synchronously**; a headless Chrome has
+  nobody to click it, so every following CDP command timed out (`CDP timeout: Input.dispatchMouseEvent`) and the
+  run died with 30 of 57 checks. Measured: the renderer sat at 0% CPU, and dismissing the dialog over
+  `Page.handleJavaScriptDialog` unfroze it immediately. `tools/screenshots/cdp.mjs` now answers native dialogs
+  itself and records them, so `tools/browser-verify.mjs` runs to the end — and its delete assertions now cover
+  **both** confirmation paths and check the disk (the API list) rather than the page.
+- **CI runs the browser gate on every push** (`.github/workflows/browser.yml`): install into a throwaway
+  `DSH_HOME`, boot the instance, drive a headless Chrome, then `picker-probe` and `browser-verify`. It is the
+  only check that can see a rendered page, and until now it only ran by hand on a lab machine.
+
+Tests: 782 → 797 checks (15 suites).
+
 ## [1.9.14]
 
 ### Two issues from the 2026-09-21 review are actually closed now — plus repo hygiene

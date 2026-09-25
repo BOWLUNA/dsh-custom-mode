@@ -15,14 +15,14 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 ──────── composition.test.mjs ────────
 … result: N passed, 0 failed
 … one such block per suite …
-all 14 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 15 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
 Per-suite counts are deliberately **not** listed here: they change with every test edit, and a review
 caught this section still showing eight suites and a 333 total. The one number the docs do state — the
 total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
 
-**782 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other thirteen bring
+**797 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other fourteen bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 There are four resolution paths, and any one of them hitting is enough: the

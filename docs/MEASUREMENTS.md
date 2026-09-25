@@ -1442,3 +1442,69 @@ Under GitHub's `bash -e` a failed install is a failed step, so those legs never 
 meanwhile installed only `0.1.6-alpha.2` before publishing, which is how a green release gate and three red
 legs coexisted for three releases.
 
+## 28. The browser gate on 0.1.7-rc.2 — a native dialog behind 27 missing checks (2026-09-25)
+
+Context: 1.9.15. Three findings that only a rendered page can show. All commands run against a throwaway
+`DSH_HOME` on a second machine, dsh `0.1.7-rc.2`, `chrome-headless-shell` with CDP on 9222.
+
+**1. `window.confirm` freezes the renderer, and that is why the gate stopped at 30/57.**
+
+```
+$ CDP_PORT=9222 node tools/browser-verify.mjs --url "http://127.0.0.1:3082/?token=…"
+PASS  新增后在列表里出现
+file…/cdp.mjs:69
+Error: CDP timeout: Input.dispatchMouseEvent
+```
+
+The next call after that PASS is the delete. Probing the frozen page:
+
+```
+[+    1ms] trivial evaluate (before): 2
+[+ 8002ms] delete click: __TIMEOUT__          ← the click handler never returns
+[+ 6001ms] trivial evaluate (after delete click): __TIMEOUT__
+top -bn1 | grep chrome  →  0.0 % CPU          ← blocked, not spinning
+```
+
+Dismissing the dialog over CDP unfroze it immediately, which identifies the cause:
+
+```
+handleJavaScriptDialog 成功? yes
+关掉对话框之后的渲染进程: alive:2
+```
+
+So the page was sitting inside a native `confirm()`, which blocks the renderer synchronously; a headless
+browser has nobody to click it, so every later CDP command timed out. `tools/screenshots/cdp.mjs` now
+answers `Page.javascriptDialogOpening` itself and records it (`session.dialogs`).
+
+**2. The delete itself was broken on this line (and no unit test could see it).**
+
+```
+POST /api/custom-mode/delete {"id":"custom-2"}  → 400 {"ok":false,"code":"noRemoveApi", …}
+$ ls $DSH_HOME/.agent-presets/  →  custom  custom-2      ← still there
+```
+
+The declarative line has no `agentPresets.remove()` (unregistering = the disposer from `register()`), and the
+host half demanded that API. The declarative backend now disposes the registration and deletes the
+directory; `test/preset-backend.test.mjs` (new, 15 checks) pins it.
+
+**3. The shell does not hand a third-party client plugin its atom library on this line.**
+
+The panel renders `Button/Input/Switch/Tag/Pill` from the plugin's own fallback set, so rows are
+`input[type=checkbox]` — not the shell's `[role=switch]`. Measured on the rendered panel:
+
+```
+{ "text": "基础压缩 已启用 ▸", "switches": 0, "inputs": 1, … }   (one line per row)
+```
+
+`browser-verify`'s switch assertions now read either shape (and assert that at least one is rendered), so the
+gate passes on both lines instead of only on the one where the atoms happen to be provided.
+
+**After the three fixes, twice in a row on the same instance:**
+
+```
+$ CDP_PORT=9222 node tools/browser-verify.mjs --url "…"
+结果: 58 通过, 0 失败          (run 1)
+结果: 58 通过, 0 失败          (run 2)
+$ ls $DSH_HOME/.agent-presets/  →  custom        ← the create/delete round trip left nothing behind
+```
+

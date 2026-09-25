@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 14 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself — on dsh ≥ 0.1.7 by deriving them from the host's declaration
+node test/run.mjs                                  # 15 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself — on dsh ≥ 0.1.7 by deriving them from the host's declaration
 node tools/verify-translation-pairing.mjs          # bilingual pairing + language-purity check (what CI runs)
 node tools/verify-doc-numbers.mjs                  # documented counts vs the real run (what CI runs)
 
@@ -107,6 +107,14 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     **degrade**, not throw — `readState` returns a state with `baseUnavailable` plus the prompt, and
     `saveState` / `savePromptOnly` save the prompt while **refusing** (with a typed code) any switch change.
     `test/base-composition.test.mjs` pins the route order, the typed failure and the degraded save.
+
+15. **「删除助手」在两条线上都必须真的删掉。** 声明式线（0.1.7+）没有 `agentPresets.remove()` —— 注销只有
+    `register()` 返回的 disposer 一条路 —— 所以删除由声明式后端自己做：**先注销、再删目录**。找不到目录时
+    返回类型化的 `noDirectory`，**不许**报告"已删除"却把目录留在磁盘上：下次同步会把它挂回来，用户看到的
+    是"删了又回来了"。宿主那半按后端选删除入口（`presetRemover()`），只有两套都没有时才可以回
+    `noRemoveApi`。`test/preset-backend.test.mjs` 钉住两半；`tools/browser-verify.mjs` 的删除断言对
+    **API 真值**（磁盘）断言，并覆盖**两条确认路径**（壳内 `RiskConfirmation` / 原生 `confirm`）。
+    1.9.14 之前这条线根本删不掉，而它正是官方桌面端跑的那条。
 
 ## Known traps (all measured)
 

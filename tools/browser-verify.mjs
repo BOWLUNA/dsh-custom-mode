@@ -31,7 +31,7 @@ import { writeFileSync } from 'node:fs'
 import { connect } from './screenshots/cdp.mjs'
 
 // 记在 README 里的“浏览器 N 项”必须是实测的：这里把它变成断言，改了检查却忘了改文档会失败。
-const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 57)
+const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 58)
 
 const argv = process.argv.slice(2)
 const arg = (name, fallback) => {
@@ -271,12 +271,23 @@ try {
     }
 
     // 行标题必须可见：Switch 的 label 只进 aria-label，标题得由页面自己画。
+    //
+    // 控件形态**按线而变**，两条都要认（实测 2026-09-25）：壳把 `dsh-client-ui-primitives` 交给第三方
+    // 客户端插件时，行开关是壳的 `[role=switch]`；0.1.7-rc.2 **不交**（客户端种子表里没有这个模块，
+    // 插件会打印一行说明并改用自带的朴素控件），于是是 `input[type=checkbox]`。老断言只找前者，
+    // 在这条线上必然红 —— 而这条线正是官方桌面端跑的那条。
     const rowTitles = await session.evaluate(`(() => {
       const heads = [...document.querySelectorAll('.cpfe-row-head')].map((el) => el.textContent.trim());
-      const switches = [...document.querySelectorAll('[role=switch]')].length;
-      return { heads, switches };
+      const atoms = [...document.querySelectorAll('[role=switch]')].length;
+      const fallback = [...document.querySelectorAll('.cpfe-row input[type=checkbox]')].length;
+      return { heads, atoms, fallback };
     })()`)
     check('每个开关都有可见行标题', rowTitles.heads.length > 0 && rowTitles.heads.every((t) => t !== ''), JSON.stringify(rowTitles))
+    check(
+      '行开关渲染出来了（壳的 role=switch 或回退 checkbox，至少一种）',
+      rowTitles.atoms > 0 || rowTitles.fallback > 0,
+      JSON.stringify({ atoms: rowTitles.atoms, fallback: rowTitles.fallback }),
+    )
 
     // 导航项不能是裸键 nav。
     const navLabel = await session.evaluate(`(() => {
@@ -416,54 +427,82 @@ try {
      * modal, which is how this check failed the first time it ran.
      */
     // 删掉它：走壳的风险确认弹窗，勾选后才真删。
+    //
+    // 删除有**两条**确认路径，两条都得走通：
+    //   a) 壳交出了 RiskConfirmation（官方设置页用的就是它）→ 壳内弹窗，勾选 + 永久删除两步；
+    //   b) 壳只交出一小撮 atom（**实测 dsh 0.1.7-rc.2 只给 5 个**：Button/Input/Switch/Tag/Pill，
+    //      没有 RiskConfirmation）→ 插件退化为原生 window.confirm。
+    // 路径 b 曾经让这个文件「卡在 30 项」很久：原生对话框会**同步冻住渲染进程**，headless 下没有
+    // 人点它，于是下一条 CDP 命令直接超时（CPU 0%，看起来像浏览器崩了）。现在由 cdp.mjs 自动接管
+    // （session.dialogs 留痕），两条路径都能跑到底 —— 而且断言的是「真的删掉了」，不是「弹窗出现过」。
+    const dialogsBefore = session.dialogs.length
     await session.clickTextReal('删除这个助手', { exact: false })
     await session.sleep(1600)
-    const confirmText = await session.evaluate(`(() => {
-      const dlg = [...document.querySelectorAll('[role=dialog]')]
-        .find((el) => (el.innerText || '').includes('永久删除'));
-      return dlg === undefined ? '' : dlg.innerText;
-    })()`)
-    check('删开风险确认弹窗', confirmText.includes('永久删除'), confirmText.slice(0, 120).replace(/\n/g, ' | '))
+    const native = session.dialogs.slice(dialogsBefore)
+    if (native.length > 0) {
+      const last = native[native.length - 1]
+      check('这条线没有壳内确认 → 走原生 confirm（CDP 已自动接受）', last.type === 'confirm' && last.accepted === true, JSON.stringify(last).slice(0, 140))
+      check('原生确认问的是「永久删除」', /永久删除/.test(String(last.message)), String(last.message).slice(0, 120))
+    } else {
+      const confirmText = await session.evaluate(`(() => {
+        const dlg = [...document.querySelectorAll('[role=dialog]')]
+          .find((el) => (el.innerText || '').includes('永久删除'));
+        return dlg === undefined ? '' : dlg.innerText;
+      })()`)
+      check('删开风险确认弹窗（壳提供了 RiskConfirmation）', confirmText.includes('永久删除'), confirmText.slice(0, 120).replace(/\n/g, ' | '))
 
-    const ticked = await session.evaluate(`(() => {
-      const dlg = [...document.querySelectorAll('[role=dialog]')]
-        .find((el) => (el.innerText || '').includes('永久删除'));
-      if (dlg === undefined) return { ok: false };
-      const box = dlg.querySelector('input[type=checkbox]');
-      if (box !== null && box.checked !== true) box.click();
-      return { ok: true, ticked: box !== null };
-    })()`)
-    check('弹窗里有「我明白」勾选框', ticked.ok === true && ticked.ticked === true, JSON.stringify(ticked))
-    await session.sleep(600)
+      const ticked = await session.evaluate(`(() => {
+        const dlg = [...document.querySelectorAll('[role=dialog]')]
+          .find((el) => (el.innerText || '').includes('永久删除'));
+        if (dlg === undefined) return { ok: false };
+        const box = dlg.querySelector('input[type=checkbox]');
+        if (box !== null && box.checked !== true) box.click();
+        return { ok: true, ticked: box !== null };
+      })()`)
+      check('弹窗里有「我明白」勾选框', ticked.ok === true && ticked.ticked === true, JSON.stringify(ticked))
+      await session.sleep(600)
 
-    const confirmed = await session.evaluate(`(() => {
-      const dlg = [...document.querySelectorAll('[role=dialog]')]
-        .find((el) => (el.innerText || '').includes('永久删除'));
-      if (dlg === undefined) return { ok: false, reason: 'no dialog' };
-      const buttons = [...dlg.querySelectorAll('button')];
-      const target = buttons.find((b) => b.textContent.trim() === '永久删除');
-      if (target === undefined) return { ok: false, reason: 'no confirm button', buttons: buttons.map((b) => b.textContent.trim()) };
-      if (target.disabled === true) return { ok: false, reason: 'confirm disabled' };
-      target.click();
-      return { ok: true };
-    })()`)
-    check('点「永久删除」', confirmed.ok === true, JSON.stringify(confirmed))
-    await session.sleep(3200)
+      const confirmed = await session.evaluate(`(() => {
+        const dlg = [...document.querySelectorAll('[role=dialog]')]
+          .find((el) => (el.innerText || '').includes('永久删除'));
+        if (dlg === undefined) return { ok: false, reason: 'no dialog' };
+        const buttons = [...dlg.querySelectorAll('button')];
+        const target = buttons.find((b) => b.textContent.trim() === '永久删除');
+        if (target === undefined) return { ok: false, reason: 'no confirm button', buttons: buttons.map((b) => b.textContent.trim()) };
+        if (target.disabled === true) return { ok: false, reason: 'confirm disabled' };
+        target.click();
+        return { ok: true };
+      })()`)
+      check('点「永久删除」', confirmed.ok === true, JSON.stringify(confirmed))
+    }
+    await session.sleep(2600)
     const afterDelete = await assistantPills()
-    check('删除后从列表消失', !afterDelete.some((text) => text.includes(created)), JSON.stringify(afterDelete))
+    check('删除后从页面列表消失', !afterDelete.some((text) => text.includes(created)), JSON.stringify(afterDelete))
+    // 不只看页面：直接问插件（AGENTS.md 第 12 条 —— 断言磁盘真值，而不是页面早先显示过什么）。
+    const onDisk = await session.evaluate(`(async () => {
+      const list = await fetch('/api/custom-mode', { headers: { accept: 'application/json' } }).then((r) => r.json());
+      return Array.isArray(list.assistants) ? list.assistants.map((entry) => entry.name) : null;
+    })()`)
+    check('删除后 API 里也没有它（磁盘真值）', Array.isArray(onDisk) && !onDisk.some((name) => String(name).includes(created)), JSON.stringify(onDisk))
 
     // ── 「配置了却不生效」的主动告警 ──────────────────────────────────────
     //
     // 真场景：把「身份（系统提示词）」这一行关掉 —— 此时 prompt.md 根本不会被注入。
     // 这是最坑的一种静默自相矛盾（用户只会想"我明明写了提示词"），必须主动点名；
     // 恢复之后告警也必须消失 —— 误报一次，用户就学会忽略它了。
+    // 控件形态按线而变（见上面那段注释）：壳的 atom 读 `aria-checked`，回退的 checkbox 读 `checked`。
     const togglePersonaRow = async (wantOn) => {
       const outcome = await session.evaluate(`(() => {
         const row = [...document.querySelectorAll('.cpfe-row')].find((el) => /身份（系统提示词）|Identity \\(system prompt\\)/.test(el.textContent));
         if (row === undefined) return 'no-row';
-        const box = row.querySelector('[role=switch]');
-        if (box === null) return 'no-switch';
-        if ((box.getAttribute('aria-checked') === 'true') !== ${JSON.stringify(wantOn)}) box.click();
+        const atom = row.querySelector('[role=switch]');
+        const fallback = row.querySelector('input[type=checkbox]');
+        const control = atom !== null ? atom : fallback;
+        if (control === null) return 'no-switch';
+        const isOn = atom !== null
+          ? control.getAttribute('aria-checked') === 'true'
+          : control.checked === true;
+        if (isOn !== ${JSON.stringify(wantOn)}) control.click();
         return 'ok';
       })()`)
       await session.sleep(600)

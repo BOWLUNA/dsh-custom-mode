@@ -1376,3 +1376,68 @@ npm install --no-save @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2 # npm error c
 在 GitHub 的 `bash -e` 下，安装失败就是**这一步失败**，所以那几条腿一个测试都没跑。而 `release.yml`
 发布前只装 `0.1.6-alpha.2` —— 绿灯的发布闸门与三条红腿因此共存了三个版本。
 
+## 28. 0.1.7-rc.2 上的浏览器闸门 —— 挡掉 27 项检查的，是一个原生对话框（2026-09-25）
+
+背景：1.9.15。三个只有"渲染后的页面"才看得见的问题。所有命令都在第二台机器的一次性 `DSH_HOME` 上跑，
+dsh `0.1.7-rc.2`，`chrome-headless-shell`，CDP 在 9222。
+
+**1. `window.confirm` 会把渲染进程冻住 —— 这就是闸门停在 30/57 的原因。**
+
+```
+$ CDP_PORT=9222 node tools/browser-verify.mjs --url "http://127.0.0.1:3082/?token=…"
+PASS  新增后在列表里出现
+file…/cdp.mjs:69
+Error: CDP timeout: Input.dispatchMouseEvent
+```
+
+那条 PASS 之后的一步就是删除。对冻住的页面探测：
+
+```
+[+    1ms] trivial evaluate (before): 2
+[+ 8002ms] delete click: __TIMEOUT__          ← 点击处理函数再也不返回
+[+ 6001ms] trivial evaluate (after delete click): __TIMEOUT__
+top -bn1 | grep chrome  →  0.0 % CPU          ← 是阻塞，不是空转
+```
+
+用 CDP 关掉对话框后它立刻恢复，于是原因确定：
+
+```
+handleJavaScriptDialog 成功? yes
+关掉对话框之后的渲染进程: alive:2
+```
+
+也就是说页面当时停在原生 `confirm()` 里：它**同步阻塞渲染进程**，而 headless 浏览器没有人去点它，
+于是此后每条 CDP 命令都超时。现在 `tools/screenshots/cdp.mjs` 自己接管 `Page.javascriptDialogOpening`
+并留痕（`session.dialogs`）。
+
+**2. 这条线上的删除本身是坏的 —— 而任何单元测试都看不见。**
+
+```
+POST /api/custom-mode/delete {"id":"custom-2"}  → 400 {"ok":false,"code":"noRemoveApi", …}
+$ ls $DSH_HOME/.agent-presets/  →  custom  custom-2      ← 还在
+```
+
+声明式线上没有 `agentPresets.remove()`（注销 = `register()` 返回的 disposer），而宿主那半却要求这个 API。
+现在声明式后端自己注销并删目录；新增的 `test/preset-backend.test.mjs`（15 项）钉住它。
+
+**3. 这条线上壳没有把原子库交给第三方客户端插件。**
+
+面板里的 `Button/Input/Switch/Tag/Pill` 来自插件自带的回退控件集，所以行开关是
+`input[type=checkbox]`，而不是壳的 `[role=switch]`。在渲染后的面板上实测：
+
+```
+{ "text": "基础压缩 已启用 ▸", "switches": 0, "inputs": 1, … }   （每行一条）
+```
+
+`browser-verify` 的开关断言现在两种形态都认（并要求至少渲染出一种），于是闸门在两条线上都过，
+而不是只在"恰好提供了原子库"的那条线上过。
+
+**三处修完之后，同一实例上连跑两次：**
+
+```
+$ CDP_PORT=9222 node tools/browser-verify.mjs --url "…"
+结果: 58 通过, 0 失败          （第 1 次）
+结果: 58 通过, 0 失败          （第 2 次）
+$ ls $DSH_HOME/.agent-presets/  →  custom        ← 新建/删除往返没有留下任何残留
+```
+
