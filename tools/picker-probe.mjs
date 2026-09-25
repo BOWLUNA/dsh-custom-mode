@@ -59,18 +59,26 @@ for (let round = 0; round < 4; round += 1) {
   await session.sleep(800)
 }
 
+// 触发控件：优先 composer 里的模式锚点（实测 0.1.7-rc.2 的 class 带 `menuAnchor`），退而求其次找
+// 「文本恰好等于某个已知模式名」的可见按钮。老版本只认后者、还额外要求 y>300，于是同一实例连跑两次
+// 时第二次就报「找不到按钮」（实测）—— 那是探测自己的问题，不是产品问题。
 const trigger = await session.evaluate(`(() => {
   const names = ${JSON.stringify(KNOWN)};
-  const el = [...document.querySelectorAll('button,[role=button],div,span')].find((e) => {
-    const r = e.getBoundingClientRect();
-    return names.includes((e.textContent || '').trim()) && r.width > 20 && r.y > 300;
-  });
-  if (el === undefined) return null;
-  const r = el.getBoundingClientRect();
-  return { x: r.x + r.width / 2, y: r.y + r.height / 2, text: (el.textContent || '').trim() };
+  const visible = (el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  };
+  const anchor = [...document.querySelectorAll('[class*=menuAnchor]')].filter(visible)[0];
+  const byText = [...document.querySelectorAll('button,[role=button]')]
+    .filter((el) => visible(el) && names.includes((el.textContent || '').trim()))[0];
+  const cand = anchor === undefined ? byText : anchor.querySelector('button') || anchor;
+  if (cand === undefined || cand === null) return null;
+  const rect = cand.getBoundingClientRect();
+  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2, text: (cand.textContent || '').trim().slice(0, 24) };
 })()`)
 if (trigger === null) {
-  console.error('打不开模式选择器：页面上找不到显示当前模式的按钮（选择器没渲染，或遮罩没关掉）。')
+  console.error('打不开模式选择器：页面上找不到显示当前模式的控件（选择器没渲染，或遮罩没关掉）。')
+  console.error('页面可见文本：' + (await session.visibleText()).replace(/\n+/g, ' | ').slice(0, 300))
   process.exit(2)
 }
 console.log(`  当前模式按钮：${JSON.stringify(trigger.text)}`)
@@ -87,14 +95,37 @@ await session.sleep(1400)
  * `--expect <a user mode>` failed while the mode was right there on screen. A false negative in the one check
  * that exists to notice a *missing* mode is worse than no check: it teaches the reader to ignore the check.
  *
- * New shape: anchor on one shipped name, climb to the popup that still carries several of them, then read that
- * popup's leaf texts. Option titles are short; the one-line descriptions under them are not.
+ * Shape: read the popup's own option rows (`[role=menuitem]`, measured 2026-09-25: 316×66 each, name = the
+ * first short leaf inside). Only when no menuitem exists does it fall back to anchoring on a shipped name and
+ * climbing to the common ancestor. Option titles are short; the one-line descriptions under them are not.
  */
 const modes = await session.evaluate(`(() => {
   const names = ${JSON.stringify(KNOWN)};
-  // Option rows are wide (measured 280px at this viewport); the composer chip that shows the current mode is
-  // ~52px. Filtering by width keeps the *popup's* rows and drops the trigger, so the common ancestor below is
-  // the popup rather than the whole page.
+  const shortLeaves = (root, max) =>
+    [...root.querySelectorAll('*')]
+      .filter((e) => e.children.length === 0)
+      .map((e) => (e.textContent || '').trim())
+      .filter((t) => t !== '' && t.length <= max);
+
+  // ★ 首选：读弹层自己的选项行。实测 2026-09-25（0.1.7-rc.2 + Chromium 153，1440×900）：每一项是
+  //   [role=menuitem]（316×66），innerText 把「名称 + 一行描述」拼在同一行，所以名称取该项内部
+  //   第一个短叶子文本；用户自己命名的助手同样在这里，不需要任何名字白名单。
+  //   老办法（锚定已知名字 → 爬公共祖先 → 读短叶子）在 CI 上返回过空数组 —— 而「探测失败」与
+  //   「模式真的不见了」必须区分开，所以只在拿不到 menuitem 时才回退。
+  const items = [...document.querySelectorAll('[role=menuitem]')].filter((el) => {
+    const rect = el.getBoundingClientRect();
+    return rect.width > 100 && rect.height > 10;
+  });
+  if (items.length > 0) {
+    const out = items.map((el) => {
+      const leaves = shortLeaves(el, 24);
+      if (leaves.length > 0) return leaves[0];
+      return (el.innerText || '').trim().split('\\n')[0].slice(0, 24);
+    });
+    return [...new Set(out.filter((t) => t !== ''))];
+  }
+
+  // 回退：老办法。选项行比触发按钮宽（实测 280px vs ~52px），按宽度过滤即可排除触发按钮。
   const rows = [...document.querySelectorAll('*')].filter((e) => {
     if (e.children.length !== 0) return false;
     const text = (e.textContent || '').trim();
@@ -106,19 +137,16 @@ const modes = await session.evaluate(`(() => {
   for (const row of rows) {
     while (panel.contains(row) === false && panel.parentElement !== null) panel = panel.parentElement;
   }
-  // Every short leaf inside the popup: shipped modes and user assistants alike (user names are not in KNOWN —
-  // that was the whole bug).
-  const texts = [...panel.querySelectorAll('*')]
-    .filter((e) => e.children.length === 0 && (e.textContent || '').trim() !== '' && e.getBoundingClientRect().width > 0)
-    .map((e) => (e.textContent || '').trim())
-    .filter((text) => text.length <= 24);
-  return [...new Set(texts)];
+  return [...new Set(shortLeaves(panel, 24).filter((t) => t.length > 0))];
 })()`)
 console.log(`  选择器里的模式：${JSON.stringify(modes)}`)
 if (out !== undefined) {
   await session.screenshot(out)
   writeFileSync(`${out}.modes.txt`, modes.join('\n') + '\n', 'utf8')
 }
+// 收尾：把弹层关掉。留着开着的选择器会让下一次运行（同一浏览器、同一实例）读不到东西。
+await session.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+await session.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
 session.close()
 
 if (modes.length === 0) {
