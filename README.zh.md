@@ -34,7 +34,7 @@ DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用�
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.12   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.13   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -177,6 +177,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 | **`settings.section` 不再提供 `locale:`**（0.1.6-alpha.2 起） | 壳不会递进绑定到本命名空间的 `t`；页面自带词典兜底，见 ARCHITECTURE §15 |
 | `preset.yml` 的 `order` 参与 roster 排序 | 「上移 / 下移」不生效 |
 | `ctx.locale.register/bind` | 回退中文 |
+| **出厂组成从哪来** —— 0.1.7+ 是 `agentPresets.readDocument(<mode>).content`，更早是 `@deepseek-ai/dsh-agent-presets` 的文件 | 基础模式与插件开关变为只读（提示词仍可保存），见 `editor/base-composition.mjs` |
 | 出厂布局 `<presets>/<id>/agent.cordis.yml` 与行的文本形状 | 基础模式切换失效 |
 | `!!js` 平台表达式 | 平台行显示错误状态 |
 
@@ -194,7 +195,7 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 ## 开发
 
 ```sh
-node test/run.mjs        # 13 个套件；自己解析出厂 preset 目录
+node test/run.mjs        # 14 个套件；自己解析出厂 preset 目录（0.1.7+ 从宿主声明派生）
 ```
 
 改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。
@@ -239,7 +240,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.12
+dsh plugin --profile web add dsh-custom-mode@1.9.13
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 
@@ -251,6 +252,10 @@ dsh plugin --profile web add dsh-custom-mode@1.9.12
 
 **更新不会碰的东西**：`$DSH_HOME/.agent-presets/<你的助手>/` —— `prompt.md`、`preset.yml` 与你逐行拨过的开关都属于你。
 播种只补**缺失**的文件，你写过的提示词永远不会被覆盖。
+
+**如果基础模式与插件开关变灰、并带一行提示**：这条 dsh 线没有向本插件交出出厂组成（解析器依次试过宿主的
+`readDocument()`、旧线的 presets 包、打包的 `dsh-web-app` patch，宿主日志里会写清每一次尝试）。系统提示词
+仍可单独保存，模式本身不受影响。0.1.7 上这在 1.9.13 之前是一个硬 500。
 
 **如果更新后某个模式不再出现在选择器里**：老版本创建的助手会保留它自己的组成文件；如果那份文件启用了一行本机
 这条 dsh 线不提供的插件，平台会把整个预设判为 broken 并从选择器里静默丢弃（设置页照常能开）。打开设置页：

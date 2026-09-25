@@ -508,4 +508,47 @@ and check what actually landed instead of what you typed:
 ```sh
 node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
 ```
+---
+
+## 18. The page says "Unexpected host error: 无法定位出厂基础模式", or the base mode and the switches are greyed out
+
+### Symptoms
+
+The settings page opens and the assistant list is there, but:
+
+- **before 1.9.13** — a red line reading `宿主内部错误：无法定位出厂基础模式…` where the mode name, the base-mode
+  pills, the plugin switches and the prompt editor should be; `GET /api/custom-mode/state?id=…` answers **500**
+  (`internalError`), and `POST /api/custom-mode/state` answers **400** (`renderFailed`);
+- **from 1.9.13** — the same page shows a warning line and the base mode / switches are displayed as unavailable,
+  while the system prompt still loads and **still saves**.
+
+Either way the mode itself is fine: it is in the new-session picker and a session started with it works.
+
+### Cause
+
+The plugin composes a mode by editing the *shipped* composition of its base mode, and it could not find that
+text. There are two ways a dsh line publishes it: the file-based `@deepseek-ai/dsh-agent-presets` package
+(0.1.2 … 0.1.6) and the host's own declaration, `agentPresets.readDocument(<mode>).content` (0.1.7+). 1.9.12
+only knew the first one, so on a stock `0.1.7-rc.2` — the line the official desktop app bundles — every read
+threw. See `docs/ARCHITECTURE.md` §18.
+
+From 1.9.13 the failure is a typed `baseCompositionUnavailable` instead of a 500, and the page degrades: the
+prompt saves on its own, and a save that carries row switches is refused with a message rather than silently
+dropped.
+
+### What to do
+
+1. **Upgrade to 1.9.13 or newer** — that is the whole fix:
+   `dsh plugin --profile web add dsh-custom-mode@1.9.13`, then restart dsh.
+2. **Read the host log for the list of routes that were tried.** The plugin names every attempt:
+   `custom-mode: 取不到这些基础模式的出厂组成 —— standard: …`. If `agentPresets.readDocument() 不可用` appears,
+   the host is older than the declarative registry and you are on a line this plugin does not claim to support.
+3. **Only if you must stay on 1.9.12**: point `DSH_SHIPPED_PRESETS_DIR` at any legacy presets directory that
+   contains `<mode>/agent.cordis.yml` (the old package or a copy of it). It is honoured first and, when set,
+   discovery is skipped — so a wrong path is not silently ignored, it fails loudly in the log.
+4. **If you maintain this plugin**: this is what the suite could not see for three releases. The fixture was
+   injected by `test/run.mjs`, so the 0.1.7 path was never exercised; and CI could not even install the fixture
+   on 0.1.7 (`ERESOLVE`), so those legs failed before any test ran. Both are fixed in 1.9.13 — but the general
+   lesson stands: **a green suite with an injected fixture is not evidence about a real installation.**
+
 

@@ -47,6 +47,9 @@ export function detectPresetBackend(scope) {
     read: typeof svc?.read === 'function',
     inventory: typeof svc?.compositionInventory === 'function',
     select: typeof svc?.select === 'function',
+    // 出厂组成的来源：旧线读文件，新线由这个 API 交出同一份声明（缺了它设置页仍可用，但
+    // 基础模式与插件开关必须降级为不可编辑 —— 所以它是**可选**能力，不是必需）。
+    document: typeof svc?.readDocument === 'function',
   }
   const reasons = []
 
@@ -78,7 +81,12 @@ export function detectPresetBackend(scope) {
   }
 
   if (looksDeclarative) {
-    reasons.push('agentPresets.remove() 不存在，但 register() + compositionInventory() 存在 —— 声明式注册表的新线')
+    reasons.push(
+      'agentPresets.remove() 不存在，但 register() + compositionInventory() 存在 —— 声明式注册表的新线' +
+        (capabilities.document
+          ? '（readDocument() 可用：出厂组成由宿主交出）'
+          : '（**readDocument() 不可用**：基础模式与插件开关将降级为不可编辑）'),
+    )
     return { id: BACKEND_DECLARATIVE, capabilities, reasons, conflict: false }
   }
 

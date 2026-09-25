@@ -546,3 +546,40 @@ caller's choice (the lab recipe is in the repository `AGENTS.md` §"The lab" and
 - **Ticking and confirming must be separate steps.** `RiskConfirmation`'s confirm button reads React
   state, so clicking the checkbox and the button in the same tick deletes nothing — the state has not
   landed yet.
+## 18. Where a base composition comes from — the backend's third slot (0.1.7-rc.2, 2026-09-25)
+
+The backend split (`preset-backend/`) was described as covering three things: **A** paths, **B** the roster,
+**C** where a base mode's composition comes from. A and B were implemented; C was not. On 0.1.7 that was not a
+theoretical gap: the only route read `@deepseek-ai/dsh-agent-presets/presets/<mode>/agent.cordis.yml`, that
+package is **not published** from 0.1.7, and every read of a base composition threw. The settings page answered
+**500** on a stock `0.1.7-rc.2` — the line the official desktop app bundles — while the mode itself stayed in
+the picker, so nothing else noticed.
+
+Measured on a throwaway instance (see MEASUREMENTS §27 for the raw output):
+
+| route | availability |
+| --- | --- |
+| `@deepseek-ai/dsh-agent-presets` (plural, files) | 0.1.2 … 0.1.6 only |
+| `agentPresets.readDocument(<mode>).content` | 0.1.7+ — returns the declaration as **entry-list YAML** |
+| `@deepseek-ai/dsh-web-app/presets/<mode>.patch.yml` | 0.1.7+ on disk — the same declaration, packaged |
+
+`compositionInventory()` is **not** a substitute: it reports rows flattened to
+`{entryId, moduleName, enabled, condition}`, so the `isolate` groups a service row must sit inside are gone
+(measured; `parse-composition.mjs` rules the same route out when building `register()` rows).
+`readDocument()` keeps the groups and the `!!js` expressions, which is why the resolver prefers it.
+
+The resolver lives in `editor/base-composition.mjs` and tries, in order: `DSH_SHIPPED_PRESETS_DIR`
+(explicit, and exclusive so discovery cannot wander) → the host-declared text → the legacy presets directory →
+the packaged patch (text surgery on its `plugins:` block, comments and `!!js` kept byte-for-byte). Nothing
+left is a **typed** `baseCompositionUnavailable`, never a bare 500.
+
+**The contract when nothing resolves**: the page degrades instead of dying. `readState` returns the prompt,
+the name and the history, plus `baseUnavailable` and a `baseCompositionUnavailable` warning; the client hides
+the base-mode pills and the row switches (they are not editable) and says why; `saveState` saves the prompt
+and refuses a save that carries row switches with the typed code. The refusal belongs on the write side —
+returning an empty row list would have been a lie about what is on disk.
+
+**Blast radius of getting this wrong**: the mode keeps working (it is registered and selectable), so the only
+symptom is a settings page that cannot edit anything. That is exactly the shape that survives a suite whose
+fixture is injected by the test harness — which is how this shipped in 1.9.10 … 1.9.12.
+

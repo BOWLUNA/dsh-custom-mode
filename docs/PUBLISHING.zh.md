@@ -11,6 +11,11 @@
 
 agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` 是从磁盘目录发现的。
 
+**商店截图。** `editor/screenshots.json` 列出 `editor/assets/` 下的四张图；插件市场与
+[目录站](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) 读的是**本仓库**里的这个文件
+（不是 npm 包里的 —— `assets/` 故意不在包的 `files` 白名单里），所以换图只需往这里推一次，别的都不用做。
+实测 2026-09-25：目录里 4311 个条目中有 840 个带精选截图，没有截图的卡片放在旁边就像没做完。
+
 ## 方案一：GitHub 仓库（最省事，推荐先用这个）
 
 别人：

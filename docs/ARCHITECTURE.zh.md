@@ -509,3 +509,35 @@ doc: … `label` (registrant-localized display text — the registrant re-regist
   第一版验证脚本正是这么失败的：断言失败、勾选框被勾上、但确认按钮没被点到。
 - **勾选与确认必须分成两步**。`RiskConfirmation` 的确认按钮读的是 React 状态，
   在同一个 tick 里先 `click()` 勾选框再点确认，状态还没落地，删除不会发生。
+## 18. 出厂组成从哪来 —— 后端的第三个槽位（0.1.7-rc.2，2026-09-25）
+
+双线后端（`preset-backend/`）当初被描述为覆盖三件事：**A** 路径、**B** roster、**C** 基础模式的出厂组成
+从哪来。A 与 B 实现了，**C 没有**。在 0.1.7 上这不是理论缺口：唯一那条路读的是
+`@deepseek-ai/dsh-agent-presets/presets/<mode>/agent.cordis.yml`，而该包自 0.1.7 起**不再发布**，
+于是每一次读出厂组成都抛错。原生 `0.1.7-rc.2`（官方桌面端内置的那条线）上设置页返回 **500**，
+而模式本身仍然在选择器里 —— 所以没有别的地方会发现。
+
+一次性实例上的实测（原始输出见 MEASUREMENTS §27）：
+
+| 途径 | 可用性 |
+| --- | --- |
+| `@deepseek-ai/dsh-agent-presets`（复数，文件） | 仅 0.1.2 … 0.1.6 |
+| `agentPresets.readDocument(<mode>).content` | 0.1.7+ —— 以**入口列表 YAML** 交回声明 |
+| `@deepseek-ai/dsh-web-app/presets/<mode>.patch.yml` | 0.1.7+ 磁盘上有 —— 同一份声明的打包形态 |
+
+`compositionInventory()` **不能**替代：它把行压平成 `{entryId, moduleName, enabled, condition}`，
+服务行必须待在其内部的 `isolate` 分组就此消失（实测；`parse-composition.mjs` 在构造 `register()` 行时
+也据此排除了这条路）。`readDocument()` 保留了分组与 `!!js` 表达式，所以解析器优先用它。
+
+解析器在 `editor/base-composition.mjs`，按顺序试：`DSH_SHIPPED_PRESETS_DIR`（显式且**排他**，不让发现
+逻辑乱跑）→ 宿主交出的文本 → 旧线 presets 目录 → 打包的 patch（对它的 `plugins:` 块做文本手术，注释与
+`!!js` 逐字节保留）。全断则是**类型化**的 `baseCompositionUnavailable`，不是裸 500。
+
+**全断时的契约**：页面降级而不是废掉。`readState` 照常返回提示词、名字与历史，外加 `baseUnavailable`
+与一条 `baseCompositionUnavailable` 告警；浏览器半隐藏基础模式药丸与行开关（它们不可编辑）并说明原因；
+`saveState` 保存提示词，而**带着行开关的保存会被类型化地拒绝**。拒绝发生在写入侧 —— 返回空行列表等于对
+磁盘真实状态说谎。
+
+**搞错这一处的爆炸半径**：模式本身照常工作（已注册、可选），唯一症状是设置页什么都改不了。这正是那种
+"测试夹具由测试框架注入"的套件抓不到的形态 —— 1.9.10 … 1.9.12 就是这么发出去的。
+

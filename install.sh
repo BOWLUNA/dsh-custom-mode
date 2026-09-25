@@ -183,14 +183,22 @@ console.log(`    组合树 ${rows} 行，${pkg} 已就位`)
 // 「自定义模式」连选都选不到。这不算安装失败，但必须当场说清楚，否则用户会去翻
 // 「设置页怎么不出现」的故障排查，然后发现问题是整个功能都不在这个 profile 里。
 const hasWebServer = dump.includes('@deepseek-ai/dsh-host-webserver')
-const hasAgentPresets = dump.includes('@deepseek-ai/dsh-agent-presets')
+// **两条线都要认。** 旧线是复数包 @deepseek-ai/dsh-agent-presets（扫目录）；0.1.7 起换成
+// @deepseek-ai/dsh-agent-preset + @deepseek-ai/dsh-agent-preset-registry（声明式注册表）。
+// 实测（2026-09-25，0.1.7-rc.2，干净实例）：组合树里 grep 不到 'dsh-agent-presets'（0 次），
+// 但模式确实注册成功、也出现在新会话选择器里 —— 只按复数包名判断，会给**最新线**的用户
+// 一句"「自定义模式」无法被选中"的假警报，而那句话恰好是 1.9.10 起明确宣称已适配的那条线。
+const hasAgentPresets =
+  dump.includes('@deepseek-ai/dsh-agent-presets') ||
+  (dump.includes('@deepseek-ai/dsh-agent-preset-registry') && dump.includes('@deepseek-ai/dsh-agent-preset'))
 if (!hasWebServer || !hasAgentPresets) {
   console.log('')
   console.log(`    注意: profile "${profile}" 里这个插件只有一部分能生效。`)
   if (hasAgentPresets) {
     console.log('          · 模式本身可用（新建会话时可选）')
   } else {
-    console.log('          · 组合里没有 agent-presets：**「自定义模式」无法被选中**，')
+    console.log('          · 组合里没有 preset 机制（旧线的 dsh-agent-presets 或新线的')
+    console.log('            dsh-agent-preset-registry）：**「自定义模式」无法被选中**，')
     console.log('            preset 文件被复制过去了，但没有任何东西会挂载它')
   }
   // 不要再承诺 custom_prompt：没有 agent-presets 就没有任何东西挂载这个 preset，
@@ -203,7 +211,7 @@ if (!hasWebServer || !hasAgentPresets) {
 NODE
 
 # 收尾的三行说明也要随 profile 变，否则会出现「上一段说模式选不到、下一段说去选模式」。
-if grep -q '@deepseek-ai/dsh-agent-presets' "$DUMP_FILE" 2>/dev/null \
+if grep -qE '@deepseek-ai/dsh-agent-presets|@deepseek-ai/dsh-agent-preset-registry' "$DUMP_FILE" 2>/dev/null \
   && grep -q '@deepseek-ai/dsh-host-webserver' "$DUMP_FILE" 2>/dev/null; then
   NEXT_STEPS="  - 新会话选一个自定义模式（设置页里可以建多个助手）；
   - 设置面板 → 「自定义模式」：上方助手列表可新增 / 切换 / 删除，

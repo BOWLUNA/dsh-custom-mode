@@ -86,7 +86,6 @@ try {
         "msg.createFailed": "创建失败",
         "msg.deleteFailed": "删除失败",
         "msg.nameRequired": "请先给新助手起个名字。",
-        "msg.unsaved": "有未保存的修改",
         "msg.readOnlyHint": "这一页只管理本工具创建的助手；手写的 preset 不在这里，也不会被改写。",
         "msg.reordered": "顺序已保存：新建会话时的模式选择器按这个顺序排列。",
         "msg.reorderFailed": "调整顺序失败",
@@ -101,6 +100,8 @@ try {
         "assistant.short": "每个助手是一个独立模式：自己的系统提示词、基础模式与插件开关。",
         "name.short": "改名只影响显示，内部标识与已有会话不受影响。",
         "mode.short": "底子决定「行集合」与工具能力；persona 行始终由本模式替换。",
+        "mode.unavailable": "本机这条 DSH 线没有可读的出厂组成，基础模式暂时不能切换。",
+        "rows.unavailable": "出厂组成取不到，插件开关暂时不能编辑；磁盘上原有的行状态仍然生效。",
         "mode.pendingRows": "底子已改为「{mode}」：保存后，下面的行列表会按新底子重算。",
         "rows.short": "逐行控制挂载哪些插件；没拨过的行保持官方默认。",
         "prompt.short": "这段文本就是本模式的系统提示词，保存后下一步生效。",
@@ -150,8 +151,11 @@ try {
         "api.deleteFailed": "删除失败：{detail}",
         "api.versionMissing": "找不到这个版本（历史可能已被上限裁剪）。",
         "api.badJson": "请求体不是合法 JSON",
+        "api.savedPromptOnly": "已保存系统提示词（本机取不到基础模式的出厂组成，插件开关与基础模式未改动）。",
+        "api.baseCompositionUnavailable": "本机取不到基础模式「{mode}」的出厂组成，无法改动插件开关或基础模式（系统提示词可以单独保存）。",
         "warn.approvalGateMissing": "审批闸门未启用：本机这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。见「详情」。",
         "warn.unresolvableRows": "有行在本机这条 DSH 线上无法解析：平台会把整个模式判为 broken，并从新会话的选择器里**静默丢弃**。点右侧的「按本线修复」即可（只关掉那几行，其它选择不动）。",
+        "warn.baseCompositionUnavailable": "取不到本机这条 DSH 线的出厂组成：基础模式与插件开关暂时不能改（系统提示词不受影响，照常可保存）。已尝试的途径写在宿主日志里。",
         "warn.approvalGateMissing.label": "审批闸门未启用",
         "warn.approvalGateMissing.hint": "这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词**不会**弹审批。设置页不受影响；要恢复保护请升级 DSH，或把「custom_prompt 工具」那一行关掉。",
         "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 你写的提示词现在不起作用。要么打开这一行，要么清空提示词。",
@@ -194,6 +198,7 @@ try {
         "btn.saving": "处理中…",
         "btn.reload": "重新读取",
         "btn.reloadDiscard": "放弃修改并重新读取",
+        "msg.unsaved": "有未保存的修改",
         "msg.loading": "正在读取…",
         "msg.notLoaded": "（尚未读取）",
         "msg.reread": "已重新读取",
@@ -294,7 +299,6 @@ try {
         "msg.createFailed": "Could not create",
         "msg.deleteFailed": "Could not delete",
         "msg.nameRequired": "Give the new assistant a name first.",
-        "msg.unsaved": "Unsaved changes",
         "msg.readOnlyHint": "This page manages only the assistants this tool created; a hand-written preset is not listed here and is never rewritten.",
         "msg.reordered": "Order saved: the mode picker for new sessions follows it.",
         "msg.reorderFailed": "Could not reorder",
@@ -309,6 +313,8 @@ try {
         "assistant.short": "Each assistant is its own mode: its own system prompt, base mode and plugin switches.",
         "name.short": "Renaming only changes what is displayed — not the internal id or existing sessions.",
         "mode.short": "The base decides the row set and tool abilities; the persona row is always replaced by this mode.",
+        "mode.unavailable": "This DSH line exposes no readable shipped composition, so the base mode cannot be switched right now.",
+        "rows.unavailable": "No shipped composition is available, so the plugin switches cannot be edited right now; the row states already on disk still apply.",
         "mode.pendingRows": "Base changed to {mode}: the row list below is recomputed from the new base when you save.",
         "rows.short": "Control which plugins this mode mounts, row by row; untouched rows keep the shipped default.",
         "prompt.short": "Saving this text makes it the system prompt of this mode, and it takes effect on the next step.",
@@ -358,6 +364,8 @@ try {
         "api.deleteFailed": "Delete failed: {detail}",
         "api.versionMissing": "That version is gone (the history is capped).",
         "api.badJson": "The request body is not valid JSON",
+        "api.savedPromptOnly": "System prompt saved (this machine exposes no shipped composition, so the plugin switches and the base mode were left untouched).",
+        "api.baseCompositionUnavailable": "No shipped composition for base mode \"{mode}\" on this machine, so its plugin switches and base mode cannot be changed (the system prompt can still be saved on its own).",
         "warn.personaOffWithPrompt": "The \"Identity (system prompt)\" row is off, so prompt.md is never injected — the prompt you wrote has no effect. Turn the row on, or clear the prompt.",
         "warn.toolOff": "The \"custom_prompt tool\" row is off: the agent cannot change the prompt from inside a session, only this page can.",
         "warn.noDescription": "No description: the new-session mode picker will show it as \"no description yet\".",
@@ -366,6 +374,7 @@ try {
         "warn.approvalGateMissing.label": "Approval gate is off",
         "warn.approvalGateMissing.hint": "This DSH build has no tools/pre-execute event, so in-session prompt rewrites do NOT ask for approval. The settings page is unaffected; upgrade DSH or turn the custom_prompt tool row off to restore the gate.",
         "warn.noName": "No name: the mode picker will show the directory id (e.g. custom).",
+        "warn.baseCompositionUnavailable": "This DSH line exposes no shipped composition: the base mode and the plugin switches cannot be changed right now (the system prompt is unaffected and still saves). The routes that were tried are in the host log.",
         "history.label": "Change history",
         "history.pick": "Pick a version to load…",
         "history.load": "Load this version",
@@ -402,6 +411,7 @@ try {
         "btn.saving": "Working…",
         "btn.reload": "Reload",
         "btn.reloadDiscard": "Discard edits and reload",
+        "msg.unsaved": "Unsaved changes",
         "msg.loading": "Loading…",
         "msg.notLoaded": "(not loaded)",
         "msg.reread": "Reloaded",
@@ -770,6 +780,9 @@ try {
         return {
           id: state.id,
           mode: state.mode,
+          // 出厂组成取不到时的降级标记（服务端给，只读）。它不是用户可改的字段，sameDraft 不比较它。
+          baseUnavailable:
+            state.baseUnavailable === undefined || state.baseUnavailable === null ? null : state.baseUnavailable,
           overrides: { ...state.overrides },
           prompt: state.prompt,
           name: typeof state.name === "string" ? state.name : "",
@@ -1673,22 +1686,28 @@ try {
                   onToggleExpand: toggleRowExpanded,
                   t: t,
                 }),
-                react.createElement(
-                  "div",
-                  { className: "cpfe-pills" },
-                  payload.modes.map((mode) =>
-                    react.createElement(
-                      A.Pill,
-                      { key: mode.id, active: draft.mode === mode.id, onClick: () => pickMode(mode.id) },
-                      t("base." + mode.id + ".label", mode.label),
+                // 降级态（本机这条线没有可读的出厂组成）：不给可点的模式药丸，改说一句为什么 ——
+                // 点了也只会拿到一个服务端错误，那比置灰更糟。
+                draft.baseUnavailable !== null
+                  ? react.createElement("p", { className: "cpfe-note" }, t("mode.unavailable"))
+                  : react.createElement(
+                      "div",
+                      { className: "cpfe-pills" },
+                      payload.modes.map((mode) =>
+                        react.createElement(
+                          A.Pill,
+                          { key: mode.id, active: draft.mode === mode.id, onClick: () => pickMode(mode.id) },
+                          t("base." + mode.id + ".label", mode.label),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                react.createElement(
-                  "p",
-                  { className: "cpfe-note" },
-                  payload.modes.reduce((note, mode) => (mode.id === draft.mode ? t("base." + mode.id + ".note", mode.note) : note), ""),
-                ),
+                draft.baseUnavailable !== null
+                  ? null
+                  : react.createElement(
+                      "p",
+                      { className: "cpfe-note" },
+                      payload.modes.reduce((note, mode) => (mode.id === draft.mode ? t("base." + mode.id + ".note", mode.note) : note), ""),
+                    ),
                 // 底子改过但还没保存时明说一句：行列表是按**已保存**的组成渲染的，审阅把它记成了"点了没反应"。
                 draft.mode !== savedMode
                   ? react.createElement(
@@ -1710,15 +1729,17 @@ try {
                   onToggleExpand: toggleRowExpanded,
                   t: t,
                 }),
-                react.createElement(RowList, {
-                  expanded: expandedRows,
-                  onToggleExpand: toggleRowExpanded,
-                  rows: payload.rows,
-                  overrides: draft.overrides,
-                  onToggle: (id, next) => update({ overrides: { ...draft.overrides, [id]: next } }),
-                  depth: 0,
-                  t: t,
-                }),
+                draft.baseUnavailable !== null
+                  ? react.createElement("p", { className: "cpfe-note" }, t("rows.unavailable"))
+                  : react.createElement(RowList, {
+                      expanded: expandedRows,
+                      onToggleExpand: toggleRowExpanded,
+                      rows: payload.rows,
+                      overrides: draft.overrides,
+                      onToggle: (id, next) => update({ overrides: { ...draft.overrides, [id]: next } }),
+                      depth: 0,
+                      t: t,
+                    }),
               ),
               react.createElement(
                 "section",

@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 13 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself
+node test/run.mjs                                  # 14 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself — on dsh ≥ 0.1.7 by deriving them from the host's declaration
 node tools/verify-translation-pairing.mjs          # bilingual pairing + language-purity check (what CI runs)
 node tools/verify-doc-numbers.mjs                  # documented counts vs the real run (what CI runs)
 
@@ -97,6 +97,17 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     `tools/browser-verify.mjs` switches the interface to English and saves once to keep this honest. Names
     inside those messages are user data and are never translated.
 
+14. **Where a base composition comes from is the THIRD thing the two dsh lines disagree about.** That is what
+    `editor/base-composition.mjs` exists for. Legacy lines (≤ 0.1.6) ship
+    `@deepseek-ai/dsh-agent-presets/presets/<mode>/agent.cordis.yml`; 0.1.7+ publishes no such package and the
+    host hands the declaration over through `agentPresets.readDocument(<mode>).content` — the entry-list YAML,
+    `isolate` groups and `!!js` included (the flattened `compositionInventory()` cannot be used: the groups
+    are gone, measured). Two rules follow, and 1.9.12's P0 is what breaking them looks like:
+    **a)** no caller may reach for the filesystem on its own, and **b)** when no route yields text the page must
+    **degrade**, not throw — `readState` returns a state with `baseUnavailable` plus the prompt, and
+    `saveState` / `savePromptOnly` save the prompt while **refusing** (with a typed code) any switch change.
+    `test/base-composition.test.mjs` pins the route order, the typed failure and the degraded save.
+
 ## Known traps (all measured)
 
 - `agent-presets` exists **only in the web profile composition**; tui and headless do not have it, so
@@ -106,6 +117,11 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
 - `agent-presets.default` is hard-coded to `standard` in the composition; the same key in
   `settings.yaml` is a **runtime override**. They are not the same thing.
 - pnpm can leave the plugin symlink behind in `node_modules` (`uninstall.sh` cleans it up).
+- **CI's fixture step must not install the 0.1.6 presets package on a 0.1.7 tree.** It fails with
+  `ERESOLVE`, and under GitHub's `bash -e` that is a failed *step* — which is how all three 0.1.7 legs stayed
+  red from 1.9.10 to 1.9.12 while the release gate (older dsh line only) stayed green. `test/run.mjs` derives
+  the fixture from the installed host's declaration instead; the materialized directory must stay under the
+  repository's `node_modules` (see the comment in `test/run.mjs`).
 - Under WSL, if the `pnpm` on PATH is the Windows build, `dsh plugin add` panics with
   `current dir is an absolute path with drive letter`; use the Linux build (`corepack enable pnpm`).
 

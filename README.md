@@ -40,7 +40,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.12   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.13   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -242,6 +242,7 @@ below exist, which is what the ranges are for.
 | **`settings.section` no longer takes `locale:`** (since 0.1.6-alpha.2) | the shell does not hand over a `t` bound to this namespace; the page carries its own dictionaries as a floor — see ARCHITECTURE §15 |
 | `preset.yml`'s `order` participating in the roster sort | move up/down stops working |
 | `ctx.locale.register/bind` | falls back to Chinese |
+| **where the base composition comes from** — `agentPresets.readDocument(<mode>).content` on 0.1.7+, the `@deepseek-ai/dsh-agent-presets` files before that | the base mode and the plugin switches become read-only (the prompt still saves); see `editor/base-composition.mjs` |
 | shipped layout `<presets>/<id>/agent.cordis.yml` and row text shape | base-mode switching breaks |
 | `!!js` platform expressions | platform rows display the wrong state |
 
@@ -260,7 +261,7 @@ below exist, which is what the ranges are for.
 ## Development
 
 ```sh
-node test/run.mjs        # 13 suites; resolves the shipped presets itself
+node test/run.mjs        # 14 suites; resolves the shipped presets itself (0.1.7+ derives them from the host)
 ```
 
 Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the
@@ -309,7 +310,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.12
+dsh plugin --profile web add dsh-custom-mode@1.9.13
 # then restart the DSH process that serves the web profile
 ```
 
@@ -323,6 +324,11 @@ Compare it with `npm view dsh-custom-mode version`.
 
 **What an update does not touch**: `$DSH_HOME/.agent-presets/<your assistants>/` — `prompt.md`, `preset.yml` and
 your row switches are yours. Seeding only fills in *missing* files, so a prompt you wrote is never overwritten.
+
+**If the base mode and the plugin switches are greyed out with a one-line warning**: this dsh line exposes no
+shipped composition to this plugin (the resolver tried the host's `readDocument()`, the legacy presets package
+and the packaged `dsh-web-app` patch — the host log names each attempt). The system prompt still saves on its
+own; nothing else about the mode is touched. On 0.1.7 that was a hard 500 until 1.9.13.
 
 **If a mode stops appearing in the picker after an update**: an assistant created by an older version keeps its
 old composition file, and if that file enables a plugin row this dsh line does not ship, the platform marks the

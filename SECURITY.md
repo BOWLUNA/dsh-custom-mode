@@ -20,7 +20,8 @@ longer encodes it. Development and verification cover the rows below, newest fir
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `1.9.12` (current release) | `0.1.5-rc.3` (latest stable) **and** the preview line (`0.1.6-alpha.2`, `0.1.7-alpha.*`, `0.1.7-rc.2`) | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0`, and CI installs and runs the whole suite against the stable line and both preview lines. The official desktop app (bundling `0.1.7-rc.2` on win32) is covered |
+| `1.9.13` (current release) | `0.1.5-rc.3` (latest stable) **and** the preview line (`0.1.6-alpha.2`, `0.1.7-alpha.*`, `0.1.7-rc.2`) | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0`, and CI installs and runs the whole suite against the stable line and both preview lines. The official desktop app (bundling `0.1.7-rc.2` on win32) is covered |
+| `1.9.12` | the same | Supported (superseded) |
 | `1.9.11` | the same | Supported (superseded) |
 | `1.0.0`–`1.0.4` | `0.1.6-alpha.2` | Supported (superseded) |
 | `1.1.0`–`1.8.0` | `0.1.6-alpha.2` (and `0.1.5-rc.2` from `1.4.0`) | Supported (superseded) |

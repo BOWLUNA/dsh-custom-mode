@@ -54,34 +54,33 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      # 装 DSH 本身，并准备**测试夹具**用的出厂 preset 目录。
+      # 装 DSH 本身。**出厂 preset 夹具不再由这里补**。
       #
-      #  1) `--no-save`：仓库不因为 CI 多出一个 lockfile / package.json。
-      #  2) 测试需要一份出厂 preset 目录作为夹具（`test/run.mjs` 会按模式名校验它），
-      #     历史上它来自 `@deepseek-ai/dsh-agent-presets/presets`。而 **0.1.7 起那个包已不存在**
-      #     （preset 机制换成了声明式注册表），所以那条线显式装一份旧包 —— **只当夹具**。
-      #     **运行时不再依赖它**：插件在 0.1.7 上改从 `agentPresets.compositionInventory()` 取行。
+      # 为什么删掉了"装一份 0.1.6 的旧包当夹具"这一步（它自 1.9.10 起让 0.1.7 的三条腿全红）：
       #
-      #  ★ 夹具包必须装在**仓库根**的 node_modules，不能放临时目录：
-      #    `editor/composition.mjs` 的 `unresolvableRows()` 是从 presets 目录**往上推三层**找
-      #    `node_modules/@deepseek-ai` 的。夹具放别处会让那个根只剩夹具包本身，于是**每一行都被
-      #    报成"本机装不了"**，`test/seed.test.mjs` 的那条断言随之假失败（本地实测踩到过）。
-      - name: 安装 DSH（并准备测试夹具的 presets 目录）
+      #   在装了 @deepseek-ai/dsh@0.1.7-rc.2 的树上再 `npm i @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2`
+      #   会 **ERESOLVE 失败**（0.1.6 夹具与 0.1.7 的 peer 树冲突），而 GitHub 的 `bash -e` 直接判这一步
+      #   失败 —— 于是 0.1.7-rc.2 的三条腿（ubuntu node20 / node24 / windows）自 1.9.10 起一直是红的，
+      #   **恰好是插件宣称"已适配"、官方桌面端内置的那条线**。即便加上 --legacy-peer-deps 让安装成功，
+      #   它还会把刚装好的 dsh 从树里剪掉。红着的腿不跑测试，所以设置页在那条线上整体不可用（P0）
+      #   没有任何 CI 信号。
+      #
+      #   现在走**与产品同一条派生代码**：`test/run.mjs` 的第四解析顺位从
+      #   `@deepseek-ai/dsh-web-app/presets/<mode>.patch.yml` 里抽出声明，落到仓库根的
+      #   `node_modules/@deepseek-ai/dsh-agent-presets/presets`（**必须在仓库根**：`unresolvableRows()`
+      #   是从 presets 目录往上推三层找 `node_modules/@deepseek-ai` 的，放临时目录会让判定静默变松）。
+      #   旧线（≤0.1.6）本来就自带复数包，这条派生不会触发。
+      - name: 安装 DSH（夹具由 test/run.mjs 从已安装的声明派生）
         shell: bash
         run: |
           npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@${{ matrix.dsh }}
           FIXTURE="node_modules/@deepseek-ai/dsh-agent-presets/presets"
-          if [ ! -d "$FIXTURE" ]; then
-            echo "本线不含 $FIXTURE —— 装一份旧包仅作测试夹具（运行时不用它）"
-            npm install --no-save --no-audit --no-fund @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2
+          if [ -d "$FIXTURE" ]; then
+            echo "本线自带 $FIXTURE（旧线），直接用作夹具"
+          else
+            echo "本线没有复数 presets 包（0.1.7+）—— 夹具由 test/run.mjs 从 dsh-web-app 的声明派生"
           fi
-          # 断言夹具的"上三层"确实落在一个含 @deepseek-ai 的 node_modules 里 —— 否则上面的坑会静默重演。
-          ROOT="$(cd "$(dirname "$(dirname "$(dirname "$FIXTURE")")")" && pwd)"
-          test -d "$ROOT/@deepseek-ai" || { echo "夹具根 $ROOT 下没有 @deepseek-ai，unresolvableRows 会误报全局"; exit 1; }
-          echo "夹具根 = $ROOT"
-          # 后面所有 step 都用它（test/run.mjs 的第一解析顺位）。
-          echo "DSH_SHIPPED_PRESETS_DIR=$PWD/$FIXTURE" >> "$GITHUB_ENV"
-          ls "$FIXTURE"
+          node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
 
       - name: 语法检查
         shell: bash

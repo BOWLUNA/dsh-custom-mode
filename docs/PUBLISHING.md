@@ -11,6 +11,12 @@ This project has **two artifacts**, distributed in different ways (for the reaso
 
 An agent preset is **not** an npm package, so do not expect `npm install` to install it — `dsh` discovers it from a directory on disk.
 
+**Storefront screenshots.** `editor/screenshots.json` lists four images under `editor/assets/`; the plugin
+market and the [catalog](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) read that file from
+this repository (not from the npm tarball — `assets/` is deliberately outside the package's `files` whitelist),
+so replacing a screenshot is a push here and nothing else. Measured 2026-09-25: 840 of the catalog's 4311
+entries ship curated screenshots, and a card without one looks unfinished next to them.
+
 ## Option one: a GitHub repository (the least effort; recommended to start with)
 
 Others:

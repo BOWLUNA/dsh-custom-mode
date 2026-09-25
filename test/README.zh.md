@@ -15,15 +15,17 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 ──────── composition.test.mjs ────────
 … result: N passed, 0 failed
 … one such block per suite …
-all 13 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 14 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **725 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十二个自带夹具、临时目录与桩，
+合计 **774 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十三个自带夹具、临时目录与桩，
 可以直接单独跑。
 
-解析链有三条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析
-（CI 里 npm 装的 dsh 走这条）→ `$DSH_HOME/profiles/node_modules`（本机装了 dsh 走这条）。
-三条全断时它会打印**试过哪些路**，而不是丢一个 `ENOENT`。手工指定：
+解析链有四条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析
+（CI 里 npm 装的 dsh 走这条）→ `$DSH_HOME/profiles/node_modules`（本机装了 dsh 走这条）→
+**从宿主声明派生**（0.1.7 起不再有复数 presets 包，于是用与产品同一条代码从
+`dsh-web-app/presets/<mode>.patch.yml` 抽出声明，落到仓库根的 `node_modules` 下）。
+四条全断时它会打印**试过哪些路**，而不是丢一个 `ENOENT`。手工指定：
 
 ```sh
 DSH_SHIPPED_PRESETS_DIR=/path/to/dsh-agent-presets/presets node test/run.mjs

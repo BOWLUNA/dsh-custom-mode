@@ -15,21 +15,24 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 ──────── composition.test.mjs ────────
 … result: N passed, 0 failed
 … one such block per suite …
-all 13 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 14 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
 Per-suite counts are deliberately **not** listed here: they change with every test edit, and a review
 caught this section still showing eight suites and a 333 total. The one number the docs do state — the
 total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
 
-**725 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other twelve bring
+**774 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other thirteen bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
-There are three resolution paths, and any one of them hitting is enough: the
+There are four resolution paths, and any one of them hitting is enough: the
 `DSH_SHIPPED_PRESETS_DIR` environment variable → Node resolution from this file (the path an
 npm-installed dsh takes in CI) → `$DSH_HOME/profiles/node_modules` (the path taken when dsh is
-installed locally). When all three miss, it prints **which paths it tried**, rather than throwing a
-bare `ENOENT`. To specify it by hand:
+installed locally) → **derived from the host's declaration** (dsh ≥ 0.1.7 ships no plural presets
+package any more, so the same code the product uses lifts the entry list out of
+`dsh-web-app/presets/<mode>.patch.yml` and materializes it under the repository's `node_modules`).
+When all four miss, it prints **which paths it tried**, rather than throwing a bare `ENOENT`. To
+specify it by hand:
 
 ```sh
 DSH_SHIPPED_PRESETS_DIR=/path/to/dsh-agent-presets/presets node test/run.mjs

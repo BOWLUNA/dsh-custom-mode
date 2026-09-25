@@ -22,51 +22,32 @@
  * output always carries a timestamp comment.
  */
 
-import { readFileSync, existsSync } from 'node:fs'
-import { createRequire } from 'node:module'
-import { dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { dshHome } from './paths.mjs'
+
+// 出厂组成「从哪来」是两条 dsh 线唯一还没收进后端的一处：旧线是文件，0.1.7 是
+// agentPresets.readDocument()。解析链整个搬到了 base-composition.mjs（含它的理由与实测），
+// 本模块只消费它 —— 合成与排版手术仍然全部发生在这里。
+import {
+  baseCompositionPath,
+  readBaseCompositionText,
+  setShippedPresetsDir,
+  shippedPresetsDir,
+} from './base-composition.mjs'
+
+export { baseCompositionPath, setShippedPresetsDir, shippedPresetsDir } from './base-composition.mjs'
+export {
+  BaseCompositionUnavailableError,
+  isBaseCompositionUnavailable,
+  setBaseCompositions,
+} from './base-composition.mjs'
 
 /**
- * Directory holding the shipped preset folders (`standard`, `ptc`, …),
- * discovered once and cached.
+ * 出厂组成的解析在 base-composition.mjs（见那里的解析顺序与实测依据）。
  *
- * Resolved from the installed `dsh-agent-presets` package rather than a
- * hard-coded install path, so this works on any machine layout. The chain is:
- *
- *   <harness>/dsh-agent-presets/presets/custom/prompt-reader.mjs   ← this preset
- *   <harness>/dsh-agent-presets/presets/                           ← what we want
- *
- * The preset directory is the FIRST place `prompt-reader.mjs` exists walking up
- * from here: `preset/` in a source checkout does not carry that file. Discovery
- * is deferred to first use so importing this module never throws.
+ * 这里曾经只有一条路：`require.resolve('@deepseek-ai/dsh-agent-presets')`。0.1.7 起那个包不再发布，
+ * 于是这条路必然抛错，而调用方把它变成了整页 500 —— 设置页在官方桌面端内置的那条线上整体不可用。
  */
-let shippedPresetsCache
-function discoverShippedPresets() {
-  const require = createRequire(import.meta.url)
-  // 1) Node 解析：插件安装在能看见 harness 依赖的位置时直接命中。
-  try {
-    const manifest = require.resolve('@deepseek-ai/dsh-agent-presets/package.json')
-    return join(dirname(manifest), 'presets')
-  } catch {
-    /* fall through */
-  }
-  // 2) profile 的 node_modules：dsh 把 harness 包放在 <dshHome>/profiles/node_modules，
-  //    这里独立于「roster 是否给出 system 行」的形状，是 agentPresets 之外的第二条路。
-  try {
-    const fromProfile = createRequire(join(dshHome(), 'profiles', 'package.json'))
-    const manifest = fromProfile.resolve('@deepseek-ai/dsh-agent-presets/package.json')
-    return join(dirname(manifest), 'presets')
-  } catch {
-    /* fall through */
-  }
-  throw new Error(
-    '无法定位出厂基础模式。已尝试：agentPresets 的 system 预设路径、Node 解析、profile 的 node_modules。' +
-      '若 DSH 改了包布局，请用 DSH_SHIPPED_PRESETS_DIR 指向 presets 目录。',
-  )
-}
 
 /**
  * Base modes a user may build on.
@@ -136,44 +117,21 @@ export const ROW_META = {
   'persistent-pwsh': { label: '持久 pwsh' },
 }
 
-/** Absolute path of the shipped composition for a base mode. */
-export function baseCompositionPath(modeId) {
-  return join(shippedPresetsDir(), modeId, 'agent.cordis.yml')
-}
+/** 出厂组成的路径与解析链都在 base-composition.mjs（下面按名字再导出，调用点不必分支）。 */
 
 /**
- * Resolve the shipped-preset directory.
+ * Read one base mode's shipped composition text.
  *
- * A test (or a source checkout, where the shipped presets are not beside this
- * module) may override it through `DSH_SHIPPED_PRESETS_DIR`; otherwise it is
- * discovered from the installed `dsh-agent-presets` package.
- */
-/** Directory injected by the host half, which resolves it via the agentPresets service. */
-let injectedShippedDir
-/**
- * Point the compiler at a shipped-preset directory discovered at runtime.
+ * The chain — explicit override → text handed over by the host (`readDocument`) → legacy presets
+ * directory → packaged `dsh-web-app` patch — lives in base-composition.mjs, so every route can be
+ * tested on its own and the failure carries a `code` instead of a bare message.
  *
- * The host half does this from `agentPresets.list()` (system-trust rows carry
- * absolute paths), which is layout-independent. Deriving the directory from this
- * module's own location does NOT work: this module is loaded from the plugin's
- * install directory, not from inside a preset, so no amount of walking up finds
- * the shipped presets.
+ * @param {string} modeId - one of {@link BASE_MODES}.
+ * @returns {string} the entry-list YAML of that base mode.
+ * @throws {BaseCompositionUnavailableError} when no route yields text (callers degrade, see index.mjs).
  */
-export function setShippedPresetsDir(dir) {
-  if (typeof dir === 'string' && dir !== '') injectedShippedDir = dir
-}
-
-export function shippedPresetsDir() {
-  const override = process.env.DSH_SHIPPED_PRESETS_DIR
-  if (override !== undefined && override !== '') return override
-  if (injectedShippedDir !== undefined) return injectedShippedDir
-  if (shippedPresetsCache === undefined) shippedPresetsCache = discoverShippedPresets()
-  return shippedPresetsCache
-}
-
-/** Read one base mode's shipped composition text. */
 export function readBaseComposition(modeId) {
-  return readFileSync(baseCompositionPath(modeId), 'utf8')
+  return readBaseCompositionText(modeId).text
 }
 
 /**
@@ -701,9 +659,11 @@ export function knownModuleNamesInjected() {
 }
 
 export function unresolvableRows(text) {
-  let root
+  /** 可能装着生态包的那些 `node_modules`（等价于根，见下面的嵌套形态）。 */
+  let roots = []
   let fromFilesystem = false
   if (knownModuleNames === null) {
+    let root
     try {
       root = join(shippedPresetsDir(), '..', '..', '..')
       fromFilesystem = true
@@ -713,6 +673,19 @@ export function unresolvableRows(text) {
     // **判断不了就不要报警**：如果这个根下根本没有 node_modules（例如测试用的是一个临时出厂目录），
     // 那么"查不到某个包"只说明我们不知道，不说明那行坏了。误报的代价是用户被引导去关掉本来正常的行。
     if (existsSync(join(root, '@deepseek-ai')) === false) return []
+    roots = [root]
+    // ★ 依赖**嵌套**安装时（实测：npm 装 @deepseek-ai/dsh@0.1.7-rc.2，81 个生态包落在
+    //   `node_modules/@deepseek-ai/dsh/node_modules/@deepseek-ai/…` 而不是仓库根），只看根会把
+    //   **每一行**都报成"本机装不了" —— 一个把健康预设说成 broken、并引导用户关掉正常行的假警报。
+    //   所以把根下每个包自己的 node_modules 也算进去。
+    try {
+      for (const entry of readdirSync(join(root, '@deepseek-ai'))) {
+        const nested = join(root, '@deepseek-ai', entry, 'node_modules')
+        if (existsSync(join(nested, '@deepseek-ai'))) roots.push(nested)
+      }
+    } catch {
+      /* 读不了目录就只用根，与从前一致 */
+    }
   }
   const out = []
   const lines = text.split('\n')
@@ -752,7 +725,7 @@ export function unresolvableRows(text) {
     // 注入了集合就用集合（新线：来自 compositionInventory 的 moduleName）——
     // 子路径说明符（`@scope/pkg/sub`）与它的包名都算命中，否则会把健康行误报成坏行。
     const present = fromFilesystem
-      ? existsSync(join(root, pkg))
+      ? roots.some((each) => existsSync(join(each, pkg)))
       : knownModuleNames.has(name) || knownModuleNames.has(pkg)
     if (present === false) out.push({ id: row[2], name })
   }

@@ -34,7 +34,7 @@ if (url === undefined) {
 // 注意英文侧的实际文案：dsh 的英文界面是 `Standard mode` / `PTC mode` / `Minimal mode` / `Cordis mode`
 // （外部评审实测：老列表里写的是 `Standard`，于是英文 UI 下探针**根本找不到**控件、直接报"打不开"）。
 const KNOWN = [
-  '标准模式', '自定义模式', 'PTC 模式', '极简模式', 'Cordis 模式',
+  '标准模式', '自定义模式', 'PTC 模式', '极简模式', 'Cordis 模式', '创造模式',
   'Standard mode', 'Custom mode', 'PTC mode', 'Minimal mode', 'Cordis mode',
 ]
 
@@ -77,11 +77,42 @@ console.log(`  当前模式按钮：${JSON.stringify(trigger.text)}`)
 await session.clickAt(trigger.x, trigger.y)
 await session.sleep(1400)
 
+/**
+ * Collect every mode the opened picker offers.
+ *
+ * **Why not filter by a name allow-list** (the old behaviour): user assistants are named by their owner, so a
+ * fixed list of "known" names can only ever see the shipped ones (plus the one this feature happens to call
+ * 「自定义模式」). Measured 2026-09-25 on a lab instance: the picker visibly listed six modes
+ * (standard / PTC / minimal / cordis / 写作助手 / probe-assistant) while this probe reported three, so
+ * `--expect <a user mode>` failed while the mode was right there on screen. A false negative in the one check
+ * that exists to notice a *missing* mode is worse than no check: it teaches the reader to ignore the check.
+ *
+ * New shape: anchor on one shipped name, climb to the popup that still carries several of them, then read that
+ * popup's leaf texts. Option titles are short; the one-line descriptions under them are not.
+ */
 const modes = await session.evaluate(`(() => {
   const names = ${JSON.stringify(KNOWN)};
-  return [...new Set([...document.querySelectorAll('*')]
-    .filter((e) => e.children.length === 0 && names.includes((e.textContent || '').trim()) && e.getBoundingClientRect().height > 6)
-    .map((e) => (e.textContent || '').trim()))];
+  // Option rows are wide (measured 280px at this viewport); the composer chip that shows the current mode is
+  // ~52px. Filtering by width keeps the *popup's* rows and drops the trigger, so the common ancestor below is
+  // the popup rather than the whole page.
+  const rows = [...document.querySelectorAll('*')].filter((e) => {
+    if (e.children.length !== 0) return false;
+    const text = (e.textContent || '').trim();
+    const rect = e.getBoundingClientRect();
+    return names.includes(text) && rect.width > 120 && rect.height > 6;
+  });
+  if (rows.length === 0) return [];
+  let panel = rows[0];
+  for (const row of rows) {
+    while (panel.contains(row) === false && panel.parentElement !== null) panel = panel.parentElement;
+  }
+  // Every short leaf inside the popup: shipped modes and user assistants alike (user names are not in KNOWN —
+  // that was the whole bug).
+  const texts = [...panel.querySelectorAll('*')]
+    .filter((e) => e.children.length === 0 && (e.textContent || '').trim() !== '' && e.getBoundingClientRect().width > 0)
+    .map((e) => (e.textContent || '').trim())
+    .filter((text) => text.length <= 24);
+  return [...new Set(texts)];
 })()`)
 console.log(`  选择器里的模式：${JSON.stringify(modes)}`)
 if (out !== undefined) {

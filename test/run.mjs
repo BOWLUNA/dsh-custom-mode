@@ -20,7 +20,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { createRequire } from 'node:module'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { homedir } from 'node:os'
@@ -28,6 +28,9 @@ import { homedir } from 'node:os'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = dirname(HERE)
 const PACKAGE = '@deepseek-ai/dsh-agent-presets'
+
+// 与产品同一条解析/派生实现（base-composition.mjs），避免"测试里能跑、真机上不行"。
+const { BASE_MODE_IDS, extractPluginsBlock, patchPresetsDir } = await import('../editor/base-composition.mjs')
 
 /** The four modes this repo compiles against; a presets dir without them is wrong. */
 const REQUIRED_MODES = ['standard', 'ptc', 'minimal', 'cordis']
@@ -99,7 +102,44 @@ function resolvePresetsDir() {
   return undefined
 }
 
-const found = resolvePresetsDir()
+/**
+ * 第四路：从**已安装主机**的声明式 patch 派生一份 presets 目录（dsh ≥ 0.1.7）。
+ *
+ * 为什么需要它：0.1.7 起 `@deepseek-ai/dsh-agent-presets`（复数）不再发布，出厂定义改成
+ * `@deepseek-ai/dsh-web-app/presets/<mode>.patch.yml` 里的声明。CI 从前靠
+ * `npm i @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2` 补一份夹具，而那一步在 0.1.7 的 peer 树上
+ * **ERESOLVE 失败**（GitHub 的 `bash -e` 直接判该步失败）—— 0.1.7 的三条 CI 腿因此自 1.9.10 起
+ * 一直是红的，也正好没人发现设置页在那条线上整体不可用。这里改用**与产品同一条**派生代码：
+ * 不装旧包，也不依赖任何上游文件被复制过。
+ *
+ * 落点选在 <repo>/node_modules/…（而不是 tmp）：`unresolvableRows()` 的"本行能不能在本机运行"
+ * 判定是从 presets 目录往上推三层找 node_modules 的，夹具放在 tmp 下会让那个根变成 `/`，
+ * 于是**每一行都判不出来**、断言静默变松。node_modules 不入版本库，写进去是安全的。
+ */
+function deriveFromDeclarativePatches() {
+  const patches = patchPresetsDir()
+  if (patches === undefined) return undefined
+  const out = join(REPO, 'node_modules', '@deepseek-ai', 'dsh-agent-presets', 'presets')
+  try {
+    for (const mode of BASE_MODE_IDS) {
+      const text = extractPluginsBlock(readFileSync(join(patches, mode + '.patch.yml'), 'utf8'))
+      if (text === null) return undefined
+      mkdirSync(join(out, mode), { recursive: true })
+      writeFileSync(join(out, mode, 'agent.cordis.yml'), text + '\n', 'utf8')
+      writeFileSync(join(out, mode, 'preset.yml'), `name: ${mode}\n`, 'utf8')
+    }
+    writeFileSync(
+      join(REPO, 'node_modules', '@deepseek-ai', 'dsh-agent-presets', 'package.json'),
+      JSON.stringify({ name: PACKAGE, version: '0.0.0-derived', private: true }, null, 2) + '\n',
+      'utf8',
+    )
+    return out
+  } catch {
+    return undefined
+  }
+}
+
+const found = resolvePresetsDir() ?? attempt('从声明式 patch 派生（0.1.7+）', deriveFromDeclarativePatches)
 if (found === undefined) {
   console.error('找不到出厂 preset（shipped presets）。已尝试：')
   console.error(`  - ${'DSH_SHIPPED_PRESETS_DIR'} 环境变量（当前未设置）`)
@@ -107,10 +147,11 @@ if (found === undefined) {
   console.error(`  - $DSH_HOME/profiles/node_modules 里的 ${PACKAGE}`)
   console.error('  - 嵌套在 @deepseek-ai/dsh 里的依赖副本')
   console.error('')
-  console.error('三种解法任选：')
-  console.error('  1) 本机装了 dsh：直接跑就行，说明解析链需要修，请提 issue；')
-  console.error('  2) 没有 dsh（例如 CI）：npm install @deepseek-ai/dsh@0.1.6-alpha.1')
-  console.error('  3) 手工指定：DSH_SHIPPED_PRESETS_DIR=/path/to/presets node test/run.mjs')
+  console.error('四种解法任选：')
+  console.error('  1) 本机装了 dsh 0.1.7+：直接跑就行（会从 dsh-web-app/presets/*.patch.yml 派生）；')
+  console.error('  2) 本机装的是旧线（≤0.1.6）：它会自带 @deepseek-ai/dsh-agent-presets；')
+  console.error('  3) 没有 dsh（例如 CI）：npm install @deepseek-ai/dsh@0.1.7-rc.2')
+  console.error('  4) 手工指定：DSH_SHIPPED_PRESETS_DIR=/path/to/presets node test/run.mjs')
   console.error('')
   console.error(`提示：${'~/.dsh'}/profiles/node_modules 只有在 dsh 至少启动过一次之后才会被填充。`)
   process.exit(2)
@@ -123,6 +164,7 @@ console.log('')
 const suites = [
   'composition.test.mjs',
   'composition-edge.test.mjs',
+  'base-composition.test.mjs',
   'prompt-reader.test.mjs',
   'prompt-tool.test.mjs',
   'meta.test.mjs',

@@ -8,6 +8,68 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.13]
+
+### The settings page works on 0.1.7 again — the line the desktop app runs
+
+An adversarial review ran the plugin on a **stock `0.1.7-rc.2`** instance (throwaway `DSH_HOME`, throwaway
+profile) and found the settings page answering **500**: the assistant list rendered, `GET …/state` returned
+`internalError 无法定位出厂基础模式`, `POST …/state` and `/create` returned `400 renderFailed`, and the plugin
+switches, the base mode and the prompt editor were simply absent. The mode itself was still in the new-session
+picker, so the failure was **silent** — the same shape as the P0 this repository fixed once for the stable line.
+
+Root cause: `composition.mjs` had exactly **one** way to read a shipped base composition — the file-based
+`@deepseek-ai/dsh-agent-presets` package. From 0.1.7 that package is not published any more; the declaration
+lives in the host (`agentPresets.readDocument()`). The two-line backend split had abstracted paths (A) and
+roster (B) but not **C — where the base composition comes from**.
+
+- **New resolver, `editor/base-composition.mjs`,** with four routes in order: `DSH_SHIPPED_PRESETS_DIR`
+  (explicit, and exclusive so discovery cannot wander) → **the text the host hands over**
+  (`agentPresets.readDocument(<mode>).content`, refreshed on every registry sync) → the legacy presets
+  directory → the packaged declaration `dsh-web-app/presets/<mode>.patch.yml` (text surgery: the `plugins:`
+  block is dedented, comments, quoting and `!!js` kept byte-for-byte). Nothing left → a **typed**
+  `baseCompositionUnavailable`, never a bare 500.
+- **Degradation instead of a dead page.** With no base composition the page still reads and **saves the system
+  prompt** (`savedPromptOnly`), says in one line why the switches are unavailable, and keeps them
+  visible-but-unavailable. A save that actually carries row switches is **refused** with a typed error rather
+  than silently dropped — the refusal lives on the write side, not by lying about the read side.
+- **`install.sh` no longer cries wolf on 0.1.7.** Its profile check matched the plural package name, which the
+  0.1.7 composition tree does not contain — measured: `dsh --profile web --dump-config | grep -c
+  '@deepseek-ai/dsh-agent-presets'` = **0**, while `picker-probe` found the mode in the picker. It now accepts
+  either mechanism.
+- **A save's three files are written together** (issue #5): composition, prompt and `preset.yml` go through
+  one staged atomic write, so a failing third write can no longer leave "new prompt + old name" on disk while
+  the page reports failure and keeps showing the old draft.
+- **CI can set up the 0.1.7 legs again.** The step that prepared the test fixture ran
+  `npm i @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2` on top of the 0.1.7 peer tree, which fails with
+  **ERESOLVE** — under GitHub's `bash -e` that is a failed step, and it had been failing on all three
+  0.1.7 legs for `1.9.10`, `1.9.11` and `1.9.12`. `test/run.mjs` now **derives** the fixture from the
+  installed host's declaration (the same code path the product uses), so `node test/run.mjs` also works on a
+  machine that only has the current dsh. `release.yml` now installs the current main axis before publishing,
+  so a green gate can no longer coexist with three red legs.
+- **`unresolvableRows()` sees nested installs.** npm puts the 0.1.7 ecosystem inside
+  `@deepseek-ai/dsh/node_modules/…`; the probe only looked at the flat root, so a healthy preset was reported
+  as having **every row** unresolvable — the false alarm that sends users off to disable working rows.
+- `editor/LICENSE` now ships in the npm tarball (the package declared MIT but carried no licence text), and
+  the `index.mjs` header lists all seven routes it registers.
+
+- **Renaming an assistant now takes effect immediately** on the declarative line. `effectiveRosterRows()` let
+  the registry's copy of the name win over `preset.yml`; because the registry only holds what we last
+  *registered*, saving a new name re-registered the **old** one — measured on 0.1.7-rc.2: `preset.yml` said
+  写作助手 and `readState` returned it, while the assistant list and the new-session picker kept showing
+  「自定义模式」 until a restart. Disk is the truth (that is the file a user edits by hand); the registry now
+  only supplies what only it knows — the `broken` mount diagnostic.
+- **`tools/picker-probe.mjs` can see user-named modes.** It collected names through a fixed allow-list, so any
+  mode not named exactly like a shipped one (or 「自定义模式」) was invisible to it: measured on a six-mode
+  picker it reported three and failed `--expect <user mode>` while the mode sat on screen — a false negative in
+  the one check that exists to notice a *missing* mode. It now reads the popup's own option rows.
+- `editor/screenshots.json` + `editor/assets/…`: four curated storefront screenshots for the plugin market,
+  captured on a real instance (the catalog reads them from this repository; `assets/` stays out of the npm
+  tarball).
+
+Tests: 774 checks (14 suites). The new `test/base-composition.test.mjs` covers extraction fidelity, the
+resolver order, the typed failure, and the degraded read/save.
+
 ## [1.9.12]
 
 ### The official desktop app is covered — and it runs exactly what CI pins

@@ -95,6 +95,35 @@ function yamlScalar(value) {
 }
 
 /**
+ * Render the exact bytes `writePresetMeta` would write, without writing them.
+ *
+ * Why it is exported: the settings page writes the composition, the prompt **and** this file, and a review
+ * found the third one landing separately — so a failure while writing `preset.yml` left a new prompt with
+ * the old name on disk while the page reported "save failed" (issue #5). All three now go through one
+ * staged atomic write; that requires the text, not a second writer.
+ *
+ * @param {string} name - display name (required).
+ * @param {string|undefined} description - optional description.
+ * @param {string} directory - the preset directory (for the existing `order`).
+ * @param {{order?: number}} [options] - explicit roster position.
+ * @returns {{ok: true, text: string, name: string} | {ok: false, code: string, error: string}} the bytes and the
+ *   normalized name, or why there are none.
+ */
+export function presetMetaText(name, description, directory = PRESET_DIR, options = {}) {
+  const cleanName = typeof name === 'string' ? name.replace(/\r?\n/g, ' ').trim() : ''
+  if (cleanName === '') return { ok: false, code: 'nameRequired', error: '模式名称不能为空。' }
+  const lines = ['name: ' + yamlScalar(cleanName)]
+  if (typeof description === 'string' && description.trim() !== '') {
+    lines.push('description: ' + yamlScalar(description))
+  }
+  const requested = options !== null && typeof options === 'object' ? options.order : undefined
+  const order =
+    typeof requested === 'number' && Number.isFinite(requested) ? Math.trunc(requested) : readPresetMeta(directory).order
+  if (order !== undefined) lines.push('order: ' + String(order))
+  return { ok: true, text: lines.join('\n') + '\n', name: cleanName }
+}
+
+/**
  * Write `preset.yml` with a display name and optional description.
  *
  * The name is required: an empty one would render the mode as its bare directory
@@ -108,20 +137,12 @@ function yamlScalar(value) {
  * @returns {{ok: true, name: string} | {ok: false, error: string}} the outcome.
  */
 export function writePresetMeta(name, description, directory = PRESET_DIR, options = {}) {
-  const cleanName = typeof name === 'string' ? name.replace(/\r?\n/g, ' ').trim() : ''
-  if (cleanName === '') return { ok: false, code: 'nameRequired', error: '模式名称不能为空。' }
-  const lines = ['name: ' + yamlScalar(cleanName)]
-  if (typeof description === 'string' && description.trim() !== '') {
-    lines.push('description: ' + yamlScalar(description))
-  }
-  const requested = options !== null && typeof options === 'object' ? options.order : undefined
-  const order =
-    typeof requested === 'number' && Number.isFinite(requested) ? Math.trunc(requested) : readPresetMeta(directory).order
-  if (order !== undefined) lines.push('order: ' + String(order))
+  const rendered = presetMetaText(name, description, directory, options)
+  if (rendered.ok !== true) return rendered
   try {
     // **非原子写的最坏后果在这里**：preset.yml 写坏 = 这个模式从所有选择器里消失（见本文件头注释）。
     // 实测审阅指出这里原先用的是裸 writeFileSync，与设置页的纪律不一致；现在共用同一份实现。
-    writeAtomic(presetMetaPath(directory), lines.join('\n') + '\n')
+    writeAtomic(presetMetaPath(directory), rendered.text)
   } catch (error) {
     // 带 `code`：这条是保存路径上最后一个没有 code 的用户可见失败，英文界面此前会在这里显示中文。
     // 它发生得尤其难受 —— 组成文件与提示词**已经写成功**了，只有 preset.yml 没写成，所以页面
@@ -129,5 +150,5 @@ export function writePresetMeta(name, description, directory = PRESET_DIR, optio
     const detail = String((error && error.message) || error)
     return { ok: false, code: 'metaWriteFailed', params: { detail }, error: '写入 preset.yml 失败：' + detail }
   }
-  return { ok: true, name: cleanName }
+  return { ok: true, name: rendered.name }
 }

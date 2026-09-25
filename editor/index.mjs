@@ -1,11 +1,12 @@
 /**
  * Host half: the 「自定义模式」 settings page — an ASSISTANT MANAGER.
  *
- * It registers five exact routes on the platform's shared `/api` channel; the browser half calls them
- * with `fetch`:
+ * It registers seven exact routes on the platform's shared `/api` channel; the browser half calls
+ * them with `fetch`:
  *
  *   GET  /api/custom-mode              — every assistant this feature manages.
  *   GET  /api/custom-mode/state?id=…   — one assistant: base mode, rows, switches, prompt.
+ *   GET  /api/custom-mode/history?id=…&n=… — one prompt revision (metadata comes with the state).
  *   POST /api/custom-mode/state        — { id, mode, overrides, prompt, name, description }:
  *                                        validate, render a fresh `agent.cordis.yml`, write both files.
  *   POST /api/custom-mode/create       — { name, description }: seed a new assistant from the
@@ -13,6 +14,7 @@
  *   POST /api/custom-mode/delete       — { id }: remove a locally authored assistant.
  *   POST /api/custom-mode/reorder      — { id, direction }: move one assistant up/down in the
  *                                        picker order by writing `order` into each `preset.yml`.
+ *   POST /api/custom-mode/repair       — { id }: turn off the rows this dsh line cannot resolve.
  *
  * **Why `/api` and not the raw `webServer` table**: the carrier that owns the `/api` channel applies the
  * platform's trust and authentication policy — loopback/`trustedHosts` Host check, `Sec-Fetch-Site`,
@@ -24,7 +26,7 @@
  * route answered 401; a plain form post needs no preflight, so CORS would not have helped either). The
  * registered paths are absolute *including* `/api`, which is what the platform's own packages pass.
  *
- * **Why exact routes rather than one prefix**: the Fetch registry matches exact paths. Five registrations
+ * **Why exact routes rather than one prefix**: the Fetch registry matches exact paths. Seven registrations
  * cost nothing and each declares the methods it owns, so the method table doubles as the guarantee that a
  * prefetched `GET …/create` cannot create anything — that method is simply not registered for that path.
  *
@@ -53,15 +55,17 @@ import {
   BASE_MODES,
   collectRows,
   disableRowsInPlace,
+  isBaseCompositionUnavailable,
   modeOf,
   overridesOf,
   readBaseComposition,
   setKnownModuleNames,
   renderComposition,
+  setBaseCompositions,
   setShippedPresetsDir,
   unresolvableRows,
 } from './composition.mjs'
-import { readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
+import { presetMetaText, readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
 import { listHistory, readVersion, recordExternalChange, recordPrompt, HISTORY_SOURCE } from './journal.mjs'
 import { packagedPresetDir, starterComposition } from './seed.mjs'
 import {
@@ -303,13 +307,27 @@ export function readState(rows, id, options = {}) {
       /* 审计留痕失败不影响读取 */
     }
   }
+  // 本机这条线给不给得出「出厂组成」？给不出来时**降级**而不是把整页打成 500：
+  // 提示词与名字照常可读可写，只有基础模式与插件开关不可编辑（0.1.7 上曾经整页不可用）。
+  let rowTree = []
+  let overrides = {}
+  let baseUnavailable = null
+  try {
+    rowTree = collectRows(text)
+    overrides = overridesOf(text, mode)
+  } catch (error) {
+    if (!isBaseCompositionUnavailable(error)) throw error
+    baseUnavailable = { code: error.code, params: { mode, detail: describe(error) } }
+  }
   return {
     ok: true,
     id,
     mode,
     modes: BASE_MODES,
-    rows: collectRows(text),
-    overrides: overridesOf(text, mode),
+    rows: rowTree,
+    overrides,
+    // 页面据此把「基础模式 / 插件开关」两块显示成不可用，并把原因说成人话。
+    ...baseUnavailable === null ? {} : { baseUnavailable },
     prompt: prompt.ok === true ? prompt.text : '',
     ...prompt.ok === true ? {} : { promptError: prompt.error },
     name: meta.name,
@@ -333,6 +351,8 @@ export function readState(rows, id, options = {}) {
       ...(existsSync(join(directory, 'approval-gate-missing')) ? ['approvalGateMissing'] : []),
       // 本线无法解析的启用行 = 平台会把整个预设判为 broken 并从选择器里丢掉（曾经的 P0）。
       ...(unresolvableRows(text).length > 0 ? ['unresolvableRows'] : []),
+      // 出厂组成取不到：提示词能改，基础模式与插件开关不能。
+      ...(baseUnavailable === null ? [] : ['baseCompositionUnavailable']),
     ],
   }
 }
@@ -371,6 +391,49 @@ function serializedWrite(key, work) {
   // 链本身必须永远处于 fulfilled 状态，否则一次失败会卡死后续所有写入。
   writeChains.set(key, next.then(() => undefined, () => undefined))
   return next
+}
+
+/**
+ * 降级保存：只写提示词与元数据，组成文件一字不动。
+ *
+ * 什么时候会走到这里：本机这条 dsh 线既没有旧线的 presets 目录，也没有可用的
+ * `readDocument()`（见 base-composition.mjs 的解析链）。此时「基础模式 / 插件开关」在页面上已经
+ * 不可编辑，而用户真正想保存的那段提示词没有任何理由跟着一起失败 —— 组成文件不动，模式在平台上
+ * 的行集合也就不变，这是所有选项里破坏性最小的一个。
+ *
+ * @param {string} directory - the assistant's preset directory.
+ * @param {{id: string, mode: string, prompt: string, name: string, description: string}} input - the validated save.
+ * @returns {object} the shape `saveState` returns, with `code: 'savedPromptOnly'`.
+ */
+export function savePromptOnly(directory, { id, mode, prompt, name, description }) {
+  // 与正常保存同一条纪律：提示词与 preset.yml 一起换名，失败则两个都不动。
+  let metaText = null
+  if (name !== '') {
+    const rendered = presetMetaText(name, description, directory)
+    if (rendered.ok !== true) return rendered
+    metaText = rendered.text
+  }
+  try {
+    writeAtomicPair([
+      [promptFile(directory), prompt],
+      ...metaText === null ? [] : [[presetMetaPath(directory), metaText]],
+    ])
+  } catch (error) {
+    return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
+  }
+  try {
+    recordPrompt(directory, prompt, HISTORY_SOURCE.settings)
+  } catch {
+    /* 审计记录失败不影响保存本身 */
+  }
+  return {
+    ok: true,
+    id,
+    mode,
+    code: 'savedPromptOnly',
+    params: { name: name === '' ? id : name, mode },
+    note: '已保存系统提示词（本机取不到基础模式的出厂组成，插件开关与基础模式未改动）。新建会话即生效。',
+  }
 }
 
 export function saveState(rows, input) {
@@ -420,6 +483,21 @@ export function saveState(rows, input) {
   try {
     composition = renderComposition(mode, overrides, { modeName: name, assistantId: id })
   } catch (error) {
+    // 拿不到出厂组成：这一页**降级**但不能全废 —— 提示词仍可单独保存（组成文件原样不动）。
+    // 页面在降级态下把基础模式与开关都设为不可编辑，所以开关集合必为空；HTTP API 直接调用
+    // 还想改开关时明确拒绝，而不是悄悄丢掉用户的意图。
+    if (isBaseCompositionUnavailable(error)) {
+      if (overrides.size === 0 && existsSync(compositionFile(directory))) {
+        return savePromptOnly(directory, { id, mode, prompt, name, description })
+      }
+      return {
+        ok: false,
+        code: error.code,
+        params: { mode, detail: describe(error) },
+        error:
+          '本机取不到基础模式「' + mode + '」的出厂组成，无法改动插件开关或基础模式（提示词可以单独保存）。',
+      }
+    }
     return { ok: false, code: 'renderFailed', params: { detail: describe(error) }, error: '生成组成文件失败：' + describe(error) }
   }
 
@@ -432,12 +510,21 @@ export function saveState(rows, input) {
     return { ok: false, code: 'selfCheckFailed', params: { detail: describe(error) }, error: '生成结果自检失败，已放弃写入：' + describe(error) }
   }
 
+  // 三个文件必须一起换名（issue #5）：组成、提示词、preset.yml。此前 preset.yml 是**单独**写的，
+  // 它失败时磁盘上已经是"新提示词 + 旧名字"，而页面报"保存失败"—— 页面又不会重读，于是它永远停在
+  // 旧草稿上，用户以为没保存成功。现在三份先各自写进临时文件，再一起 rename；准备阶段失败则一个都不动。
+  // 名字为空时**不动** preset.yml：空的 name 标量会让这个模式在所有选择器里退化成裸目录 id。
+  let metaText = null
+  if (name !== '') {
+    const rendered = presetMetaText(name, description, directory)
+    if (rendered.ok !== true) return rendered
+    metaText = rendered.text
+  }
   try {
-    // 组成文件与提示词必须一起更新：先都写进临时文件再一起换名，失败时不会留下"新组成 + 旧提示词"
-    // 这种混合状态（审阅指出原先两次独立原子写之间存在这个窗口）。
     writeAtomicPair([
       [compositionFile(directory), composition],
       [promptFile(directory), prompt],
+      ...metaText === null ? [] : [[presetMetaPath(directory), metaText]],
     ])
   } catch (error) {
     return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
@@ -453,13 +540,6 @@ export function saveState(rows, input) {
     recordPrompt(directory, prompt, HISTORY_SOURCE.settings)
   } catch {
     /* 审计记录失败不影响保存本身 */
-  }
-
-  // A name the user cleared is left alone rather than written as an empty scalar:
-  // an empty `preset.yml` name is what makes a mode render as its bare id.
-  if (name !== '') {
-    const metaResult = writePresetMeta(name, description, directory)
-    if (metaResult.ok !== true) return metaResult
   }
 
   return {
@@ -555,6 +635,14 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     // 与保存路径的 `renderFailed` 同一套：**每个**用户可见的结果都要带 `code`，否则页面无从本地化
     // —— client.js 的 apiText 在没有 code 时直接退回下面这串中文，英文界面会在这一刻掉回中文
     // （AGENTS.md 第 13 条）。这条曾经是宿主半唯一漏掉 code 的普通返回。
+    if (isBaseCompositionUnavailable(error)) {
+      return {
+        ok: false,
+        code: error.code,
+        params: { mode: 'standard', detail: describe(error) },
+        error: '本机取不到出厂组成，暂时无法新建助手。',
+      }
+    }
     return { ok: false, code: 'renderFailed', params: { detail: describe(error) }, error: '生成组成文件失败：' + describe(error) }
   }
 
@@ -749,6 +837,9 @@ export function apply(ctx) {
       ['connection.fetch.register()', () => typeof scope.connection?.fetch?.register === 'function'],
     ]
     const OPTIONAL_APIS = [
+      // 出厂组成的来源（新线）：由宿主交出声明 YAML。缺了它插件仍能注册/同步，只是设置页里
+      // 「基础模式 / 插件开关」会降级为不可编辑（提示词照常）—— 所以它是可选能力。
+      ['agentPresets.readDocument()', () => typeof scope.agentPresets?.readDocument === 'function'],
       // 旧线的文件系统语义；新线由 preset-backend 的 declarative 后端用 disposer 补上。
       ['agentPresets.remove()', () => typeof scope.agentPresets?.remove === 'function'],
       ['agentPresets.copy()', () => typeof scope.agentPresets?.copy === 'function'],
@@ -785,7 +876,7 @@ export function apply(ctx) {
     let shippedReady = null
     const ensureShipped = () => {
       if (shippedReady === null) {
-        shippedReady = (async () => {
+        const attempt = (async () => {
           try {
             const rows = await scope.agentPresets.list()
             const system = rows.find((row) => row.trust === 'system' && typeof row.path === 'string')
@@ -795,6 +886,10 @@ export function apply(ctx) {
             console.error('custom-mode: 无法从 roster 解析出厂预设目录：' + describe(error))
           }
         })()
+        // 失败不缓存：旧线之外这条路本就可能没有 system 行，但一次**抛错**不该变成
+        // "整个进程生命周期内都不再解析"。
+        attempt.catch(() => { shippedReady = null })
+        shippedReady = attempt
       }
       return shippedReady
     }
@@ -851,6 +946,28 @@ export function apply(ctx) {
         } catch (error) {
           // 注入不了就退回文件系统判定 —— 那是旧线的正常路径，不是错误状态。
           console.error('custom-mode: 读取 compositionInventory 失败（回退文件系统判定）: ' + describe(error))
+        }
+      }
+      // 出厂组成：新线上唯一的来源是宿主自己（readDocument）。取到就交给 composer；取不到就交给
+      // 降级路径。两种情况都不阻塞下面的注册表同步 —— 模式可用优先于设置页完整。
+      if (declarative !== null) {
+        try {
+          const bases = await declarative.fetchBaseCompositions(BASE_MODES.map((mode) => mode.id))
+          setBaseCompositions(bases.fetched)
+          if (bases.fetched.size > 0) {
+            console.log(
+              'custom-mode: 已取回 ' + String(bases.fetched.size) + ' 个基础模式的出厂组成（' +
+                [...bases.fetched.keys()].join('、') + '）',
+            )
+          }
+          if (bases.problems.length > 0) {
+            console.error(
+              'custom-mode: 取不到这些基础模式的出厂组成 —— ' + bases.problems.join('；') +
+                '。对应模式仍可编辑提示词，基础模式与插件开关会显示为不可用。',
+            )
+          }
+        } catch (error) {
+          console.error('custom-mode: 取回出厂组成时出错（已忽略）: ' + describe(error))
         }
       }
       if (declarative === null) return

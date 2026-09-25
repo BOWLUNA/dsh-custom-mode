@@ -163,6 +163,41 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
     for (const id of [...mounted.keys()]) await unmount(id)
   }
 
+  /**
+   * Fetch the shipped base compositions the host declares, as entry-list YAML.
+   *
+   * `readDocument()` is the 0.1.7 replacement for the presets directory the composer used to read:
+   * it returns the declaration **including** the `isolate` groups and `!!js` predicates that
+   * `compositionInventory()` flattens away (measured 2026-09-25 on 0.1.7-rc.2:
+   * `readDocument('standard').content` is the same row list, verbatim YAML).
+   *
+   * Missing API, or a mode that fails to read, is **not** fatal: the host half falls back to the
+   * packaged patch files and, if those are missing too, to a typed "unavailable" state in which the
+   * prompt stays editable. So this never throws — it reports.
+   *
+   * @param {Iterable<string>} modeIds - the base modes to fetch.
+   * @returns {{ok: boolean, fetched: Map<string,string>, problems: string[]}}
+   */
+  async function fetchBaseCompositions(modeIds) {
+    const fetched = new Map()
+    const problems = []
+    if (typeof scope.agentPresets?.readDocument !== 'function') {
+      return { ok: false, fetched, problems: ['agentPresets.readDocument() 不可用'] }
+    }
+    for (const id of modeIds) {
+      try {
+        const document = await scope.agentPresets.readDocument(id)
+        const text = document !== null && typeof document === 'object' ? document.content : undefined
+        if (typeof text !== 'string' || text.trim() === '') problems.push(`${id}: 声明为空`)
+        else fetched.set(id, text)
+      } catch (error) {
+        // 不为某一条基础模式的成功而重试整轮：读不到的交给降级路径，并指名它。
+        problems.push(`${id}: ${describe(error)}`)
+      }
+    }
+    return { ok: problems.length === 0, fetched, problems }
+  }
+
   return {
     id: BACKEND_ID,
     /** 新线不把 preset 落到磁盘，注册表就是唯一真相。 */
@@ -171,6 +206,7 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
     mountOne,
     unmount,
     disposeAll,
+    fetchBaseCompositions,
     mountedIds: () => [...mounted.keys()],
   }
 }

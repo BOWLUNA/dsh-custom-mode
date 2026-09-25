@@ -1315,3 +1315,64 @@ beancookie/awesome-dsh-plugin#183 README.md 与 README.en.md 的「🧑💻 开�
 
 套件后续：`05-项目已有护栏.md` 需要写明"护栏自己也有盲区"—— 英文 locale 这一条就是。
 
+## 27. 原生 `0.1.7-rc.2` 上的对抗性审阅：设置页是一个 500（2026-09-25）
+
+**环境。** ACUS04（`ssh acus04`）：node 24.21.0，全局装 `dsh 0.1.7-rc.2`，一次性
+`DSH_HOME=/root/dsh-custom-lab`、一次性 web profile，Chromium 153（playwright 版）走 CDP。代码树用
+`tar --exclude=node_modules --exclude=.git` 送过去；**服务用户的那台机器从未被碰过**。
+
+**修复前（1.9.12）**，同一实例、同一份代码：
+
+```
+GET  /api/custom-mode            → 200 {"ok":true,"assistants":[{"id":"custom",…}]}
+GET  /api/custom-mode/state?id=custom
+     → 500 {"ok":false,"code":"internalError","params":{"detail":"无法定位出厂基础模式。已尝试：agentPresets 的
+       system 预设路径、Node 解析、profile 的 node_modules。…"}}
+POST /api/custom-mode/state      → 400 {"code":"renderFailed","params":{"detail":"无法定位出厂基础模式…"}}
+POST /api/custom-mode/create     → 400 {"code":"renderFailed","params":{"detail":"无法定位出厂基础模式…"}}
+POST /api/custom-mode/repair     → 200 {"code":"repairNotNeeded"}
+GET  /api/custom-mode/repair     → 404（方法表正确）
+```
+
+`node tools/browser-verify.mjs` → **10 PASS / 7 FAIL**，随后死在 `fill(.cpfe-editor) found nothing`
+（提示词编辑器根本没渲染）。`node tools/picker-probe.mjs --expect 自定义模式` → **exit 0**：模式在选择器里，
+这正是"所有看选择器的检查都发现不了它"的原因。
+
+**根因一句话：** 读出厂组成只有一条路 —— `require.resolve('@deepseek-ai/dsh-agent-presets/package.json')`，
+而 0.1.7 不发布这个包。
+
+**证明这就是根因（同一实例，只多一个环境变量）**：加上
+`DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.2 的 presets 目录>` 之后：
+
+```
+GET  /api/custom-mode/state      → 200（rows/modes 全回来）
+POST /api/custom-mode/state      → 200 {"code":"saved"}
+POST /api/custom-mode/create     → 200 {"code":"created"}
+browser-verify                   → 30 PASS / 0 FAIL，随后 CDP 驱动卡死
+                                   （CDP timeout: Input.dispatchMouseEvent —— 是浏览器，不是产品）
+```
+
+**修复所走的那条路。** 0.1.7-rc.2 上 `agentPresets.readDocument('standard')` 返回：
+
+```
+{ "agentPreset": "standard",
+  "content": "- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n    suffix: …\n- id: plan…" }
+```
+
+—— 入口列表 YAML，`isolate` 分组与 `!!js` 都在，正是合成器要编辑的形状。`compositionInventory()` 不能
+替代：同一实例上它把行压平成 `{entryId, moduleName, enabled, condition, fiberState}`（standard 29 行、
+没有分组），`parse-composition.mjs` 早已据此排除了它。
+
+**以及 CI 为什么没看见。** `GET /repos/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/runs` 显示
+1.9.10、1.9.11、1.9.12 三次 push 都是 **failure**，失败任务是
+`test (ubuntu-latest, 24, 0.1.7-rc.2)`，失败步骤是 `安装 DSH（并准备测试夹具的 presets 目录）` ——
+三条 0.1.7 腿全红，而 `0.1.5-rc.3` 与 `0.1.6-alpha.2` 通过。在干净目录里复现：
+
+```
+npm install --no-save @deepseek-ai/dsh@0.1.7-rc.2                  # 成功
+npm install --no-save @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2 # npm error code ERESOLVE
+```
+
+在 GitHub 的 `bash -e` 下，安装失败就是**这一步失败**，所以那几条腿一个测试都没跑。而 `release.yml`
+发布前只装 `0.1.6-alpha.2` —— 绿灯的发布闸门与三条红腿因此共存了三个版本。
+

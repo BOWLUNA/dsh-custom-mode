@@ -33,8 +33,14 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       # 与 test.yml 相同的守卫：发布前必须全绿，否则一个坏版本就上了 npm。
-      - name: 出厂 preset（测试需要）
-        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
+      # 发布闸门也要能测**新版那条线**：0.1.7 起出厂 presets 由声明式注册表提供，夹具由
+      # test/run.mjs 从已安装主机的 dsh-web-app 声明派生（与产品同一条代码路径）。
+      # 从前这里只装 0.1.6-alpha.2，于是"闸门全绿"和"CI 上 0.1.7 三条腿全红"可以同时成立
+      # —— 1.9.10 … 1.9.12 三个版本就是这么发出去的，而设置页在那条线上整体不可用。
+      - name: 安装 DSH 0.1.7-rc.2（当前主轴；夹具由其声明派生）
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
+      - name: 旧线夹具（0.1.6-alpha.2 仍在支持范围内）
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2
       - name: 套件
         run: node test/run.mjs
       - name: 双语配对 + 语言纯度
@@ -43,8 +49,9 @@ jobs:
         run: node tools/verify-doc-numbers.mjs
       - name: 版本一致性（稳定线与预览线都必须在声明范围内）
         run: |
+          node tools/verify-version-consistency.mjs --dsh 0.1.7-rc.2
           node tools/verify-version-consistency.mjs --dsh 0.1.6-alpha.2
-          node tools/verify-version-consistency.mjs --dsh 0.1.5-rc.2
+          node tools/verify-version-consistency.mjs --dsh 0.1.5-rc.3
 
       # 凭据自检：改过 npm 密码、或怀疑 token 失效时，用 workflow_dispatch 手动跑一次这条工作流，
       # 这一步会直接告诉你 NPM_TOKEN 还能不能用（而不是等到下次发版才发现）。

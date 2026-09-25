@@ -1377,3 +1377,68 @@ UI), and the earlier `REQUEST_EXTENSION` P0 (four more reviewers, six more sessi
 
 Kit follow-up: `05-项目已有护栏.md` now has to say that the guardrails themselves have blind spots — the
 English-locale gap was exactly that.
+
+## 27. Adversarial review on a stock `0.1.7-rc.2`: the settings page was a 500 (2026-09-25)
+
+**Setup.** ACUS04 (`ssh acus04`): node 24.21.0, `dsh 0.1.7-rc.2` installed globally, throwaway
+`DSH_HOME=/root/dsh-custom-lab`, throwaway web profile, Chromium 153 (playwright build) over CDP. The tree was
+shipped with `tar --exclude=node_modules --exclude=.git`; the harness on the machine serving the user was never
+touched.
+
+**Before the fix (1.9.12).** Same instance, same tree:
+
+```
+GET  /api/custom-mode            → 200 {"ok":true,"assistants":[{"id":"custom",…}]}
+GET  /api/custom-mode/state?id=custom
+     → 500 {"ok":false,"code":"internalError","params":{"detail":"无法定位出厂基础模式。已尝试：agentPresets 的
+       system 预设路径、Node 解析、profile 的 node_modules。…"}}
+POST /api/custom-mode/state      → 400 {"code":"renderFailed","params":{"detail":"无法定位出厂基础模式…"}}
+POST /api/custom-mode/create     → 400 {"code":"renderFailed","params":{"detail":"无法定位出厂基础模式…"}}
+POST /api/custom-mode/repair     → 200 {"code":"repairNotNeeded"}
+GET  /api/custom-mode/repair     → 404（方法表正确）
+```
+
+`node tools/browser-verify.mjs` → **10 PASS / 7 FAIL**, then it died at `fill(.cpfe-editor) found nothing`
+(the prompt editor never rendered). `node tools/picker-probe.mjs --expect 自定义模式` → **exit 0**: the mode was
+in the picker, which is why the failure was invisible to every check that looks at the picker.
+
+**Root cause, in one line:** the only route to a shipped composition was
+`require.resolve('@deepseek-ai/dsh-agent-presets/package.json')`, and 0.1.7 does not publish that package.
+
+**Proof it is the cause (same instance, one environment variable added).** With
+`DSH_SHIPPED_PRESETS_DIR=<0.1.6-alpha.2 presets dir>`:
+
+```
+GET  /api/custom-mode/state      → 200（rows/modes 全回来）
+POST /api/custom-mode/state      → 200 {"code":"saved"}
+POST /api/custom-mode/create     → 200 {"code":"created"}
+browser-verify                   → 30 PASS / 0 FAIL, then the CDP driver wedged
+                                   (CDP timeout: Input.dispatchMouseEvent — the browser, not the product)
+```
+
+**The route the fix uses.** `agentPresets.readDocument('standard')` on 0.1.7-rc.2 returns:
+
+```
+{ "agentPreset": "standard",
+  "content": "- id: persona\n  name: '@deepseek-ai/dsh-persona'\n  config:\n    suffix: …\n- id: plan…" }
+```
+
+— the declaration as entry-list YAML, `isolate` groups and `!!js` included, i.e. exactly the shape the
+composer edits. `compositionInventory()` cannot be used instead: on the same instance it returns rows flattened
+to `{entryId, moduleName, enabled, condition, fiberState}` (29 rows for `standard`, no groups), which is why
+`parse-composition.mjs` had already ruled it out.
+
+**And why CI never saw it.** `GET /repos/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml/runs` shows the
+1.9.10, 1.9.11 and 1.9.12 pushes **failed**, with job `test (ubuntu-latest, 24, 0.1.7-rc.2)` failing at the step
+`安装 DSH（并准备测试夹具的 presets 目录）` — all three 0.1.7 legs, while `0.1.5-rc.3` and `0.1.6-alpha.2`
+passed. Reproduced in a clean directory:
+
+```
+npm install --no-save @deepseek-ai/dsh@0.1.7-rc.2                  # ok
+npm install --no-save @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2 # npm error code ERESOLVE
+```
+
+Under GitHub's `bash -e` a failed install is a failed step, so those legs never ran a test. `release.yml`
+meanwhile installed only `0.1.6-alpha.2` before publishing, which is how a green release gate and three red
+legs coexisted for three releases.
+

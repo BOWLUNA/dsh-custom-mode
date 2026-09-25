@@ -122,13 +122,21 @@ export function effectiveRosterRows(rows, { root, backendId }) {
   for (const synth of synthesizeRosterRows(root)) byId.set(synth.id, synth)
 
   // 注册表能给出 mount 诊断（broken），合并进合成行；合成行提供 trust/path。
+  //
+  // ★ name / description **磁盘优先**：注册表里那两份是**上一次注册**留下的副本（我们自己注册的），
+  //   让它们覆盖 preset.yml 里的新值，"改名"就永远不生效 —— 实测（2026-09-25，0.1.7-rc.2）：
+  //   POST /state 存下 name=写作助手、preset.yml 已是新名、readState 也读到了新名，而助手列表与
+  //   新会话选择器里仍是旧名「自定义模式」，直到进程重启才对齐。磁盘是用户可见、可手改、可迁移的
+  //   真相（本模块头注释里的 A/B/C 里，磁盘从来就是 A 那一侧），注册表只是它的投影。
   for (const row of platform) {
     if (row === null || typeof row !== 'object' || typeof row.id !== 'string') continue
     const synth = byId.get(row.id)
     if (synth === undefined) continue
     if (typeof row.broken === 'string' && row.broken !== '') synth.broken = row.broken
-    if (typeof row.name === 'string' && row.name !== '') synth.name = row.name
-    if (typeof row.description === 'string' && row.description !== '') synth.description = row.description
+    if ((synth.name === undefined || synth.name === '') && typeof row.name === 'string') synth.name = row.name
+    if ((synth.description === undefined || synth.description === '') && typeof row.description === 'string') {
+      synth.description = row.description
+    }
   }
   return [...byId.values()]
 }

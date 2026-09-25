@@ -75,6 +75,15 @@ console.log('=== 3.5 两个 shell 脚本不得把绝对路径嵌进 node -e/-p �
       String(inline.length),
     )
   }
+
+  // install.sh 必须认得出**新线**的 preset 机制。实测（2026-09-25，0.1.7-rc.2，干净实例）：组合树里
+  // 根本没有 'dsh-agent-presets' 字样（0 次），而模式确实注册成功、也出现在选择器里 —— 只按复数包名
+  // 判断会给最新线的用户一句"「自定义模式」无法被选中"的假警报，而那条线正是官方桌面端内置的。
+  {
+    const source = readFileSync(join(root, 'install.sh'), 'utf8')
+    check('install.sh 认得出声明式注册表（dsh-agent-preset-registry）', source.includes('dsh-agent-preset-registry'))
+    check('install.sh 仍认旧线的复数包（dsh-agent-presets）', source.includes('@deepseek-ai/dsh-agent-presets'))
+  }
 }
 
 console.log('=== 4. 两个清单指向同一批文件（防漂移）===')
