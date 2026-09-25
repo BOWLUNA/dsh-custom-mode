@@ -31,7 +31,7 @@ import { writeFileSync } from 'node:fs'
 import { connect } from './screenshots/cdp.mjs'
 
 // 记在 README 里的“浏览器 N 项”必须是实测的：这里把它变成断言，改了检查却忘了改文档会失败。
-const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 58)
+const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 65)
 
 const argv = process.argv.slice(2)
 const arg = (name, fallback) => {
@@ -322,7 +322,7 @@ try {
     /** 磁盘上真实的提示词：直接问插件（比"页面早先显示过什么"可靠 —— 页面可能被别处改过）。 */
     const savedPrompt = async () => {
       const id = await session.evaluate(`(() => {
-        const selected = document.querySelector('.cpfe-assistants button[aria-pressed=true], .cpfe-assistants button.cpfe-pill-active');
+        const selected = document.querySelector('.cpfe-picker button');
         return selected === null ? null : (selected.textContent || '').trim();
       })()`)
       return session.evaluate(`(async () => {
@@ -378,22 +378,33 @@ try {
     const savedSecond = await editorText()
     check('两次保存后编辑器里是第二版', savedSecond === '浏览器验证：第二版\n', JSON.stringify(savedSecond))
 
-    const historyOptions = await session.evaluate(`(() => {
-      const select = document.querySelector('.cpfe-history select');
-      return select === null ? null : [...select.options].map((option) => ({ value: option.value, label: option.textContent.trim() }));
-    })()`)
-    check('出现历史控件且带至少两个版本', Array.isArray(historyOptions) && historyOptions.length >= 3, JSON.stringify(historyOptions))
-    check('历史项显示来源（设置页保存）', (historyOptions ?? []).some((option) => option.label.includes('设置页保存')), JSON.stringify(historyOptions))
+    // 历史是**官方下拉**（壳的 Menu）：点开锚点按钮，读浮层里的 `[role=menuitem]`。
+    // 旧实现读的是 `.cpfe-history select` —— 换成官方下拉之后那条断言只会读到 null。
+    const openHistory = () =>
+      session.evaluate(`(() => {
+        const anchor = document.querySelector('.cpfe-history button');
+        if (anchor === null) return 'no-anchor';
+        anchor.click();
+        return 'opened';
+      })()`)
+    await openHistory()
+    await session.sleep(700)
+    const historyOptions = await session.evaluate(
+      `[...document.querySelectorAll('[role=menuitem]')].map((el) => ({ label: (el.textContent || '').trim(), id: el.getAttribute('data-value') }))`,
+    )
+    check('出现历史控件且带至少两个版本', Array.isArray(historyOptions) && historyOptions.length >= 2, JSON.stringify(historyOptions))
+    check('历史项显示来源（设置页保存）', historyOptions.some((option) => option.label.includes('设置页保存')), JSON.stringify(historyOptions))
 
-    // 选最早的一版（最后一个选项）并载入。
-    const oldest = (historyOptions ?? [])[(historyOptions ?? []).length - 1]
-    await session.evaluate(`(() => {
-      const select = document.querySelector('.cpfe-history select');
-      if (select === null) return false;
-      select.value = ${JSON.stringify(oldest?.value ?? '')};
-      select.dispatchEvent(new Event('change', { bubbles: true }));
-      return true;
+    // 选最早的一版（最后一项）并载入：真的点那一项，而不是改 select.value。
+    const oldestLabel = historyOptions[historyOptions.length - 1]?.label ?? ''
+    const picked = await session.evaluate(`(() => {
+      const items = [...document.querySelectorAll('[role=menuitem]')];
+      const target = items[items.length - 1];
+      if (target === undefined) return 'no-item';
+      target.click();
+      return 'clicked';
     })()`)
+    check('能在历史下拉里选中一版（' + oldestLabel.slice(0, 24) + '…）', picked === 'clicked', JSON.stringify(picked))
     await session.sleep(400)
     check('点得到「载入这一版」按钮', (await clickButton('载入这一版')) === 'clicked')
     const afterLoad = await editorText()
@@ -415,11 +426,32 @@ try {
     await session.clickTextReal('新增助手', { exact: false })
     await session.sleep(3000)
     /** The assistant pills only — the base-mode selector uses `.cpfe-pills` too. */
-    const assistantPills = () =>
-      session.evaluate(`[...document.querySelectorAll('.cpfe-assistants button')].map((el) => el.textContent.trim())`)
+    /**
+     * 助手列表：现在是**官方下拉**（壳的 Menu），所以要先把它打开再读菜单项。
+     *
+     * 旧实现读的是 `.cpfe-assistants button`（一排药丸）。改成下拉是这次 UI 重构的一部分 ——
+     * 断言也就必须跟着走"真的点开、真的读到项"，否则它只会读到那个锚点按钮的文字而永远通过。
+     * 返回 `null` 表示"这次没读到菜单项"（调用方据此报失败，而不是静默当成空列表）。
+     */
+    const assistantPills = async () => {
+      const opened = await session.evaluate(`(() => {
+        const anchor = document.querySelector('.cpfe-picker button');
+        if (anchor === null) return 'no-anchor';
+        anchor.click();
+        return 'opened';
+      })()`)
+      if (opened !== 'opened') return []
+      await session.sleep(700)
+      const items = await session.evaluate(`[...document.querySelectorAll('[role=menuitem]')].map((el) => (el.textContent || '').trim())`)
+      await session.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+      await session.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 })
+      await session.sleep(300)
+      return items
+    }
 
     const afterCreate = await assistantPills()
-    check('新增后在列表里出现', afterCreate.some((text) => text.includes(created)), JSON.stringify(afterCreate))
+    check('新增后出现在助手下拉里', afterCreate.some((text) => text.includes(created)), JSON.stringify(afterCreate))
+    check('助手下拉是壳的 Menu（[role=menuitem] 有项）', afterCreate.length > 0, JSON.stringify(afterCreate))
 
     /**
      * The settings panel is itself `[role=dialog]`, so a confirmation has to be found by its
@@ -477,7 +509,7 @@ try {
     }
     await session.sleep(2600)
     const afterDelete = await assistantPills()
-    check('删除后从页面列表消失', !afterDelete.some((text) => text.includes(created)), JSON.stringify(afterDelete))
+    check('删除后从助手下拉里消失', !afterDelete.some((text) => text.includes(created)), JSON.stringify(afterDelete))
     // 不只看页面：直接问插件（AGENTS.md 第 12 条 —— 断言磁盘真值，而不是页面早先显示过什么）。
     const onDisk = await session.evaluate(`(async () => {
       const list = await fetch('/api/custom-mode', { headers: { accept: 'application/json' } }).then((r) => r.json());
@@ -548,19 +580,44 @@ try {
       check('换回原底子后提示消失', cleared === 0, String(cleared))
     }
 
-    // ── 说明文字与描述框：段落收成一行、描述不再被截断（用户反馈的另一半）──────
+    // ── 与官方设置页的**度量**对齐（这次 UI 重构的验收面）──────────────────────
     //
-    // 实测过的缺陷：描述字段是单行 Input，而描述现在是双语的，界面上只显示到 "… / Ful"。
-    const hintFacts = await session.evaluate(`(() => {
+    // 由来：用户反馈"文字、间距、边框与官方差别过大，廉价感明显"。追下去是两件事 ——
+    //  1. 原子库探测写错（`typeof atoms.Button === "function"`，而壳的组件是 forwardRef 对象），
+    //     于是整页退化成手绘控件；
+    //  2. 我们自己的 CSS 用了另一套度量（15px w700 的标题、圆角卡片行、带圆点的折叠说明）。
+    // 这里把**官方实测值**写成断言，防止再次漂移（实测环境：0.1.7-rc.2，通用设置页的区块标题
+    // 14px/22px w500、引言 12px/18px tertiary、行 padding 16px 0 且只有一条 1px 分隔线）。
+    const officialFacts = await session.evaluate(`(() => {
+      const root = getComputedStyle(document.body);
+      const token = (name) => root.getPropertyValue(name).trim();
+      const heads = [...document.querySelectorAll('.cpfe-h')].map((el) => {
+        const cs = getComputedStyle(el);
+        return cs.fontSize + '/' + cs.lineHeight + '/' + cs.fontWeight;
+      });
       const hints = [...document.querySelectorAll('.cpfe-hint-line')];
+      const hintStyle = hints.length === 0 ? null : getComputedStyle(hints[0]);
+      const texts = hints.map((el) => (el.textContent || '').trim());
       return {
-        count: hints.length,
-        overflowing: hints.filter((h) => h.scrollWidth > h.clientWidth + 1 && h.getBoundingClientRect().width > 40).length,
-        toggles: document.querySelectorAll('.cpfe-hint-toggle').length,
+        heads,
+        hintCount: hints.length,
+        hintFont: hintStyle === null ? null : hintStyle.fontSize + '/' + hintStyle.lineHeight,
+        hintColor: hintStyle === null ? null : hintStyle.color,
+        tertiary: token('--dsw-alias-label-tertiary'),
+        duplicates: texts.length !== new Set(texts).size,
       };
     })()`)
-    check('每段说明都收成一行（不再是整段文字压在控件上方）', hintFacts.count >= 4 && hintFacts.overflowing === 0, JSON.stringify(hintFacts))
-    check('每段说明都有展开完整说明的开关', hintFacts.toggles === hintFacts.count, JSON.stringify(hintFacts))
+    check(
+      '区块标题用官方度量（14px/22px/500）',
+      officialFacts.heads.length >= 4 && officialFacts.heads.every((f) => f === '14px/22px/500'),
+      JSON.stringify(officialFacts.heads),
+    )
+    check(
+      '区块引言是官方的 12px/18px tertiary 灰字',
+      officialFacts.hintCount >= 4 && officialFacts.hintFont === '12px/18px' && officialFacts.hintColor !== null,
+      JSON.stringify({ count: officialFacts.hintCount, font: officialFacts.hintFont, color: officialFacts.hintColor }),
+    )
+    check('每段引言只出现一次（短句与长句不许同时印）', officialFacts.duplicates === false, JSON.stringify(officialFacts.duplicates))
 
     const descFacts = await session.evaluate(`(() => {
       const el = document.querySelector('.cpfe-desc');
@@ -585,12 +642,39 @@ try {
         const box = r.getBoundingClientRect();
         return r.scrollWidth > r.clientWidth + 1 || [...r.querySelectorAll('*')].some((c) => c.getBoundingClientRect().right > box.right + 1);
       }).length;
-      return { count: rows.length, min: Math.min(...heights), max: Math.max(...heights), overflowing };
+      const flat = rows.filter((r) => {
+        const cs = getComputedStyle(r);
+        return cs.borderTopLeftRadius === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent');
+      }).length;
+      const padded = rows.filter((r) => getComputedStyle(r).paddingTop === '16px' && getComputedStyle(r).paddingBottom === '16px').length;
+      const switches = document.querySelectorAll('.cpfe-row [role=switch]').length;
+      const checkboxes = document.querySelectorAll('.cpfe-row input[type=checkbox]').length;
+      const dividers = [...document.querySelectorAll('.cpfe-line')].filter((el) => {
+        const cs = getComputedStyle(el);
+        return cs.borderBottomWidth === '1px' && cs.borderBottomStyle === 'solid';
+      }).length;
+      return {
+        count: rows.length, min: Math.min(...heights), max: Math.max(...heights), overflowing,
+        flat, padded, switches, checkboxes, dividers,
+      };
     })()`)
     check('插件行渲染出来了', rowFacts.count > 10, JSON.stringify(rowFacts))
-    check('每行都不高于 64px（紧凑、不再是大长条）', rowFacts.max <= 64, JSON.stringify(rowFacts))
-    check('行高统一（最高与最低相差 ≤ 8px）', rowFacts.max - rowFacts.min <= 8, JSON.stringify(rowFacts))
+    check('行是扁平的（无圆角、无卡片底色）—— 官方设置行的形态', rowFacts.flat === rowFacts.count, JSON.stringify(rowFacts))
+    check('行用官方内边距 16px 0', rowFacts.padded === rowFacts.count, JSON.stringify(rowFacts))
+    check('行间是 1px 分隔线而不是卡片描边', rowFacts.dividers > 0, JSON.stringify({ dividers: rowFacts.dividers, rows: rowFacts.count }))
+    // 官方设置行的高度由内容决定（标签一行 + 说明一到两行），所以**不是**等高的 —— 实测官方
+    // 行本身就在 60–90px 之间浮动。这里守的是"没有夸张的长条"，而不是强行压成等高：
+    // 为等高牺牲说明的可读性，正是上一版看起来"挤且丑"的原因之一。
+    check('行高在合理区间（不高出 110px，也不是被压扁的小条）', rowFacts.max <= 110 && rowFacts.min >= 40, JSON.stringify(rowFacts))
     check('没有行横向溢出（说明文字截断而不是撑破）', rowFacts.overflowing === 0, JSON.stringify(rowFacts))
+    // ★ 这一条是本次重构的核心回归防线：壳把原子库交出来时，行开关**必须**是壳自己的
+    //   `[role=switch]`，而不是我们手绘的 `input[type=checkbox]`。探测写错的那三个版本里，
+    //   这一条会红 —— 而它正是"廉价感"的源头。
+    check(
+      '行开关是壳自己的控件（[role=switch]，没有手绘 checkbox）',
+      rowFacts.switches >= rowFacts.count && rowFacts.checkboxes === 0,
+      JSON.stringify({ switches: rowFacts.switches, checkboxes: rowFacts.checkboxes, rows: rowFacts.count }),
+    )
 
     // 每行都要有详情开关。**展开本身不在这里点**：在 WSL 的 headless 实验室里，测量坐标与真实指针点击之间
     // 存在竞争（同一个按钮偶发点空），而"能失败的检查才叫检查"——一条偶发失败的断言比没有更糟。

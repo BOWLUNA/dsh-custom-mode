@@ -610,11 +610,57 @@ try {
         return { Button, Input, Switch, Tag, Pill }
       }
 
+      /**
+       * Whether an atom can be handed to `createElement`.
+       *
+       * ★ **This is where the page's native look was lost.** The probe used to be
+       * `typeof atoms.Button === "function"`, but the shell's components are `forwardRef(...)` /
+       * `memo(...)` **objects** (`Button = forwardRef(function Button(){…})`, measured), so the check
+       * failed and *every* control silently fell back to the plain stand-ins — hand-painted buttons,
+       * `input[type=checkbox]` instead of the shell's switch, a native `window.confirm` instead of its
+       * risk dialog. Measured on 0.1.7-rc.2 (2026-09-25): `require(ATOMS_MODULE)` returns **279 exports**
+       * including `Button`, `RiskConfirmation`, `Modal`, `Menu`, `SegmentedControl` and the icon set —
+       * the module was in the platform seed table the whole time.
+       * React renders any object carrying `$$typeof`, so that is what "usable" means here.
+       */
+      const renderable = (atom) =>
+        typeof atom === "function" || (atom !== null && typeof atom === "object" && atom.$$typeof !== undefined)
+
+      /**
+       * The page asks for icons under short names (`IconPlusOutline16`); the shell exports
+       * `IconPlusOutlineRegular`. Without this map the calls were `undefined` and **no icon ever
+       * rendered** — which is part of why the header row looked hand-made.
+       */
+      const ICON_ALIAS = {
+        IconChevronDownOutline14: "IconChevronDownOutlineRegular",
+        IconChevronUpOutline14: "IconChevronUpOutlineRegular",
+        IconChevronLeftOutline14: "IconChevronLeftOutlineRegular",
+        IconPlusOutline16: "IconPlusOutlineRegular",
+        IconCheckOutline14: "IconCheckOutlineRegular",
+        IconCopyOutline16: "IconCopyOutlineRegular",
+        IconDownloadOutline16: "IconDownloadOutlineRegular",
+        IconRefreshOutline16: "IconRefreshOutlineRegular",
+        IconTrashOutline16: "IconTrashOutlineRegular",
+      }
+
+      function withIconAliases(atoms) {
+        const out = Object.assign({}, atoms)
+        for (const short of Object.keys(ICON_ALIAS)) {
+          if (out[short] === undefined && renderable(atoms[ICON_ALIAS[short]])) out[short] = atoms[ICON_ALIAS[short]]
+        }
+        return out
+      }
+
       /** Resolve the atom set once, at factory time. */
       function loadAtoms() {
         try {
           const atoms = require(ATOMS_MODULE)
-          if (atoms !== null && typeof atoms === "object" && typeof atoms.Button === "function") return atoms
+          if (atoms !== null && typeof atoms === "object" && renderable(atoms.Button)) return withIconAliases(atoms)
+          console.info(
+            "dsh-custom-mode: 壳提供了 " +
+              ATOMS_MODULE +
+              "，但里面没有可用的 Button，改用内置的朴素控件（功能一致，外观更简）。",
+          )
         } catch (error) {
           console.info(
             "dsh-custom-mode: 当前壳没有在种子表里提供 " +
@@ -638,44 +684,54 @@ try {
        */
       const CSS = [
         ".cpfe{--g:8px;display:flex;flex-direction:column;gap:24px;width:100%;max-width:900px;box-sizing:border-box;padding-bottom:16px}",
-        ".cpfe-h{margin:0 0 4px;font-size:15px;line-height:22px;color:var(--dsw-alias-label-primary)}",
-        ".cpfe-sub{margin:0 0 12px;font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}",
-        // 一行提示 + 详情下拉（与插件行同一套语言）
-        ".cpfe-hint{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px}",
-        ".cpfe-hint-line{flex:1;min-width:0;font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-        ".cpfe-hint-toggle{flex:0 0 auto;width:20px;height:20px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:11px;line-height:1}",
-        ".cpfe-hint-toggle:hover{background:var(--dsw-alias-bg-layer-2)}",
-        ".cpfe-hint-detail{flex:1 0 100%;margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}",
+        // ★ 区块标题对齐官方设置页的度量（实测 0.1.7-rc.2：区块标题 14px/22px w500，引言 12px/18px
+        //   tertiary）。原来是 15px w700 —— 在官方页面里那看起来就是"另一个产品"。
+        ".cpfe-h{margin:0 0 2px;font-size:14px;line-height:22px;font-weight:500;color:var(--dsw-alias-label-primary)}",
+        ".cpfe-sub{margin:0 0 8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
+        // 区块引言：官方是标题下的一行 12px 灰字 —— 没有折叠按钮，也没有那个蓝色圆点。
+        ".cpfe-hint{display:flex;flex-direction:column;gap:2px;margin:0 0 4px}",
+        ".cpfe-hint-line{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
+        ".cpfe-hint-detail{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         // 描述：多行、自适应高度（没有多行输入组件，所以用 textarea + 同一批语义变量）
         ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:200px;resize:vertical;padding:8px 12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
         ".cpfe-base-pending{color:var(--dsw-alias-state-warn-primary)}",
         ".cpfe-note{display:block;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}",
         ".cpfe-mono{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         ".cpfe-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}",
+        ".cpfe-picker{display:flex;align-items:center;gap:8px;margin:2px 0 4px}",
+        // 壳的菜单浮层靠一个独立的 backing 元素上色（实测在 0.1.7-rc.2 + headless 下那块是透明的，
+        // 文字会"压"在下面的输入框上）。用官方 token 显式补一层底色，真实浏览器与 headless 一致。
+        ".cpfe-menu{background:var(--dsw-menu-surface-fill,var(--dsw-alias-bg-layer-3));border-radius:var(--dsw-radius-lg);box-shadow:var(--dsw-elevation-soft)}",
+        ".cpfe-history{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}",
+        ".cpfe-history-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
+        ".cpfe-history-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-pill-wrap{display:inline-flex;align-items:center;gap:4px}",
         ".cpfe-actions{display:flex;flex-wrap:wrap;gap:var(--g);align-items:center;margin-top:4px}",
         ".cpfe-newrow{display:flex;gap:var(--g);align-items:center;flex-wrap:wrap;margin-top:10px}",
         ".cpfe-field{display:flex;width:100%;margin-bottom:8px}",
-        ".cpfe-row-head{font-size:13px;line-height:18px;color:var(--dsw-alias-label-primary)}",
+        ".cpfe-row-head{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
         ".cpfe-row-switch{flex:0 0 auto}",
         ".cpfe-row-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}",
-        ".cpfe-row-note{min-height:16px;font-size:12px;line-height:16px;color:var(--dsw-alias-label-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+        ".cpfe-row-note{min-height:18px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);overflow:hidden;text-overflow:ellipsis}",
         ".cpfe-row-toggle{flex:0 0 auto;width:22px;height:22px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:11px;line-height:1}",
         ".cpfe-row-toggle:hover{background:var(--dsw-alias-bg-layer-2)}",
         ".cpfe-row-open{border-color:var(--dsw-alias-border-l2)}",
-        ".cpfe-row-detail{display:flex;flex-direction:column;gap:4px;margin:0 0 2px 14px;padding:8px 12px;border-left:.5px solid var(--dsw-alias-border-l1);font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary)}",
+        ".cpfe-row-detail{display:flex;flex-direction:column;gap:4px;margin:0 0 12px;padding:0 0 0 16px;border:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-detail-line{display:flex;gap:8px;min-width:0}",
         ".cpfe-detail-key{flex:0 0 62px;color:var(--dsw-alias-label-secondary)}",
         ".cpfe-detail-value{min-width:0;overflow-wrap:anywhere}",
         ".cpfe-sec-head{display:flex;align-items:center;justify-content:space-between;gap:var(--g);flex-wrap:wrap}",
         ".cpfe-newinput{flex:1;min-width:200px}",
         // 单列、行高统一（对齐官方插件页的形态）；之前的自适应多列网格会让行高参差不齐。
-        ".cpfe-rows{display:flex;flex-direction:column;gap:6px;margin-top:4px}",
-        ".cpfe-line{display:flex;flex-direction:column;gap:6px;min-width:0}",
-        ".cpfe-group{display:flex;flex-direction:column;gap:6px;margin-top:8px;min-width:0}",
-        ".cpfe-kids{display:flex;flex-direction:column;gap:6px;margin-left:14px;padding-left:14px;border-left:.5px solid var(--dsw-alias-border-l1)}",
-        ".cpfe-row{display:flex;gap:10px;align-items:center;box-sizing:border-box;min-height:52px;padding:8px 12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1)}",
-        ".cpfe-row-meta{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1}",
+        // ★ 对齐官方设置行（实测 0.1.7-rc.2 的行：padding 16px 0、无背景、无圆角，行间只有一条 1px
+        //   分隔线）。原来是"圆角卡片 + 描边 + 灰底" —— 那正是廉价感最重的部分。
+        ".cpfe-rows{display:flex;flex-direction:column;gap:0;margin-top:0}",
+        ".cpfe-line{display:flex;flex-direction:column;min-width:0;border-bottom:1px solid var(--dsw-alias-border-l1)}",
+        ".cpfe-line:last-child{border-bottom:0}",
+        ".cpfe-group{display:flex;flex-direction:column;min-width:0}",
+        ".cpfe-kids{display:flex;flex-direction:column;margin-left:0;padding-left:16px}",
+        ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:0;padding:16px 0;border:0;border-radius:0;background:none}",
+        ".cpfe-row-meta{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}",
         ".cpfe-row-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap}",
         ".cpfe-editor{box-sizing:border-box;width:100%;min-height:240px;resize:vertical;padding:12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:20px}",
         ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap}",
@@ -825,30 +881,14 @@ try {
        * the page scannable without dropping a word of the explanation.
        */
       function SectionHint(props) {
-        const { id, hint, detail, expanded, onToggleExpand, t } = props
-        const open = expanded[id] === true
-        const collapsible = typeof detail === "string" && detail !== "" && detail !== hint
+        const { hint, detail } = props
+        // 官方设置页的区块引言就是标题下的一段 12px 灰字：没有圆点、没有折叠按钮，也**不重复**。
+        // 有完整说明就用完整说明（它是短句的超集），否则用短句 —— 两个都印会在屏幕上出现两遍。
+        const text = typeof detail === "string" && detail !== "" ? detail : hint
         return react.createElement(
           "div",
           { className: "cpfe-hint" },
-          react.createElement("span", { className: "cpfe-hint-line", title: hint }, hint),
-          collapsible === false
-            ? null
-            : react.createElement(
-                "button",
-                {
-                  type: "button",
-                  className: "cpfe-hint-toggle",
-                  "aria-expanded": open,
-                  "aria-label": t(open ? "aria.collapse" : "aria.expandHint"),
-                  title: t(open ? "aria.collapse" : "aria.expandHint"),
-                  onClick: () => onToggleExpand(id),
-                },
-                open ? "▾" : "▸",
-              ),
-          open === true && collapsible === true
-            ? react.createElement("p", { className: "cpfe-hint-detail" }, detail)
-            : null,
+          react.createElement("span", { className: "cpfe-hint-line" }, text),
         )
       }
 
@@ -1053,6 +1093,9 @@ try {
          * differs per user, so nothing is expanded by default and nothing is persisted.
          */
         const [expandedRows, setExpandedRows] = react.useState({})
+        // 两个官方风格的下拉（壳的 `Menu`）：助手切换与改动历史。壳不提供 Menu 时退回原生控件。
+        const [assistantOpen, setAssistantOpen] = react.useState(false)
+        const [historyOpen, setHistoryOpen] = react.useState(false)
         /** 本机这条线上有无法解析的行时，一键把它们关掉（服务端复用保存同一条排版手术）。 */
         const repairRowsNow = async () => {
           if (draft === null) return
@@ -1535,30 +1578,70 @@ try {
             : assistants.length === 0
               ? react.createElement("p", { className: "cpfe-sub" }, t("assistant.empty"))
               : react.createElement(
+                  // 官方的"选择"就是壳的 `Menu`：一个灰底按钮 + chevron，浮层里是选项
+                  // （通用设置页的「权限 / 语言 / 工作步骤展示」都是这个形态）。原来是一排 pill
+                  // 药丸 + 描边，是页面上最"不像官方"的一块。
                   "div",
-                  { className: "cpfe-pills cpfe-assistants" },
-                  assistants.map((item) =>
-                    react.createElement(
-                      "span",
-                      { key: item.id, className: "cpfe-pill-wrap" },
-                      react.createElement(
-                        A.Pill,
-                        {
-                          active: item.id === selected,
-                          disabled: busy,
-                          title: item.id,
-                          onClick: () => pick(item.id),
+                  { className: "cpfe-picker" },
+                  renderable(A.Menu)
+                    ? react.createElement(A.Menu, {
+                        open: assistantOpen,
+                        // ★ portal：不把浮层渲染在我们的容器里。设置面板有裁剪与叠层，非 portal 的
+                        //   菜单会被裁掉表面，只剩文字"压"在下面的输入框上（实测截图如此）。
+                        portal: true,
+                        listClassName: "cpfe-menu",
+                        align: "start",
+                        side: "bottom",
+                        selectedId: selected,
+                        anchor: react.createElement(
+                          A.Button,
+                          {
+                            variant: "ghost",
+                            size: "sm",
+                            disabled: busy,
+                            icon: renderable(A.IconChevronDownOutline14)
+                              ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
+                              : null,
+                            onClick: () => setAssistantOpen((open) => open !== true),
+                          },
+                          (assistants.find((item) => item.id === selected) || {}).name || selected || t("assistant.heading"),
+                        ),
+                        items: assistants.map((item) => ({
+                          id: item.id,
+                          label:
+                            (item.name || item.id) +
+                            (dirtyIds.has(item.id) ? " · " + t("msg.unsaved") : "") +
+                            (typeof item.broken === "string" && item.broken !== "" ? " · " + t("assistant.broken") : ""),
+                        })),
+                        onSelect: (id) => {
+                          setAssistantOpen(false)
+                          pick(id)
                         },
-                        item.name || item.id,
+                        onClose: () => setAssistantOpen(false),
+                      })
+                    : react.createElement(
+                        "div",
+                        { className: "cpfe-pills cpfe-assistants" },
+                        assistants.map((item) =>
+                          react.createElement(
+                            "span",
+                            { key: item.id, className: "cpfe-pill-wrap" },
+                            react.createElement(
+                              A.Pill,
+                              { active: item.id === selected, disabled: busy, title: item.id, onClick: () => pick(item.id) },
+                              item.name || item.id,
+                            ),
+                            dirtyIds.has(item.id) ? react.createElement(A.Tag, { tone: "warning" }, t("msg.unsaved")) : null,
+                            typeof item.broken === "string" && item.broken !== ""
+                              ? react.createElement(A.Tag, { tone: "danger" }, t("assistant.broken"))
+                              : null,
+                          ),
+                        ),
                       ),
-                      dirtyIds.has(item.id)
-                        ? react.createElement(A.Tag, { tone: "warning" }, t("msg.unsaved"))
-                        : null,
-                      typeof item.broken === "string" && item.broken !== ""
-                        ? react.createElement(A.Tag, { tone: "danger" }, t("assistant.broken"))
-                        : null,
-                    ),
-                  ),
+                  dirtyIds.has(selected) ? react.createElement(A.Tag, { tone: "warning" }, t("msg.unsaved")) : null,
+                  typeof (assistants.find((item) => item.id === selected) || {}).broken === "string"
+                    ? react.createElement(A.Tag, { tone: "danger" }, t("assistant.broken"))
+                    : null,
                 ),
           react.createElement(
             "div",
@@ -1579,7 +1662,7 @@ try {
             react.createElement(
               A.Button,
               {
-                variant: "primary",
+                variant: "outline",
                 icon: A.IconPlusOutline16 === undefined ? null : react.createElement(A.IconPlusOutline16),
                 disabled: busy,
                 onClick: () => create(),
@@ -1834,22 +1917,62 @@ try {
                       "div",
                       { className: "cpfe-history" },
                       react.createElement("span", { className: "cpfe-history-label" }, t("history.label")),
-                      react.createElement(
-                        "select",
-                        {
-                          value: draft.historyPick,
-                          "aria-label": t("history.label"),
-                          onChange: (event) => update({ historyPick: event.target.value }),
-                        },
-                        react.createElement("option", { value: "" }, t("history.pick")),
-                        ...draft.history.map((entry) =>
-                          react.createElement(
-                            "option",
-                            { key: String(entry.n), value: String(entry.n) },
-                            formatWhen(entry.at) + " · " + t("history.by." + entry.by) + " · " + String(entry.bytes) + " B",
+                      // 与助手切换同一个形态：官方的下拉是壳的 Menu（灰底按钮 + chevron + 浮层），
+                      // 而不是浏览器原生 `<select>`（后者的外观由浏览器决定，与官方界面完全不同）。
+                      renderable(A.Menu)
+                        ? react.createElement(A.Menu, {
+                            open: historyOpen,
+                            portal: true,
+                            listClassName: "cpfe-menu",
+                            align: "start",
+                            side: "bottom",
+                            selectedId: draft.historyPick,
+                            anchor: react.createElement(
+                              A.Button,
+                              {
+                                variant: "ghost",
+                                size: "sm",
+                                disabled: busy,
+                                icon: renderable(A.IconChevronDownOutline14)
+                                  ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
+                                  : null,
+                                onClick: () => setHistoryOpen((open) => open !== true),
+                              },
+                              draft.historyPick === ""
+                                ? t("history.pick")
+                                : (() => {
+                                    const entry = draft.history.find((item) => String(item.n) === draft.historyPick)
+                                    return entry === undefined
+                                      ? t("history.pick")
+                                      : formatWhen(entry.at) + " · " + t("history.by." + entry.by)
+                                  })(),
+                            ),
+                            items: draft.history.map((entry) => ({
+                              id: String(entry.n),
+                              label: formatWhen(entry.at) + " · " + t("history.by." + entry.by) + " · " + String(entry.bytes) + " B",
+                            })),
+                            onSelect: (id) => {
+                              setHistoryOpen(false)
+                              update({ historyPick: id })
+                            },
+                            onClose: () => setHistoryOpen(false),
+                          })
+                        : react.createElement(
+                            "select",
+                            {
+                              value: draft.historyPick,
+                              "aria-label": t("history.label"),
+                              onChange: (event) => update({ historyPick: event.target.value }),
+                            },
+                            react.createElement("option", { value: "" }, t("history.pick")),
+                            ...draft.history.map((entry) =>
+                              react.createElement(
+                                "option",
+                                { key: String(entry.n), value: String(entry.n) },
+                                formatWhen(entry.at) + " · " + t("history.by." + entry.by) + " · " + String(entry.bytes) + " B",
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
                       react.createElement(
                         A.Button,
                         {

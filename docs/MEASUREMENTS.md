@@ -1508,3 +1508,46 @@ $ CDP_PORT=9222 node tools/browser-verify.mjs --url "…"
 $ ls $DSH_HOME/.agent-presets/  →  custom        ← the create/delete round trip left nothing behind
 ```
 
+
+## 29. "It feels cheap" was one line of JavaScript (2026-09-25, 1.9.16)
+
+Context: the settings page looked visibly unlike the rest of dsh. Measured on a throwaway `DSH_HOME`, dsh
+`0.1.7-rc.2`, Chromium 153 over CDP.
+
+**1. The atom-library probe was wrong.** The page resolved the shell's primitives with
+`typeof atoms.Button === "function"`, but the shell's components are `forwardRef(...)` objects — so the probe
+failed and the page silently used its own plain controls. Measured what `require` actually returns:
+
+```
+__CM_RAW = {"type":"object","keys":279,
+            "first":["BrandWordmark","Button","CODE_HIGHLIGHT_EXTENSIONS","Checkbox","CodeBlock",…],
+            "button":"object"}          ← an object: forwardRef
+$ grep -o 'function WS(){return{.*}}' frontend/index-*.js
+function WS(){return{react:yf,"react/jsx-runtime":jf,"react-dom":Lf,"react-dom/client":Tf,
+  "@deepseek-ai/cordis":Jd,"@deepseek-ai/dsh-client-store":th,"@deepseek-ai/dsh-client-ui-slots":lh,
+  "@deepseek-ai/dsh-client-ui-primitives":qb,"@deepseek-ai/dsh-client-ui-dockkit":FS}}
+```
+
+So the module had been in the platform seed table all along. After the probe was fixed to accept anything React
+can render (`$$typeof`), the rendered page went from **0** `[role=switch]` / 33 hand-painted checkboxes to
+**33** `[role=switch]` / 0 checkboxes, and its icons appeared (they had never rendered: the page asked for
+`IconPlusOutline16`, the shell exports `IconPlusOutlineRegular`).
+
+**2. Our own CSS was on a different scale from the official settings pages.** Measured on the official General
+page (same instance) and on ours:
+
+```
+official section title   14px/22px w500          ours (before) 15px/22px w700
+official section intro   12px/18px tertiary      ours (before) a click-to-expand dot per heading
+official settings row    padding:16px 0, no background, no radius, 1px divider between rows
+ours (before)            rounded, bordered, tinted card per row (radius 10, 0.5px + bg-layer-1)
+official dropdown        ghost button + chevron + Menu panel (padding 0 8px, radius 8)
+ours (before)            pills for assistants; a native <select> for history
+```
+
+After aligning to those numbers, `tools/browser-verify.mjs` asserts them so the drift cannot come back:
+"section titles are 14px/22px/500", "intros are 12px/18px tertiary", "rows are flat (no radius, no fill)",
+"rows use padding 16px 0", "1px dividers between rows", "the row switch is the shell's `[role=switch]`, 0
+hand-painted checkboxes". Full gate: **65/65** on `0.1.7-rc.2`.
+
+Screenshots: `docs/images/` (regenerated from this build) and `editor/assets/storefront-0*.png`.

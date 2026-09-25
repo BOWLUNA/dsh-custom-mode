@@ -1441,3 +1441,40 @@ $ CDP_PORT=9222 node tools/browser-verify.mjs --url "…"
 $ ls $DSH_HOME/.agent-presets/  →  custom        ← 新建/删除往返没有留下任何残留
 ```
 
+
+## 29. 「看着廉价」的根因是一行 JavaScript（2026-09-25，1.9.16）
+
+背景：设置页与 dsh 其它页面的观感明显不像一个产品。实测环境：一次性 `DSH_HOME`、dsh `0.1.7-rc.2`、
+Chromium 153 over CDP。
+
+**1. 原子库探测写错了。** 页面用 `typeof atoms.Button === "function"` 判断壳有没有交出组件，而壳的组件是
+`forwardRef(...)` **对象** —— 于是判定失败，页面悄悄用了自己那套朴素控件。实测 `require` 真正返回的东西：
+
+```
+__CM_RAW = {"type":"object","keys":279,
+            "first":["BrandWordmark","Button","CODE_HIGHLIGHT_EXTENSIONS","Checkbox","CodeBlock",…],
+            "button":"object"}          ← 对象，也就是 forwardRef
+$ grep -o 'function WS(){return{.*}}' frontend/index-*.js
+function WS(){return{react:yf,"react/jsx-runtime":jf,…,"@deepseek-ai/dsh-client-ui-primitives":qb,…}}
+```
+
+也就是说这个模块**一直在**平台的种子表里。把判据改成「React 能渲染」（`$$typeof`）之后，渲染出来的页面从
+**0 个 `[role=switch]` / 33 个手绘 checkbox** 变成 **33 个 `[role=switch]` / 0 个 checkbox**，图标也出来了
+（此前根本没渲染：页面要 `IconPlusOutline16`，壳导出的是 `IconPlusOutlineRegular`）。
+
+**2. 我们自己的 CSS 用的是另一套尺度。** 在同一实例上实测官方「通用设置」页与我们的页面：
+
+```
+官方区块标题   14px/22px w500          我们（改前）15px/22px w700
+官方区块引言   12px/18px tertiary      我们（改前）每个标题右边一个可折叠圆点
+官方设置行     padding:16px 0，无背景无圆角，行间 1px 分隔线
+我们（改前）   每行一个圆角描边带底色的卡片（radius 10、0.5px + bg-layer-1）
+官方下拉       灰底按钮 + chevron + Menu 浮层（padding 0 8px、radius 8）
+我们（改前）   助手是一排药丸；历史是原生 <select>
+```
+
+对齐之后，`tools/browser-verify.mjs` 把这些数字写成断言，防止再漂回去：「区块标题 14px/22px/500」
+「引言 12px/18px tertiary」「行是扁平的（无圆角、无底色）」「行用 padding 16px 0」「行间 1px 分隔线」
+「行开关必须是壳的 `[role=switch]`、手绘 checkbox 0 个」。整道闸门在 `0.1.7-rc.2` 上 **65/65**。
+
+截图：`docs/images/`（由这一版重新生成）与 `editor/assets/storefront-0*.png`。

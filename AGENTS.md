@@ -93,17 +93,24 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     with two implementations. Changes made outside the page are picked up by comparison at state-read time
     and recorded as `external`. Versions are keyed by the `n` sequence, never by timestamp (two records can
     share a millisecond), and loading a version only edits the draft.
-13. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
+13. **UI 必须用壳的原子，度量必须抄官方。** 两件实测过的坑：① 探测壳的组件时**不能**用
+    `typeof x === "function"` —— 壳的组件是 `forwardRef`/`memo` 对象，这一条判错会让整页退化成手绘控件
+    （1.9.15 之前的"廉价感"就是它）；判据是 React 能渲染（`$$typeof`）。② 我们自己的 CSS 必须抄官方设置页
+    的度量：区块标题 14px/22px w500、引言 12px/18px tertiary、设置行 `padding:16px 0` + 一条 1px 分隔线、
+    下拉用壳的 `Menu`。`tools/browser-verify.mjs` 里有对应的断言（含"开关是 `[role=switch]`、不许有手绘
+    checkbox"），改动后必须 65/65。
+
+14. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
     （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。
     凡是"点了会发生什么"的断言，都用程序化点击，并同时对**磁盘真值**断言，而不是对页面早先显示过什么。
 
-14. **Every user-visible host result carries a `code`** (plus `params`); the page renders it from its own
+15. **Every user-visible host result carries a `code`** (plus `params`); the page renders it from its own
     bilingual dictionary. The Chinese `note`/`error` strings stay as the HTTP API's compatibility face — but
     they must never be what the *page* shows, or the English UI turns Chinese exactly when something happens.
     `tools/browser-verify.mjs` switches the interface to English and saves once to keep this honest. Names
     inside those messages are user data and are never translated.
 
-15. **Where a base composition comes from is the THIRD thing the two dsh lines disagree about.** That is what
+16. **Where a base composition comes from is the THIRD thing the two dsh lines disagree about.** That is what
     `editor/base-composition.mjs` exists for. Legacy lines (≤ 0.1.6) ship
     `@deepseek-ai/dsh-agent-presets/presets/<mode>/agent.cordis.yml`; 0.1.7+ publishes no such package and the
     host hands the declaration over through `agentPresets.readDocument(<mode>).content` — the entry-list YAML,
@@ -114,7 +121,7 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     `saveState` / `savePromptOnly` save the prompt while **refusing** (with a typed code) any switch change.
     `test/base-composition.test.mjs` pins the route order, the typed failure and the degraded save.
 
-16. **「删除助手」在两条线上都必须真的删掉。** 声明式线（0.1.7+）没有 `agentPresets.remove()` —— 注销只有
+17. **「删除助手」在两条线上都必须真的删掉。** 声明式线（0.1.7+）没有 `agentPresets.remove()` —— 注销只有
     `register()` 返回的 disposer 一条路 —— 所以删除由声明式后端自己做：**先注销、再删目录**。找不到目录时
     返回类型化的 `noDirectory`，**不许**报告"已删除"却把目录留在磁盘上：下次同步会把它挂回来，用户看到的
     是"删了又回来了"。宿主那半按后端选删除入口（`presetRemover()`），只有两套都没有时才可以回

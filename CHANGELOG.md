@@ -8,6 +8,39 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.16]
+
+### The settings page looks like the rest of dsh now — it never used the shell's components
+
+Three versions of "this page feels cheap" had one root cause, and it was one line:
+
+- **The atom-library probe was wrong, so every control fell back to hand-painted stand-ins.** The check was
+  `typeof atoms.Button === "function"`, but the shell's components are `forwardRef(...)` / `memo(...)`
+  **objects**. So the probe failed and the page rendered its own plain controls: `input[type=checkbox]`
+  instead of the shell's switch, hand-styled buttons, a native `window.confirm` instead of the shell's risk
+  dialog. Measured on `0.1.7-rc.2`: `require("@deepseek-ai/dsh-client-ui-primitives")` returns **279
+  exports** (`Button`, `RiskConfirmation`, `Modal`, `Menu`, `SegmentedControl`, the icon set) — the module
+  was in the platform seed table the whole time. "Usable" now means "React can render it" (`$$typeof`).
+- **The icons never rendered either**: the page asked for `IconPlusOutline16`, the shell exports
+  `IconPlusOutlineRegular`. A small alias layer maps the short names.
+- **The page's own CSS used a different scale from the official settings pages.** Measured (same line, the
+  General page): section titles are **14px/22px weight 500**, intros are **12px/18px** in the tertiary label
+  colour, and a settings row is `padding: 16px 0` with **one 1px divider** — no card, no radius, no fill.
+  Ours had 15px/700 titles, a click-to-expand "dot" next to every heading, and each plugin row wrapped in a
+  rounded, bordered, tinted card. All of that is gone and `tools/browser-verify.mjs` now asserts the official
+  numbers (including "the switch is the shell's `[role=switch]`, and there is no hand-painted checkbox"),
+  so the drift cannot come back quietly.
+- **Dropdowns are the shell's `Menu`** (a ghost button + chevron + floating panel), used for assistant
+  switching and for the prompt history — the history selector used to be a browser `<select>`, whose
+  appearance the page cannot control at all. Both keep a fallback (pills / `<select>`) for shells that do
+  not provide the atoms.
+
+Verified by rendering, not by reading: `tools/browser-verify.mjs` is **65/65** on `0.1.7-rc.2` (33 rows all
+using the shell's switch, 0 hand-painted checkboxes, flat 16px rows with dividers), with before/after
+screenshots in `docs/MEASUREMENTS.md` §29.
+
+Tests: 797 checks (15 suites).
+
 ## [1.9.15]
 
 ### Deleting an assistant works on 0.1.7 — and the browser gate can finally see the page

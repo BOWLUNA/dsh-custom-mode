@@ -6,6 +6,34 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.9.16]
+
+### 设置页终于和 dsh 其它页面一样了 —— 它此前**从来没用过壳的组件**
+
+三个版本的"这页看着廉价"，根因只有一行：
+
+- **原子库探测写错了，于是每一个控件都退化成手绘替身。** 判据是 `typeof atoms.Button === "function"`，
+  而壳的组件是 `forwardRef(...)` / `memo(...)` 的**对象**。于是探测失败，页面用自己那套朴素控件：
+  `input[type=checkbox]` 代替壳的开关、手写样式的按钮、原生 `window.confirm` 代替壳的风险确认框。
+  实测（`0.1.7-rc.2`）：`require("@deepseek-ai/dsh-client-ui-primitives")` 返回 **279 个导出**
+  （`Button`、`RiskConfirmation`、`Modal`、`Menu`、`SegmentedControl`、整套图标）—— 这个模块一直在
+  平台的种子表里。"可用"的判据现在改成"React 能渲染它"（`$$typeof`）。
+- **图标同样从来没渲染过**：页面要的是 `IconPlusOutline16`，壳导出的是 `IconPlusOutlineRegular`。
+  现在有一层短名映射。
+- **页面自己的 CSS 用的是另一套尺度。** 实测（同一条线、通用设置页）：区块标题 **14px/22px weight 500**、
+  引言 **12px/18px** tertiary 灰、设置行是 `padding: 16px 0` + **一条 1px 分隔线** —— 没有卡片、没有圆角、
+  没有底色。我们的版本是 15px/700 的标题、每个标题右边一个可折叠的"圆点"、每个插件行包在带圆角描边的
+  卡片里。这些全部去掉，并且 `tools/browser-verify.mjs` 现在**断言官方的那组数字**（包括"开关必须是壳的
+  `[role=switch]`，不许出现手绘 checkbox"），所以这次不会再悄悄漂回去。
+- **下拉改用壳的 `Menu`**（灰底按钮 + chevron + 浮层），用在助手切换与提示词历史上 —— 历史选择器原来
+  是浏览器原生 `<select>`，它的外观页面根本控制不了。两条路都保留了降级形态（药丸 / `<select>`）。
+
+证据来自**渲染后的页面**，不是读代码：`tools/browser-verify.mjs` 在 `0.1.7-rc.2` 上 **65/65**
+（33 行全部用壳的开关、手绘 checkbox 0 个、扁平 16px 行 + 分隔线），前后对比截图在
+`docs/MEASUREMENTS.md` §29。
+
+测试：797 项（15 个套件）。
+
 ## [1.9.15]
 
 ### 0.1.7 上终于能删助手了 —— 而且浏览器闸门终于能看见页面
