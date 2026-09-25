@@ -92,7 +92,21 @@ jobs:
             echo "dsh-custom-mode@${VERSION} 已经在 npm 上 —— 什么都不做"
             exit 0
           fi
-          npm publish --tag latest
+          # ★ 竞态兜底（实测踩过，v1.9.16）：上面那次 npm view 读的是**注册表缓存**，而本地刚
+          #   publish 的版本要 1–3 分钟才可见。于是这条闸门会在"本地已发、注册表还没醒"的窗口里
+          #   判定"尚不存在"，然后 publish —— 拿到 EPUBLISHCONFLICT
+          #   （`cannot publish over the previously published versions`）并让整步失败，
+          #   **连带把后面的 GitHub Release 一起跳过**。
+          #   那个报错的语义是"目标状态已经达成"，所以它不是失败：把它当成功，其余照旧失败。
+          if npm publish --tag latest 2>&1 | tee /tmp/publish.log; then
+            exit 0
+          fi
+          if grep -q "previously published versions" /tmp/publish.log; then
+            echo "::notice::dsh-custom-mode@${VERSION} 已被发布（竞态），视为成功。"
+            exit 0
+          fi
+          echo "::error::发布失败，日志见上。"
+          exit 1
 
       # ★ 建 GitHub Release。原先这条工作流只发 npm，所以仓库的 Releases 面板一直停在旧版本，
       #   而 README / 代码其实早就更新了 —— 一个纯粹"看不见"的缺口。
