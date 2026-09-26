@@ -3,8 +3,8 @@
 [English](README.md) | 中文
 
 **DeepSeek Harness（dsh）自定义模式插件** —— 在设置页编辑系统提示词、选择基础模式、逐行开关插件，可并存多个
-助手（多模式 / 多角色扮演 RP）。 · **English**: custom modes and custom prompts for DeepSeek Harness (dsh),
-edited from a settings page that looks like the official one (multi-mode / multi-persona).
+助手（多模式 / 多角色扮演 RP）。英文关键词：dsh custom mode / custom prompt / system prompt editor /
+base mode / plugin switches / multi-assistant / multi-persona。
 
 ![dsh-custom-mode —— 给 dsh 模式用的设置页](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
 

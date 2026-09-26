@@ -2,4 +2,4 @@
 # 两份文档权威相同——改完任意一侧，请把另一侧也改掉，然后重新记录：
 #   node tools/verify-translation-pairing.mjs --write
 README.md: cea42b2d4a2189c141bbaee1679be2ac7c0d4bd9
-README.zh.md: ed6d04d08ed4e4033b4d84497d91e7c73b48f51a
+README.zh.md: d97007047fa04596057d2083e1dd76524cae2164
