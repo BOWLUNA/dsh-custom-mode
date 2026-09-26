@@ -16,9 +16,15 @@
   "keywords": [
     "dsh",
     "deepseek-harness",
+    "deepseek",
     "agent-preset",
+    "custom-mode",
     "system-prompt",
-    "plugin"
+    "plugin",
+    "自定义模式",
+    "系统提示词",
+    "多助手",
+    "角色扮演"
   ],
   "engines": {
     "node": ">=20",

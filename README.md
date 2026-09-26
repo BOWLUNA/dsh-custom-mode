@@ -2,6 +2,11 @@
 
 English | [中文](README.zh.md)
 
+**DeepSeek Harness (dsh) custom mode plugin** — edit a mode's system prompt, base mode and plugin switches in
+the settings page, and keep several assistants side by side (multi-mode / multi-persona, coding, chat or
+role-play). · **中文**：DeepSeek Harness（dsh）自定义模式插件 —— 在设置页编辑系统提示词、选择基础模式、逐行
+开关插件，可并存多个助手（多模式 / 多角色扮演 RP）。
+
 ![dsh-custom-mode — a settings page for dsh agent modes](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
 
 <!-- community badge row: required in every new repository (see the storefront template in the operator SOP/DSH Plugins folder) -->
@@ -40,9 +45,9 @@ The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouche
 | ![Mode name and base mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![Plugin switches](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
 | ![System prompt](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![Mode picker](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
 
-The assistant manager, cropped to its own section. All five images are English, at most 800x800, and shot
-on a throwaway `DSH_HOME` with no sessions by `tools/screenshots/shoot-fresh.mjs` (the rendered page is
-what `tools/browser-verify.mjs` checks):
+The assistant manager, cropped to its own section. All five images are English, **all exactly 800x800**, and
+shot on a throwaway `DSH_HOME` with no sessions by `tools/screenshots/shoot-fresh.mjs` (the rendered page
+is what `tools/browser-verify.mjs` checks):
 
 ![Assistant manager](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
 

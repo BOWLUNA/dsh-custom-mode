@@ -2,6 +2,10 @@
 
 [English](README.md) | 中文
 
+**DeepSeek Harness（dsh）自定义模式插件** —— 在设置页编辑系统提示词、选择基础模式、逐行开关插件，可并存多个
+助手（多模式 / 多角色扮演 RP）。 · **English**: custom modes and custom prompts for DeepSeek Harness (dsh),
+edited from a settings page that looks like the official one (multi-mode / multi-persona).
+
 ![dsh-custom-mode —— 给 dsh 模式用的设置页](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
 
 <!-- 社区入口：第二排徽章在每个新仓库里都要加（见 SOP/DSH Plugins/仓库门面模板.md） -->
@@ -34,7 +38,7 @@
 | ![模式名称与基础模式](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![插件开关](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
 | ![系统提示词](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![模式选择器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
 
-多助手管理器（裁到它自己那一段）。五张图都是英文、最大 800x800，由一个**没有会话记录的**一次性
+多助手管理器（裁到它自己那一段）。五张图都是英文、**统一 800x800**，由一个**没有会话记录的**一次性
 `DSH_HOME` 拍出，脚本是 `tools/screenshots/shoot-fresh.mjs`（渲染后的页面由 `tools/browser-verify.mjs` 校验）：
 
 ![助手管理器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)

@@ -210,15 +210,13 @@ await scrollTo(1150)
 await shoot('02-plugin-switches.png', (file) => session.screenshotBox(file, PANEL))
 
 await scrollTo(2760)
-await shoot('03-system-prompt.png', (file) => session.screenshotBox(file, { ...PANEL, height: 774 }))
+await shoot('03-system-prompt.png', (file) => session.screenshotBox(file, PANEL))
 
 // ── 05：助手区块（下拉打开，两个助手）─────────────────────────────────
 await scrollTo(0)
 await session.evaluate(`(() => { const a = document.querySelector('.cpfe-picker button'); if (a) a.click(); return true })()`)
 await session.sleep(900)
-await shoot('05-assistant-manager.png', (file) =>
-  session.screenshotBox(file, { x: 320, y: 100, width: 800, height: 360 }),
-)
+await shoot('05-assistant-manager.png', (file) => session.screenshotBox(file, PANEL))
 await escape()
 
 // ── 04：新会话的模式选择器（含自定义模式的浮层）───────────────────────
@@ -252,14 +250,9 @@ if (popup === null) {
   console.error('模式选择器没打开 —— 04/选择器图会有问题')
   process.exit(2)
 }
-await shoot('04-preset-picker.png', (file) =>
-  session.screenshotBox(file, {
-    x: Math.max(0, popup.x - 96),
-    y: Math.max(0, popup.y - 96),
-    width: Math.min(800, 1440 - Math.max(0, popup.x - 96)),
-    height: Math.min(800, popup.height + 120),
-  }),
-)
+// 与 01/02/03/05 同一个 800x800 画布：README 的 2x2 表格里四张图必须一样大，
+// 否则 GitHub 上高低不齐（用户反馈的正是这一点）。
+await shoot('04-preset-picker.png', (file) => session.screenshotBox(file, PANEL))
 await session.close()
 
 // ── 商店用的一组（editor/screenshots.json 声明的名字）─────────────────

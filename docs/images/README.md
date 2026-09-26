@@ -1,15 +1,15 @@
 # Screenshots
 
-Five images, all **English**, all **at most 800x800** (the README shows 01-04 as a 2x2 table, so they
-share one canvas; a 1440x900 shot would render as a wall of mostly-empty shell - that is what "too big"
-looks like on GitHub).
+Five images, all **English**, and **all exactly 800x800** - one canvas, so the README 2x2 table lines up
+instead of stepping up and down (a 1440x900 shot would also render as a wall of mostly-empty shell: that
+is what "too big" looks like on GitHub).
 
 ```
 01-mode-switch.png        800x800   Settings -> Custom mode: mode name + base mode (top of the switches)
 02-plugin-switches.png    800x800   Plugin switches: flat rows, 1px dividers, tri-state badges
-03-system-prompt.png      800x774   The system prompt editor + change history
-04-preset-picker.png      800x588   The new-session mode picker, custom modes in the list
-05-assistant-manager.png  800x360   The assistant section, assistant dropdown open, two assistants
+03-system-prompt.png      800x800   The system prompt editor + change history
+04-preset-picker.png      800x800   The new-session mode picker, custom modes in the list
+05-assistant-manager.png  800x800   The assistant section, assistant dropdown open, two assistants
 ```
 
 None of them is hand-taken, and none of them carries anybody s private state: they are produced by
