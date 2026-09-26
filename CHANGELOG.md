@@ -8,6 +8,26 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.17]
+
+### The storefront images were stale (and two of them were the same picture)
+
+Documentation and packaging only — no runtime change. What was actually wrong:
+
+- The four images the plugin directory shows (`editor/assets/storefront-0*.png`) were still the 1440x900
+  set from before the UI refactor, and two of them were **byte-identical** (the scroll helper in the
+  capture script silently did nothing, so "plugin switches" and "system prompt" came out as the same view).
+  They are now **800x800** — one canvas, same as the five README images — English, and produced from the
+  same run as the README set by `tools/screenshots/shoot-fresh.mjs`.
+- That script is new and documented: it pins a throwaway `DSH_HOME` with no sessions, a fixed viewport
+  (1440x900, device scale 1) and a fixed crop, and it renames the seeded assistant and creates a second one
+  so the images match the README. Two measured traps are written into it: the settings dialog must be opened
+  with a **real pointer** (this shell ignores synthesised `click()` for some controls), and the first-run
+  **"Add an API key" modal is also a `[role=dialog]`** — treating "a dialog exists" as "settings is open"
+  makes every page shot the same picture.
+- Both package manifests now carry **Chinese keywords** as well (npm search indexes them), and the
+  repository description is bilingual, because GitHub topics cannot contain Chinese.
+
 ## [1.9.16]
 
 ### The settings page looks like the rest of dsh now — it never used the shell's components
