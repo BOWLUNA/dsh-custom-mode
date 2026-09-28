@@ -47,14 +47,17 @@ jobs:
       - name: 套件（当前主轴）
         run: node test/run.mjs
 
-      # 稳定线也要在**发布前**过一遍：它的 preset 机制与预览线完全不同（扫目录 + 复数包）。
+      # 稳定线也要在**发布前**过一遍：它是另一条声明式线，夹具仍由宿主自己的声明派生。
       # 支持策略是"两个最新的"：最新正式版 0.1.7-rc.2 + 最新预览版 0.2.0-rc.1（上面那条）。
-      # 换装旧线会连带把 @deepseek-ai/dsh-agent-presets 装到仓库根（实测 0.1.5 形态），
-      # 于是 test/run.mjs 走它的第一解析顺位，测到的是真实的稳定线形态。
+      #
+      # ★ 这里**不要**再断言 `node_modules/@deepseek-ai/dsh-agent-presets/presets` 存在。
+      #   那条 `ls -d` 是 0.1.5 时代留下的：当时换装最新正式版会把复数包拉进仓库根，成为
+      #   `test/run.mjs` 的第一解析顺位。0.1.7 起该包不再发布（声明式注册表），稳定线换成
+      #   0.1.7-rc.2 之后这句 `ls` 必然失败 —— v1.9.19 的发布闸门就是这么红的（而套件本身
+      #   完全正常，只是被这句提前掐断，连带把后面的发布与 GitHub Release 一起跳过）。
       - name: 换装 0.1.7-rc.2（最新正式版），稳定线再跑一遍
         run: |
           npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
-          ls -d node_modules/@deepseek-ai/dsh-agent-presets/presets
           node test/run.mjs
       - name: 双语配对 + 语言纯度
         run: node tools/verify-translation-pairing.mjs
