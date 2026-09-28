@@ -16,6 +16,23 @@ agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` �
 （不是 npm 包里的 —— `assets/` 故意不在包的 `files` 白名单里），所以换图只需往这里推一次，别的都不用做。
 实测 2026-09-25：目录里 4311 个条目中有 840 个带精选截图，没有截图的卡片放在旁边就像没做完。
 
+## 生态里有哪些地方收录了本插件（2026-09-28 实测）
+
+一共三个站点，值得先弄清楚**哪一个才是真源** —— 只有它对投稿开门：
+
+| 站点 | 是什么 | 怎么进 |
+| --- | --- | --- |
+| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) | **策展注册表**；别的工具大多读它的 README 与数据 | **提一个 PR，加一个 YAML 文件** `data/plugins/<owner>__<repo>.yml`（`url` / `name` / `category` / `description.en`，`zh` 可选），仓库是 [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。我们那条已存在（`BOWLUNA__dsh-custom-mode--editor.yml`，分类 `identity`） |
+| [**dshmarket.com**](https://dshmarket.com/) | **应用内的插件市场** —— 它自己就是个 dsh 插件（`dsh plugin --profile web add dshmarket`，然后 设置 → 插件市场）。它会读每张卡片声明的 `engines.dsh` / peer 范围来判断与当前宿主是否匹配，并展示插件自己 `screenshots.json` 里的作者精选图 | **不用投稿**。它 README 写得很直白："This repo is the market app, not the catalog." —— 列表跟着上面的注册表走 |
+| [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | 中文学习社区，自带插件索引与官方文档镜像 | **自动聚合**，来源是 GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) —— 所以杠杆是**仓库的 topics**，不是表单。它接受点名重探（见其 issue #41 的做法）；我们已开 [#44](https://github.com/hikariming/dshfind/issues/44)，因为它那张卡片仍写着"尚未发布到 npm"且版本偏旧 |
+
+两条对仓库的推论：
+
+1. **注册表条目就是"上架"本身。** 想改这些站上的卡片，改的是上游那一个 YAML 文件（或请对方重探），
+   不是改这里 —— 唯一的例外是截图，它们读本仓库的 `editor/screenshots.json`。
+2. **topics 有用**（dshfind 按它聚合，各站的搜索也吃它）：`dsh-plugin` 必须留在仓库上，
+   与 `dsh`、`deepseek-harness`、`agent-preset`、`custom-mode`、`assistant-manager`、`multi-agent`、`roleplay` 一起。
+
 ## 方案一：GitHub 仓库（最省事，推荐先用这个）
 
 别人：

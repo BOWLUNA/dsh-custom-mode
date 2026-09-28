@@ -71,6 +71,10 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 | **GitHub 仓库地址** | `https://github.com/BOWLUNA/dsh-custom-mode` | 指向**仓库根**即可 |
 | **本地插件目录** | `<你 clone 的路径>/editor` | 注意要指向 `editor/`，不是仓库根 |
 
+想逛整个生态还有一个**应用内市场**：装 `dshmarket`（`dsh plugin --profile web add dshmarket`），
+打开 **设置 → 插件市场**，搜 `dsh-custom-mode` —— 卡片会读本插件声明的 `engines.dsh` 范围，
+以及 `editor/screenshots.json` 里的四张精选截图。
+
 三条都可用，因为**仓库根的 `package.json` 声明了指向 `editor/` 的 `dsh.bundle` / `main` / `exports["./client"]`**。
 根清单与 `editor/package.json` 必须描述同一个插件，`test/manifests.test.mjs` 会断言它们的名字、版本与
 声明的路径全部一致——两个清单写同一件事是漂移风险，所以用测试盯住，而不是靠记性。

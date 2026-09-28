@@ -84,6 +84,11 @@ kinds of input, and all three work here:
 | **GitHub repository URL** | `https://github.com/BOWLUNA/dsh-custom-mode` (the repository root) |
 | **Local plugin directory** | `<your clone>/editor` — note `editor/`, not the repository root |
 
+There is also an **in-app market** for browsing the whole ecosystem: install `dshmarket`
+(`dsh plugin --profile web add dshmarket`), open **Settings → Plugin Market** and search
+`dsh-custom-mode` — its cards read the `engines.dsh` range this plugin declares, and the four curated
+screenshots from `editor/screenshots.json`.
+
 They work because the repository's **root** `package.json` declares `dsh.bundle`, `main` and
 `exports["./client"]` pointing into `editor/`. The root and `editor/package.json` must describe one
 plugin, so `test/manifests.test.mjs` asserts they agree on name, version and every declared path —

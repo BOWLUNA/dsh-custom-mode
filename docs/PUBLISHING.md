@@ -17,6 +17,25 @@ this repository (not from the npm tarball — `assets/` is deliberately outside 
 so replacing a screenshot is a push here and nothing else. Measured 2026-09-25: 840 of the catalog's 4311
 entries ship curated screenshots, and a card without one looks unfinished next to them.
 
+## Where the ecosystem lists this plugin (measured 2026-09-28)
+
+Three sites, and it is worth knowing which one is the source of truth — only one of them takes submissions:
+
+| Site | What it is | How a plugin gets in |
+| --- | --- | --- |
+| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) | the **curated registry**; also the site whose README and JSON feed most other tools read | **a PR adding one YAML file**, `data/plugins/<owner>__<repo>.yml`, to [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) — `url`, `name`, `category`, `description.en` (+ optional `zh`). Ours exists (`BOWLUNA__dsh-custom-mode--editor.yml`, category `identity`) |
+| [**dshmarket.com**](https://dshmarket.com/) | **an in-app plugin market** — itself a dsh plugin (`dsh plugin --profile web add dshmarket`, then Settings → Plugin Market). Host-aware: it reads the `engines.dsh` / peer range each card declares, and shows author-curated shots from the plugin's own `screenshots.json` | **nothing to submit.** Its README says it plainly: "This repo is the market app, not the catalog." Listing follows the registry above |
+| [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | a Chinese learning community with its own plugin index and a mirror of the official docs | **automatic**, aggregated from the GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) — so the lever is the repository's topics, not a form. It re-probes on request (their issue #41 pattern); ours is [#44](https://github.com/hikariming/dshfind/issues/44) because its card still says "not published to npm" and shows an older version |
+
+Two consequences for this repository:
+
+1. **The registry entry is the placement.** Improving the card on any of these sites means editing that one
+   YAML file upstream (or asking for a re-probe), never changing something here — except screenshots, which
+   they read from `editor/screenshots.json` in this repository.
+2. **The topics matter** (dshfind aggregates from them, and every list is searchable by them):
+   `dsh-plugin` must stay on the repository, alongside `dsh`, `deepseek-harness`, `agent-preset`,
+   `custom-mode`, `assistant-manager`, `multi-agent`, `roleplay`.
+
 ## Option one: a GitHub repository (the least effort; recommended to start with)
 
 Others:
