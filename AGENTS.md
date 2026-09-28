@@ -76,10 +76,12 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
    unwritable `DSH_HOME` is reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-10. **支持策略：只跟两个"最新的"** —— 最新正式版与最新预览版（当前 `0.1.5-rc.3` / `0.1.7-rc.2`），
-    也就是 `test.yml` 的两条腿 + `release.yml` 发布前各跑一遍的那两条。更早的预览线
-    （`0.1.6-alpha.*`）与正式版共用同一套机制，peer 范围仍然接纳它，但**不为每条历史预览线加 CI 腿**：
-    成本随版本数线性增长，而两条线之间的机制差异只有一次（≤0.1.6 扫描目录 / ≥0.1.7 声明式注册表）。
+10. **支持策略：只跟两个"最新的"** —— 最新正式版与最新预览版（当前 **`0.1.7-rc.2`**（npm `latest`）
+    与 **`0.2.0-rc.1`**（npm `next`，也是官方桌面端所在的那条线）），也就是 `test.yml` 的腿 +
+    `release.yml` 发布前各跑一遍的那两条；**渲染闸门（browser.yml）跑在预览线上**，因为壳自己的 UI 改动
+    最先落在那里。更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，
+    但**不为每条历史线加 CI 腿**：成本随版本数线性增长，而机制差异只有两次
+    （≤0.1.6 扫描目录 / ≥0.1.7 声明式注册表 / ≥0.2.0 同一声明式 API 但**安装期就强制校验 peer 范围**）。
     换主轴版本时，这几处都要一起改：`test.yml` 的 matrix、`release.yml` 的两次安装、`engines.dsh`、
     `editor/package.json` 的 peer 范围（dsh 的**插件兼容性检查**读的就是它，范围不覆盖运行时就告警）、
     以及 SECURITY/README 里的版本钉。

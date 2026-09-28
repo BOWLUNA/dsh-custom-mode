@@ -8,6 +8,38 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.19]
+
+### dsh 0.2.0-rc.1: supported, verified on the rendered page, and it enforces compatibility now
+
+`@deepseek-ai/dsh@0.2.0-rc.1` shipped under npm's `next` tag (and tag `dsh-v0.2.0-rc.1` in the repository).
+Adapting to it was mostly *not* code:
+
+- **0.2.0 refuses to install an incompatible plugin** — the compatibility check that used to warn is now a
+  gate: `dsh: installation rejected: Plugin dsh-custom-mode@1.9.18 is incompatible with dsh 0.2.0-rc.1:`
+  `peerDependencies {"@deepseek-ai/dsh":">=0.1.5-rc.2 <0.2.0-0 || ..."} ... Exact-version exemption: not
+  active.` So the declared range *is* the feature switch, and it now carries the 0.2 line
+  (`|| >=0.2.0-0 <0.3.0-0`), after the verification below.
+- **Everything else already held.** On 0.2.0: the plugin installs and boots with no errors; the
+  `agentPresets` capability set is the same surface as 0.1.7 (`list, register, inventory, select,
+  document`; no `remove`/`copy`/`read`); the unit suite is **801/801** (the seeded composition derives from
+  the host's declaration and every row resolves); the mode appears in the rendered picker; and the whole
+  **65-check render gate passes** — including the official-metrics assertions (14px/22px weight-500 section
+  titles, 12px/18px tertiary intros, flat rows with 1px dividers, the shell's `[role=switch]`), so 0.2.0's
+  Web UI did not move the ground the page stands on.
+- **Desktop is covered by the same work**: the app is version-locked to dsh and `apps/desktop` at the
+  0.2.0-rc.1 tag is `0.2.0-rc.1`, still owning `$DSH_HOME/profiles/desktop`; install from the app's Plugins
+  page, exactly as in 1.9.18.
+- **CI follows the policy** (two latests): the main axis is now `0.2.0-rc.1` (ubuntu node 20/24 + Windows),
+  the stable leg is `0.1.7-rc.2` (npm `latest`), the old `0.1.5-rc.3` leg is retired, and the render gate
+  runs on the preview line — where the shell's own UI changes land first.
+
+One operational note worth keeping: **a release is not finished when `npm view` shows the version.** For about
+20 minutes after `@deepseek-ai/dsh@0.2.0-rc.1` appeared, installing it failed with
+`ETARGET ... No matching version found for @deepseek-ai/dsh-client-ui-settings-account@0.2.0-rc.1` — one of its
+79 direct dependencies (and at least one transitive one) was still uploading. The same install succeeded on the
+fourth attempt. If a brand-new dsh line fails to install, retry before suspecting the plugin.
+
 ## [1.9.18]
 
 ### The desktop app is supported now — and 0.2.0 is not out, so nothing was adapted "early"

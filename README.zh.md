@@ -26,10 +26,10 @@ base mode / plugin switches / multi-assistant / multi-persona。
 
 | dsh | 定位 | 状态 |
 | --- | --- | --- |
-| `0.1.7-rc.2` | 最新预览版（官方桌面端内置的那条） | ✅ CI（ubuntu node 20/24 + **windows**）+ 真机：这条线上设置页是**渲染后**验过的 |
-| `0.1.5-rc.3` | 最新正式版（npm `latest`，目录站"点一下安装"给大多数用户的就是它） | ✅ CI |
+| `0.2.0-rc.1` | 最新预览版（npm `next`；官方桌面端就是这条线 —— 它与 dsh 同版本号） | ✅ CI（ubuntu node 20/24 + **windows**）+ 真机：这条线上设置页与模式选择器都是**渲染后**验过的（整道渲染闸门就跑在这里）|
+| `0.1.7-rc.2` | 最新正式版（npm `latest`，目录站"点一下安装"给大多数用户的就是它） | ✅ CI + 真机：自 1.9.15 起就在这条线上验过渲染 |
 
-更早的预览版（`0.1.6-alpha.*`）与正式版共用同一套机制，peer 范围仍然接纳它，但不再单独占一条 CI 腿。
+更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，但不再单独占 CI 腿。
 
 官方四个模式（`standard` / `ptc` / `minimal` / `cordis`）不受影响。
 
@@ -48,7 +48,7 @@ base mode / plugin switches / multi-assistant / multi-persona。
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.18   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.19   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -179,16 +179,16 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 ## 版本
 
-**支持两条线：最新正式版（`0.1.5-rc.3`）与最新预览版（`0.1.7-rc.2`）** —— 声明为
-`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0`（多出来的两段是因为
-semver 只允许范围里**点名了** `major.minor.patch` 的预发布版本被匹配到），CI 会两条线各装一次
-并各跑一遍完整测试。这里的策略是"只跟两个最新的"：更早的预览版（`0.1.6-alpha.*`）仍在 peer 范围内，
-但不单独占 CI 腿。**官方桌面端（DeepSeek Harness Desktop）也在覆盖范围内**：它 bundled 的就是
-`dsh 0.1.7-rc.2`（win32），与 CI 主轴钉的正是同一组合；插件已在 Windows 上以真启动验证
-（播种、声明式注册、平台条件行求值全部正确）。
-并各跑一遍完整测试。`0.1.5-rc.2` 实测：安装、组合树、
-`/api` 围栏、`state`/`history`/`warnings` 与浏览器 58 项全过；审批缝依赖的 `tools/pre-execute` 与路由
-依赖的 `connection.fetch.register` 在稳定版里同样存在。
+**支持两条线：最新正式版（`0.1.7-rc.2`，npm `latest`）与最新预览版（`0.2.0-rc.1`，npm `next`，
+也就是桌面端所在的那条线）** —— 声明为
+`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0`（多出来的两段是因为
+semver 只允许范围里**点名了** `major.minor.patch` 的预发布版本被匹配到），CI 会两条线各装一次并各跑一遍
+完整测试 —— 其中**渲染闸门跑在预览线**上，因为壳自己的 UI 改动最先落在那里。
+这里的策略是"只跟两个最新的"：更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）仍在 peer 范围内，但不单独占 CI 腿。
+**官方桌面端（DeepSeek Harness Desktop）也在覆盖范围内**：它与 dsh 同版本号，当前即为 `0.2.0-rc.1`，
+正是这条矩阵钉住的组合；在应用内（侧栏 → Plugins）安装即可，CLI 那条路 dsh 自己会拒。
+`0.2.0-rc.1` 实测：安装、组合树、插件启动（`agentPresets` 能力面不变：`list, register, inventory,
+select, document`）、模式选择器、以及整道 65 项渲染闸门 —— 全部通过。
 
 包版本走**自己的线** —— `1.0.0`、`1.0.1` …… 它不镜像 DSH 的版本号。本插件支持哪些 dsh，由
 `editor/package.json` 的 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，并由
@@ -257,7 +257,7 @@ MIT
 | | |
 | --- | --- |
 | 模型 | DeepSeek V4.1 Flash（`deepseek-v4-flash`，provider `deepseek-official`） |
-| 运行时 | DeepSeek Harness **0.1.7-rc.2**（预览版）/ **0.1.5-rc.3**（正式版）—— 支持的就是这两条线；下面的用量数字来自更早的 `0.1.6-alpha.2` 那一轮 |
+| 运行时 | DeepSeek Harness **0.2.0-rc.1**（预览版）/ **0.1.7-rc.2**（正式版）—— 支持的就是这两条线；下面的用量数字来自更早的 `0.1.6-alpha.2` 那一轮 |
 | 未缓存输入 | 224,058 tok |
 | 缓存读取 | 125,638,016 tok |
 | 输出 | 425,539 tok |
@@ -286,7 +286,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.18
+dsh plugin --profile web add dsh-custom-mode@1.9.19
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

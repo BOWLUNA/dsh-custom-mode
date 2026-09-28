@@ -6,6 +6,31 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.9.19]
+
+### dsh 0.2.0-rc.1：已支持、已在渲染页面上验证，而且它现在**强制**校验兼容性
+
+`@deepseek-ai/dsh@0.2.0-rc.1` 已以 npm `next` 标签发布（仓库里是 tag `dsh-v0.2.0-rc.1`）。适配它大部分**不是**改代码：
+
+- **0.2.0 会拒绝安装不兼容的插件** —— 原先只是告警的兼容性检查现在是一道闸门：
+  `dsh: installation rejected: Plugin dsh-custom-mode@1.9.18 is incompatible with dsh 0.2.0-rc.1:`
+  `peerDependencies {"@deepseek-ai/dsh":">=0.1.5-rc.2 <0.2.0-0 || ..."}` ... `Exact-version exemption: not
+  active.` 也就是说**声明的范围本身就是那个开关**；在下述验证之后，它现在带上 0.2 线（`|| >=0.2.0-0 <0.3.0-0`）。
+- **其余部分本来就成立。** 在 0.2.0 上：插件安装并启动无错；`agentPresets` 的能力面与 0.1.7 一致
+  （`list, register, inventory, select, document`；没有 `remove`/`copy`/`read`）；单元套件 **801/801**
+  （播种组成由宿主的声明派生，每一行都能解析）；模式出现在**渲染后的**选择器里；整道 **65 项渲染闸门**通过
+  —— 包含 「官方度量」 断言（区块标题 14px/22px w500、引言 12px/18px tertiary、扁平行 + 1px 分隔线、
+  壳的 `[role=switch]`），说明 0.2.0 的 Web UI 并没有动摇页面所站的地基。
+- **桌面端被同一份工作覆盖**：桌面端与 dsh 同版本号，`0.2.0-rc.1` tag 上的 `apps/desktop` 就是 `0.2.0-rc.1`，
+  仍然独占 `$DSH_HOME/profiles/desktop`；安装方式与 1.9.18 相同 —— 在应用内的 Plugins 页。
+- **CI 跟着策略走**（只跟两个最新的）：主轴换成 `0.2.0-rc.1`（ubuntu node 20/24 + Windows），稳定腿换成
+  `0.1.7-rc.2`（npm `latest`），旧的 `0.1.5-rc.3` 腿退役；渲染闸门跑在**预览线**上 —— 壳自己的 UI 改动最先落在那里。
+
+有一条运维经验值得记下：**`npm view` 能看到版本号，并不等于这次发布完成了。** 在 `@deepseek-ai/dsh@0.2.0-rc.1`
+出现后约 20 分钟里，安装它会失败：`ETARGET ... No matching version found for
+`@deepseek-ai/dsh-client-ui-settings-account@0.2.0-rc.1` —— 它 79 个直接依赖之一（以及至少一个传递依赖）
+当时还在上传。同一个安装在第 4 次尝试时成功。新线装不上时，先重试，再怀疑插件。
+
 ## [1.9.18]
 
 ### 桌面端现在正式支持 —— 而 0.2.0 还没发，所以并没有"提前适配"到什么

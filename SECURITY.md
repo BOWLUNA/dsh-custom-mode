@@ -20,7 +20,7 @@ longer encodes it. Development and verification cover the rows below, newest fir
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `1.9.18` (current release) | `0.1.5-rc.3` (latest stable) **and** the preview line (`0.1.6-alpha.2`, `0.1.7-alpha.*`, `0.1.7-rc.2`) | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0`, and CI installs and runs the whole suite against the stable line and both preview lines. The official desktop app (bundling `0.1.7-rc.2` on win32) is covered |
+| `1.9.19` (current release) | `0.1.7-rc.2` (npm `latest`) **and** the preview line `0.2.0-rc.1` (npm `next`) | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0 \|\| >=0.2.0-0 <0.3.0-0`, and CI installs and runs the whole suite against the stable line and the preview line (the render gate runs on `0.2.0-rc.1`). The official desktop app is covered: it is version-locked to dsh and currently ships `0.2.0-rc.1` |
 | `1.9.17` | the same | Supported (superseded) |
 | `1.9.16` | the same | Supported (superseded) |
 | `1.9.15` | the same | Supported (superseded) |

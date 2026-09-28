@@ -1523,3 +1523,62 @@ error: profile "desktop" is managed exclusively by the Electron application
 `peerDependencies["@deepseek-ai/dsh"]` 与运行时版本比对（含预发布版），不覆盖就告警 —— 实现见
 `packages/boot/app-boot/src/plugin-compatibility.ts`，旁边就是测试。我们这个范围**故意**停在 `0.2.0-0` 以下，
 所以 0.2.x 运行时拿到的是那条警告，直到我们适配并重测，而不是一句「大概能用」。
+
+## 31. dsh 0.2.0-rc.1：对一个插件来说到底变了什么（2026-09-28）
+
+`@deepseek-ai/dsh@0.2.0-rc.1` 出现在 npm 的 `next` 标签下（此前共 27 个版本，最新是 `0.1.7-rc.2`），仓库里是
+tag `dsh-v0.2.0-rc.1`。按实际发生的顺序记录：
+
+**1. `npm view` 能看到版本号，并不等于这次发布完成了。** 第一次安装失败，而且不是我们的问题：
+
+```
+$ npm i -g --prefix /root/dsh020 @deepseek-ai/dsh@0.2.0-rc.1
+npm error code ETARGET
+npm error notarget No matching version found for @deepseek-ai/dsh-client-ui-settings-account@0.2.0-rc.1.
+```
+
+注册表里的发布时间：`@deepseek-ai/dsh@0.2.0-rc.1` 是 12:34:03Z，那个依赖是 12:54:22Z。dsh 声明的 79 个
+`@deepseek-ai/*` 依赖里，runtime 落地时只有 74 个已上。第 4 次尝试（几分钟后）干净装好。**新线装不上时先重试，
+再怀疑插件。**
+
+**2. 0.2.0 把兼容性告警升级成了安装闸门。** 我们的插件（1.9.18，范围停在 `0.2.0-0` 以下）被直接拒绝：
+
+```
+$ DSH_HOME=/root/dsh-020 ./install.sh
+dsh: installation rejected: Plugin dsh-custom-mode@1.9.18 is incompatible with dsh 0.2.0-rc.1:
+peerDependencies {"@deepseek-ai/dsh":">=0.1.5-rc.2 <0.2.0-0 || ..."}. Running it may cause crashes or data
+loss. Update the plugin or install a plugin version compatible with this dsh runtime. ...
+Exact-version exemption: not active.
+```
+
+整个机制就这一条：声明的 `peerDependencies["@deepseek-ai/dsh"]` 范围就是那个开关 —— 「支持一条线」 与 「声明这个范围」 是同一件事。现在范围末尾是 `|| >=0.2.0-0 <0.3.0-0`。
+
+**3. 放宽范围之后：安装、启动、套件、选择器、页面 —— 0.2.0 上全绿。**
+
+```
+$ DSH_HOME=/root/dsh-020 ./install.sh            # 装进 web profile
+$ DSH_HOME=/root/dsh-020 dsh --profile web --dump-config | grep -c dsh-custom-mode
+2
+
+$ grep custom-mode /root/dsh-lab/dsh020-lab.log
+custom-mode: backend=declarative · 有: list,register,inventory,select,document · 无: remove,copy,read ...
+                                    ← 与 0.1.7 完全一致
+
+$ node test/run.mjs                                # 宿主 = 0.2.0-rc.1，夹具由其声明派生
+15 个套件全部通过（801 项）
+
+$ node tools/picker-probe.mjs --url <url> --expect 自定义模式
+选择器里的模式：["Standard mode","PTC mode","Minimal mode","Creator mode","自定义模式"]
+✓ 期望的模式都在：自定义模式
+
+$ node tools/browser-verify.mjs --url <url> --out /root/verify020.png
+结果: 65 通过, 0 失败        ← 含官方度量断言（14px/22px w500 标题、12px/18px tertiary 引言、
+                               扁平行 + 1px 分隔线、[role=switch]）
+```
+
+**4. 桌面端形状不变。** 在 0.2.0-rc.1 这个 tag 上，`apps/desktop/package.json` 是 `@deepseek-ai/dsh-desktop`
+版本 `0.2.0-rc.1`（private，故以签名安装包发布），README 仍然写着同样三件事：Electron 独占
+`$DSH_HOME/profiles/desktop`、CLI 不能修改它、插件改动走共享的 Web 插件管理器。所以 1.9.18 的桌面端结论
+原样成立 —— 在应用内的 Plugins 页安装。
+
+**5. 有一条实测不是任何一方的 bug，但值得记下。** seed 套件那条 P0 检查（「派生组成里每一条启用的行都能在本机安装里解析」）失败过一次，列出 23 行。原因在这台机器的布局：`unresolvableRows()` 探测的是 `@deepseek-ai/dsh-agent-presets` 解析到的那棵树，而当时它指向仓库里那份夹具副本，不是被测宿主。把宿主按 CI 的方式装进仓库（`npm install --no-save @deepseek-ai/dsh@0.2.0-rc.1`）之后，同一条检查通过。写下来是因为这个失败看起来像产品 bug，其实不是。

@@ -1600,3 +1600,74 @@ plugin peer dependency on `@deepseek-ai/dsh` against the running runtime (prerel
 when the range does not cover it — `packages/boot/app-boot/src/plugin-compatibility.ts`, tests alongside.
 Our range deliberately stops below `0.2.0-0`, so a 0.2.x runtime gets that warning until the line is adapted
 and re-tested, instead of a silent "probably fine".
+
+## 31. dsh 0.2.0-rc.1: what actually changed for a plugin (2026-09-28)
+
+`@deepseek-ai/dsh@0.2.0-rc.1` appeared under npm's `next` tag (27 versions before it; the newest was
+`0.1.7-rc.2`), with tag `dsh-v0.2.0-rc.1` in the repository. Measured, in this order:
+
+**1. A release is not finished when `npm view` shows it.** The first install failed — and not because of us:
+
+```
+$ npm i -g --prefix /root/dsh020 @deepseek-ai/dsh@0.2.0-rc.1
+npm error code ETARGET
+npm error notarget No matching version found for @deepseek-ai/dsh-client-ui-settings-account@0.2.0-rc.1.
+npm error notarget In most cases you or one of your dependencies are requesting a package version that
+npm error notarget doesn't exist.
+```
+
+Publish times from the registry: `@deepseek-ai/dsh@0.2.0-rc.1` at 12:34:03Z, that dependency at
+12:54:22Z. Of the 79 `@deepseek-ai/*` dependencies dsh declares, 74 were already up when the runtime
+landed. Trial 4 (a few minutes later) installed cleanly. **Retry before blaming the plugin.**
+
+**2. 0.2.0 turns the compatibility warning into an install gate.** The plugin (1.9.18, whose range stops
+below `0.2.0-0`) was refused outright:
+
+```
+$ DSH_HOME=/root/dsh-020 ./install.sh
+dsh: installation rejected: Plugin dsh-custom-mode@1.9.18 is incompatible with dsh 0.2.0-rc.1:
+peerDependencies {"@deepseek-ai/dsh":">=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 ||
+>=0.1.7-alpha.1 <0.2.0-0"}. Running it may cause crashes or data loss. Update the plugin or install a
+plugin version compatible with this dsh runtime. To accept this risk explicitly, grant the exact-version
+exemption for dsh-custom-mode@1.9.18 on dsh 0.2.0-rc.1 with `dsh plugin allow-version` or the plugin
+manager, then retry the installation or restart dsh. Exact-version exemption: not active.
+```
+
+That is the whole mechanism: the declared `peerDependencies["@deepseek-ai/dsh"]` range is the switch, so
+"supporting a line" and "declaring the range" are the same act. The range now ends `|| >=0.2.0-0 <0.3.0-0`.
+
+**3. After the range: install, boot, suite, picker, page — all green on 0.2.0.**
+
+```
+$ DSH_HOME=/root/dsh-020 ./install.sh            # installs into the web profile
+$ DSH_HOME=/root/dsh-020 dsh --profile web --dump-config | grep -c dsh-custom-mode
+2
+
+$ grep custom-mode /root/dsh-lab/dsh020-lab.log
+custom-mode: backend=declarative · 有: list,register,inventory,select,document · 无: remove,copy,read ·
+  可选能力缺失: agentPresets.remove()、agentPresets.copy()          ← identical to 0.1.7
+
+$ node test/run.mjs                                # host = 0.2.0-rc.1, fixture derived from its declaration
+15 个套件全部通过（801 项）
+
+$ node tools/picker-probe.mjs --url <url> --expect 自定义模式
+选择器里的模式：["Standard mode","PTC mode","Minimal mode","Creator mode","自定义模式"]
+✓ 期望的模式都在：自定义模式
+
+$ node tools/browser-verify.mjs --url <url> --out /root/verify020.png
+结果: 65 通过, 0 失败        ← including the official-metrics assertions (14px/22px w500 titles,
+                               12px/18px tertiary intros, flat rows + 1px dividers, [role=switch])
+```
+
+**4. The desktop app keeps its shape.** At the 0.2.0-rc.1 tag, `apps/desktop/package.json` is
+`@deepseek-ai/dsh-desktop` version `0.2.0-rc.1` (`private`, so it ships as signed installers), and its
+README still says the same three things: Electron owns `$DSH_HOME/profiles/desktop`, the CLI cannot mutate
+it, and plugin changes go through the shared Web plugin manager. So the 1.9.18 desktop story carries over
+unchanged — install from the app's Plugins page.
+
+**5. One measurement that is NOT a bug in either side.** The seed suite's P0 check ("every enabled row of
+the derived composition resolves in the local install") failed once, with 23 rows listed. The cause was the
+lab machine: `unresolvableRows()` probes the tree that `@deepseek-ai/dsh-agent-presets` resolves to, which
+on that machine was the repository's own fixture copy, not the host under test. With the host installed
+into the repository the way CI does it (`npm install --no-save @deepseek-ai/dsh@0.2.0-rc.1`), the same
+check passes. Worth writing down because the failure looks like a product bug and is not.

@@ -32,11 +32,11 @@ neither merely claimed:
 
 | dsh | role | status |
 | --- | --- | --- |
-| `0.1.7-rc.2` | latest preview (what the official desktop app bundles) | ✅ CI (ubuntu node 20/24 + **windows**) + a real instance: the settings page is verified rendered on this line |
-| `0.1.5-rc.3` | latest stable (`npm` `latest` — what the catalogue's one-click install gives most people) | ✅ CI |
+| `0.2.0-rc.1` | latest preview (`npm` `next`; the line the official desktop app ships — it is version-locked to dsh) | ✅ CI (ubuntu node 20/24 + **windows**) + a real instance: the settings page and the mode picker are verified rendered on this line (the full render gate runs here) |
+| `0.1.7-rc.2` | latest stable (`npm` `latest` — what the catalogue's one-click install gives most people) | ✅ CI + a real instance: verified rendered on this line since 1.9.15 |
 
-Older preview builds (`0.1.6-alpha.*`) use the same mechanism as the stable line and remain inside the
-declared peer range, but they no longer get a CI leg of their own.
+Older builds (`0.1.5-rc.3`, `0.1.6-alpha.*`) use the same mechanisms and remain inside the declared peer
+range, but they no longer get a CI leg of their own.
 
 The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouched.
 
@@ -57,7 +57,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.18   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.19   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -259,16 +259,17 @@ What this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh
 `editor/package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
 version CI installs and tests falls inside those ranges.
 
-**Two lines are supported: the latest stable (`0.1.5-rc.3`) and the latest preview (`0.1.7-rc.2`)** — declared as
-`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0` (the extra clauses exist because
+**Two lines are supported: the latest stable (`0.1.7-rc.2`, npm `latest`) and the latest preview
+(`0.2.0-rc.1`, npm `next` — the line the desktop app ships)** — declared as
+`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0` (the extra clauses exist because
 semver only matches a pre-release inside a range that names its own `major.minor.patch`), and CI installs each of
-the two and runs the whole suite against it.
-**The official desktop app (DeepSeek Harness Desktop) is covered too**: it bundles `dsh 0.1.7-rc.2` on
-win32, which is exactly the combination the CI matrix pins, and the plugin was verified on Windows with
-a real boot (seeding, declarative registration, the platform-conditional rows all evaluated correctly).
-Measured on `0.1.5-rc.2`: install, composition tree, the `/api` fence, `state`/`history`/`warnings` and the
-57 browser checks all pass; `tools/pre-execute` (the approval seam) and `connection.fetch.register` (the
-fenced route channel) both exist there too.
+the two and runs the whole suite against it — the rendered gate runs on the **preview** line, because that is
+where the shell's own UI changes land first.
+**The official desktop app (DeepSeek Harness Desktop) is covered too**: it is version-locked to dsh and now
+ships `0.2.0-rc.1`, i.e. the same combination this matrix pins. Install it from inside the app (sidebar →
+Plugins); the CLI is refused for that profile by dsh itself. On `0.2.0-rc.1` measured: install, composition
+tree, plugin boot (the `agentPresets` capability set is unchanged: `list, register, inventory, select,
+document`), the mode picker, and the whole 65-check render gate — all pass.
 
 Two reasons for the split. A bare `x.y.z` is what directories and markets require before they will
 auto-install a package — several resolve npm `latest` and reject anything carrying a prerelease tag.
@@ -340,7 +341,7 @@ MIT
 | | |
 | --- | --- |
 | Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
-| Runtime | DeepSeek Harness **0.1.7-rc.2** (preview) / **0.1.5-rc.3** (stable) — the two supported lines; the token figures below are from an earlier `0.1.6-alpha.2` session |
+| Runtime | DeepSeek Harness **0.2.0-rc.1** (preview) / **0.1.7-rc.2** (stable) — the two supported lines; the token figures below are from an earlier `0.1.6-alpha.2` session |
 | Uncached input | 224,058 tok |
 | Cache reads | 125,638,016 tok |
 | Output | 425,539 tok |
@@ -370,7 +371,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.18
+dsh plugin --profile web add dsh-custom-mode@1.9.19
 # then restart the DSH process that serves the web profile
 ```
 
