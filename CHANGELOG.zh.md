@@ -6,6 +6,33 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.9.18]
+
+### 桌面端现在正式支持 —— 而 0.2.0 还没发，所以并没有"提前适配"到什么
+
+问题是：dsh 0.2.0（以及随之而来的桌面端）是不是已经悄悄上了、只是没声明？因为听说插件可以提前适配。
+2026-09-27 实测：**没有。** `npm view @deepseek-ai/dsh dist-tags` 仍是 `latest: 0.1.7-rc.2`，27 个版本里最新的
+还是 `0.1.7-rc.2`；仓库 `master` 的版本号是 `0.1.7-rc.2`；最新 tag 是 `dsh-v0.1.7-rc.2`。没有可适配的新线。
+
+但**桌面端已经在仓库里**（`apps/desktop`、`apps/desktop-host`，同为 0.1.7-rc.2，private 包）：它以签名的
+Electron 安装包发布、与 dsh 同版本号，本体就是套了 Electron 壳的完整 Web 应用。这就是本插件**今天**就能
+支持的目标，1.9.18 把这份支持写实：
+
+- **在应用里装**：侧栏 → **Plugins** → 添加插件 → `dsh-custom-mode`。应用自带 pnpm，走的是同一套插件管理器。
+- **CLI 这条路是 dsh 自己拒的**，不只是我们拒：`dsh plugin --profile desktop add ./editor` 会返回
+  `error: profile "desktop" is managed exclusively by the Electron application`（实测）。
+  `install.sh` 与 `uninstall.sh` 现在也拒绝 `--profile desktop` 并给出同样的指引 —— 脚本与运行时口径一致，
+  而不是某一方偷偷绕过去。`DSH_ALLOW_DESKTOP_PROFILE=1` 只为在本机模拟该 profile 形状而存在。
+- **预设那一半什么都不用做**：`.agent-presets/` 是桌面端与 CLI 共享的产品数据。万一某个第三方 bundle
+  让应用起不来，原生恢复对话框提供「禁用第三方插件」。
+- **兼容性是声明出来的**：dsh 会拿每个插件的 `peerDependencies["@deepseek-ai/dsh"]` 与运行时比对
+  （含预发布版），不覆盖就告警。我们的范围**故意**停在 `0.2.0-0` 以下，所以 0.2.x 会拿到那条警告，直到
+  适配并重测。新线要改的四处（CI matrix、发布闸门的两次安装、`engines.dsh`、peer 范围）已写进
+  `AGENTS.md`（第 10 与第 18 条），让适配变成机械动作。
+
+证据（原始命令与输出）在 `docs/MEASUREMENTS.md` §30；`test/manifests.test.mjs` 断言两个脚本持续拒绝
+桌面端 profile。
+
 ## [1.9.17]
 
 ### 商店图是旧的（而且其中两张是同一张图）

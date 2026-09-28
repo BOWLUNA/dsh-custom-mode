@@ -57,7 +57,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.17   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.9.18   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -88,6 +88,35 @@ They work because the repository's **root** `package.json` declares `dsh.bundle`
 `exports["./client"]` pointing into `editor/`. The root and `editor/package.json` must describe one
 plugin, so `test/manifests.test.mjs` asserts they agree on name, version and every declared path —
 two manifests describing one thing is a drift hazard, and a test is cheaper than remembering.
+
+### On the desktop app
+
+The desktop application is part of dsh itself (`apps/desktop`), version-locked to it — Electron and
+`@deepseek-ai/dsh` always carry the same exact version — and it is **the complete Web application in an
+Electron shell**, so this plugin's page renders there unchanged. One install path, and it is the one above:
+
+- **Install from inside the app**: sidebar → **Plugins** → add plugin → search `dsh-custom-mode`.
+  The app runs the shared plugin manager with its own bundled pnpm.
+- **Do not try to use the CLI for it — dsh itself refuses** (measured on 0.1.7-rc.2):
+  ```
+  $ dsh plugin --profile desktop add ./editor
+  error: profile "desktop" is managed exclusively by the Electron application
+  ```
+  The desktop owns `$DSH_HOME/profiles/desktop`: package operations there hold a profile transaction lock
+  and startup recovery renames `cordis.patch.yml`. `install.sh` therefore **refuses** `--profile desktop`
+  too and points you at the app, so the two agree instead of one silently working around the other.
+  (A lab simulation of the profile shape can override it with `DSH_ALLOW_DESKTOP_PROFILE=1`.)
+- **Nothing else to do on the preset side**: `$DSH_HOME/.agent-presets/` is product data shared by the
+  desktop app and the CLI, and the preset is seeded by the plugin on first activation.
+- If a third-party bundle ever keeps the app from starting, the native recovery dialog offers
+  **Disable third-party plugins**; installed packages and the plugin's own data stay on disk.
+
+**Compatibility is declared, not assumed.** dsh checks every plugin's
+`peerDependencies["@deepseek-ai/dsh"]` against the running runtime and shows a warning when the range does
+not include it (prereleases included), so the desktop build of a supported line is supported by
+construction. This plugin declares the 0.1.x lines it is tested against; a new line (`0.2.x`) deliberately
+falls **outside** the range until it is adapted and re-tested, because the alternative — a range that
+"probably" works — is exactly the kind of claim that turns into a support ticket.
 
 To keep the sources around as well — or to install without npm — clone and run the script, which does
 the same two things explicitly:
@@ -341,7 +370,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.17
+dsh plugin --profile web add dsh-custom-mode@1.9.18
 # then restart the DSH process that serves the web profile
 ```
 

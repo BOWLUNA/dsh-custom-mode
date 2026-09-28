@@ -8,6 +8,39 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.9.18]
+
+### The desktop app is supported now — and 0.2.0 is not out, so nothing was adapted "early"
+
+Asked whether dsh 0.2.0 (and with it the desktop app) had already landed unannounced, since plugins were
+said to be adaptable ahead of time. Measured (2026-09-27): **no.** `npm view @deepseek-ai/dsh dist-tags` is
+still `latest: 0.1.7-rc.2`, the newest of its 27 versions is `0.1.7-rc.2`, the repository's `master` says
+`0.1.7-rc.2`, and the newest tag is `dsh-v0.1.7-rc.2`. There is nothing to adapt to yet.
+
+What *is* already there is the **desktop application** (`apps/desktop`, `apps/desktop-host`), at the same
+0.1.7-rc.2, as private packages — so it ships as signed Electron installers, version-locked to dsh, and it is
+the complete dsh Web application in an Electron shell. That is a target this plugin can support today, and
+1.9.18 makes the support explicit:
+
+- **Install from inside the app**: sidebar → **Plugins** → add plugin → `dsh-custom-mode`. The app runs the
+  shared plugin manager with its own bundled pnpm.
+- **The CLI is refused, by dsh itself** — not just by us: `dsh plugin --profile desktop add ./editor`
+  answers `error: profile "desktop" is managed exclusively by the Electron application` (measured).
+  `install.sh` and `uninstall.sh` now refuse `--profile desktop` too, with the same advice, so the script and
+  the runtime point the same way instead of one working around the other. `DSH_ALLOW_DESKTOP_PROFILE=1` is
+  there only for local simulations of the profile shape.
+- **The preset half needs nothing**: `.agent-presets/` is product data shared by the desktop app and the CLI.
+  If a third-party bundle ever blocks startup, the app's native recovery dialog offers Disable third-party
+  plugins.
+- **Compatibility is declared, not assumed**: dsh checks every plugin's `peerDependencies["@deepseek-ai/dsh"]`
+  against the running runtime (prereleases included) and warns when the range does not cover it. Our range
+  deliberately stops below `0.2.0-0`, so a 0.2.x runtime gets that warning until the line is adapted and
+  re-tested. The four places a new line changes — CI matrix, the release gate's installs, `engines.dsh` and
+  the peer range — are now written down in `AGENTS.md` (10 and 18) so that adaptation is mechanical.
+
+Evidence (the raw commands and output) is in `docs/MEASUREMENTS.md` §30; `test/manifests.test.mjs` asserts
+that both scripts keep refusing the desktop profile.
+
 ## [1.9.17]
 
 ### The storefront images were stale (and two of them were the same picture)

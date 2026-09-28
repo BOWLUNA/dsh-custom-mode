@@ -3,8 +3,12 @@
 #
 # 用法:
 #   ./install.sh                  # 默认 web profile
-#   ./install.sh --profile tui    # 指定 profile
+#   ./install.sh --profile tui    # 指定 profile（desktop 会被拒绝，见下）
 #   ./install.sh --preset-id mine # 使用别的 preset 目录名
+#
+# 桌面端（DeepSeek Harness Desktop）**不用**这个脚本装插件：它独占 $DSH_HOME/profiles/desktop，
+# 请在应用内的 Plugins 页里搜 dsh-custom-mode 安装。预设那一步（.agent-presets/）两边共享，
+# 首次激活时由插件自己落盘，不需要额外操作。
 set -euo pipefail
 
 PROFILE=web
@@ -19,6 +23,28 @@ while [ $# -gt 0 ]; do
     *) echo "未知参数: $1" >&2; exit 2 ;;
   esac
 done
+
+# ── 桌面端 profile 不是 CLI 的地盘 ───────────────────────────────────────────
+# 官方桌面端（apps/desktop）**独占** `$DSH_HOME/profiles/desktop`：依赖、bundle 列表与包管理状态
+# 都由 Electron 维护，启动恢复流程还会自己重命名 `cordis.patch.yml`。官方 README 的原话是
+# "The CLI cannot boot or mutate this profile" —— CLI 写进去等于绕过应用的包管理与事务锁，
+# 轻则被忽略、重则让桌面端起不来（而恢复流程只会去禁用第三方 bundle，用户看到的是"插件装完崩了"）。
+# 所以这里直接拒绝，并指路应用内的 Plugins 页；只有本机模拟测试才显式放开。
+if [ "$PROFILE" = "desktop" ] && [ "${DSH_ALLOW_DESKTOP_PROFILE:-}" != "1" ]; then
+  cat >&2 <<'MSG'
+错误: profile "desktop" 属于桌面端应用，不能用 CLI 修改。
+
+官方约定（见 dsh 仓库 apps/desktop/README.md）：
+  · Electron 独占 $DSH_HOME/profiles/desktop —— 依赖、dsh.profile.bundles 与包管理状态都由应用维护，
+    "The CLI cannot boot or mutate this profile"。
+  · 桌面端装外部插件请**在应用里**：侧栏 Plugins → 添加插件 → 搜 dsh-custom-mode → 安装。
+    （走的是与应用同一套认证 HTTP API 的插件管理器，pnpm 由应用自带。）
+  · 助手预设 $DSH_HOME/.agent-presets/ 是桌面端与 CLI 共享的产品数据，仍由本插件首次激活时落盘，
+    不需要这一步。
+  · 若某个第三方 bundle 让应用起不来：启动恢复对话框提供「禁用第三方插件」。
+MSG
+  exit 2
+fi
 
 DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
 PRESET_DIR="$DSH_HOME/.agent-presets/$PRESET_ID"

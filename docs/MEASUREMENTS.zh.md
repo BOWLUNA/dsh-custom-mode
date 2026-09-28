@@ -1478,3 +1478,48 @@ function WS(){return{react:yf,"react/jsx-runtime":jf,…,"@deepseek-ai/dsh-clien
 「行开关必须是壳的 `[role=switch]`、手绘 checkbox 0 个」。整道闸门在 `0.1.7-rc.2` 上 **65/65**。
 
 截图：`docs/images/`（由这一版重新生成）与 `editor/assets/storefront-0*.png`。
+
+## 30. 桌面端已经在仓库里，而未声明的 0.2.0 并不存在（2026-09-27）
+
+起因是一个问题：听说 dsh 0.2.0（含桌面端）快发了，插件或许能提前适配 —— 会不会其实已经发布、只是没声明？
+2026-09-27 实测：
+
+```
+$ npm view @deepseek-ai/dsh dist-tags
+{ "latest": "0.1.7-rc.2", "alpha": "0.1.7-alpha.2", "next": "0.1.7-rc.2" }
+$ npm view @deepseek-ai/dsh versions --json | tail
+... 0.1.7-alpha.1, 0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2        （共 27 个版本，没有任何 0.2.x）
+$ curl -s https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/package.json | head -3
+{ "name": "@deepseek-ai/dsh-root", "version": "0.1.7-rc.2", ...
+$ gh api repos/deepseek-ai/deepseek-harness/git/refs/tags --jq '.[].ref' | tail -2
+refs/tags/dsh-v0.1.7-rc.1
+refs/tags/dsh-v0.1.7-rc.2
+```
+
+所以并没有「未声明的 0.2.0」可适配：npm 上的运行时、仓库 master 的版本号、最新 tag 全是 0.1.7-rc.2。
+但仓库里**已经有桌面端**：
+
+```
+apps/desktop/package.json       "@deepseek-ai/dsh-desktop"       0.1.7-rc.2   "private": true
+apps/desktop-host/package.json  "@deepseek-ai/dsh-desktop-host"  0.1.7-rc.2   "private": true
+```
+
+两者都是 private 包，所以它们以签名的 Electron 安装包发布、不在 npm 上。桌面端是「套了 Electron 壳的完整 Web 应用」，
+而它的发布身份规则是：Electron 与 `@deepseek-ai/dsh` 永远同一个精确版本。也就是说桌面端**现在**就是一个可以
+支持的目标，不用等 0.2.0 —— 前提是按应用允许的方式安装插件。
+
+桌面端独占 `$DSH_HOME/profiles/desktop`，而且这不是约定，CLI 在运行时就被拒：
+
+```
+$ DSH_HOME=/root/dsh-desktop-lab dsh plugin --profile desktop add ./editor
+error: profile "desktop" is managed exclusively by the Electron application
+```
+
+`install.sh` 现在也会拒绝同一个 profile 并给出同样的建议（**在应用内的 Plugins 页安装**；
+`DSH_ALLOW_DESKTOP_PROFILE=1` 只用于本机模拟该 profile 形状），于是脚本与运行时口径一致，而不是某一方偷偷
+绕过去。预设那一半不需要特殊处理：`.agent-presets/` 是桌面端与 CLI 共享的产品数据，插件首次激活时落盘。
+
+兼容性有一套**声明式**机制，这正是未来新线要满足的东西：dsh 会拿每个插件的
+`peerDependencies["@deepseek-ai/dsh"]` 与运行时版本比对（含预发布版），不覆盖就告警 —— 实现见
+`packages/boot/app-boot/src/plugin-compatibility.ts`，旁边就是测试。我们这个范围**故意**停在 `0.2.0-0` 以下，
+所以 0.2.x 运行时拿到的是那条警告，直到我们适配并重测，而不是一句「大概能用」。

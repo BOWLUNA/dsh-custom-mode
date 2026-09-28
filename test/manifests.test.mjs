@@ -84,6 +84,19 @@ console.log('=== 3.5 两个 shell 脚本不得把绝对路径嵌进 node -e/-p �
     check('install.sh 认得出声明式注册表（dsh-agent-preset-registry）', source.includes('dsh-agent-preset-registry'))
     check('install.sh 仍认旧线的复数包（dsh-agent-presets）', source.includes('@deepseek-ai/dsh-agent-presets'))
   }
+
+  // 桌面端的 `profiles/desktop` 由 Electron 独占，**运行时就会拒**（实测 0.1.7-rc.2：
+  // `dsh plugin --profile desktop add ./editor` → 'profile "desktop" is managed exclusively by the
+  // Electron application'）。脚本必须站在同一边，而不是绕过去写那个 profile —— 那会与应用的包管理
+  // 及启动恢复（重命名 cordis.patch.yml）打架。测试读源码即可：真正执行要一个 dsh 实例。
+  for (const script of ['install.sh', 'uninstall.sh']) {
+    const source = readFileSync(join(root, script), 'utf8')
+    check(
+      `${script} 拒绝 desktop profile`,
+      source.includes('[ "$PROFILE" = "desktop" ]') && source.includes('DSH_ALLOW_DESKTOP_PROFILE'),
+    )
+    check(`${script} 指向桌面端应用内安装（不是 CLI）`, source.includes('managed exclusively') || source.includes('Plugins') || source.includes('插件'))
+  }
 }
 
 console.log('=== 4. 两个清单指向同一批文件（防漂移）===')

@@ -21,6 +21,21 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# ── 桌面端的 profile 不是 CLI 的地盘（与 install.sh 同一条闸门）────────────────
+# Electron 独占 `$DSH_HOME/profiles/desktop`：依赖与 bundle 列表由应用维护，包操作持有 profile
+# 事务锁，启动恢复还会自己重命名 `cordis.patch.yml`。dsh 自己就会拒（实测 0.1.7-rc.2：
+# 'profile "desktop" is managed exclusively by the Electron application'），所以这里也拒，
+# 并指路应用内的 Plugins 页。
+if [ "$PROFILE" = "desktop" ] && [ "${DSH_ALLOW_DESKTOP_PROFILE:-}" != "1" ]; then
+  cat >&2 <<'MSG'
+错误: profile "desktop" 属于桌面端应用，不能用 CLI 修改。
+
+桌面端卸载插件请在**应用内**：侧栏 Plugins → 找到 dsh-custom-mode → 卸载。
+（同 install.sh：DSH_ALLOW_DESKTOP_PROFILE=1 只给本机模拟测试用。）
+MSG
+  exit 2
+fi
+
 echo "==> 移除设置页插件"
 # 包名从仓库的 editor/package.json 读取，与 install.sh 用同一来源，避免不一致。
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

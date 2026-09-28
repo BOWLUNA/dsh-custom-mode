@@ -48,7 +48,7 @@ base mode / plugin switches / multi-assistant / multi-persona。
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.17   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.9.18   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -74,6 +74,30 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 三条都可用，因为**仓库根的 `package.json` 声明了指向 `editor/` 的 `dsh.bundle` / `main` / `exports["./client"]`**。
 根清单与 `editor/package.json` 必须描述同一个插件，`test/manifests.test.mjs` 会断言它们的名字、版本与
 声明的路径全部一致——两个清单写同一件事是漂移风险，所以用测试盯住，而不是靠记性。
+
+### 桌面端
+
+桌面端就在 dsh 仓库里（`apps/desktop`），**与 dsh 同版本号发布**（Electron 与 `@deepseek-ai/dsh`
+永远同一个精确版本），而且它就是**套了 Electron 壳的完整 Web 应用** —— 所以本插件的页面在那边原样渲染。
+安装只有一条路，就是上面那条：
+
+- **在应用里装**：侧栏 → **插件** → 添加插件 → 搜 `dsh-custom-mode`。应用自带 pnpm，走的是同一套插件管理器。
+- **不要试着用 CLI 装 —— dsh 自己就会拒绝**（0.1.7-rc.2 实测）：
+  ```
+  $ dsh plugin --profile desktop add ./editor
+  error: profile "desktop" is managed exclusively by the Electron application
+  ```
+  桌面端独占 `$DSH_HOME/profiles/desktop`：那里的包操作持有 profile 事务锁，启动恢复还会重命名
+  `cordis.patch.yml`。所以 `install.sh` 也**拒绝** `--profile desktop` 并指向应用内安装 —— 两边一致，
+  而不是某一方偷偷绕过去。（只想在本机模拟 profile 形状时可设 `DSH_ALLOW_DESKTOP_PROFILE=1`。）
+- **预设那一侧不用做任何事**：`$DSH_HOME/.agent-presets/` 是桌面端与 CLI 共享的产品数据，
+  预设由插件首次激活时落盘。
+- 万一某个第三方 bundle 让应用起不来：原生恢复对话框提供**「禁用第三方插件」**，已安装的包与插件数据都留在磁盘上。
+
+**兼容性是声明出来的，不是猜的。** dsh 会拿每个插件的 `peerDependencies["@deepseek-ai/dsh"]` 与运行时
+版本比对（含预发布版），范围不覆盖就给出警告 —— 所以"某条线的桌面端构建"天然被覆盖。本插件声明的就是
+**经过测试的那几条 0.1.x 线**；新的 `0.2.x` 线在适配并重测之前**故意留在范围之外**，因为"大概能用"的范围
+正是会变成支持工单的那种声明。
 
 想同时留下源码（或者不用 npm 安装），就 clone 下来跑脚本，它把同样两件事显式做一遍：
 
@@ -262,7 +286,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.17
+dsh plugin --profile web add dsh-custom-mode@1.9.18
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

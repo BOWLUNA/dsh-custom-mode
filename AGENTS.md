@@ -80,7 +80,9 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     也就是 `test.yml` 的两条腿 + `release.yml` 发布前各跑一遍的那两条。更早的预览线
     （`0.1.6-alpha.*`）与正式版共用同一套机制，peer 范围仍然接纳它，但**不为每条历史预览线加 CI 腿**：
     成本随版本数线性增长，而两条线之间的机制差异只有一次（≤0.1.6 扫描目录 / ≥0.1.7 声明式注册表）。
-    换主轴版本时，两处都要改：`test.yml` 的 matrix 和 `release.yml` 的两次安装。
+    换主轴版本时，这几处都要一起改：`test.yml` 的 matrix、`release.yml` 的两次安装、`engines.dsh`、
+    `editor/package.json` 的 peer 范围（dsh 的**插件兼容性检查**读的就是它，范围不覆盖运行时就告警）、
+    以及 SECURITY/README 里的版本钉。
 
 11. **The version number is the package's own stable line** (`1.0.0`, `1.0.1`, …) — it does not mirror
    dsh, and it must stay a bare `x.y.z` so directories and markets will auto-install it. Which dsh is
@@ -128,6 +130,16 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     `noRemoveApi`。`test/preset-backend.test.mjs` 钉住两半；`tools/browser-verify.mjs` 的删除断言对
     **API 真值**（磁盘）断言，并覆盖**两条确认路径**（壳内 `RiskConfirmation` / 原生 `confirm`）。
     1.9.14 之前这条线根本删不掉，而它正是官方桌面端跑的那条。
+
+18. **桌面端的 `profiles/desktop` 不是 CLI 的地盘。** 官方桌面端（dsh 仓库 `apps/desktop`，与 dsh
+    **同版本号**发布）独占 `$DSH_HOME/profiles/desktop`：那里的包操作持有 profile 事务锁，启动恢复还会
+    自己重命名 `cordis.patch.yml`。实测（0.1.7-rc.2）：`dsh plugin --profile desktop add ./editor` 直接报
+    `error: profile "desktop" is managed exclusively by the Electron application` —— 也就是说 CLI 这条路
+    **在运行时就被拒**，不是"约定俗成"。所以 `install.sh` 对 `--profile desktop` 同样拒绝并指路
+    **应用内 Plugins 页**（`DSH_ALLOW_DESKTOP_PROFILE=1` 只给本机模拟测试用）。预设那一侧不用特殊处理：
+    `.agent-presets/` 是桌面端与 CLI 共享的产品数据。
+    顺带记住：dsh 会用 `peerDependencies["@deepseek-ai/dsh"]` 做**插件兼容性检查**（预发布版也算），
+    所以"支持某条线"的正式表述就是那个范围 —— 新线落进来时先适配重测再改范围（与第 10 条一起改）。
 
 ## Known traps (all measured)
 

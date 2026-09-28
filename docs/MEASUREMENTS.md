@@ -1551,3 +1551,52 @@ After aligning to those numbers, `tools/browser-verify.mjs` asserts them so the 
 hand-painted checkboxes". Full gate: **65/65** on `0.1.7-rc.2`.
 
 Screenshots: `docs/images/` (regenerated from this build) and `editor/assets/storefront-0*.png`.
+
+## 30. The desktop app is already in the repository; an undeclared 0.2.0 is not (2026-09-27)
+
+The question: dsh 0.2.0 (with the desktop app) was said to be close, and plugins might be adaptable early —
+is it already published but simply unannounced? Measured on 2026-09-27:
+
+```
+$ npm view @deepseek-ai/dsh dist-tags
+{ "latest": "0.1.7-rc.2", "alpha": "0.1.7-alpha.2", "next": "0.1.7-rc.2" }
+$ npm view @deepseek-ai/dsh versions --json | tail
+... 0.1.7-alpha.1, 0.1.7-alpha.2, 0.1.7-rc.1, 0.1.7-rc.2        (27 versions; nothing 0.2.x)
+$ curl -s https://raw.githubusercontent.com/deepseek-ai/deepseek-harness/master/package.json | head -3
+{ "name": "@deepseek-ai/dsh-root", "version": "0.1.7-rc.2", ...
+$ gh api repos/deepseek-ai/deepseek-harness/git/refs/tags --jq '.[].ref' | tail -2
+refs/tags/dsh-v0.1.7-rc.1
+refs/tags/dsh-v0.1.7-rc.2
+```
+
+So there is no undeclared 0.2.0 to adapt to: the published runtime, the repository head and the newest tag
+are all 0.1.7-rc.2. What *is* already in the repository is the **desktop application**:
+
+```
+apps/desktop/package.json       "@deepseek-ai/dsh-desktop"       0.1.7-rc.2   "private": true
+apps/desktop-host/package.json  "@deepseek-ai/dsh-desktop-host"  0.1.7-rc.2   "private": true
+```
+
+Both are private packages, so they ship as signed Electron installers rather than on npm. The app is
+"an Electron shell around the complete dsh Web application", and its release-identity rule is that Electron
+and `@deepseek-ai/dsh` always carry the same exact version. That makes the desktop a target that can be
+supported **today**, without waiting for 0.2.0 — provided the plugin is installed the way the app allows.
+
+The app owns `$DSH_HOME/profiles/desktop`, and that is not a convention — the CLI is refused at runtime:
+
+```
+$ DSH_HOME=/root/dsh-desktop-lab dsh plugin --profile desktop add ./editor
+error: profile "desktop" is managed exclusively by the Electron application
+```
+
+`install.sh` now refuses that profile with the same advice (install from the app's **Plugins** page;
+`DSH_ALLOW_DESKTOP_PROFILE=1` exists only for local simulations of the profile shape), so the script and the
+runtime agree instead of one working around the other. The preset half needs nothing special:
+`.agent-presets/` is product data shared by the desktop app and the CLI, and the plugin seeds it on first
+activation.
+
+Compatibility has a declared mechanism, and that is what a future line has to satisfy: dsh evaluates every
+plugin peer dependency on `@deepseek-ai/dsh` against the running runtime (prereleases included) and warns
+when the range does not cover it — `packages/boot/app-boot/src/plugin-compatibility.ts`, tests alongside.
+Our range deliberately stops below `0.2.0-0`, so a 0.2.x runtime gets that warning until the line is adapted
+and re-tested, instead of a silent "probably fine".
