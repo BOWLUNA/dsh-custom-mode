@@ -109,6 +109,33 @@ jobs:
           echo "::error::发布失败，日志见上。"
           exit 1
 
+      # ★ 桌面端可直接导入的 .dshpreset（zip：manifest.json + preset/ 五个文件）。
+      #   PUBLISHING 一直写着每个 Release 都带一个，但此前这条工作流并不产出它 ——
+      #   于是 Releases 面板只有源码包，桌面端用户得自己 clone 再导入。
+      #   sourceDshVersion 是**本次适配的 dsh 版本**（不是插件版本），与 test.yml 的 matrix、
+      #   engines.dsh 的钉子同源；换 dsh 线时一起改（见 AGENTS.md 第 10 条）。
+      - name: 打包 .dshpreset（桌面端可直接导入）
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python3 - <<'ZIP'
+          import json, zipfile, datetime, os
+          FILES = ['agent.cordis.yml', 'preset.yml', 'prompt.md', 'prompt-reader.mjs', 'prompt-tool.mjs']
+          manifest = {
+              'format': 'dsh-preset',
+              'version': 1,
+              'id': 'custom',
+              'name': '自定义模式 / Custom mode',
+              'description': 'Editable system prompt, base mode and per-row plugin switches — several assistants side by side.',
+              'sourceDshVersion': '0.2.0-rc.2',
+              'exportedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+          }
+          with zipfile.ZipFile('dsh-custom-mode.dshpreset', 'w', zipfile.ZIP_DEFLATED) as z:
+              z.writestr('manifest.json', json.dumps(manifest, ensure_ascii=False, indent=2))
+              for name in FILES:
+                  z.write(os.path.join('preset', name), 'preset/' + name)
+          ZIP
+          unzip -l dsh-custom-mode.dshpreset
+
       # ★ 建 GitHub Release。原先这条工作流只发 npm，所以仓库的 Releases 面板一直停在旧版本，
       #   而 README / 代码其实早就更新了 —— 一个纯粹"看不见"的缺口。
       #   正文直接从 CHANGELOG 抠出本 tag 那一节，不另写一份会漂移的文案。
@@ -129,4 +156,4 @@ jobs:
             const next = rest.indexOf("\n## [");
             fs.writeFileSync(out, (next === -1 ? rest : rest.slice(0, next)).trimEnd() + "\n");
           ' "$VER" CHANGELOG.md /tmp/release-notes.md
-          gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md
+          gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md dsh-custom-mode.dshpreset
