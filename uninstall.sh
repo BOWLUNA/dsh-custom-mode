@@ -37,10 +37,10 @@ MSG
 fi
 
 echo "==> 移除设置页插件"
-# 包名从仓库的 editor/package.json 读取，与 install.sh 用同一来源，避免不一致。
+# 包名从仓库根 package.json 读取，与 install.sh 用同一来源，避免不一致。
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PKG_NAME="$(cd "$ROOT" && node tools/package-facts.mjs editor name 2>/dev/null || true)"
-[ -n "$PKG_NAME" ] || { echo "无法从 editor/package.json 读取包名" >&2; exit 1; }
+PKG_NAME="$(cd "$ROOT" && node tools/package-facts.mjs name 2>/dev/null || true)"
+[ -n "$PKG_NAME" ] || { echo "无法从 package.json 读取包名" >&2; exit 1; }
 
 if command -v dsh >/dev/null 2>&1; then
   dsh plugin --profile "$PROFILE" remove "$PKG_NAME" || true

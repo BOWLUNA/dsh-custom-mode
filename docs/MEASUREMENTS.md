@@ -1671,3 +1671,75 @@ lab machine: `unresolvableRows()` probes the tree that `@deepseek-ai/dsh-agent-p
 on that machine was the repository's own fixture copy, not the host under test. With the host installed
 into the repository the way CI does it (`npm install --no-save @deepseek-ai/dsh@0.2.0-rc.1`), the same
 check passes. Worth writing down because the failure looks like a product bug and is not.
+
+## 32. 1.10.0: dsh 0.2.0-rc.2 on a clean home, and the repository root becomes the package (2026-09-30)
+
+**1. The npm one-click path, run for real on rc.2.** A throwaway `DSH_HOME`, `dsh` = 0.2.0-rc.2:
+
+```
+$ export DSH_HOME=/tmp/dsh-rc2-verify; mkdir -p "$DSH_HOME"
+$ dsh plugin --profile web list
+dsh: initialized profile web at /tmp/dsh-rc2-verify/profiles/web
+$ systemd-run --unit=rc2-official --collect --wait --pipe -p MemoryMax=1000M \
+    --setenv=DSH_HOME=/tmp/dsh-rc2-verify dsh plugin --profile web add dsh-custom-mode
+dependencies:
++ dsh-custom-mode ^1.9.19
+Done in 242ms using pnpm v12.4.2          ← unit runtime 640ms, memory peak 44.1M
+$ dsh --profile web --dump-config | grep -c '^- id: '
+184
+$ dsh --profile web --dump-config | grep -A1 'dsh-custom-mode'
+# == dsh-custom-mode
+  name: dsh-custom-mode
+```
+
+**2. Booted it too — seeding and registration both happen.**
+
+```
+custom-mode: 已播种 preset 到 /tmp/dsh-rc2-verify/.agent-presets/custom（新建 5 个文件: agent.cordis.yml,
+  preset.yml, prompt.md, prompt-reader.mjs, prompt-tool.mjs）
+custom-mode: backend=declarative · 有: list,register,inventory,select,document · 无: remove,copy,read
+custom-mode: 已注入 95 个出厂行模块名（compositionInventory）
+custom-mode: 已取回 4 个基础模式的出厂组成（standard、ptc、minimal、cordis）
+custom-mode: 声明式注册表同步完成 —— 目标 1 个助手，成功 1 个（custom）
+```
+
+So on 0.2.0-rc.2 the install, composition, seeding and registration steps are step-for-step what
+0.2.0-rc.1 did: **no code change was needed**, because the declared range already covered
+`>=0.2.0-0 <0.3.0-0`. 1.10.0's action here is verification plus moving the CI pin.
+
+**3. The GitHub-URL install still works — and that is the point.** The same command against
+`github:BOWLUNA/dsh-custom-mode` (which reads the repository-root manifest) succeeds:
+
+```
++ dsh-custom-mode github:BOWLUNA/dsh-custom-mode
+Done in 1.8s using pnpm v12.4.2
+```
+
+It worked before 1.10.0 as well (`private: true` does not stop pnpm) — but the manifest it read was *not*
+the one npm published, and that is exactly what made catalogues render `#editor` and made dshfind report
+"not published to npm".
+
+**4. The published package did not change.** `npm pack --dry-run` from the repository root:
+
+```
+LICENSE, README.i18n.yaml, README.md, README.zh.md, assistants.mjs, atomic.mjs, base-composition.mjs,
+client.js, composition.mjs, cordis.patch.yml, index.mjs, journal.mjs, locales.mjs, meta.mjs, package.json,
+paths.mjs, preset-backend/declarative.mjs, preset-backend/detect.mjs, preset-backend/index.mjs,
+preset-backend/parse-composition.mjs, preset/agent.cordis.yml, preset/preset.yml, preset/prompt-reader.mjs,
+preset/prompt-tool.mjs, preset/prompt.md, seed.mjs
+total files 26 size 149kB
+```
+
+Against 1.9.19's tarball the runtime files are identical (and `editor/preset/` already was byte-identical to
+`preset/`), so what a user installs is unchanged; the only additions are npm's own auto-includes
+(`README*`), because the repository README is the npm landing page now.
+
+**5. Guards.** `node test/run.mjs` → 15 suites / **805 checks** (the manifests suite was rewritten for the
+single manifest; the seed suite now asserts the packaged preset *is* `preset/` instead of that two copies
+match). `verify-doc-numbers`, `verify-translation-pairing`,
+`verify-version-consistency --dsh 0.2.0-rc.2` and `--dsh 0.1.7-rc.2`, and `bash -n` on both scripts all
+pass.
+
+> Sections above this one mention `editor/...` paths: those are records of the **pre-1.10.0** layout and are
+> kept as measured. From 1.10.0 the package is the repository root, so drop the `editor/` prefix
+> (`client.js`, `index.mjs`, `preset/`, `package.json`).

@@ -3,7 +3,7 @@
  *
  * Run: node test/client-bundle.test.mjs
  *
- * Why this exists: `editor/client.js` is a hand-written client bundle, and the way it fails is
+ * Why this exists: `client.js` is a hand-written client bundle, and the way it fails is
  * **silent**. `docs/ARCHITECTURE.md` §3 records the one that actually happened: the bundle was in the
  * module graph, served, and at the right revision — but the page never appeared, because the client
  * registry guards service reads and `apply` was rejected. The fix was exporting `inject`. Nothing
@@ -23,7 +23,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)))
-const BUNDLE = join(REPO, 'editor', 'client.js')
+const BUNDLE = join(REPO, 'client.js')
 const ATOMS = '@deepseek-ai/dsh-client-ui-primitives'
 
 let passed = 0
@@ -38,7 +38,7 @@ const check = (label, condition, detail = '') => {
   }
 }
 
-const pkg = JSON.parse(readFileSync(join(REPO, 'editor', 'package.json'), 'utf8'))
+const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
 
 /** Enough React for a factory that only DEFINES components — nothing is rendered here. */
 const reactStub = {

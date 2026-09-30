@@ -27,7 +27,7 @@ body:
     id: plugin-version
     attributes:
       label: Plugin version / commit
-      description: 'the `version` in `editor/package.json`, or `git rev-parse --short HEAD`'
+      description: 'the `version` in `package.json`, or `git rev-parse --short HEAD`'
       placeholder: 1.0.0 / ec34aa6
     validations:
       required: true

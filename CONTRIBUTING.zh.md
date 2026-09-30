@@ -24,8 +24,8 @@ Node ES 模块。保持这样是设计的一部分，不是巧合。
 
 ## 开发循环
 
-前提：Node.js ≥ 20、`git`，以及与 `editor/package.json` 同版本的 `dsh`
-（当前 `0.1.6-alpha.2`；版本不一致先看 README 的「耦合点清单」）。
+前提：Node.js ≥ 20、`git`，以及与 `package.json` 同版本的 `dsh`
+（当前 `0.2.0-rc.2`；版本不一致先看 README 的「耦合点清单」）。
 
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode
@@ -40,7 +40,7 @@ DSH_HOME=/tmp/dsh-dev ./install.sh
 DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open     # 打开它打印的那个 URL
 ```
 
-改 `editor/client.js` 会被客户端 HMR 在约 1 秒后接上 —— 不用重启、不用刷新。改宿主半
+改 `client.js` 会被客户端 HMR 在约 1 秒后接上 —— 不用重启、不用刷新。改宿主半
 （`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）才需要重启。
 
 截图是**跑出来的**，不是拍出来的：`tools/screenshots/` 用 CDP 驱动真实实例。请用它，不要手工改图。
@@ -59,7 +59,7 @@ DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open     # 打开它打印的那�
   `test/editor-route.test.mjs` 现在断言源码里这两个调用都不存在。）*
 - **插件行在任何 profile 都要能激活。** 等服务的写法属于作用域化的 `ctx.inject`，不能写进行级
   `inject` —— 否则没有 web 服务器的 profile 会打印出与"安装损坏"完全相同的那行警告。
-- **两份 `{{…}}` 校验必须同步**（`editor/index.mjs` 与 `preset/prompt-tool.mjs`）。它们是有意重复的；
+- **两份 `{{…}}` 校验必须同步**（`index.mjs` 与 `preset/prompt-tool.mjs`）。它们是有意重复的；
   一旦分叉，就意味着一处写入路径会接受渲染器会抛错的写法，也就是那个模式每个请求都失败。
 - **`client.js` 里的词典副本必须与 `locales.mjs` 同步。** 浏览器半无法 import 它，所以有测试把两份
   抽出来逐条比对。
@@ -80,7 +80,7 @@ node tools/verify-translation-pairing.mjs --write   # 两侧都跟上之后再�
 ## 版本号
 
 包版本走**自己的线**（`1.0.0`、`1.0.1` ……），不镜像 DSH 的版本号。本插件支持哪些 dsh，由
-`editor/package.json` 的 `engines.dsh` 与 peer 范围声明；`tools/verify-version-consistency.mjs` 断言
+`package.json` 的 `engines.dsh` 与 peer 范围声明；`tools/verify-version-consistency.mjs` 断言
 CI 实测的 dsh 版本落在这些范围内。每次发布都要换版本号（npm 不允许同版本重发），重新适配到更新的 dsh 时
 把范围放宽。见 README 的「版本」。
 

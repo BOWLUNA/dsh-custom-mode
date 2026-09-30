@@ -14,8 +14,8 @@ The checklist below exists for exactly those failure modes.
 
 - [ ] `node test/run.mjs` is green across all 13 suites, and `node tools/verify-doc-numbers.mjs` agrees with
       whatever number the docs claim (it runs the suite itself — do not paste counts by hand)
-- [ ] Changed a string in `editor/client.js` → also changed `editor/locales.mjs` (section 6 catches drift)
-- [ ] Changed anything about the private route in `editor/index.mjs` → it is still registered through
+- [ ] Changed a string in `client.js` → also changed `locales.mjs` (section 6 catches drift)
+- [ ] Changed anything about the private route in `index.mjs` → it is still registered through
       `ctx.connection.fetch.register(...)` on the fenced `/api` channel (never the raw `webServer` table), and
       `test/editor-route.test.mjs` still passes
 - [ ] Changed the text surgery in `composition.mjs` → untouched rows are still byte-identical to the shipped ones (including `!!js` conditions and rows that ship disabled)
@@ -27,7 +27,7 @@ The checklist below exists for exactly those failure modes.
 ## Compatibility
 
 - [ ] No new dsh-internal API is introduced; **if one is**, it was added to the coupling-point table in the README (that table exists so an upgrade can be checked off)
-- [ ] `editor/package.json`'s `version` still matches the dsh release this plugin is adapted to
+- [ ] `package.json`'s `version` is bumped (it is the package's own stable line, not the dsh version)
 
 ## Notes
 

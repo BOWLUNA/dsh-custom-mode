@@ -16,19 +16,17 @@
  *     the images match the README they illustrate;
  *   - no absolute paths from the shooting machine end up in the frame (`bottomInset`).
  *
- * Output (five canonical names + the four storefront copies the catalogue reads):
+ * Output (five canonical names — these are exactly what `screenshots.json` at the repository root
+ * lists, so a catalogue card and the README show the same files, with one copy of each in the repo):
  *
  *   01-mode-switch.png        800x800  settings dialog: mode name + base mode
  *   02-plugin-switches.png    800x800  settings dialog: plugin rows, tri-state badges
  *   03-system-prompt.png      800x800  settings dialog: prompt editor + change history
  *   04-preset-picker.png      <=800    new-session mode picker with the custom modes listed
  *   05-assistant-manager.png  <=800    the assistant section, dropdown open, two assistants
- *
- * plus `storefront-0{1..4}-*.png` (the same four views under the names `editor/screenshots.json`
- * declares for the plugin directory).
  */
 
-import { mkdirSync, copyFileSync, readFileSync, statSync } from 'node:fs'
+import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { connect } from './cdp.mjs'
 
@@ -255,15 +253,6 @@ if (popup === null) {
 await shoot('04-preset-picker.png', (file) => session.screenshotBox(file, PANEL))
 await session.close()
 
-// ── 商店用的一组（editor/screenshots.json 声明的名字）─────────────────
-const STOREFRONT = [
-  ['01-mode-switch.png', 'storefront-01-assistant-manager.png'],
-  ['02-plugin-switches.png', 'storefront-02-plugin-switches.png'],
-  ['03-system-prompt.png', 'storefront-03-system-prompt.png'],
-  ['04-preset-picker.png', 'storefront-04-mode-picker.png'],
-]
-for (const [from, to] of STOREFRONT) copyFileSync(join(out, from), join(out, to))
-console.log('商店副本:', STOREFRONT.map((pair) => pair[1]).join(', '))
 console.log(JSON.stringify(report, null, 1))
 
 /** PNG 的宽高就在 IHDR 里（前 24 字节），不必装图像库。 */

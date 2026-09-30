@@ -36,7 +36,7 @@ export const PRESET_FILES = [
   'prompt-tool.mjs',
 ]
 
-/** Directory of the packaged copy: `editor/preset/` beside this module. */
+/** Directory of the packaged copy: `preset/` beside this module (the package root is the repo root). */
 export function packagedPresetDir() {
   return join(dirname(fileURLToPath(import.meta.url)), 'preset')
 }

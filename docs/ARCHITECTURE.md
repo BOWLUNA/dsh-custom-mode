@@ -55,7 +55,7 @@ Two easy-to-get-wrong points:
 for (const anchor of [installAnchor, join(profileDir, "package.json")]) { … }
 ```
 
-So a package installed into the profile by `dsh plugin --profile <p> add ./editor` can be resolved, without needing to be installed into the dsh install directory.
+So a package installed into the profile by `dsh plugin --profile <p> add .` can be resolved, without needing to be installed into the dsh install directory.
 
 ## 3. `dsh.client.inject` must be declared (this bug kept the page from appearing at first)
 
@@ -217,7 +217,7 @@ const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
 
 The consequence of throwing is not "this sentence has no effect" but **every request in that mode fails**. So both write paths validate before writing to disk, and only let through `model` / `cwd` / `provider` (the three registered by `dsh-agent-loop`).
 
-The validation logic exists as **one copy each** in `preset/prompt-tool.mjs` and `editor/index.mjs`, and the duplication is intentional: this way the preset does not have to depend on the editor's install location, and the editor's path stays configurable.
+The validation logic exists as **one copy each** in `preset/prompt-tool.mjs` and `index.mjs`, and the duplication is intentional: this way the preset does not have to depend on the package's install location, and the editor's path stays configurable.
 
 ## 8. Debugging methods (useful next time this plugin is changed)
 
@@ -259,14 +259,14 @@ Two reusable conclusions:
 
 ### The development loop changes accordingly
 
-Change `editor/client.js` → **the page updates by itself about 1 second later**, with no need to restart `dsh web` and no need to refresh. Only changes to the **host half** (`index.mjs`/`composition.mjs`/`meta.mjs`) need a restart — those are rows in the main process.
+Change `client.js` → **the page updates by itself about 1 second later**, with no need to restart `dsh web` and no need to refresh. Only changes to the **host half** (`index.mjs`/`composition.mjs`/`meta.mjs`) need a restart — those are rows in the main process.
 
 ## 11. A path trap that cost a great deal of time
 
-`install.sh` **links the editor package to the repository directory**:
+`install.sh` **links the repository itself into the profile** (the repository root is the package since 1.10.0):
 
 ```
-profiles/web/node_modules/dsh-custom-mode -> <repo>/editor
+profiles/web/node_modules/dsh-custom-mode -> <repo>
 ```
 
 So **the repository is the live code**. The `$DSH_HOME/custom-mode/` that once existed was a **stale copy** of an earlier layout; writing files there has no effect whatsoever (the client bundle's `artifactBaseline` reports the size of the other copy). That directory has been deleted to avoid further misleading.
@@ -330,7 +330,7 @@ It does — that is what it is for:
 
 The only genuinely single-instance part was the **settings page**: `paths.mjs` hard-codes the prompt path
 as `.../custom/prompt.md`, there is one route, and the browser half assumes one mode. So this change
-lands entirely in the editor package; not one composition file under `preset/` moved.
+lands entirely in the plugin package; not one composition file under `preset/` moved.
 
 ### 13.1 Which directories this tool owns (the test is a safety boundary)
 
@@ -568,7 +568,7 @@ Measured on a throwaway instance (see MEASUREMENTS §27 for the raw output):
 (measured; `parse-composition.mjs` rules the same route out when building `register()` rows).
 `readDocument()` keeps the groups and the `!!js` expressions, which is why the resolver prefers it.
 
-The resolver lives in `editor/base-composition.mjs` and tries, in order: `DSH_SHIPPED_PRESETS_DIR`
+The resolver lives in `base-composition.mjs` and tries, in order: `DSH_SHIPPED_PRESETS_DIR`
 (explicit, and exclusive so discovery cannot wander) → the host-declared text → the legacy presets directory →
 the packaged patch (text surgery on its `plugins:` block, comments and `!!js` kept byte-for-byte). Nothing
 left is a **typed** `baseCompositionUnavailable`, never a bare 500.

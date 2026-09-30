@@ -84,9 +84,9 @@ checkCount('README.zh.md', /(\d+) 个套件/, '套件数', real.suiteRuns)
 checkCount('README.zh.md', /(\d+) 项检查/, '检查数', real.checks, real.skipped === true)
 
 // 2) 声明的 dsh 范围必须出现在包 README 与仓库 README 里
-const manifest = JSON.parse(readFileSync(join(REPO, 'editor', 'package.json'), 'utf8'))
+const manifest = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
 const range = manifest.engines.dsh
-for (const rel of ['README.md', 'editor/README.md']) {
+for (const rel of ['README.md']) {
   const text = readFileSync(join(REPO, rel), 'utf8')
   if (text.includes(range) === false) problems.push(`${rel} 里没有出现声明的 dsh 范围 ${range}`)
 }

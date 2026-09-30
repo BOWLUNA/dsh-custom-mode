@@ -1582,3 +1582,71 @@ $ node tools/browser-verify.mjs --url <url> --out /root/verify020.png
 原样成立 —— 在应用内的 Plugins 页安装。
 
 **5. 有一条实测不是任何一方的 bug，但值得记下。** seed 套件那条 P0 检查（「派生组成里每一条启用的行都能在本机安装里解析」）失败过一次，列出 23 行。原因在这台机器的布局：`unresolvableRows()` 探测的是 `@deepseek-ai/dsh-agent-presets` 解析到的那棵树，而当时它指向仓库里那份夹具副本，不是被测宿主。把宿主按 CI 的方式装进仓库（`npm install --no-save @deepseek-ai/dsh@0.2.0-rc.1`）之后，同一条检查通过。写下来是因为这个失败看起来像产品 bug，其实不是。
+
+## 32. 1.10.0：干净 home 上的 dsh 0.2.0-rc.2，以及仓库根变成发布包（2026-09-30）
+
+**1. npm 一键安装这条主路，在 rc.2 上真装了一遍。** 一次性 `DSH_HOME`，`dsh` = 0.2.0-rc.2：
+
+```
+$ export DSH_HOME=/tmp/dsh-rc2-verify; mkdir -p "$DSH_HOME"
+$ dsh plugin --profile web list
+dsh: initialized profile web at /tmp/dsh-rc2-verify/profiles/web
+$ systemd-run --unit=rc2-official --collect --wait --pipe -p MemoryMax=1000M \
+    --setenv=DSH_HOME=/tmp/dsh-rc2-verify dsh plugin --profile web add dsh-custom-mode
+dependencies:
++ dsh-custom-mode ^1.9.19
+Done in 242ms using pnpm v12.4.2          ← 瞬态 unit 实跑 640ms，内存峰值 44.1M
+$ dsh --profile web --dump-config | grep -c '^- id: '
+184
+$ dsh --profile web --dump-config | grep -A1 'dsh-custom-mode'
+# == dsh-custom-mode
+  name: dsh-custom-mode
+```
+
+**2. 还真启动了一次 —— 播种与注册都发生了。**
+
+```
+custom-mode: 已播种 preset 到 /tmp/dsh-rc2-verify/.agent-presets/custom（新建 5 个文件: agent.cordis.yml,
+  preset.yml, prompt.md, prompt-reader.mjs, prompt-tool.mjs）
+custom-mode: backend=declarative · 有: list,register,inventory,select,document · 无: remove,copy,read
+custom-mode: 已注入 95 个出厂行模块名（compositionInventory）
+custom-mode: 已取回 4 个基础模式的出厂组成（standard、ptc、minimal、cordis）
+custom-mode: 声明式注册表同步完成 —— 目标 1 个助手，成功 1 个（custom）
+```
+
+也就是说 0.2.0-rc.2 上的安装、组合、播种、注册与 0.2.0-rc.1 逐步一致：**不需要改代码**，因为声明范围
+本来就覆盖 `>=0.2.0-0 <0.3.0-0`。1.10.0 在这件事上的动作是"验证 + 把 CI 钉子挪过去"。
+
+**3. GitHub 地址安装这条老路仍然可用 —— 而这正是重点。** 同一条命令换成
+`github:BOWLUNA/dsh-custom-mode`（读仓库根清单）照样成功：
+
+```
++ dsh-custom-mode github:BOWLUNA/dsh-custom-mode
+Done in 1.8s using pnpm v12.4.2
+```
+
+1.10.0 之前它也能装（`private: true` 不会让 pnpm 拒绝），但它读的清单**不是** npm 发布的那一份 ——
+这恰恰是目录站显示 `#editor`、dshfind 报"尚未发布到 npm"的原因。
+
+**4. 发布包本身没有变。** 在仓库根跑 `npm pack --dry-run`：
+
+```
+LICENSE, README.i18n.yaml, README.md, README.zh.md, assistants.mjs, atomic.mjs, base-composition.mjs,
+client.js, composition.mjs, cordis.patch.yml, index.mjs, journal.mjs, locales.mjs, meta.mjs, package.json,
+paths.mjs, preset-backend/declarative.mjs, preset-backend/detect.mjs, preset-backend/index.mjs,
+preset-backend/parse-composition.mjs, preset/agent.cordis.yml, preset/preset.yml, preset/prompt-reader.mjs,
+preset/prompt-tool.mjs, preset/prompt.md, seed.mjs
+total files 26 size 149kB
+```
+
+与 1.9.19 的 tarball 对照，运行时文件完全相同（而 `editor/preset/` 本来就和 `preset/` 逐字节一致），
+所以用户装到的东西没变；多出来的只有 npm 自动包含的 `README*`，因为仓库 README 现在就是 npm 落地页。
+
+**5. 守门。** `node test/run.mjs` → 15 套件 / **805 项**（manifests 套件按"单一清单"重写；seed 套件
+从"两份预设逐字节一致"改成"包内预设**就是** `preset/`"）。`verify-doc-numbers`、
+`verify-translation-pairing`、`verify-version-consistency --dsh 0.2.0-rc.2` 与 `--dsh 0.1.7-rc.2`、
+两个脚本的 `bash -n` 全过。
+
+> 本节之前的各节里出现的 `editor/...` 路径，是 **1.10.0 之前**布局的实测记录，按原样保留；
+> 1.10.0 起包就在仓库根，对应路径去掉 `editor/` 前缀即可（`client.js`、`index.mjs`、`preset/`、
+> `package.json`）。

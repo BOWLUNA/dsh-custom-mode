@@ -30,7 +30,7 @@ const REPO = dirname(HERE)
 const PACKAGE = '@deepseek-ai/dsh-agent-presets'
 
 // 与产品同一条解析/派生实现（base-composition.mjs），避免"测试里能跑、真机上不行"。
-const { BASE_MODE_IDS, extractPluginsBlock, patchPresetsDir } = await import('../editor/base-composition.mjs')
+const { BASE_MODE_IDS, extractPluginsBlock, patchPresetsDir } = await import('../base-composition.mjs')
 
 /** The four modes this repo compiles against; a presets dir without them is wrong. */
 const REQUIRED_MODES = ['standard', 'ptc', 'minimal', 'cordis']

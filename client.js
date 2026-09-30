@@ -55,7 +55,7 @@ try {
       const ATOMS_MODULE = "@deepseek-ai/dsh-client-ui-primitives"
 
       /**
-       * Copy for this page, generated from editor/locales.mjs (single source of
+       * Copy for this page, generated from locales.mjs (single source of
        * truth, checked for key parity by test/locales.test.mjs).
        */
       const ZH = {

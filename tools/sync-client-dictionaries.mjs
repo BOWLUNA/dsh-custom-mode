@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Regenerate the dictionaries inlined in `editor/client.js` from `editor/locales.mjs`.
+ * Regenerate the dictionaries inlined in `client.js` from `locales.mjs`.
  *
  * Why this exists: the browser bundle cannot import (it is a plain script the module
  * system evaluates), so its ZH/EN copies are written into the file. Hand-copying them
@@ -16,10 +16,10 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { zh, en } from '../editor/locales.mjs'
+import { zh, en } from '../locales.mjs'
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
-const CLIENT = join(REPO, 'editor', 'client.js')
+const CLIENT = join(REPO, 'client.js')
 const OPEN = '      const ZH = {'
 const TRANSLATIONS = '      const TRANSLATIONS = { zh: ZH, en: EN }'
 

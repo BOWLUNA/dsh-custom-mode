@@ -7,29 +7,30 @@
 | 产物 | 类型 | 分发方式 |
 |---|---|---|
 | `preset/` | agent preset（**文件目录**） | 复制到 `$DSH_HOME/.agent-presets/<id>/` |
-| `editor/` | profile bundle 插件（**npm 包**） | `dsh plugin --profile <p> add <包名或路径>` |
+| 仓库根 | profile bundle 插件（**npm 包**） | `dsh plugin --profile <p> add <包名或路径>` |
 
 agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` 是从磁盘目录发现的。
 
-**商店截图。** `editor/screenshots.json` 列出 `editor/assets/` 下的四张图；插件市场与
-[目录站](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) 读的是**本仓库**里的这个文件
-（不是 npm 包里的 —— `assets/` 故意不在包的 `files` 白名单里），所以换图只需往这里推一次，别的都不用做。
+**商店截图。** 仓库根的 `screenshots.json` 列出 `docs/images/` 下的五张图；插件市场与
+[目录站](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) 读的是**本仓库**里的这个文件
+（不是 npm 包里的 —— 图故意不在包的 `files` 白名单里），所以换图只需往这里推一次，别的都不用做。
+每张图只有一份，就是 README 用的那几张，所以卡片与 README 不可能对不上。
 实测 2026-09-25：目录里 4311 个条目中有 840 个带精选截图，没有截图的卡片放在旁边就像没做完。
 
-## 生态里有哪些地方收录了本插件（2026-09-28 实测）
+## 生态里有哪些地方收录了本插件（2026-09-30 实测）
 
 一共三个站点，值得先弄清楚**哪一个才是真源** —— 只有它对投稿开门：
 
 | 站点 | 是什么 | 怎么进 |
 | --- | --- | --- |
-| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) | **策展注册表**；别的工具大多读它的 README 与数据 | **提一个 PR，加一个 YAML 文件** `data/plugins/<owner>__<repo>.yml`（`url` / `name` / `category` / `description.en`，`zh` 可选），仓库是 [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。我们那条已存在（`BOWLUNA__dsh-custom-mode--editor.yml`，分类 `identity`） |
+| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) | **策展注册表**；别的工具大多读它的 README 与数据 | **提一个 PR，加一个 YAML 文件** `data/plugins/<owner>__<repo>.yml`（`url` / `name` / `category` / `description.en`，`zh` 可选），仓库是 [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。我们那条现在是**根形态**：`BOWLUNA__dsh-custom-mode.yml`，`url` 指向仓库根，`name` 为 `BOWLUNA/dsh-custom-mode`，分类 `identity`。根形态合法，因为仓库根就声明了 `dsh.bundle`；1.10.0 之前用的是 monorepo 子包形态（`…--editor.yml`、`name: BOWLUNA/dsh-custom-mode#editor`），那张卡片上的 `#editor` 后缀正是它渲染出来的 |
 | [**dshmarket.com**](https://dshmarket.com/) | **应用内的插件市场** —— 它自己就是个 dsh 插件（`dsh plugin --profile web add dshmarket`，然后 设置 → 插件市场）。它会读每张卡片声明的 `engines.dsh` / peer 范围来判断与当前宿主是否匹配，并展示插件自己 `screenshots.json` 里的作者精选图 | **不用投稿**。它 README 写得很直白："This repo is the market app, not the catalog." —— 列表跟着上面的注册表走 |
 | [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | 中文学习社区，自带插件索引与官方文档镜像 | **自动聚合**，来源是 GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) —— 所以杠杆是**仓库的 topics**，不是表单。它接受点名重探（见其 issue #41 的做法）；我们已开 [#44](https://github.com/hikariming/dshfind/issues/44)，因为它那张卡片仍写着"尚未发布到 npm"且版本偏旧 |
 
 两条对仓库的推论：
 
 1. **注册表条目就是"上架"本身。** 想改这些站上的卡片，改的是上游那一个 YAML 文件（或请对方重探），
-   不是改这里 —— 唯一的例外是截图，它们读本仓库的 `editor/screenshots.json`。
+   不是改这里 —— 唯一的例外是截图，它们读本仓库的 `screenshots.json`。
 2. **topics 有用**（dshfind 按它聚合，各站的搜索也吃它）：`dsh-plugin` 必须留在仓库上，
    与 `dsh`、`deepseek-harness`、`agent-preset`、`custom-mode`、`assistant-manager`、`multi-agent`、`roleplay` 一起。
 
@@ -43,18 +44,17 @@ cd dsh-custom-mode
 ./install.sh
 ```
 
-脚本会复制 preset 并调用 `dsh plugin add ./editor`（本地路径安装，pnpm 会 link）。
+脚本会复制 preset 并调用 `dsh plugin add .` —— 本地路径安装，pnpm 会 link；仓库根**本身**就是包。
 
-## 方案二：editor 也发到 npm
+## 方案二：也发到 npm
 
-preset 仍然走 clone（它不是 npm 包），editor 单独发 npm。**已发布**：
+preset 仍然走 clone（它不是 npm 包），插件单独发 npm —— 从**仓库根**发，因为仓库根就是包。**已发布**：
 `dsh-custom-mode@0.1.6-alpha.1`（2026-09-17，tag `alpha`）、
-`dsh-custom-mode@0.1.6-alpha.2`（2026-09-18，tag `alpha` 与 `latest`）。
+`dsh-custom-mode@0.1.6-alpha.2`（2026-09-18，tag `alpha` 与 `latest`），`1.x` 线一直发到当前版本。
 
 ```sh
-cd editor
 npm login --auth-type=web          # 首次：浏览器登录
-npm publish --tag alpha            # 显式给 --tag，原因见下
+npm publish --tag latest           # 显式给 --tag，原因见下
 ```
 
 ### 发布前的自查清单
@@ -64,7 +64,9 @@ npm publish --tag alpha            # 显式给 --tag，原因见下
 - [x] `dsh.bundle.patch` 指向的补丁文件在 `files` 里没被漏掉（CI 里有一条对着真实 packlist 的断言）。
 - [x] `dsh.client.platform` 是 `"web"`。
 - [x] `exports["./client"]` 指向浏览器半。
-- [x] `private` 字段已删掉（发布前是 `true`，只用于本地开发）。
+- [x] 根本没有 `private` 字段。这一条**不是形式主义**：第三方探测站就是读仓库的 `package.json`
+      判断「是否已发布到 npm」，根部写着 `private: true`（1.9.x 的包装清单就是这么写的）会让它们报
+      「作者尚未发布到 npm」。
 - [x] `peerDependenciesMeta` 里把不适用的 peer 标成 `optional`，否则用户装完第一眼是一条 WARN。
 
 `files` 白名单已经写好了，而且这件事**不能靠肉眼核对**——最容易踩的坑是"少打了文件"，
@@ -72,27 +74,30 @@ npm publish --tag alpha            # 显式给 --tag，原因见下
 本地也可以随时跑同一件事：
 
 ```sh
-cd editor
+# 在仓库根跑 —— 仓库根就是包
 npm pack --dry-run --json | node -e '
   const files = JSON.parse(require("fs").readFileSync(0, "utf8"))[0].files.map((f) => f.path);
-  const need = ["index.mjs", "client.js", "composition.mjs", "meta.mjs", "paths.mjs", "cordis.patch.yml", "package.json"];
+  const need = ["index.mjs", "client.js", "composition.mjs", "meta.mjs", "paths.mjs", "cordis.patch.yml", "package.json", "preset/prompt.md"];
   const missing = need.filter((name) => !files.includes(name));
   console.log(files.join(", "));
   if (missing.length > 0) { console.error("缺:", missing); process.exit(1); }
 '
 ```
 
-当前应输出（`locales.mjs` 是文档里那份"单一事实来源"，随包发出以免读者找不到它）：
+当前应输出（`locales.mjs` 是文档里那份"单一事实来源"，随包发出以免读者找不到它；`README*` 与
+`LICENSE` 是 npm 自己的自动包含）：
 
 ```
-client.js, composition.mjs, cordis.patch.yml, index.mjs, locales.mjs, meta.mjs, package.json, paths.mjs
+LICENSE, README.i18n.yaml, README.md, README.zh.md, assistants.mjs, atomic.mjs, base-composition.mjs,
+client.js, composition.mjs, cordis.patch.yml, index.mjs, journal.mjs, locales.mjs, meta.mjs, package.json,
+paths.mjs, preset-backend/*.mjs, preset/*, seed.mjs
 ```
 
 ### 三个实测出来的坑
 
 **1）`publishConfig.tag` 不被采纳，必须显式 `--tag`。**
 
-`editor/package.json` 里声明了 `"publishConfig": { "access": "public", "tag": "alpha" }`，
+`package.json` 里声明了 `"publishConfig": { "access": "public", "tag": "alpha" }`，
 但 npm 11.19.0 的 `npm publish --dry-run` 仍然打印 `with tag latest`；只有命令行显式加
 `--tag alpha` 才变成 `with tag alpha`。所以**别赌 publishConfig 被读到**。
 
@@ -122,7 +127,7 @@ client.js, composition.mjs, cordis.patch.yml, index.mjs, locales.mjs, meta.mjs, 
 [WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
 ```
 
-`editor/package.json` 里因此补了：
+`package.json` 里因此补了：
 
 ```json
 "peerDependenciesMeta": { "@deepseek-ai/dsh": { "optional": true } }
@@ -158,7 +163,7 @@ npm 要求每次发布的版本号唯一，而本包的版本号现在是自己�
 
 - **每次发布都递增版本号。** 旧的 `.revN` 后缀（版本号必须镜像 DSH、而重打包又不能重用版本号时的产物）
   取消。
-- **兼容性是"声明"出来的，不是编码在版本号里的。** 支持哪些 DSH，写在 `editor/package.json` 的
+- **兼容性是"声明"出来的，不是编码在版本号里的。** 支持哪些 DSH，写在根 `package.json` 的
   `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围里；`tools/verify-version-consistency.mjs`（CI 执行）
   断言 CI 实际安装并测试的 DSH 版本落在这些范围内。重新适配到更新的 DSH 时，把范围放宽并同步 CI 里钉的
   版本。
@@ -267,7 +272,7 @@ bundle 层，宿主半 import 失败会让 **boot 挂掉**，不是只坏一个�
 
 ## 修改 client.js 之后
 
-改 `editor/client.js` **不需要重启，也不需要刷新页面**：`dsh-client-hmr` 每 ~500ms stat 轮询
+改 `client.js` **不需要重启，也不需要刷新页面**：`dsh-client-hmr` 每 ~500ms stat 轮询
 bundle 文件，约 1 秒后把插件原地换掉（实测证据见 [`ARCHITECTURE.md`](ARCHITECTURE.zh.md) §10）。
 
 只有改**宿主半**（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）才需要重启 ——
@@ -286,7 +291,7 @@ bundle 文件，约 1 秒后把插件原地换掉（实测证据见 [`ARCHITECTU
 - **Topics**（`gh repo edit --add-topic`）：`dsh-plugin` 是必需的（按 topic 索引的市场靠它收录）；再加上别人
   真会输入的词 —— `custom-mode`、`custom-prompt`、`prompt-editor`、`agent-modes`、`multi-mode`、
   `assistant-manager`、`system-prompt`、`deepseek-harness`……
-- **npm 的 `keywords`**（写在 `editor/package.json`）：npm 搜索会读它，而且**只改元数据不会更新到 npm 上**
+- **npm 的 `keywords`**（写在根 `package.json`）：npm 搜索会读它，而且**只改元数据不会更新到 npm 上**
   —— 必须发一个新版本，npm 页面才会变。
 - **社交预览图**（1280×640）：**只能在网页 UI 里设** —— Settings → Social preview。REST API 没有这个端点，
   所以这是唯一无法脚本化、也最容易被忘掉的一步。核对方式：
@@ -299,7 +304,7 @@ bundle 文件，约 1 秒后把插件原地换掉（实测证据见 [`ARCHITECTU
 这张图也是"生成"的而不是画的：在浏览器里排版后按 1280×640 截屏，把 PNG 放进
 `docs/images/social-preview.png`，让真值留在仓库里。
 
-最后是措辞：README 首屏与 npm 落地页（`editor/README.md`）里应当出现人们会搜的说法 —— 包括同义词
+最后是措辞：README 首屏**就是** npm 落地页（npm 渲染仓库根的 `README.md`），里面应当出现人们会搜的说法 —— 包括同义词
 （"custom prompt"、"system-prompt editor"、多助手／多模式）—— 因为在 GitHub 和 npm 上，页面文本本身就是索引。
 
 代码之外，仓库页面上还有几处是别人第一眼会看的。这些只能在网页或 API 上设置，值先记在这里：
@@ -330,7 +335,7 @@ git tag -a v0.1.6-alpha.2 -m "dsh-custom-mode 0.1.6-alpha.2"
 git push origin main && git push origin v0.1.6-alpha.2
 ```
 
-**版本号与 CI 必须同改**：`editor/package.json` 的 version 一动，`.github/workflows/test.yml` 里钉定的
+**版本号与 CI 必须同改**：`package.json` 的 version 一动，`.github/workflows/test.yml` 里钉定的
 `@deepseek-ai/dsh@<version>` 就得跟着动，否则 `tools/verify-version-consistency.mjs` 会失败
 （它防的正是「CI 在旧版本上通过，而发布的包声称适配了从未测过的新版本」）。
 
@@ -390,8 +395,8 @@ gh release create v<版本> --title "v<版本>" --notes-file notes.md dsh-custom
 
 ```sh
 # 之后的发版路径
-node -e "const p=require('./editor/package.json');p.version='1.9.2';require('fs').writeFileSync('editor/package.json',JSON.stringify(p,null,2)+'\n')"
-git commit -am "release 1.9.2" && git tag v1.9.2 && git push --tags
+node -e "const p=require('./package.json');p.version='1.10.0';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+git commit -am "release 1.10.0" && git tag v1.10.0 && git push --tags
 ```
 
 ### 推荐：Trusted Publishing（完全不需要 token）

@@ -9,13 +9,13 @@
  * These assertions make that impossible to ship.
  *
  * Section 6 additionally guards the COPY of the dictionaries that lives in
- * `editor/client.js`: the browser half cannot import them, so drift between the
+ * `client.js`: the browser half cannot import them, so drift between the
  * two files is a real, silent failure mode.
  */
 
 import { readFileSync } from 'node:fs'
-import { zh, en } from '../editor/locales.mjs'
-import { ROW_META, BASE_MODES } from '../editor/composition.mjs'
+import { zh, en } from '../locales.mjs'
+import { ROW_META, BASE_MODES } from '../composition.mjs'
 
 let passed = 0
 let failed = 0
@@ -89,7 +89,7 @@ console.log('=== 5.5 中文词典里不该出现"整句英文" ===')
 
 console.log('=== 6. client.js 里的手抄字典与 locales.mjs 不漂移 ===')
 /**
- * Why this section exists: `editor/locales.mjs` is documented as the single
+ * Why this section exists: `locales.mjs` is documented as the single
  * source of truth, but the browser half cannot import it — the client bundle is
  * hand-written and has no bundler — so `client.js` carries a COPY of both
  * dictionaries. Nothing used to compare the copy against the original, which
@@ -156,14 +156,14 @@ function duplicateKeys(source, variable) {
  * The state belongs to the *file*, and the page already shows the real shipped state (derived from
  * `row.disabled`) in each row's details.
  */
-for (const [name, source] of [['locales.mjs', readFileSync(new URL('../editor/locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')]]) {
+for (const [name, source] of [['locales.mjs', readFileSync(new URL('../locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../client.js', import.meta.url), 'utf8')]]) {
   const offenders = [...source.matchAll(/["']row\.[\w.-]+\.note["']:\s*["']([^"']*)["']/g)]
     .filter((match) => /默认关闭|默认启用|Off by default|enabled by default/.test(match[1]))
     .map((match) => match[0].slice(0, 60))
   check(`${name} 的行标注不写死默认状态（跨线会变成假话）`, offenders.length === 0, JSON.stringify(offenders))
 }
 
-for (const [name, source] of [['locales.mjs', readFileSync(new URL('../editor/locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')]]) {
+for (const [name, source] of [['locales.mjs', readFileSync(new URL('../locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../client.js', import.meta.url), 'utf8')]]) {
   for (const variable of ['ZH', 'EN']) {
     const duplicates = duplicateKeys(source, variable)
     check(`${name} 的 ${variable} 词典没有重复键（后值会静默覆盖前值）`, duplicates.length === 0, JSON.stringify(duplicates))
@@ -173,7 +173,7 @@ for (const [name, source] of [['locales.mjs', readFileSync(new URL('../editor/lo
 let clientZh
 let clientEn
 try {
-  const clientSource = readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')
+  const clientSource = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
   clientZh = extractDictionary(clientSource, 'ZH')
   clientEn = extractDictionary(clientSource, 'EN')
   check('能从 client.js 解析出 ZH / EN', true)
@@ -208,7 +208,7 @@ if (clientZh !== undefined && clientEn !== undefined) {
 // （实测：英文界面删除确认弹窗渲染出 `… cannot be undone.（custom）`）。
 // 这条断言直接扫源码：任何 `t("…") + "<全角标点>"` 都是回归。
 {
-  const clientSource = readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')
+  const clientSource = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
   // 只找"翻译调用后面紧跟硬编码全角标点"的形状；词典条目里的全角标点不受影响
   // （那是文案本身，中文本来就要用全角）。
   const offenders = [...clientSource.matchAll(/\bt\((["'][^"']+["'])[^)]*\)\s*\+\s*(["'])([（）【】：，。！？；、「」])\2/g)]

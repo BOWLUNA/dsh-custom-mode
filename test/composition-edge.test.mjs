@@ -39,7 +39,7 @@ for (const mode of ['standard', 'ptc', 'minimal', 'cordis']) {
 }
 process.env.DSH_SHIPPED_PRESETS_DIR = shippedDir
 
-const { renderComposition, collectRows, modeOf, overridesOf } = await import('../editor/composition.mjs')
+const { renderComposition, collectRows, modeOf, overridesOf } = await import('../composition.mjs')
 
 /** 把某个模式的基础文件换成给定内容，再渲染它。 */
 function renderWith(text, overrides = new Map()) {
@@ -249,7 +249,7 @@ console.log('=== 8. 往返：反推的开关再渲染，行集合一致 ===')
 // 现有用例恰好绕开了它（受害者取的是顶层行 / 往文件尾追加），所以这一节补齐：
 // **每个行 id 都试一遍**，且用"分组在中间、后面还跟着顶层行"的形状。
 {
-  const { disableRowsInPlace, unresolvableRows } = await import('../editor/composition.mjs')
+  const { disableRowsInPlace, unresolvableRows } = await import('../composition.mjs')
 
   // ★ 嵌套行必须是**正好 4 个空格**：`collectRows` 的 rowIdAt 只认 `^ {4}- id: `
   //   （出厂文件就是这个形状，bug 也正出在这里）。用 2 空格的话子行会整个不可见，

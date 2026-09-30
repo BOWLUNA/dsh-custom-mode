@@ -6,7 +6,7 @@
  * Why this exists: `preset/prompt-tool.mjs` had no test at all, yet it is the *durable*
  * editing path — the one that survives a process restart, when the settings page (a
  * bundle-provided web UI) may not be there. It also carries its own copy of the
- * `{{…}}` validation that `editor/index.mjs` has, deliberately duplicated; nothing
+ * `{{…}}` validation that `index.mjs` has, deliberately duplicated; nothing
  * checked that the two still agree, which is the same silent-drift risk as the locale
  * copy in `client.js`. Both are covered here.
  *
@@ -258,7 +258,7 @@ console.log()
 console.log('=== 7. 两份 checkPromptText 不许漂移 ===')
 {
   /**
-   * `editor/index.mjs` guards the settings-page write path; `preset/prompt-tool.mjs`
+   * `index.mjs` guards the settings-page write path; `preset/prompt-tool.mjs`
    * guards this tool's. The duplication is deliberate (neither side should depend on
    * the other's install location) — but a divergence would mean one path accepting a
    * `{{…}}` the renderer throws on, i.e. the mode failing every request. So: extract
@@ -291,7 +291,7 @@ console.log('=== 7. 两份 checkPromptText 不许漂移 ===')
     check('抽出的函数接受已注册变量', presetVerdict('{{model}}').ok === true)
   }
 
-  const editor = await import('../editor/index.mjs')
+  const editor = await import('../index.mjs')
   const table = [
     'plain text',
     '{{model}}',

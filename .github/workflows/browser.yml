@@ -40,9 +40,9 @@ jobs:
       # 与 test.yml 同一条主轴：官方桌面端内置的那条，也是这次修复要保住的那条。
       # 渲染闸门跑在**最新预览线**上：官方 WebUI 的改动最先出现在这里，而本插件的页面样式是
       # 照着官方设置页的实测度量做的（见 tools/browser-verify.mjs 里的断言），所以这条腿才是
-      # "新线来了页面还对不对"的答案。桌面端与 dsh 同版本号发布，0.2.0-rc.1 就是它当前的版本。
-      - name: 安装 DSH 0.2.0-rc.1（当前主轴）
-        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.2.0-rc.1
+      # "新线来了页面还对不对"的答案。桌面端与 dsh 同版本号发布，0.2.0-rc.2 就是它当前的版本。
+      - name: 安装 DSH 0.2.0-rc.2（当前主轴）
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.2.0-rc.2
 
       # `dsh plugin` 是把参数转发给 PATH 上的 pnpm（见 install.sh 里那段 WSL 注释）。
       - name: pnpm（`dsh plugin` 会转发给它）

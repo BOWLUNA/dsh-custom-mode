@@ -94,8 +94,8 @@ const {
   resetBaseCompositionCachesForTests,
   setBaseCompositions,
   setPatchPresetsDir,
-} = await import('../editor/base-composition.mjs')
-const { BASE_MODES, collectRows, renderComposition, readBaseComposition, overridesOf } = await import('../editor/composition.mjs')
+} = await import('../base-composition.mjs')
+const { BASE_MODES, collectRows, renderComposition, readBaseComposition, overridesOf } = await import('../composition.mjs')
 
 console.log('=== 1. extractPluginsBlock：取出 plugins 序列，且不动它一个字节 ===')
 {
@@ -178,7 +178,7 @@ console.log('=== 3.5 声明式 roster：改名后磁盘优先（否则"改名"�
   // 实测（2026-09-25，0.1.7-rc.2）：POST /state 存下 name=写作助手、preset.yml 已是新名，而助手列表与
   // 选择器里仍是旧名 —— 因为合成行（磁盘）被注册表里**上一次注册**留下的旧 name 覆盖了。注册表只该
   // 提供它独有的东西（mount 诊断 broken），名字与描述以磁盘为准。
-  const { effectiveRosterRows } = await import('../editor/preset-backend/index.mjs')
+  const { effectiveRosterRows } = await import('../preset-backend/index.mjs')
   const rosterRoot = join(dir, 'roster-root')
   const assistant = join(rosterRoot, 'renamed')
   mkdirSync(assistant, { recursive: true })
@@ -210,7 +210,7 @@ console.log('=== 4. 降级：读得到提示词、存得下提示词、开关被
   writeFileSync(compositionPath, compositionText, 'utf8')
 
   process.env.DSH_CUSTOM_PROMPT_PATH = join(presetDir, 'prompt.md')
-  const { readState, saveState, createAssistant } = await import('../editor/index.mjs')
+  const { readState, saveState, createAssistant } = await import('../index.mjs')
   const rows = [{ id: 'custom', trust: 'user', path: compositionPath, name: '测试助手', description: '' }]
 
   // 4a. 没有任何来源 → 状态仍可用，只是开关/基础模式降级

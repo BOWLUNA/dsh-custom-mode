@@ -7,23 +7,24 @@ This project has **two artifacts**, distributed in different ways (for the reaso
 | Artifact | Type | Distribution |
 |---|---|---|
 | `preset/` | agent preset (**a file directory**) | copy into `$DSH_HOME/.agent-presets/<id>/` |
-| `editor/` | profile bundle plugin (**an npm package**) | `dsh plugin --profile <p> add <package name or path>` |
+| the repository root | profile bundle plugin (**the npm package**) | `dsh plugin --profile <p> add <package name or path>` |
 
 An agent preset is **not** an npm package, so do not expect `npm install` to install it — `dsh` discovers it from a directory on disk.
 
-**Storefront screenshots.** `editor/screenshots.json` lists four images under `editor/assets/`; the plugin
-market and the [catalog](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) read that file from
-this repository (not from the npm tarball — `assets/` is deliberately outside the package's `files` whitelist),
-so replacing a screenshot is a push here and nothing else. Measured 2026-09-25: 840 of the catalog's 4311
+**Storefront screenshots.** `screenshots.json` at the repository root lists five images under `docs/images/`;
+the plugin market and the [catalog](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) read that file
+from this repository (not from the npm tarball — the pictures are deliberately outside the package's `files`
+whitelist), so replacing a screenshot is a push here and nothing else. One file per picture: the same shots the
+README shows, so a card and the README can never disagree. Measured 2026-09-25: 840 of the catalog's 4311
 entries ship curated screenshots, and a card without one looks unfinished next to them.
 
-## Where the ecosystem lists this plugin (measured 2026-09-28)
+## Where the ecosystem lists this plugin (measured 2026-09-30)
 
 Three sites, and it is worth knowing which one is the source of truth — only one of them takes submissions:
 
 | Site | What it is | How a plugin gets in |
 | --- | --- | --- |
-| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode--editor/) | the **curated registry**; also the site whose README and JSON feed most other tools read | **a PR adding one YAML file**, `data/plugins/<owner>__<repo>.yml`, to [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) — `url`, `name`, `category`, `description.en` (+ optional `zh`). Ours exists (`BOWLUNA__dsh-custom-mode--editor.yml`, category `identity`) |
+| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) | the **curated registry**; also the site whose README and JSON feed most other tools read | **a PR adding one YAML file**, `data/plugins/<owner>__<repo>.yml`, to [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) — `url`, `name`, `category`, `description.en` (+ optional `zh`). Ours is the **root form**: `BOWLUNA__dsh-custom-mode.yml`, `url` = the repository root, `name` = `BOWLUNA/dsh-custom-mode`, category `identity`. The root form is legal because the repository root declares `dsh.bundle`; until 1.10.0 we used the monorepo-subpackage form (`…--editor.yml`, `name: BOWLUNA/dsh-custom-mode#editor`), and that is exactly what rendered the `#editor` suffix on the card |
 | [**dshmarket.com**](https://dshmarket.com/) | **an in-app plugin market** — itself a dsh plugin (`dsh plugin --profile web add dshmarket`, then Settings → Plugin Market). Host-aware: it reads the `engines.dsh` / peer range each card declares, and shows author-curated shots from the plugin's own `screenshots.json` | **nothing to submit.** Its README says it plainly: "This repo is the market app, not the catalog." Listing follows the registry above |
 | [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | a Chinese learning community with its own plugin index and a mirror of the official docs | **automatic**, aggregated from the GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) — so the lever is the repository's topics, not a form. It re-probes on request (their issue #41 pattern); ours is [#44](https://github.com/hikariming/dshfind/issues/44) because its card still says "not published to npm" and shows an older version |
 
@@ -31,7 +32,7 @@ Two consequences for this repository:
 
 1. **The registry entry is the placement.** Improving the card on any of these sites means editing that one
    YAML file upstream (or asking for a re-probe), never changing something here — except screenshots, which
-   they read from `editor/screenshots.json` in this repository.
+   they read from `screenshots.json` in this repository.
 2. **The topics matter** (dshfind aggregates from them, and every list is searchable by them):
    `dsh-plugin` must stay on the repository, alongside `dsh`, `deepseek-harness`, `agent-preset`,
    `custom-mode`, `assistant-manager`, `multi-agent`, `roleplay`.
@@ -46,18 +47,19 @@ cd dsh-custom-mode
 ./install.sh
 ```
 
-The script copies the preset and calls `dsh plugin add ./editor` (a local-path install, which pnpm will link).
+The script copies the preset and calls `dsh plugin add .` — a local-path install pnpm links, where the
+repository root *is* the package.
 
-## Option two: publish editor to npm as well
+## Option two: publish to npm as well
 
-The preset still goes through clone (it is not an npm package), while editor is published to npm separately. **Already published**:
+The preset still goes through clone (it is not an npm package), while the plugin is published to npm
+separately — from the **repository root**, which is the package. **Already published**:
 `dsh-custom-mode@0.1.6-alpha.1` (2026-09-17, tag `alpha`); `dsh-custom-mode@0.1.6-alpha.2`
-(2026-09-18, tags `alpha` and `latest`).
+(2026-09-18, tags `alpha` and `latest`); the `1.x` line runs to today's release.
 
 ```sh
-cd editor
 npm login --auth-type=web          # first time: browser login
-npm publish --tag alpha            # give --tag explicitly, for the reason below
+npm publish --tag latest            # give --tag explicitly, for the reason below
 ```
 
 ### Pre-publish self-check list
@@ -67,7 +69,9 @@ npm publish --tag alpha            # give --tag explicitly, for the reason below
 - [x] The patch file that `dsh.bundle.patch` points to is not missing from `files` (CI has an assertion against the real packlist).
 - [x] `dsh.client.platform` is `"web"`.
 - [x] `exports["./client"]` points to the browser half.
-- [x] The `private` field has been deleted (it was `true` before publishing and was only for local development).
+- [x] There is no `private` field at all. This one is **not cosmetic**: third-party detectors read the
+      repository's `package.json` to decide whether the package is on npm, and a root `private: true` (which
+      is how 1.9.x shipped, from the wrapper manifest) makes them report "author has not published to npm".
 - [x] Peers that do not apply are marked `optional` in `peerDependenciesMeta`, otherwise the first thing a user sees after installing is a WARN.
 
 The `files` allowlist is already written, and this is something that **cannot be checked by eye** — the easiest trap to fall into is "a file was left out",
@@ -75,27 +79,30 @@ and that only surfaces after someone installs it. CI (`.github/workflows/test.ym
 and the same thing can be run locally at any time:
 
 ```sh
-cd editor
+# from the repository root — this IS the package
 npm pack --dry-run --json | node -e '
   const files = JSON.parse(require("fs").readFileSync(0, "utf8"))[0].files.map((f) => f.path);
-  const need = ["index.mjs", "client.js", "composition.mjs", "meta.mjs", "paths.mjs", "cordis.patch.yml", "package.json"];
+  const need = ["index.mjs", "client.js", "composition.mjs", "meta.mjs", "paths.mjs", "cordis.patch.yml", "package.json", "preset/prompt.md"];
   const missing = need.filter((name) => !files.includes(name));
   console.log(files.join(", "));
   if (missing.length > 0) { console.error("缺:", missing); process.exit(1); }
 '
 ```
 
-The current expected output (`locales.mjs` is the "single source of truth" copy from the documentation, shipped with the package so that readers can find it):
+The current expected output (`locales.mjs` is the "single source of truth" copy from the documentation, shipped
+with the package so that readers can find it; the `README*` files and `LICENSE` are npm's own auto-includes):
 
 ```
-client.js, composition.mjs, cordis.patch.yml, index.mjs, locales.mjs, meta.mjs, package.json, paths.mjs
+LICENSE, README.i18n.yaml, README.md, README.zh.md, assistants.mjs, atomic.mjs, base-composition.mjs,
+client.js, composition.mjs, cordis.patch.yml, index.mjs, journal.mjs, locales.mjs, meta.mjs, package.json,
+paths.mjs, preset-backend/*.mjs, preset/*, seed.mjs
 ```
 
 ### Three pitfalls found by actual testing
 
 **1) `publishConfig.tag` is not honored; `--tag` must be given explicitly.**
 
-`editor/package.json` declares `"publishConfig": { "access": "public", "tag": "alpha" }`,
+`package.json` declares `"publishConfig": { "access": "public", "tag": "alpha" }`,
 but npm 11.19.0's `npm publish --dry-run` still prints `with tag latest`; only explicitly adding
 `--tag alpha` on the command line turns it into `with tag alpha`. So **do not gamble on publishConfig being read**.
 
@@ -127,7 +134,7 @@ express "which host this adapts to". Without the optional marking, installing fr
 [WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
 ```
 
-So `editor/package.json` was given:
+So `package.json` was given:
 
 ```json
 "peerDependenciesMeta": { "@deepseek-ai/dsh": { "optional": true } }
@@ -169,7 +176,7 @@ npm requires every publish to carry a unique version, and the package now has it
 - **Every publish bumps the version.** The `.revN` suffix — invented when the version had to mirror the
   DSH release and a repackaged build could not reuse a number — is retired.
 - **Compatibility is declared, not encoded.** `engines.dsh` and the `@deepseek-ai/dsh` peer range in
-  `editor/package.json` state which DSH releases this plugin supports, and
+  `package.json` state which DSH releases this plugin supports, and
   `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH version CI actually installs
   and tests falls inside those ranges. When re-adapting to a newer DSH, widen the ranges and bump the
   pin in the workflow.
@@ -280,7 +287,7 @@ Also list **which APIs are used**, so that when dsh is upgraded others can judge
 
 ## After modifying client.js
 
-Changing `editor/client.js` **needs neither a restart nor a page refresh**: `dsh-client-hmr` stats and polls the
+Changing `client.js` **needs neither a restart nor a page refresh**: `dsh-client-hmr` stats and polls the
 bundle file every ~500ms, and replaces the plugin in place after about 1 second (for the measured evidence, see [`ARCHITECTURE.md`](ARCHITECTURE.md) §10).
 
 Only changes to the **host half** (`index.mjs`, `composition.mjs`, `meta.mjs`, `paths.mjs`) need a restart —
@@ -301,7 +308,7 @@ silently if nothing checks them:
 - **Topics** (`gh repo edit --add-topic`): `dsh-plugin` is mandatory (the topic-driven marketplaces index by
   it); add the terms people actually type — `custom-mode`, `custom-prompt`, `prompt-editor`, `agent-modes`,
   `multi-mode`, `assistant-manager`, `system-prompt`, `deepseek-harness`, …
-- **npm `keywords`** in `editor/package.json`: npm search reads them, and they do **not** update on a
+- **npm `keywords`** in `package.json`: npm search reads them, and they do **not** update on a
   metadata-only change — a new version has to be published for them to appear on npm.
 - **Social preview image** (1280×640): **the web UI is the only way to set it** — Settings → Social preview.
   The REST API has no endpoint for it, so this is the one step that cannot be scripted and the one that gets
@@ -315,7 +322,8 @@ silently if nothing checks them:
 The image is generated, not hand-drawn: render the layout in a browser and capture it at 1280×640, then keep
 the PNG in `docs/images/social-preview.png` so the source of truth is in the repository.
 
-Finally, the wording matters: the README's first screen and the npm landing page (`editor/README.md`) should
+Finally, the wording matters: the README's first screen **is** the npm landing page now (npm renders the
+repository root's `README.md`), so it should
 contain the phrases people search for — including the synonyms ("custom prompt", "system-prompt editor",
 多助手／多模式) — because for both GitHub and npm the page text is the index.
 
@@ -348,7 +356,7 @@ git tag -a v0.1.6-alpha.2 -m "dsh-custom-mode 0.1.6-alpha.2"
 git push origin main && git push origin v0.1.6-alpha.2
 ```
 
-**The version and CI move together**: the moment `editor/package.json`'s version changes, the
+**The version and CI move together**: the moment `package.json`'s version changes, the
 `@deepseek-ai/dsh@<version>` pinned in `.github/workflows/test.yml` has to move with it, or
 `tools/verify-version-consistency.mjs` fails — it exists to stop "CI green on the old runtime while the
 published package claims a version it was never tested against".
@@ -416,8 +424,8 @@ awaiting approval" state, and the registry's `latest` would stay on the previous
 
 ```sh
 # the release path after that
-node -e "const p=require('./editor/package.json');p.version='1.9.2';require('fs').writeFileSync('editor/package.json',JSON.stringify(p,null,2)+'\n')"
-git commit -am "release 1.9.2" && git tag v1.9.2 && git push --tags
+node -e "const p=require('./package.json');p.version='1.10.0';require('fs').writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+git commit -am "release 1.10.0" && git tag v1.10.0 && git push --tags
 ```
 
 ### Preferred: Trusted Publishing (no token at all)

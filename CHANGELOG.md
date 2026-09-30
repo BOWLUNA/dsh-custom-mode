@@ -8,6 +8,42 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.10.0]
+
+### The repository root is the package now — and dsh 0.2.0-rc.2 is the line CI pins
+
+Three things, one release.
+
+- **dsh 0.2.0-rc.2 supported, verified end to end.** npm's `latest` `and` `next` both moved to it on
+  2026-09-29, so "latest stable" and "latest preview" are one release now; `0.1.7-rc.2` becomes the previous
+  stable and stays as the second CI leg, because most installs in the field are still on it. The declared
+  range already covered `0.2.x`, so this was verification rather than code: on a clean throwaway
+  `DSH_HOME`, `dsh plugin --profile web add dsh-custom-mode` resolves the package in 640 ms, the composition
+  tree carries the row, boot seeds all five preset files, the declarative registry syncs the assistant, and
+  the `agentPresets` capability set is unchanged (`list, register, inventory, select, document`). CI's main
+  axis moves to `0.2.0-rc.2` (ubuntu node 20/24 + Windows), the stable leg stays `0.1.7-rc.2`, and the
+  render gate runs on the newest line.
+- **One manifest, at the repository root.** Until now the root `package.json` was a `private: true` wrapper
+  (what a GitHub-URL install read) while `editor/package.json` was the published package. That split had two
+  visible costs. Third-party catalogues rendered the plugin as `dsh-custom-mode#editor` — a monorepo
+  subpackage name for a repository that is not a monorepo. And detectors that read the repository's *root*
+  manifest, dshfind being one, saw `private: true` and reported **"the author has not published to npm"**
+  for a package that has been on npm since 2026-09-17. The package now lives at the repository root,
+  `editor/` is gone, and so is the duplicated `editor/preset/` copy: the packaged preset **is** `preset/`.
+  `npm publish`, `dsh plugin add .`, the GitHub-URL install and the package-name install all read one file.
+  `test/manifests.test.mjs` is the guard — root manifest present and not `private`, no second manifest,
+  and the `files` whitelist still covers the import graph.
+- **One copy of every screenshot.** `screenshots.json` used to list a duplicated
+  `editor/assets/storefront-0{1..4}-*.png` set, and its first file was mislabelled: the entry named
+  "assistant manager" actually held the mode-switch capture, while the real assistant-manager image was not
+  in the set at all. `screenshots.json` now lists the five canonical `docs/images/*.png` files the README
+  shows, so a catalogue card and the README cannot disagree, and four duplicate images left the repository.
+
+**The installed package is unchanged.** Instead of assuming that, this release measures it: `npm pack
+--dry-run` on the flattened tree lists the same runtime files 1.9.19 shipped, plus the `README*` files npm
+auto-includes (the repository README is the npm landing page now). This release moves files in git, not in
+the package a user installs.
+
 ## [1.9.19]
 
 ### dsh 0.2.0-rc.1: supported, verified on the rendered page, and it enforces compatibility now

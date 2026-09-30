@@ -55,7 +55,7 @@ bundlePatches → profile.cordis.patch.yml → $DSH_HOME/cordis.patch.yml → --
 for (const anchor of [installAnchor, join(profileDir, "package.json")]) { … }
 ```
 
-所以 `dsh plugin --profile <p> add ./editor` 装进 profile 的包能被解析到，不需要装进 dsh 安装目录。
+所以 `dsh plugin --profile <p> add .` 装进 profile 的包能被解析到，不需要装进 dsh 安装目录。
 
 ## 3. `dsh.client.inject` 必须声明（这个 bug 让页面一开始没出现）
 
@@ -219,7 +219,7 @@ const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
 
 抛错的后果不是「这句不生效」，而是**该模式每个请求都失败**。所以两条写入路径都在落盘前校验，只放行 `model` / `cwd` / `provider`（`dsh-agent-loop` 注册的三个）。
 
-校验逻辑在 `preset/prompt-tool.mjs` 与 `editor/index.mjs` 里**各有一份**，是有意重复：这样 preset 不必依赖编辑器的安装位置，编辑器的路径也可配置。
+校验逻辑在 `preset/prompt-tool.mjs` 与 `index.mjs` 里**各有一份**，是有意重复：这样 preset 不必依赖编辑器的安装位置，编辑器的路径也可配置。
 
 ## 8. 调试方法（下次改这个插件时有用）
 
@@ -261,14 +261,14 @@ entry rev    345c0f1330e41a14-47 → 50e01f6dc101
 
 ### 开发循环因此改变
 
-改 `editor/client.js` → **约 1 秒后页面自己更新**，不需要重启 `dsh web`，不需要刷新。只有改动**宿主半**（`index.mjs`/`composition.mjs`/`meta.mjs`）才需要重启——那是主进程里的行。
+改 `client.js` → **约 1 秒后页面自己更新**，不需要重启 `dsh web`，不需要刷新。只有改动**宿主半**（`index.mjs`/`composition.mjs`/`meta.mjs`）才需要重启——那是主进程里的行。
 
 ## 11. 一个把我坑了很久的路径陷阱
 
-`install.sh` 把编辑器包**链接到仓库目录**：
+`install.sh` 把**仓库本身**链接进 profile（1.10.0 起仓库根就是包）：
 
 ```
-profiles/web/node_modules/dsh-custom-mode -> <repo>/editor
+profiles/web/node_modules/dsh-custom-mode -> <repo>
 ```
 
 所以**仓库就是活跃代码**。曾经存在的 `$DSH_HOME/custom-mode/` 是早期布局的**陈旧副本**；往那里写文件不会有任何效果（客户端 bundle 的 `artifactBaseline` 报的是另一份的 size）。该目录已删除，避免继续误导。
@@ -329,7 +329,7 @@ export function apply(ctx) {
   `new URL('./prompt.md', import.meta.url)` 定位提示词，拷一份就是一套独立提示词。
 
 真正是单例的只有**设置页**：`paths.mjs` 把提示词路径写死成 `.../custom/prompt.md`，路由只有一条，
-浏览器半假定只有一个模式。所以这次改动全部落在 editor 包里，`preset/` 的组成文件一份没动。
+浏览器半假定只有一个模式。所以这次改动全部落在插件包里，`preset/` 的组成文件一份没动。
 
 ### 13.1 哪些目录归本工具管（这条判据是安全边界）
 
@@ -529,7 +529,7 @@ doc: … `label` (registrant-localized display text — the registrant re-regist
 服务行必须待在其内部的 `isolate` 分组就此消失（实测；`parse-composition.mjs` 在构造 `register()` 行时
 也据此排除了这条路）。`readDocument()` 保留了分组与 `!!js` 表达式，所以解析器优先用它。
 
-解析器在 `editor/base-composition.mjs`，按顺序试：`DSH_SHIPPED_PRESETS_DIR`（显式且**排他**，不让发现
+解析器在 `base-composition.mjs`，按顺序试：`DSH_SHIPPED_PRESETS_DIR`（显式且**排他**，不让发现
 逻辑乱跑）→ 宿主交出的文本 → 旧线 presets 目录 → 打包的 patch（对它的 `plugins:` 块做文本手术，注释与
 `!!js` 逐字节保留）。全断则是**类型化**的 `baseCompositionUnavailable`，不是裸 500。
 

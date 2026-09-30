@@ -22,12 +22,12 @@ base mode / plugin switches / multi-assistant / multi-persona。
 常见的叫法：自定义模式 · 自定义提示词 · 系统提示词编辑 · 多助手／多模式 · 多个 Agent 模式 ·
 角色扮演／聊天人格（RP）。
 
-**支持两个"最新的"：最新正式版与最新预览版** —— 两条都是每次 push 真跑，不是声明：
+**支持两条线：最新线（npm 的 `latest` 与 `next` 自 2026-09-29 起都指向 `0.2.0-rc.2`）与上一个正式版** —— 两条都是每次 push 真跑，不是声明：
 
 | dsh | 定位 | 状态 |
 | --- | --- | --- |
-| `0.2.0-rc.1` | 最新预览版（npm `next`；官方桌面端就是这条线 —— 它与 dsh 同版本号） | ✅ CI（ubuntu node 20/24 + **windows**）+ 真机：这条线上设置页与模式选择器都是**渲染后**验过的（整道渲染闸门就跑在这里）|
-| `0.1.7-rc.2` | 最新正式版（npm `latest`，目录站"点一下安装"给大多数用户的就是它） | ✅ CI + 真机：自 1.9.15 起就在这条线上验过渲染 |
+| `0.2.0-rc.2` | **最新线** —— npm 的 `latest` 与 `next` 都指向它，官方桌面端也在这一条线上（与 dsh 同版本号） | ✅ CI（ubuntu node 20/24 + **windows**）+ 真机：这条线上安装、组合树与播种都验过（整道渲染闸门跑在这里）|
+| `0.1.7-rc.2` | 上一个正式版 —— 仍在声明范围内，现役安装大多在它上面 | ✅ CI + 真机：自 1.9.15 起就在这条线上验过渲染 |
 
 更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，但不再单独占 CI 腿。
 
@@ -48,7 +48,7 @@ base mode / plugin switches / multi-assistant / multi-persona。
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.19   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.10.0   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -69,15 +69,18 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 | --- | --- | --- |
 | **包名** | `dsh-custom-mode` | 最省事 |
 | **GitHub 仓库地址** | `https://github.com/BOWLUNA/dsh-custom-mode` | 指向**仓库根**即可 |
-| **本地插件目录** | `<你 clone 的路径>/editor` | 注意要指向 `editor/`，不是仓库根 |
+| **本地插件目录** | `<你 clone 的路径>` | 就是仓库根 —— 仓库根**本身**就是发布包 |
 
 想逛整个生态还有一个**应用内市场**：装 `dshmarket`（`dsh plugin --profile web add dshmarket`），
 打开 **设置 → 插件市场**，搜 `dsh-custom-mode` —— 卡片会读本插件声明的 `engines.dsh` 范围，
-以及 `editor/screenshots.json` 里的四张精选截图。
+以及仓库里 `screenshots.json` 列出的精选截图（五张；它们就是 README 用的那几张
+`docs/images/*.png`，所以每张图在仓库里只有一份）。
 
-三条都可用，因为**仓库根的 `package.json` 声明了指向 `editor/` 的 `dsh.bundle` / `main` / `exports["./client"]`**。
-根清单与 `editor/package.json` 必须描述同一个插件，`test/manifests.test.mjs` 会断言它们的名字、版本与
-声明的路径全部一致——两个清单写同一件事是漂移风险，所以用测试盯住，而不是靠记性。
+三条都可用，因为**仓库根的 `package.json` 就是发布包**：`dsh.bundle` / `main` /
+`exports["./client"]` 都声明在仓库根，所以 npm 安装与"GitHub 地址"安装拿到的是同一批文件。
+1.10.0 之前这个仓库有**两份清单**——根部的 `private: true` 包装清单加 `editor/package.json`——
+那正是第三方目录把本插件显示成 `dsh-custom-mode#editor`、以及 dshfind 这类站点读到包装清单的
+`private: true` 后报"作者尚未发布到 npm"的原因。现在只有根清单一份，`test/manifests.test.mjs` 盯着它不被加回来。
 
 ### 桌面端
 
@@ -88,7 +91,7 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 - **在应用里装**：侧栏 → **插件** → 添加插件 → 搜 `dsh-custom-mode`。应用自带 pnpm，走的是同一套插件管理器。
 - **不要试着用 CLI 装 —— dsh 自己就会拒绝**（0.1.7-rc.2 实测）：
   ```
-  $ dsh plugin --profile desktop add ./editor
+  $ dsh plugin --profile desktop add .
   error: profile "desktop" is managed exclusively by the Electron application
   ```
   桌面端独占 `$DSH_HOME/profiles/desktop`：那里的包操作持有 profile 事务锁，启动恢复还会重命名
@@ -99,9 +102,9 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 - 万一某个第三方 bundle 让应用起不来：原生恢复对话框提供**「禁用第三方插件」**，已安装的包与插件数据都留在磁盘上。
 
 **兼容性是声明出来的，不是猜的。** dsh 会拿每个插件的 `peerDependencies["@deepseek-ai/dsh"]` 与运行时
-版本比对（含预发布版），范围不覆盖就给出警告 —— 所以"某条线的桌面端构建"天然被覆盖。本插件声明的就是
-**经过测试的那几条 0.1.x 线**；新的 `0.2.x` 线在适配并重测之前**故意留在范围之外**，因为"大概能用"的范围
-正是会变成支持工单的那种声明。
+版本比对（含预发布版）；而且自 0.2.0 起这项检查从"警告"升级成了**安装闸门**：范围不覆盖运行时就
+直接装不进去（`installation rejected: Plugin … is incompatible with dsh 0.2.0-rc.2`）。所以那个范围
+**就是**支持声明本身，只有在真实安装并测过新线之后才会动——"大概能用"的范围正是会变成支持工单的那种声明。
 
 想同时留下源码（或者不用 npm 安装），就 clone 下来跑脚本，它把同样两件事显式做一遍：
 
@@ -183,19 +186,20 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 
 ## 版本
 
-**支持两条线：最新正式版（`0.1.7-rc.2`，npm `latest`）与最新预览版（`0.2.0-rc.1`，npm `next`，
-也就是桌面端所在的那条线）** —— 声明为
+**支持两条线：最新线（`0.2.0-rc.2`，npm 的 `latest` 与 `next` 自 2026-09-29 起都指向它，也是桌面端
+所在的那条线）与上一个正式版（`0.1.7-rc.2`，仍在声明范围内，现役安装大多在它上面）** —— 声明为
 `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0`（多出来的两段是因为
 semver 只允许范围里**点名了** `major.minor.patch` 的预发布版本被匹配到），CI 会两条线各装一次并各跑一遍
-完整测试 —— 其中**渲染闸门跑在预览线**上，因为壳自己的 UI 改动最先落在那里。
+完整测试 —— 其中**渲染闸门跑在最新线**上，因为壳自己的 UI 改动最先落在那里。
 这里的策略是"只跟两个最新的"：更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）仍在 peer 范围内，但不单独占 CI 腿。
-**官方桌面端（DeepSeek Harness Desktop）也在覆盖范围内**：它与 dsh 同版本号，当前即为 `0.2.0-rc.1`，
+**官方桌面端（DeepSeek Harness Desktop）也在覆盖范围内**：它与 dsh 同版本号，当前即为 `0.2.0-rc.2`，
 正是这条矩阵钉住的组合；在应用内（侧栏 → Plugins）安装即可，CLI 那条路 dsh 自己会拒。
-`0.2.0-rc.1` 实测：安装、组合树、插件启动（`agentPresets` 能力面不变：`list, register, inventory,
-select, document`）、模式选择器、以及整道 65 项渲染闸门 —— 全部通过。
+`0.2.0-rc.2` 实测（2026-09-30，干净的一次性 `DSH_HOME`）：`dsh plugin --profile web add dsh-custom-mode`
+640ms 解析成功、组合树里有本插件的行、启动时五个预设文件全部播种、声明式注册表同步出助手，
+且 `agentPresets` 能力面不变（`list, register, inventory, select, document`）。
 
 包版本走**自己的线** —— `1.0.0`、`1.0.1` …… 它不镜像 DSH 的版本号。本插件支持哪些 dsh，由
-`editor/package.json` 的 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，并由
+根 `package.json` 的 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，并由
 `tools/verify-version-consistency.mjs`（CI 里执行）断言"CI 实际安装并测试的 dsh 版本落在这些范围内"。
 
 拆开有两个原因。一是目录与市场要求裸 `x.y.z` 才自动安装 —— 有的会解析 npm `latest` 并拒绝任何带
@@ -221,7 +225,7 @@ select, document`）、模式选择器、以及整道 65 项渲染闸门 —— 
 | **`settings.section` 不再提供 `locale:`**（0.1.6-alpha.2 起） | 壳不会递进绑定到本命名空间的 `t`；页面自带词典兜底，见 ARCHITECTURE §15 |
 | `preset.yml` 的 `order` 参与 roster 排序 | 「上移 / 下移」不生效 |
 | `ctx.locale.register/bind` | 回退中文 |
-| **出厂组成从哪来** —— 0.1.7+ 是 `agentPresets.readDocument(<mode>).content`，更早是 `@deepseek-ai/dsh-agent-presets` 的文件 | 基础模式与插件开关变为只读（提示词仍可保存），见 `editor/base-composition.mjs` |
+| **出厂组成从哪来** —— 0.1.7+ 是 `agentPresets.readDocument(<mode>).content`，更早是 `@deepseek-ai/dsh-agent-presets` 的文件 | 基础模式与插件开关变为只读（提示词仍可保存），见 `base-composition.mjs` |
 | 出厂布局 `<presets>/<id>/agent.cordis.yml` 与行的文本形状 | 基础模式切换失效 |
 | `!!js` 平台表达式 | 平台行显示错误状态 |
 
@@ -242,7 +246,7 @@ select, document`）、模式选择器、以及整道 65 项渲染闸门 —— 
 node test/run.mjs        # 15 个套件；自己解析出厂 preset 目录（0.1.7+ 从宿主声明派生）
 ```
 
-改 `editor/client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。
+改 `client.js` 会被 `@deepseek-ai/dsh-client-hmr` 在约 1 秒后热替换；改宿主半（`index.mjs`、`composition.mjs`、`meta.mjs`、`paths.mjs`）需要重启。每个套件在防什么见 [`test/README.md`](test/README.zh.md)，改行为之前先读 [`CONTRIBUTING.zh.md`](CONTRIBUTING.zh.md)。
 
 ## 如果它有用
 
@@ -261,7 +265,7 @@ MIT
 | | |
 | --- | --- |
 | 模型 | DeepSeek V4.1 Flash（`deepseek-v4-flash`，provider `deepseek-official`） |
-| 运行时 | DeepSeek Harness **0.2.0-rc.1**（预览版）/ **0.1.7-rc.2**（正式版）—— 支持的就是这两条线；下面的用量数字来自更早的 `0.1.6-alpha.2` 那一轮 |
+| 运行时 | DeepSeek Harness **0.2.0-rc.2**（最新线）/ **0.1.7-rc.2**（上一个正式版）—— 支持的就是这两条线；下面的用量数字来自更早的 `0.1.6-alpha.2` 那一轮 |
 | 未缓存输入 | 224,058 tok |
 | 缓存读取 | 125,638,016 tok |
 | 输出 | 425,539 tok |
@@ -290,7 +294,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.9.19
+dsh plugin --profile web add dsh-custom-mode@1.10.0
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

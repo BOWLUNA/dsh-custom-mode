@@ -116,7 +116,7 @@ export function recordPrompt(directory, text, by = HISTORY_SOURCE.settings) {
   const file = historyFile(directory)
   // 与宿主半同一条纪律：随机临时名（消除 tmp-vs-tmp 碰撞）+ 重试（Windows 上目标被并发 rename
   // 持有时会短暂 EPERM）+ 失败清理。
-  // 与宿主半共用同一份实现（editor/atomic.mjs）：这里原先自己留了一份重试与清理，两份会各自漂移
+  // 与宿主半共用同一份实现（atomic.mjs）：这里原先自己留了一份重试与清理，两份会各自漂移
   // —— 外部审阅点名了这一点。预设侧（prompt-tool.mjs）仍保留自己的副本，因为那个文件独立分发、不能 import 宿主半。
   writeAtomic(file, lines.join('\n') + '\n')
   return { recorded: true, at, n }

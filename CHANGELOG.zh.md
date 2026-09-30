@@ -6,6 +6,36 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [1.10.0]
+
+### 仓库根就是发布包；CI 主轴换成 dsh 0.2.0-rc.2
+
+一个版本三件事。
+
+- **支持 dsh 0.2.0-rc.2，并且是端到端实测过的。** npm 的 `latest` 与 `next` 于 2026-09-29 双双指向它，
+  于是"最新正式版"与"最新预览版"成了同一个版本；`0.1.7-rc.2` 变成上一个正式版，仍留作第二条 CI 腿 ——
+  现役安装大多还在它上面。声明范围本来就覆盖 `0.2.x`，所以这轮是**验证**而不是改代码：干净的一次性
+  `DSH_HOME` 里，`dsh plugin --profile web add dsh-custom-mode` 640ms 解析成功、组合树里有本插件的行、
+  启动时五个预设文件全部播种、声明式注册表同步出助手，且 `agentPresets` 能力面不变
+  （`list, register, inventory, select, document`）。CI 主轴改为 `0.2.0-rc.2`（ubuntu node 20/24 +
+  Windows），稳定腿仍是 `0.1.7-rc.2`，渲染闸门跑在最新线上。
+- **只剩一份清单，就在仓库根。** 此前根 `package.json` 是 `private: true` 的包装清单（GitHub 地址安装
+  读它），真正的发布清单在 `editor/package.json`。这个拆分的代价有两条都已显现：第三方目录把本插件
+  显示成 `dsh-custom-mode#editor` —— 一个根本不是 monorepo 的仓库却用了 monorepo 子包名；以及
+  dshfind 这类读仓库**根**清单的探测站看到 `private: true`，于是对一个 2026-09-17 就已发布到 npm 的包
+  报**"作者尚未发布到 npm"**。现在包就在仓库根，`editor/` 目录已删除，连同重复的 `editor/preset/`
+  拷贝一起消失：包内预设**就是** `preset/`。`npm publish`、`dsh plugin add .`、GitHub 地址安装与
+  包名安装读的都是同一个文件。`test/manifests.test.mjs` 是这道守卫 —— 根清单存在且非 `private`、
+  不存在第二份清单、`files` 白名单仍覆盖依赖图。
+- **每张截图只剩一份。** `screenshots.json` 原先指向一份重复的 `editor/assets/storefront-0{1..4}-*.png`，
+  而且第一个文件的标签是错的：名为 "assistant manager" 的那张其实是模式切换页的截图，真正的助手管理器
+  图根本不在这一组里。现在 `screenshots.json` 直接列 README 用的那五张 `docs/images/*.png`，
+  所以目录卡片与 README 不可能对不上，仓库里也少了四张重复图片。
+
+**用户装到的东西没有变。** 这一点不是靠"应该没变"，而是量出来的：扁平化后在仓库根跑
+`npm pack --dry-run`，列出的运行时文件与 1.9.19 发出去的一致，多出来的只有 npm 自动包含的 `README*`
+（因为仓库 README 现在就是 npm 落地页）。这个版本动的是 git 里的文件位置，不是用户安装的包。
+
 ## [1.9.19]
 
 ### dsh 0.2.0-rc.1：已支持、已在渲染页面上验证，而且它现在**强制**校验兼容性

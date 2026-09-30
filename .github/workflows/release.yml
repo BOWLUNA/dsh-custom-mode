@@ -37,8 +37,8 @@ jobs:
       # test/run.mjs 从已安装主机的 dsh-web-app 声明派生（与产品同一条代码路径）。
       # 从前这里只装 0.1.6-alpha.2，于是"闸门全绿"和"CI 上 0.1.7 三条腿全红"可以同时成立
       # —— 1.9.10 … 1.9.12 三个版本就是这么发出去的，而设置页在那条线上整体不可用。
-      - name: 安装 DSH 0.2.0-rc.1（当前主轴；夹具由其声明派生）
-        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.2.0-rc.1
+      - name: 安装 DSH 0.2.0-rc.2（当前主轴；夹具由其声明派生）
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.2.0-rc.2
 
       # ★ 不要在这里单独装 0.1.6 的 presets 夹具包。实测（2026-09-25，本仓库第一次推 v1.9.13）：
       #   在 0.1.7 的 peer 树上跑 npm i @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2 会 **ERESOLVE
@@ -48,14 +48,14 @@ jobs:
         run: node test/run.mjs
 
       # 稳定线也要在**发布前**过一遍：它是另一条声明式线，夹具仍由宿主自己的声明派生。
-      # 支持策略是"两个最新的"：最新正式版 0.1.7-rc.2 + 最新预览版 0.2.0-rc.1（上面那条）。
+      # 支持策略是"两个最新的"：最新线 0.2.0-rc.2（上面那条，也是 npm latest/next）+ 上一个正式版 0.1.7-rc.2。
       #
       # ★ 这里**不要**再断言 `node_modules/@deepseek-ai/dsh-agent-presets/presets` 存在。
       #   那条 `ls -d` 是 0.1.5 时代留下的：当时换装最新正式版会把复数包拉进仓库根，成为
       #   `test/run.mjs` 的第一解析顺位。0.1.7 起该包不再发布（声明式注册表），稳定线换成
       #   0.1.7-rc.2 之后这句 `ls` 必然失败 —— v1.9.19 的发布闸门就是这么红的（而套件本身
       #   完全正常，只是被这句提前掐断，连带把后面的发布与 GitHub Release 一起跳过）。
-      - name: 换装 0.1.7-rc.2（最新正式版），稳定线再跑一遍
+      - name: 换装 0.1.7-rc.2（上一个正式版），稳定腿再跑一遍
         run: |
           npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
           node test/run.mjs
@@ -66,13 +66,12 @@ jobs:
       - name: 版本一致性（稳定线与预览线都必须在声明范围内）
         run: |
           # 两个"最新的"：最新预览版 + 最新正式版（见 AGENTS.md 第 10 条的支持策略）
-          node tools/verify-version-consistency.mjs --dsh 0.2.0-rc.1
+          node tools/verify-version-consistency.mjs --dsh 0.2.0-rc.2
           node tools/verify-version-consistency.mjs --dsh 0.1.7-rc.2
 
       # 凭据自检：改过 npm 密码、或怀疑 token 失效时，用 workflow_dispatch 手动跑一次这条工作流，
       # 这一步会直接告诉你 NPM_TOKEN 还能不能用（而不是等到下次发版才发现）。
       - name: 凭据自检（NPM_TOKEN 是否仍有效）
-        working-directory: editor
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -84,7 +83,6 @@ jobs:
           npm whoami
 
       - name: 发布（已存在的版本直接跳过）
-        working-directory: editor
         # 混合认证：若配置了仓库 secret NPM_TOKEN（granular token，可勾 Bypass 2FA），就用它；
         # 没配置时该 env 为空，npm 会回退到 OIDC（Trusted Publishing）。两条路都不需要交互式 2FA。
         env:

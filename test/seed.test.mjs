@@ -6,16 +6,16 @@
  * Why this exists: every storefront installs a plugin with one command, and the npm package
  * is all that command carries. If seeding is wrong in any direction the result is a bad
  * first impression — a settings page that cannot open, or worse, a user's own `prompt.md`
- * silently replaced by the shipped one. There is also a second copy of the preset inside
- * the package (`editor/preset/`) whose whole risk is drifting from the repository's
- * `preset/`; a guard for that lives here too.
+ * silently replaced by the shipped one. Since 1.10.0 the packaged copy IS the repository's
+ * `preset/` (npm publishes the repository root), so a guard here pins that they are one and
+ * the same directory rather than two that must not drift.
  *
  * Everything runs in temporary directories; the repository's own `preset/` is only read.
  */
 
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -33,8 +33,8 @@ const check = (label, condition, detail = '') => {
   }
 }
 
-const { seedPreset, seedPresetWithLog, packagedPresetDir, starterComposition, PRESET_FILES } = await import('../editor/seed.mjs')
-const { baseCompositionPath, unresolvableRows } = await import('../editor/composition.mjs')
+const { seedPreset, seedPresetWithLog, packagedPresetDir, starterComposition, PRESET_FILES } = await import('../seed.mjs')
+const { baseCompositionPath, unresolvableRows } = await import('../composition.mjs')
 
 console.log()
 console.log('=== 1. 包内预设施集齐全（发布包里必须有这五个文件）===')
@@ -178,15 +178,15 @@ console.log('=== 7. 日志只在该说话的时候说话 ===')
 }
 
 console.log()
-console.log('=== 8. 守卫：包内预设与仓库 preset/ 不许漂移 ===')
+console.log('=== 8. 守卫：包内预设就是仓库 preset/（1.10.0 起只有一份）===')
 {
-  // 包内那份是 npm 打包的载体（npm 只能带上包目录内的文件），仓库 preset/ 是事实来源。
-  // 两份拷贝最大的风险就是分叉：改了仓库那份、忘了包里那份，用户装到的还是旧行为。
+  // 1.10.0 之前，包内那五个文件是 preset/ 的**第二份拷贝**（npm 只能带包目录内的文件，而包在 editor/），
+  // 漂移风险靠逐字节比对来防。1.10.0 把发布包搬到仓库根，拷贝消失：packagedPresetDir() 现在必须
+  // 正好指回仓库自己的 preset/ —— 指到别处，就说明有人又把一份拷贝加了回来。
   const source = packagedPresetDir()
+  check('packagedPresetDir() 指向仓库自己的 preset/', resolve(source) === resolve(join(REPO, 'preset')), source)
   for (const name of PRESET_FILES) {
-    const repoFile = join(REPO, 'preset', name)
-    const packedFile = join(source, name)
-    check(`editor/preset/${name} 与 preset/${name} 逐字节一致`, readFileSync(repoFile, 'utf8') === readFileSync(packedFile, 'utf8'))
+    check(`preset/${name} 存在且是同一份`, existsSync(join(REPO, 'preset', name)) && existsSync(join(source, name)))
   }
 }
 

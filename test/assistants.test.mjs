@@ -22,7 +22,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)))
-const TEMPLATE = join(REPO, 'editor', 'preset')
+const TEMPLATE = join(REPO, 'preset')
 
 let passed = 0
 let failed = 0
@@ -36,7 +36,7 @@ const check = (label, condition, detail = '') => {
   }
 }
 
-const { readPresetMeta } = await import('../editor/meta.mjs')
+const { readPresetMeta } = await import('../meta.mjs')
 const {
   allocateId,
   assistantDir,
@@ -48,8 +48,8 @@ const {
   seedMarkerPath,
   seedOnActivation,
   userPresetRoot,
-} = await import('../editor/assistants.mjs')
-const { unresolvableRows } = await import('../editor/composition.mjs')
+} = await import('../assistants.mjs')
+const { unresolvableRows } = await import('../composition.mjs')
 
 const dir = mkdtempSync(join(tmpdir(), 'dsh-custom-assistants-'))
 const root = join(dir, 'agent-presets')

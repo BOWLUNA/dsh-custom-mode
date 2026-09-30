@@ -15,12 +15,13 @@ conditions, and the fixed version, and to publish details only after the fix is 
 ## Support Scope
 
 Which DSH versions this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh` peer
-range in `editor/package.json` (see README, "Versioning"); the package version is its own line and no
+range in `package.json` (see README, "Versioning"); the package version is its own line and no
 longer encodes it. Development and verification cover the rows below, newest first:
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `1.9.19` (current release) | `0.1.7-rc.2` (npm `latest`) **and** the preview line `0.2.0-rc.1` (npm `next`) | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0 \|\| >=0.2.0-0 <0.3.0-0`, and CI installs and runs the whole suite against the stable line and the preview line (the render gate runs on `0.2.0-rc.1`). The official desktop app is covered: it is version-locked to dsh and currently ships `0.2.0-rc.1` |
+| `1.10.0` (current release) | `0.2.0-rc.2` (npm `latest` **and** `next`) **and** the previous stable `0.1.7-rc.2` | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0 \|\| >=0.2.0-0 <0.3.0-0`, and CI installs and runs the whole suite against both lines (the render gate runs on `0.2.0-rc.2`). The official desktop app is covered: it is version-locked to dsh and currently ships `0.2.0-rc.2`. Since dsh 0.2.0 an out-of-range plugin is **refused at install time**, so this range is enforcement rather than a warning |
+| `1.9.19` | the same range | Supported (superseded) |
 | `1.9.17` | the same | Supported (superseded) |
 | `1.9.16` | the same | Supported (superseded) |
 | `1.9.15` | the same | Supported (superseded) |

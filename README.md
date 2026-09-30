@@ -27,13 +27,15 @@ modes ("assistants") can live side by side, each with its own prompt.
 Also searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants ·
 multi-agent · roleplay (RP) / chat personas.
 
-**Two dsh lines are supported: the latest stable and the latest preview** — both checked on every push,
-neither merely claimed:
+**Two dsh lines are supported: the newest line and the previous stable** — both checked on every push,
+neither merely claimed. npm's `latest` and `next` have both pointed at `0.2.0-rc.2` since 2026-09-29, so
+"latest stable" and "latest preview" are one release now; the second leg stays because most installs in
+the field are still on `0.1.7-rc.2`:
 
 | dsh | role | status |
 | --- | --- | --- |
-| `0.2.0-rc.1` | latest preview (`npm` `next`; the line the official desktop app ships — it is version-locked to dsh) | ✅ CI (ubuntu node 20/24 + **windows**) + a real instance: the settings page and the mode picker are verified rendered on this line (the full render gate runs here) |
-| `0.1.7-rc.2` | latest stable (`npm` `latest` — what the catalogue's one-click install gives most people) | ✅ CI + a real instance: verified rendered on this line since 1.9.15 |
+| `0.2.0-rc.2` | **newest line** — npm's `latest` *and* `next`, and the line the official desktop app ships (it is version-locked to dsh) | ✅ CI (ubuntu node 20/24 + **windows**) + a real instance: install, composition and the seeded preset verified on this line (the full render gate runs here) |
+| `0.1.7-rc.2` | previous stable — still inside the declared range, and what most existing installs run | ✅ CI + a real instance: verified rendered on this line since 1.9.15 |
 
 Older builds (`0.1.5-rc.3`, `0.1.6-alpha.*`) use the same mechanisms and remain inside the declared peer
 range, but they no longer get a CI leg of their own.
@@ -57,7 +59,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.9.19   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.10.0   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -82,17 +84,20 @@ kinds of input, and all three work here:
 | --- | --- |
 | **Package name** | `dsh-custom-mode` |
 | **GitHub repository URL** | `https://github.com/BOWLUNA/dsh-custom-mode` (the repository root) |
-| **Local plugin directory** | `<your clone>/editor` — note `editor/`, not the repository root |
+| **Local plugin directory** | `<your clone>` — the repository root, which *is* the package |
 
 There is also an **in-app market** for browsing the whole ecosystem: install `dshmarket`
 (`dsh plugin --profile web add dshmarket`), open **Settings → Plugin Market** and search
-`dsh-custom-mode` — its cards read the `engines.dsh` range this plugin declares, and the four curated
-screenshots from `editor/screenshots.json`.
+`dsh-custom-mode` — its cards read the `engines.dsh` range this plugin declares, and the curated shots
+listed in the repository's `screenshots.json` (five images; they are the same `docs/images/*.png`
+files the README shows, so each picture exists once).
 
-They work because the repository's **root** `package.json` declares `dsh.bundle`, `main` and
-`exports["./client"]` pointing into `editor/`. The root and `editor/package.json` must describe one
-plugin, so `test/manifests.test.mjs` asserts they agree on name, version and every declared path —
-two manifests describing one thing is a drift hazard, and a test is cheaper than remembering.
+All three work because the repository's **root `package.json` is the published package**: `dsh.bundle`,
+`main` and `exports["./client"]` are declared there, so an npm install and a GitHub-URL install fetch
+the same files. Before 1.10.0 this repository carried two manifests — a `private: true` wrapper at the
+root plus `editor/package.json` — and that is what made third-party catalogues render the plugin as
+`dsh-custom-mode#editor` and what made dshfind-derived cards read the wrapper's `private: true` and
+report "not published to npm". One manifest at the root, and `test/manifests.test.mjs` keeps it that way.
 
 ### On the desktop app
 
@@ -104,7 +109,7 @@ Electron shell**, so this plugin's page renders there unchanged. One install pat
   The app runs the shared plugin manager with its own bundled pnpm.
 - **Do not try to use the CLI for it — dsh itself refuses** (measured on 0.1.7-rc.2):
   ```
-  $ dsh plugin --profile desktop add ./editor
+  $ dsh plugin --profile desktop add .
   error: profile "desktop" is managed exclusively by the Electron application
   ```
   The desktop owns `$DSH_HOME/profiles/desktop`: package operations there hold a profile transaction lock
@@ -117,11 +122,12 @@ Electron shell**, so this plugin's page renders there unchanged. One install pat
   **Disable third-party plugins**; installed packages and the plugin's own data stay on disk.
 
 **Compatibility is declared, not assumed.** dsh checks every plugin's
-`peerDependencies["@deepseek-ai/dsh"]` against the running runtime and shows a warning when the range does
-not include it (prereleases included), so the desktop build of a supported line is supported by
-construction. This plugin declares the 0.1.x lines it is tested against; a new line (`0.2.x`) deliberately
-falls **outside** the range until it is adapted and re-tested, because the alternative — a range that
-"probably" works — is exactly the kind of claim that turns into a support ticket.
+`peerDependencies["@deepseek-ai/dsh"]` against the running runtime (prereleases included), and since
+0.2.0 that check is an **installation gate**, not a warning: a range that does not cover the runtime
+means `dsh plugin add` refuses the package outright
+(`installation rejected: Plugin … is incompatible with dsh 0.2.0-rc.2`). The declared range therefore
+*is* the support statement, which is why it moves only after the new line has been installed and tested
+— a range that "probably" works is exactly the kind of claim that turns into a support ticket.
 
 To keep the sources around as well — or to install without npm — clone and run the script, which does
 the same two things explicitly:
@@ -261,20 +267,23 @@ which refuses a shipped preset and re-checks that the directory really lives und
 
 The package version is its **own line** — `1.0.0`, then `1.0.1`, … It does not mirror the DSH release.
 What this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh` peer range in
-`editor/package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
+`package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
 version CI installs and tests falls inside those ranges.
 
-**Two lines are supported: the latest stable (`0.1.7-rc.2`, npm `latest`) and the latest preview
-(`0.2.0-rc.1`, npm `next` — the line the desktop app ships)** — declared as
+**Two lines are supported: the newest line (`0.2.0-rc.2`, which npm's `latest` and `next` both point at
+since 2026-09-29, and the line the desktop app ships) and the previous stable (`0.1.7-rc.2` — still inside
+the declared range, and what most existing installs run)** — declared as
 `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0` (the extra clauses exist because
-semver only matches a pre-release inside a range that names its own `major.minor.patch`), and CI installs each of
-the two and runs the whole suite against it — the rendered gate runs on the **preview** line, because that is
+semver only matches a pre-release inside a range that names its own `major.minor.patch`), and CI installs both
+and runs the whole suite against each — the rendered gate runs on the **newest** line, because that is
 where the shell's own UI changes land first.
 **The official desktop app (DeepSeek Harness Desktop) is covered too**: it is version-locked to dsh and now
-ships `0.2.0-rc.1`, i.e. the same combination this matrix pins. Install it from inside the app (sidebar →
-Plugins); the CLI is refused for that profile by dsh itself. On `0.2.0-rc.1` measured: install, composition
-tree, plugin boot (the `agentPresets` capability set is unchanged: `list, register, inventory, select,
-document`), the mode picker, and the whole 65-check render gate — all pass.
+ships `0.2.0-rc.2`, i.e. the same combination this matrix pins. Install it from inside the app (sidebar →
+Plugins); the CLI is refused for that profile by dsh itself. On `0.2.0-rc.2` measured (2026-09-30, clean
+throwaway `DSH_HOME`): `dsh plugin --profile web add dsh-custom-mode` resolves the package in 640 ms, the
+composition tree carries the row, boot seeds all five preset files, the declarative registry syncs the
+assistant, and the `agentPresets` capability set is unchanged (`list, register, inventory, select,
+document`).
 
 Two reasons for the split. A bare `x.y.z` is what directories and markets require before they will
 auto-install a package — several resolve npm `latest` and reject anything carrying a prerelease tag.
@@ -301,7 +310,7 @@ below exist, which is what the ranges are for.
 | **`settings.section` no longer takes `locale:`** (since 0.1.6-alpha.2) | the shell does not hand over a `t` bound to this namespace; the page carries its own dictionaries as a floor — see ARCHITECTURE §15 |
 | `preset.yml`'s `order` participating in the roster sort | move up/down stops working |
 | `ctx.locale.register/bind` | falls back to Chinese |
-| **where the base composition comes from** — `agentPresets.readDocument(<mode>).content` on 0.1.7+, the `@deepseek-ai/dsh-agent-presets` files before that | the base mode and the plugin switches become read-only (the prompt still saves); see `editor/base-composition.mjs` |
+| **where the base composition comes from** — `agentPresets.readDocument(<mode>).content` on 0.1.7+, the `@deepseek-ai/dsh-agent-presets` files before that | the base mode and the plugin switches become read-only (the prompt still saves); see `base-composition.mjs` |
 | shipped layout `<presets>/<id>/agent.cordis.yml` and row text shape | base-mode switching breaks |
 | `!!js` platform expressions | platform rows display the wrong state |
 
@@ -323,7 +332,7 @@ below exist, which is what the ranges are for.
 node test/run.mjs        # 15 suites; resolves the shipped presets itself (0.1.7+ derives them from the host)
 ```
 
-Edits to `editor/client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the
+Edits to `client.js` are hot-swapped by `@deepseek-ai/dsh-client-hmr` about a second later; the
 host half (`index.mjs`, `composition.mjs`, `meta.mjs`, `paths.mjs`) needs a restart. See
 [`test/README.md`](test/README.md) for what each suite protects, and [`CONTRIBUTING.md`](CONTRIBUTING.md)
 before changing behaviour.
@@ -346,7 +355,7 @@ MIT
 | | |
 | --- | --- |
 | Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
-| Runtime | DeepSeek Harness **0.2.0-rc.1** (preview) / **0.1.7-rc.2** (stable) — the two supported lines; the token figures below are from an earlier `0.1.6-alpha.2` session |
+| Runtime | DeepSeek Harness **0.2.0-rc.2** (newest line) / **0.1.7-rc.2** (previous stable) — the two supported lines; the token figures below are from an earlier `0.1.6-alpha.2` session |
 | Uncached input | 224,058 tok |
 | Cache reads | 125,638,016 tok |
 | Output | 425,539 tok |
@@ -376,7 +385,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.9.19
+dsh plugin --profile web add dsh-custom-mode@1.10.0
 # then restart the DSH process that serves the web profile
 ```
 

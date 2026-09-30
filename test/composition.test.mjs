@@ -12,7 +12,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { renderComposition, collectRows, readBaseComposition, BASE_MODES, shippedPresetsDir, modeOf, overridesOf, ROW_META, disableRowsInPlace } from '../editor/composition.mjs'
+import { renderComposition, collectRows, readBaseComposition, BASE_MODES, shippedPresetsDir, modeOf, overridesOf, ROW_META, disableRowsInPlace } from '../composition.mjs'
 
 let passed = 0
 let failed = 0

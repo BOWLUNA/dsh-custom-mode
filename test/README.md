@@ -22,7 +22,7 @@ Per-suite counts are deliberately **not** listed here: they change with every te
 caught this section still showing eight suites and a 333 total. The one number the docs do state — the
 total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
 
-**801 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other fourteen bring
+**805 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other fourteen bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 There are four resolution paths, and any one of them hitting is enough: the
@@ -72,7 +72,7 @@ target exactly that class:
 All five of these bugs really occurred in the past; the tests were added after they appeared.
 
 `locales.test.mjs` additionally guards against the **hardest-to-spot** class of drift:
-`editor/locales.mjs` is the single source of truth for the wording, but the browser half cannot import
+`locales.mjs` is the single source of truth for the wording, but the browser half cannot import
 it (hand-written bundle, no bundler), so `client.js` holds a **hand-copied duplicate**. It now
 extracts both dictionaries from `client.js` and compares them entry by entry against `locales.mjs` —
 changing only one side fails CI outright, rather than waiting for a user of some language to see stale
@@ -86,13 +86,13 @@ by "copying the module over and then importing it", the other via `DSH_CUSTOM_PR
 never touch the repository's `preset/prompt.md` and `preset/preset.yml`.
 
 `prompt-tool.test.mjs` also carries a **drift guard**: the validation logic for `{{variable}}` exists
-in two copies, in `editor/index.mjs` (the settings-page write path) and `preset/prompt-tool.mjs` (the
+in two copies, in `index.mjs` (the settings-page write path) and `preset/prompt-tool.mjs` (the
 tool write path), duplicated on purpose. It extracts the function from the latter's source and
 compares the two verdicts over the same input table — a split verdict means one path accepts a form
 the renderer throws on, i.e. every request in that mode fails. This is the same class of risk as the
 dictionary drift in `client.js`, only with heavier consequences.
 
-`editor-route.test.mjs` is the one that most needed to exist in this test suite: the `editor/index.mjs`
+`editor-route.test.mjs` is the one that most needed to exist in this test suite: the `index.mjs`
 it covers is exactly the half where the security fix lives, and it previously had **no test at all**
 (the fix was verified by hand with curl at the time). Manual verification proves "it was right at that
 moment"; it cannot stop someone later from moving the fence after method dispatch, or forgetting to
@@ -114,5 +114,5 @@ easy to write backwards by assumption, and are worth recording separately:
 plugin with a single command, and the npm package is all that command carries. It asserts that missing
 files are created, that an existing `prompt.md` or a generated `agent.cordis.yml` is **never**
 overwritten, that a second activation writes nothing, that an unwritable home is reported instead of
-thrown, and — because the package necessarily holds a second copy of the preset — that
-`editor/preset/` stays byte-identical to `preset/`.
+thrown, and that the packaged preset **is** the repository's `preset/` directory — since 1.10.0 the
+package is published from the repository root, so there is no second copy left to drift.

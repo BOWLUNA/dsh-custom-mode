@@ -18,7 +18,7 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 15 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **801 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
+合计 **805 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 解析链有四条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析
@@ -59,7 +59,7 @@ CI（`.github/workflows/test.yml`）在每次 push 时 `npm install @deepseek-ai
 
 历史上这五个 bug 都真实出现过，测试是在它们出现之后补的。
 
-`locales.test.mjs` 另外防一类**最难发现**的漂移：`editor/locales.mjs` 是文案的单一事实来源，
+`locales.test.mjs` 另外防一类**最难发现**的漂移：`locales.mjs` 是文案的单一事实来源，
 但浏览器半不能 import 它（手写 bundle、没有打包器），所以 `client.js` 里是**手抄的一份副本**。
 它现在会从 `client.js` 里把两份字典抽出来跟 `locales.mjs` 逐条比对 —— 只改一边会在 CI 直接失败，
 而不是等某个语言的用户看到旧文案。
@@ -70,12 +70,12 @@ CI（`.github/workflows/test.yml`）在每次 push 时 `npm install @deepseek-ai
 （一个靠「把模块复制过去再 import」，一个靠 `DSH_CUSTOM_PROMPT_PATH`），所以永远不会碰仓库里的
 `preset/prompt.md` 与 `preset/preset.yml`。
 
-`prompt-tool.test.mjs` 还带一条**漂移守卫**：`{{变量}}` 的校验逻辑在 `editor/index.mjs`（设置页写入
+`prompt-tool.test.mjs` 还带一条**漂移守卫**：`{{变量}}` 的校验逻辑在 `index.mjs`（设置页写入
 路径）与 `preset/prompt-tool.mjs`（工具写入路径）里各有一份，是有意重复的。它会从后者源码里把
 函数抽出来，对同一张输入表比对两者的判定——判定分叉意味着一条路径会接受渲染器会抛错的写法，
 也就是那个模式每个请求都失败。这和 `client.js` 的词典漂移是同一类风险，只是后果更重。
 
-`editor-route.test.mjs` 是这套测试里最该存在的一个：它覆盖的 `editor/index.mjs` 正是安全修复所在的
+`editor-route.test.mjs` 是这套测试里最该存在的一个：它覆盖的 `index.mjs` 正是安全修复所在的
 那半边，而它此前**一个测试都没有**（修复当时是用 curl 手工验的）。手工验证证明"那一刻是对的"，
 挡不住以后有人把栅栏挪到方法分发之后、或忘记失败关闭。它用桩出的 `ctx`/`req`/`res` 驱动真实的
 handler，断言的第一条就是**被拒的请求不能产生任何副作用**（401 的 POST 不得改写文件）。
@@ -90,5 +90,5 @@ handler，断言的第一条就是**被拒的请求不能产生任何副作用**
 
 `seed.test.mjs` 覆盖一键安装所依赖的 preset 播种：市场装插件只有一条命令，而那条命令能带上的只有
 npm 包。它断言缺失的文件会被补上、已存在的 `prompt.md` 与设置页生成过的 `agent.cordis.yml` **绝不**
-被覆盖、第二次激活不写任何东西、不可写的 home 只报告不抛异常；并且——因为包里必然存在第二份预设——
-`editor/preset/` 必须与 `preset/` 逐字节一致。
+被覆盖、第二次激活不写任何东西、不可写的 home 只报告不抛异常；并且断言"包内预设目录"**就是**仓库的
+`preset/` —— 1.10.0 起发布包从仓库根发出，所以不存在会漂移的第二份拷贝。

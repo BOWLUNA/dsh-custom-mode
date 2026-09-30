@@ -116,14 +116,14 @@ The current `install.sh` points this situation out at step 0, instead of waiting
 
 ---
 
-## 3. `editor/client.js` was changed, but the page does not change
+## 3. `client.js` was changed, but the page does not change
 
 First work out which half was changed — the two halves have completely different reload mechanisms:
 
 | File changed | How it takes effect |
 | --- | --- |
-| `editor/client.js` (browser half) | **Automatic**: `dsh-client-hmr` stat-polls the bundle file every ~500ms; about 1 second later the page updates by itself, with **no restart and no refresh** |
-| `editor/index.mjs` / `composition.mjs` / `meta.mjs` / `paths.mjs` (host half) | **`dsh web` must be restarted**: these are rows in the main process |
+| `client.js` (browser half) | **Automatic**: `dsh-client-hmr` stat-polls the bundle file every ~500ms; about 1 second later the page updates by itself, with **no restart and no refresh** |
+| `index.mjs` / `composition.mjs` / `meta.mjs` / `paths.mjs` (host half) | **`dsh web` must be restarted**: these are rows in the main process |
 
 Prerequisites for HMR: `dsh-client-hmr` is enabled in the profile's composition (`dsh --profile web --dump-config | grep -A2 'id: hmr'`),
 and **the page is still open** — if the SSE connection drops there will be no pushes, and in that case refreshing the page once is enough.
@@ -139,7 +139,7 @@ Check in order:
 
 1. **Is the plugin in the composition tree**: `dsh --profile web --dump-config | grep custom-mode`.
 2. **Was dsh restarted after installing**: the bundle's client-side content only enters the client graph during **startup assembly**.
-3. **Are `dsh.client` and `exports["./client"]` both present** in `editor/package.json`
+3. **Are `dsh.client` and `exports["./client"]` both present** in the root `package.json`
    (if either is missing, the browser half will not be discovered, and it **will not report an error**).
 4. **Are the host half's service dependencies satisfied**: the host half has `inject = ["webServer", "agentPresets"]`,
    and when either service is missing the plugin stays in `pending` (the startup log will say waiting for services).
@@ -251,7 +251,7 @@ Measurements after the fix:
 | POST + `Origin: https://evil.example` + `Sec-Fetch-Site: cross-site` | `403 forbidden` |
 | With a valid `dsh-auth-*` cookie (normal browser session) | `200`, functionality unchanged |
 
-**Which version you have installed yourself**: check whether `editor/index.mjs` registers on the raw
+**Which version you have installed yourself**: check whether `index.mjs` registers on the raw
 `webServer` table (`webServer.register(`). `1.0.3` and later register on the platform's `/api` channel
 (`connection.fetch.register`) instead, where the carrier applies the fence before dispatch.
 If it does not, either upgrade this repository, or for now do not expose this settings page on a port that others can reach
@@ -350,7 +350,7 @@ DSH_SHIPPED_PRESETS_DIR="$(node -e '
   const {createRequire}=require("module");
   const r=createRequire(process.argv[1]);
   console.log(require("path").join(require("path").dirname(r.resolve("@deepseek-ai/dsh-agent-presets/package.json")),"presets"));
-' "$PWD/editor/index.mjs")" node test/composition.test.mjs
+' "$PWD/index.mjs")" node test/composition.test.mjs
 node test/locales.test.mjs
 
 # 2. The plugin row entered the composition tree
@@ -407,7 +407,7 @@ The page shows the backend's reason verbatim. Three common ones:
 - **the directory already exists** — there is a same-named directory under the user preset root that
   discovery does not count as a preset (no `agent.cordis.yml`, say). Pick another name, or deal with
   that directory first;
-- **copying the mode template failed** — the packaged `editor/preset/` is missing files, or the target
+- **copying the mode template failed** — the packaged `preset/` is missing files, or the target
   directory is not writable.
 
 ### 13.4 An assistant was renamed, but `custom_prompt`'s description in its sessions still shows the old name
@@ -454,9 +454,9 @@ dsh-custom-mode: 词典注册后宿主仍查不到 …，页面已改用内置�
 ```
 
 In all three cases the page's copy is correct (the inlined dictionaries back it); the warnings only say
-what happened on the host side. If the copy really is raw keys, first confirm `editor/client.js` is
-current (`grep -c assistant.heading editor/client.js` should be > 0, and the same key must exist in
-`editor/locales.mjs`), then restart dsh and refresh the page.
+what happened on the host side. If the copy really is raw keys, first confirm `client.js` is
+current (`grep -c assistant.heading client.js` should be > 0, and the same key must exist in
+`locales.mjs`), then restart dsh and refresh the page.
 
 ## 16. The picker order did not change after reordering
 

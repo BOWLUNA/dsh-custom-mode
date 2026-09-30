@@ -34,7 +34,7 @@ import { dirname, join } from 'node:path'
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PEER = '@deepseek-ai/dsh'
 
-const pkg = JSON.parse(readFileSync(join(REPO, 'editor', 'package.json'), 'utf8'))
+const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
 const workflow = readFileSync(join(REPO, '.github', 'workflows', 'test.yml'), 'utf8')
 
 /**
@@ -187,7 +187,7 @@ if (typeof pkg.peerDependencies?.[PEER] === 'string') declared.push({ where: `pe
 
 if (declared.length === 0) {
   fail([
-    '版本一致性: editor/package.json 里没有声明 dsh 兼容范围。',
+    '版本一致性: package.json 里没有声明 dsh 兼容范围。',
     '至少要有 engines.dsh（目录与市场用它显示宿主兼容性）。',
   ])
 }
@@ -196,7 +196,7 @@ if (declared.length === 0) {
 const own = parseVersion(pkg.version)
 if (own === null) {
   fail([
-    `版本一致性: editor/package.json 的 version 不是合法语义化版本：${JSON.stringify(pkg.version)}`,
+    `版本一致性: package.json 的 version 不是合法语义化版本：${JSON.stringify(pkg.version)}`,
     '（四段号如 0.1.6.2 不是合法 semver，npm 会直接拒绝发布。）',
   ])
 }

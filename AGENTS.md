@@ -12,7 +12,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 | Artifact | What it is | Where it goes |
 | --- | --- | --- |
 | `preset/` | an agent preset (**a directory of files**, not an npm package) | `$DSH_HOME/.agent-presets/custom/` |
-| `editor/` | the settings-page plugin (npm package + profile bundle) | `dsh plugin --profile web add ./editor` |
+| the repository root | the settings-page plugin (**the npm package** + profile bundle) | `dsh plugin --profile web add dsh-custom-mode` (or `add .` from a clone) |
 
 ## Commands
 
@@ -61,12 +61,14 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
 4. **Waiting for services belongs in a scoped `ctx.inject(deps, cb)`**, never in the row's own
    `inject`: otherwise a profile without a web server (tui) prints the same `pending` warning a
    broken installation does.
-5. **The two copies of the `{{…}}` validator stay in step** (`editor/index.mjs` ↔
+5. **The two copies of the `{{…}}` validator stay in step** (`index.mjs` ↔
    `preset/prompt-tool.mjs`); a test compares their verdicts.
 6. **The dictionary in `client.js` stays in step with `locales.mjs`**; a test extracts both and diffs them.
-7. **`editor/preset/` is a packaging copy of `preset/`, not a second source.** npm can only ship
-   files inside the package, so the five preset files exist twice; `test/seed.test.mjs` asserts they
-   stay byte-identical. Edit `preset/`, copy, or the test fails.
+7. **The packaged preset IS `preset/` — there is no second copy.** Until 1.10.0 the npm package lived in
+   `editor/` (npm only ships files inside the package), so the five preset files existed twice and a test
+   had to assert they stayed byte-identical. Publishing from the repository root removed the copy:
+   `seed.mjs`'s `packagedPresetDir()` resolves to `<repo>/preset`, and `test/seed.test.mjs` asserts
+   exactly that — re-introducing a copy fails the suite.
 8. **Seeding never overwrites user data — but it does refresh our own code modules.** User data
    (`prompt.md`, `preset.yml`, the generated `agent.cordis.yml`) is only ever filled in when missing, so a
    storefront install (`dsh plugin add <pkg>`) is complete on its own and a user's edits survive. The two
@@ -76,14 +78,15 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
    unwritable `DSH_HOME` is reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-10. **支持策略：只跟两个"最新的"** —— 最新正式版与最新预览版（当前 **`0.1.7-rc.2`**（npm `latest`）
-    与 **`0.2.0-rc.1`**（npm `next`，也是官方桌面端所在的那条线）），也就是 `test.yml` 的腿 +
-    `release.yml` 发布前各跑一遍的那两条；**渲染闸门（browser.yml）跑在预览线上**，因为壳自己的 UI 改动
-    最先落在那里。更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，
+10. **支持策略：只跟两个"最新的"** —— 最新线（npm 的 `latest` 与 `next` 自 2026-09-29 起都指向
+    **`0.2.0-rc.2`**，也是官方桌面端所在的那条线）与上一个正式版 **`0.1.7-rc.2`**（仍在 peer 范围内，
+    现役安装大多在它上面），也就是 `test.yml` 的腿 + `release.yml` 发布前各跑一遍的那两条；
+    **渲染闸门（browser.yml）跑在最新线上**，因为壳自己的 UI 改动最先落在那里。更早的线
+    （`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，
     但**不为每条历史线加 CI 腿**：成本随版本数线性增长，而机制差异只有两次
     （≤0.1.6 扫描目录 / ≥0.1.7 声明式注册表 / ≥0.2.0 同一声明式 API 但**安装期就强制校验 peer 范围**）。
     换主轴版本时，这几处都要一起改：`test.yml` 的 matrix、`release.yml` 的两次安装、`engines.dsh`、
-    `editor/package.json` 的 peer 范围（dsh 的**插件兼容性检查**读的就是它，范围不覆盖运行时就告警）、
+    根 `package.json` 的 peer 范围（dsh 的**插件兼容性检查**读的就是它；0.2.0 起范围不覆盖会直接**拒绝安装**）、
     以及 SECURITY/README 里的版本钉。
 
 11. **The version number is the package's own stable line** (`1.0.0`, `1.0.1`, …) — it does not mirror
@@ -92,7 +95,7 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
    `tools/verify-version-consistency.mjs` asserts the CI-pinned dsh version falls inside them. Bump the
    version for every publish; widen the ranges when re-adapting.
 
-12. **The change journal (`editor/journal.mjs`) has ONE writer: the host half.** The preset-side
+12. **The change journal (`journal.mjs`) has ONE writer: the host half.** The preset-side
     `prompt-tool.mjs` must not append to it — those files ship independently, so the format would end up
     with two implementations. Changes made outside the page are picked up by comparison at state-read time
     and recorded as `external`. Versions are keyed by the `n` sequence, never by timestamp (two records can
@@ -115,7 +118,7 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     inside those messages are user data and are never translated.
 
 16. **Where a base composition comes from is the THIRD thing the two dsh lines disagree about.** That is what
-    `editor/base-composition.mjs` exists for. Legacy lines (≤ 0.1.6) ship
+    `base-composition.mjs` exists for. Legacy lines (≤ 0.1.6) ship
     `@deepseek-ai/dsh-agent-presets/presets/<mode>/agent.cordis.yml`; 0.1.7+ publishes no such package and the
     host hands the declaration over through `agentPresets.readDocument(<mode>).content` — the entry-list YAML,
     `isolate` groups and `!!js` included (the flattened `compositionInventory()` cannot be used: the groups
@@ -135,13 +138,22 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
 
 18. **桌面端的 `profiles/desktop` 不是 CLI 的地盘。** 官方桌面端（dsh 仓库 `apps/desktop`，与 dsh
     **同版本号**发布）独占 `$DSH_HOME/profiles/desktop`：那里的包操作持有 profile 事务锁，启动恢复还会
-    自己重命名 `cordis.patch.yml`。实测（0.1.7-rc.2）：`dsh plugin --profile desktop add ./editor` 直接报
+    自己重命名 `cordis.patch.yml`。实测（0.1.7-rc.2）：`dsh plugin --profile desktop add .` 直接报
     `error: profile "desktop" is managed exclusively by the Electron application` —— 也就是说 CLI 这条路
     **在运行时就被拒**，不是"约定俗成"。所以 `install.sh` 对 `--profile desktop` 同样拒绝并指路
     **应用内 Plugins 页**（`DSH_ALLOW_DESKTOP_PROFILE=1` 只给本机模拟测试用）。预设那一侧不用特殊处理：
     `.agent-presets/` 是桌面端与 CLI 共享的产品数据。
     顺带记住：dsh 会用 `peerDependencies["@deepseek-ai/dsh"]` 做**插件兼容性检查**（预发布版也算），
     所以"支持某条线"的正式表述就是那个范围 —— 新线落进来时先适配重测再改范围（与第 10 条一起改）。
+
+19. **仓库根就是发布包（1.10.0 起）；不许再把清单拆成两份。** 此前根 `package.json` 是 `private: true`
+    的包装清单（GitHub 地址安装读它），真正的发布清单在 `editor/package.json`。这个拆分让第三方目录
+    把插件显示成 `dsh-custom-mode#editor`，也让 dshfind 这类读根清单的探测站因为 `private: true` 报
+    "作者尚未发布到 npm"。现在只有一份清单、就在仓库根，`npm publish` 也从仓库根发；`editor/` 目录
+    已整体并入根目录，`packagedPresetDir()` 指回仓库自己的 `preset/`，不再有第二份预设拷贝。
+    对应地，第三方注册表条目是**根形态**（`data/plugins/BOWLUNA__dsh-custom-mode.yml`，`url` 指向仓库根、
+    `name` 为 `BOWLUNA/dsh-custom-mode`），不再是 `#editor` 子包形态。
+    `test/manifests.test.mjs` 断言根清单非 private、`editor/package.json` 不再存在、且 `files` 覆盖依赖图。
 
 ## Known traps (all measured)
 

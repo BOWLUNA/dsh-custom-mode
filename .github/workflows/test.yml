@@ -4,7 +4,7 @@
 # 出厂文本本身不在本仓库里。装了 dsh 才能拿到那份文本，测出来的才是真结论 ——
 # 否则 CI 只能跑一个自己构造的假 fixture，等于什么都没测。
 #
-# 版本与 `editor/package.json` 的 version 保持一致；升 dsh 时这里也要改。
+# 版本与根 `package.json` 的 version 保持一致；升 dsh 时这里也要改。
 name: test
 
 # 最小权限：这个 workflow 只读代码、跑测试，不需要写任何东西。
@@ -26,21 +26,24 @@ jobs:
         os: [ubuntu-latest]
         # 20 是保守下限（只用标准库），24 是当前开发版本。
         node-version: ['20', '24']
-        # 支持策略（2026-09-28 更新）：**只承诺两个"最新"** —— 最新正式版（npm `latest` = 0.1.7-rc.2）
-        # 与最新预览版（npm `next` = 0.2.0-rc.1，官方桌面端 0.2.0 内置的那条）。更早的线
+        # 支持策略（2026-09-30 更新）：**只承诺两个"最新的"** —— 最新线（npm `latest` 与 `next`
+        # 都指向 0.2.0-rc.2；官方桌面端与 dsh 同版本号发布，也在这一条线上）与上一个正式版
+        # （0.1.7-rc.2，仍在 `engines.dsh` / peer 范围内，现役安装大多在它上面）。更早的线
         # （0.1.5-rc.3、0.1.6-alpha.*）与它们共用同一套机制，peer 范围仍然接纳，但**不再各占一条 CI 腿**：
         # 跟着每条历史线跑，成本线性增长而收益递减。
-        # 主轴钉 0.2.0-rc.1：官方桌面端（DeepSeek Harness Desktop）与 dsh 同版本号发布，
-        # 0.2.0-rc.1 就是 desktop 当前的版本（apps/desktop/package.json，2026-09-28 核对 tag）。
-        dsh: ['0.2.0-rc.1']
+        #
+        # 注意 0.2.0 起 dsh 把兼容性从"告警"升级成**安装闸门**：范围不覆盖运行时就装不进去，
+        # 所以声明范围本身就是"支持"这个动作（见 AGENTS.md 第 10/18 条）。
+        dsh: ['0.2.0-rc.2']
         include:
           # Windows 是最容易出差异的平台，而它长期没进过 CI：一次外部 Windows 实测因此
           # 发现了三处只在 Windows 显现的缺陷（install.sh 的 MSYS 路径、并发 rename 的
           # EPERM、平台表达式行的求值方向导致 4 条断言假失败）。只在 node 24 上跑，控时长。
           - os: windows-latest
             node-version: '24'
-            dsh: '0.2.0-rc.1'
-          # 稳定线 = npm `latest`（插件市场里"点一下安装"的大多数用户现在装到的就是它）。
+            dsh: '0.2.0-rc.2'
+          # 稳定腿 = 上一个正式版。npm `latest` 已于 2026-09-29 移到 0.2.0-rc.2，但现役用户
+          # 大多还在 0.1.7-rc.2 上，而 peer 范围仍然接纳它 —— 别让"声明支持却没测过"重演。
           - os: ubuntu-latest
             node-version: '24'
             dsh: '0.1.7-rc.2'
@@ -82,7 +85,7 @@ jobs:
       - name: 语法检查
         shell: bash
         run: |
-          for f in editor/*.mjs editor/client.js preset/*.mjs test/*.mjs; do
+          for f in *.mjs client.js preset/*.mjs test/*.mjs; do
             node --check "$f"
           done
 
@@ -119,7 +122,6 @@ jobs:
       # 或浏览器半的 client.js 一旦被 files 白名单漏掉，npm 上的包装了也没用，
       # 而且要等到有人装完才发现。这里对着真实的 packlist 断言。
       - name: npm 打包自检（发布包里不能少文件）
-        working-directory: editor
         shell: bash
         run: |
           npm pack --dry-run --json > "$RUNNER_TEMP/pack.json"

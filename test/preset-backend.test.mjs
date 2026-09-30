@@ -19,7 +19,7 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createDeclarativeBackend } from '../editor/preset-backend/declarative.mjs'
+import { createDeclarativeBackend } from '../preset-backend/declarative.mjs'
 
 let passed = 0
 let failed = 0
@@ -33,7 +33,7 @@ const check = (label, condition, detail = '') => {
   }
 }
 
-const { deleteAssistant } = await import('../editor/index.mjs')
+const { deleteAssistant } = await import('../index.mjs')
 
 const base = mkdtempSync(join(tmpdir(), 'cm-backend-'))
 const root = join(base, 'presets')

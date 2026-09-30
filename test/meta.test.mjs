@@ -35,7 +35,7 @@ process.env.DSH_CUSTOM_PROMPT_PATH = join(dir, 'custom', 'prompt.md')
 // 所以这里复现同样的前提，而不是让 writePresetMeta 去猜目录。
 mkdirSync(join(dir, 'custom'), { recursive: true })
 
-const { writePresetMeta, readPresetMeta, PRESET_META_PATH } = await import('../editor/meta.mjs')
+const { writePresetMeta, readPresetMeta, PRESET_META_PATH } = await import('../meta.mjs')
 
 console.log()
 console.log('=== 0. 路径确实被重定向到临时目录（否则会写进仓库） ===')

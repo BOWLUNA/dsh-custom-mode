@@ -59,15 +59,15 @@ command -v dsh >/dev/null 2>&1 || { echo "找不到 dsh CLI，请先安装 DeepS
 echo "==> 0/3 前置自检"
 
 DSH_VERSION="$(dsh --version 2>/dev/null | head -1 | tr -d '[:space:]')"
-# 兼容性由 editor/package.json 声明的范围定义（engines.dsh 与 peer 范围），包版本走自己的线，
+# 兼容性由根 package.json 声明的范围定义（engines.dsh 与 peer 范围），包版本走自己的线，
 # 两者不再相等。判断逻辑只保留一份，就在那个脚本里。
 # 读声明范围：**传相对路径给脚本**，不把绝对路径嵌进 `node -e` 字符串 —— Git Bash 下
 # `$ROOT` 是 `/c/Users/…`，嵌进去 Windows 的 node 解析不了（实测：MODULE_NOT_FOUND，且
 # 下面那句自检会静默降级成 `?`）。细节见 tools/package-facts.mjs 的头注释。
-DECLARED="$(cd "$ROOT" && node tools/package-facts.mjs editor ranges 2>/dev/null || true)"
+DECLARED="$(cd "$ROOT" && node tools/package-facts.mjs ranges 2>/dev/null || true)"
 if [ -z "$DECLARED" ]; then
   # 读不到就说读不到：自检在最需要它的环境下静默降级成 "?"，比不检查更糟。
-  echo "    警告: 读不到 editor/package.json 里声明的兼容范围，无法做版本自检"
+  echo "    警告: 读不到 package.json 里声明的兼容范围，无法做版本自检"
   DECLARED="(读取失败)"
 fi
 if node "$ROOT/tools/verify-version-consistency.mjs" --dsh "$DSH_VERSION" >/dev/null 2>&1; then
@@ -112,9 +112,9 @@ fi
 chmod 644 "$PRESET_DIR"/* 2>/dev/null || true
 echo "    提示词文件: $PROMPT_PATH"
 
-# 包名一律从 editor/package.json 读取，绝不硬编码。
-PKG_NAME="$(cd "$ROOT" && node tools/package-facts.mjs editor name 2>/dev/null || true)"
-[ -n "$PKG_NAME" ] || { echo "无法从 editor/package.json 读取包名" >&2; exit 1; }
+# 包名一律从根 package.json 读取，绝不硬编码。
+PKG_NAME="$(cd "$ROOT" && node tools/package-facts.mjs name 2>/dev/null || true)"
+[ -n "$PKG_NAME" ] || { echo "无法从 package.json 读取包名" >&2; exit 1; }
 
 # 记录安装前的 bundle 列表：装完要断言「一个都没少」。
 # 这一条是回归护栏 —— 曾经这里有一段「清理解析不到的幽灵条目」，它按两个硬编码
@@ -135,7 +135,7 @@ echo "    安装前 bundles: $BUNDLES_BEFORE"
 echo "==> 2/3 安装设置页插件 \"$PKG_NAME\" 到 profile \"$PROFILE\""
 # 先移除旧 link，避免链接指向已移动的目录（从别处再次 clone 后运行会踩到）。
 dsh plugin --profile "$PROFILE" remove "$PKG_NAME" >/dev/null 2>&1 || true
-dsh plugin --profile "$PROFILE" add "$ROOT/editor"
+dsh plugin --profile "$PROFILE" add "$ROOT"
 
 # dsh 在 add 之后会按「已安装状态」校正 bundles；这里只补一件事：确保本插件的
 # 名字确实在列表里（旧版 dsh 不一定会自动追加）。绝不移除任何条目。

@@ -117,14 +117,14 @@ which pnpm               # 必须是 /home/... 或 /usr/...，不能是 /mnt/c/.
 
 ---
 
-## 3. 改了 `editor/client.js`，页面没变化
+## 3. 改了 `client.js`，页面没变化
 
 先分清改的是哪一半 —— 两半的重载机制完全不同：
 
 | 改的文件 | 生效方式 |
 | --- | --- |
-| `editor/client.js`（浏览器半） | **自动**：`dsh-client-hmr` 每 ~500ms stat 轮询 bundle 文件，约 1 秒后页面自行更新，**不用重启、不用刷新** |
-| `editor/index.mjs` / `composition.mjs` / `meta.mjs` / `paths.mjs`（宿主半） | **必须重启 `dsh web`**：它们是主进程里的行 |
+| `client.js`（浏览器半） | **自动**：`dsh-client-hmr` 每 ~500ms stat 轮询 bundle 文件，约 1 秒后页面自行更新，**不用重启、不用刷新** |
+| `index.mjs` / `composition.mjs` / `meta.mjs` / `paths.mjs`（宿主半） | **必须重启 `dsh web`**：它们是主进程里的行 |
 
 HMR 的前提：profile 的组合里 `dsh-client-hmr` 处于启用状态（`dsh --profile web --dump-config | grep -A2 'id: hmr'`），
 并且**页面还开着**——SSE 断了就不会有推送，此时刷新一次页面即可。
@@ -140,7 +140,7 @@ HMR 的前提：profile 的组合里 `dsh-client-hmr` 处于启用状态（`dsh 
 
 1. **插件在组合树里吗**：`dsh --profile web --dump-config | grep custom-mode`。
 2. **装完重启过 dsh 吗**：bundle 的客户端内容只在**启动装配期**进入客户端图。
-3. **`dsh.client` 与 `exports["./client"]` 是否都在** `editor/package.json` 里
+3. **`dsh.client` 与 `exports["./client"]` 是否都在** 根 `package.json` 里
    （缺任何一个，浏览器半就不会被发现，而且**不会报错**）。
 4. **宿主半的服务依赖满足吗**：宿主半 `inject = ["webServer", "agentPresets"]`，
    缺任一服务时插件会停在 `pending`（启动日志里会写 waiting for services）。
@@ -252,7 +252,7 @@ ctx.connection.fetch.register({ path, methods, requestBody, fetch })
 | POST + `Origin: https://evil.example` + `Sec-Fetch-Site: cross-site` | `403 forbidden` |
 | 带合法 `dsh-auth-*` cookie（正常浏览器会话） | `200`，功能照旧 |
 
-**你自己装的是哪个版本**：看 `editor/index.mjs` 有没有注册在裸 `webServer` 表上（`webServer.register(`）。
+**你自己装的是哪个版本**：看 `index.mjs` 有没有注册在裸 `webServer` 表上（`webServer.register(`）。
 `1.0.3` 起改为注册在平台的 `/api` 频道（`connection.fetch.register`），由载体在分发前施加栅栏。
 没有的话，要么升级本仓库，要么先别把这个设置页暴露在能被别人访问的端口上
 （默认只绑 `127.0.0.1`，风险主要在**多用户机器**与**浏览器内的跨站请求**）。
@@ -345,7 +345,7 @@ DSH_SHIPPED_PRESETS_DIR="$(node -e '
   const {createRequire}=require("module");
   const r=createRequire(process.argv[1]);
   console.log(require("path").join(require("path").dirname(r.resolve("@deepseek-ai/dsh-agent-presets/package.json")),"presets"));
-' "$PWD/editor/index.mjs")" node test/composition.test.mjs
+' "$PWD/index.mjs")" node test/composition.test.mjs
 node test/locales.test.mjs
 
 # 2. 插件行进了组合树
@@ -396,7 +396,7 @@ curl -s "http://127.0.0.1:3080/custom-mode/state?id=custom" -H 'cookie: dsh-toke
 - **名字是空的** —— 后端拒绝空名字（空名字会让模式在各处显示成裸目录 id）。
 - **目录已存在** —— 说明用户预设根目录下有同名目录，但 discovery 没把它算成一个模式（例如缺
   `agent.cordis.yml`）。换个名字，或者先处理掉那个目录。
-- **复制模式模板失败** —— 包内的 `editor/preset/` 少了文件，或目标目录不可写。
+- **复制模式模板失败** —— 包内的 `preset/` 少了文件，或目标目录不可写。
 
 ### 13.4 助手改名了，但旧助手会话里的 `custom_prompt` 描述还是旧名字
 
@@ -438,8 +438,8 @@ dsh-custom-mode: 词典注册后宿主仍查不到 …，页面已改用内置�
 ```
 
 三种情况下页面文案都是正常的（内置词典兜底）；这些警告只是告诉你宿主那一侧发生了什么。
-若文案**确实**是键名，先确认 `editor/client.js` 是最新的（`grep -c assistant.heading editor/client.js`
-应当大于 0，且同一条在 `editor/locales.mjs` 里存在），再重启 dsh 并刷新页面。
+若文案**确实**是键名，先确认 `client.js` 是最新的（`grep -c assistant.heading client.js`
+应当大于 0，且同一条在 `locales.mjs` 里存在），再重启 dsh 并刷新页面。
 
 ## 16. 调整顺序后选择器里的顺序没变
 

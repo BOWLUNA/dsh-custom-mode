@@ -28,7 +28,7 @@ asks for the two things that separate "installed but inert" from "not installed 
 ## Development loop
 
 Prerequisites: Node.js ≥ 20, `git`, and a `dsh` matching the version in
-`editor/package.json` (currently `0.1.7-rc.2`; if it differs, check the README's coupling-point
+`package.json` (currently `0.2.0-rc.2`; if it differs, check the README's coupling-point
 table first).
 
 ```sh
@@ -45,7 +45,7 @@ DSH_HOME=/tmp/dsh-dev ./install.sh
 DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open     # then open the URL it prints
 ```
 
-Editing `editor/client.js` is picked up by client HMR in about a second — no restart, no refresh.
+Editing `client.js` is picked up by client HMR in about a second — no restart, no refresh.
 Changing the host half (`index.mjs`, `composition.mjs`, `meta.mjs`, `paths.mjs`) needs a restart.
 
 Screenshots are produced, not taken: `tools/screenshots/` drives a real instance over CDP. Use it
@@ -68,7 +68,7 @@ These are the invariants the tests and the docs exist for. Each one was a real b
 - **The plugin row activates everywhere.** Waiting for services belongs in a scoped `ctx.inject`, not
   in the row's own `inject` — otherwise a profile without a web server prints the same
   "did not activate" warning a broken installation does.
-- **The two copies of the `{{…}}` validator stay in step** (`editor/index.mjs` and
+- **The two copies of the `{{…}}` validator stay in step** (`index.mjs` and
   `preset/prompt-tool.mjs`). They are duplicated on purpose; a drift means one write path accepts
   something the renderer throws on, i.e. every request in that mode fails.
 - **The dictionary copy in `client.js` stays in step with `locales.mjs`.** The browser half cannot
@@ -93,7 +93,7 @@ same thing.
 
 The package version is its **own line** (`1.0.0`, `1.0.1`, …), not a mirror of the DSH release.
 Which DSH this plugin supports is declared in `engines.dsh` and the peer range in
-`editor/package.json`; `tools/verify-version-consistency.mjs` asserts the DSH version CI tests falls
+`package.json`; `tools/verify-version-consistency.mjs` asserts the DSH version CI tests falls
 inside them. Bump the version for every publish (npm refuses to republish one), and widen the ranges
 when you re-adapt to a newer DSH. See the "Versioning" section of the README.
 

@@ -24,9 +24,11 @@ systemd-run --unit=dsh-shots --collect -p MemoryMax=900M \
 CDP_PORT=9222 node tools/screenshots/shoot-fresh.mjs "<token URL>" docs/images
 ```
 
-The same run also writes `editor/assets/storefront-0{1..4}-*.png` - the four views the plugin directory
-declares in `editor/screenshots.json` - from the same captures, so the storefront images cannot drift from
-the README ones in content, size or language.
+`screenshots.json` at the repository root lists five of these files — the four above plus
+`05-assistant-manager.png` — as the storefront set catalogues read, so a catalogue card shows exactly
+the pictures this README shows: one capture run, one copy of each. (Before 1.10.0 there was a second,
+duplicated `editor/assets/storefront-*` set, and its first file was mislabelled — the entry named
+"assistant manager" actually held the mode-switch capture. That copy is gone.)
 
 Two measured traps are recorded in the script, because both produced 01-04 that looked plausible and were
 wrong: the settings dialog must be opened with a **real pointer** (this shell deliberately ignores synthesised

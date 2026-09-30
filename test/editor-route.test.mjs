@@ -3,7 +3,7 @@
  *
  * Run: node test/editor-route.test.mjs
  *
- * Why this exists: `editor/index.mjs` is the half that serves the settings page, and it is where the
+ * Why this exists: `index.mjs` is the half that serves the settings page, and it is where the
  * unauthenticated-read/write vulnerability lived (see docs/TROUBLESHOOTING.md §9 and SECURITY.md).
  * It had NO test at all — the fix was verified by hand with curl. A hand check proves the fix worked
  * once; it does not stop the fence from being moved, reordered or forgotten later.
@@ -117,9 +117,9 @@ writeFileSync(join(presetDir, 'prompt-tool.mjs'), '// fixture tool\nexport funct
 process.env.DSH_CUSTOM_PROMPT_PATH = promptPath
 process.env.DSH_SHIPPED_PRESETS_DIR = shippedDir
 
-const { renderComposition, setShippedPresetsDir } = await import('../editor/composition.mjs')
-const { readPresetMeta } = await import('../editor/meta.mjs')
-const editor = await import('../editor/index.mjs')
+const { renderComposition, setShippedPresetsDir } = await import('../composition.mjs')
+const { readPresetMeta } = await import('../meta.mjs')
+const editor = await import('../index.mjs')
 
 // 装上一份生成好的组合文件，让 readState() 有东西可读（和真实安装后的状态一致）
 writeFileSync(compositionPath, renderComposition('standard', new Map()), 'utf8')
@@ -207,7 +207,7 @@ console.log('=== 0. 浏览器半与宿主半的路由常量不许漂移 ===')
 {
   // 两半各自硬写了一份路径（bundle 不能 import 宿主半）。改一边忘一边 = 页面 404 或
   // 打到别的路由上，而且症状是「页面能开、功能全废」，所以直接对文本断言。
-  const clientSource = readFileSync(new URL('../editor/client.js', import.meta.url), 'utf8')
+  const clientSource = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
   const match = /const ROUTE = "([^"]+)"/.exec(clientSource)
   check('能从 client.js 里读出 ROUTE', match !== null)
   check(
@@ -317,7 +317,7 @@ console.log('=== 1. 结构：注册在平台带围栏的频道上，且源码里
   )
 
   // 结构断言：这两样东西的存在本身就是旧漏洞的成因，所以直接对源码断言。
-  const source = readFileSync(new URL('../editor/index.mjs', import.meta.url), 'utf8')
+  const source = readFileSync(new URL('../index.mjs', import.meta.url), 'utf8')
   // 断言"没有调用"而不是"没有出现这个词"：注释里解释历史是应该的。
   check('源码里不再调用手搓的 requestRejection()', !/requestRejection\s*\(/.test(source))
   check('源码里不再注册裸 webServer 路由', !/webServer\s*\.\s*register/.test(source))
@@ -400,7 +400,7 @@ console.log('=== 4. GET /custom-mode/state：一个助手的完整状态 ===')
   )
   check(
     '出厂提示词与打包模板逐字节一致',
-    state.factoryPrompt === readFileSync(new URL('../editor/preset/prompt.md', import.meta.url), 'utf8'),
+    state.factoryPrompt === readFileSync(new URL('../preset/prompt.md', import.meta.url), 'utf8'),
   )
   // 恢复之后必须能保存：出厂文本若过不了自己的校验，这个按钮就是个陷阱。
   const savedFactory = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: state.factoryPrompt }))
@@ -773,7 +773,7 @@ console.log('=== 12. 每个用户可见的结果都带 code，且每个 code 都
    * 所以这里对着**源码**断言，与"源里不得出现 webServer.register"是同一手法。client.js 那份
    * 手抄词典由 locales.test.mjs 与 locales.mjs 逐条比对，因此不必在这里重复。
    */
-  const localesSource = readFileSync(new URL('../editor/locales.mjs', import.meta.url), 'utf8')
+  const localesSource = readFileSync(new URL('../locales.mjs', import.meta.url), 'utf8')
 
   /**
    * 把字符串与注释替换成等长空白（保留换行，下标不变），只留可判定的代码。
@@ -848,13 +848,13 @@ console.log('=== 12. 每个用户可见的结果都带 code，且每个 code 都
   // **每个宿主模块都要扫**，不只 index.mjs：这一轮真实漏网的五处里，四处来自 assistants.mjs
   // （创建路径的四个失败返回），只扫 index.mjs 会让它们全部溜过去。locales.mjs 是词典、
   // client.js 是浏览器半，都不在这里的范围内。
-  const hostModules = readdirSync(new URL('../editor', import.meta.url))
+  const hostModules = readdirSync(new URL('..', import.meta.url))
     .filter((name) => name.endsWith('.mjs') && name !== 'locales.mjs')
 
   const naked = []
   const missing = []
   for (const moduleName of hostModules) {
-    const hostSource = readFileSync(new URL(`../editor/${moduleName}`, import.meta.url), 'utf8')
+    const hostSource = readFileSync(new URL(`../${moduleName}`, import.meta.url), 'utf8')
     const blank = blankNonCode(hostSource)
 
     for (const hit of blank.matchAll(/ok:\s*false/g)) {
