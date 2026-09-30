@@ -73,14 +73,27 @@ jobs:
       - name: 安装 DSH（夹具由 test/run.mjs 从已安装的声明派生）
         shell: bash
         run: |
-          npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@${{ matrix.dsh }}
+          # ★ 装之前把仓库根的 package.json 挪开，装完立刻放回（trap 兜底）。
+          #   实测（2026-09-30，node 20 + npm 10.8.2）：根清单是**插件清单**，它把
+          #   @deepseek-ai/dsh 声明为 optional peer；在这个组合下
+          #   `npm install --no-save @deepseek-ai/dsh@<线>` 会**成功退出（exit 0）却什么都没装**
+          #   （added 11 packages，npm ls 显示 (empty)，@deepseek-ai/ 下只剩一个平台可选包），
+          #   于是紧随其后的 require 才报 MODULE_NOT_FOUND。node 24 / npm 11 的腿没有这个问题。
+          #   换 --legacy-peer-deps 更糟：npm 判定 "up to date"，一个包都不装。
+          #   挪开清单后同一条命令 539 个包、dsh 正常落地；安装位置仍是仓库根的 node_modules，
+          #   测试的解析路径一字未变。
+          restore_manifest() { if [ -f package.json.plugin ]; then mv -f package.json.plugin package.json; fi }
+          trap restore_manifest EXIT
+          mv package.json package.json.plugin
+          npm install --no-save --no-audit --no-fund "@deepseek-ai/dsh@${{ matrix.dsh }}"
+          restore_manifest
+          node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
           FIXTURE="node_modules/@deepseek-ai/dsh-agent-presets/presets"
           if [ -d "$FIXTURE" ]; then
             echo "本线自带 $FIXTURE（旧线），直接用作夹具"
           else
             echo "本线没有复数 presets 包（0.1.7+）—— 夹具由 test/run.mjs 从 dsh-web-app 的声明派生"
           fi
-          node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
 
       - name: 语法检查
         shell: bash

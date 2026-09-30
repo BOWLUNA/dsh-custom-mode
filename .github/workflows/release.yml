@@ -38,7 +38,23 @@ jobs:
       # 从前这里只装 0.1.6-alpha.2，于是"闸门全绿"和"CI 上 0.1.7 三条腿全红"可以同时成立
       # —— 1.9.10 … 1.9.12 三个版本就是这么发出去的，而设置页在那条线上整体不可用。
       - name: 安装 DSH 0.2.0-rc.2（当前主轴；夹具由其声明派生）
-        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.2.0-rc.2
+        shell: bash
+        run: |
+          # ★ 装之前把仓库根的 package.json 挪开，装完立刻放回（trap 兜底）。
+          #   实测（2026-09-30，node 20 + npm 10.8.2）：根清单是**插件清单**，它把
+          #   @deepseek-ai/dsh 声明为 optional peer；在这个组合下
+          #   `npm install --no-save @deepseek-ai/dsh@<线>` 会**成功退出（exit 0）却什么都没装**
+          #   （added 11 packages，npm ls 显示 (empty)，@deepseek-ai/ 下只剩一个平台可选包），
+          #   于是紧随其后的 require 才报 MODULE_NOT_FOUND。node 24 / npm 11 的腿没有这个问题。
+          #   换 --legacy-peer-deps 更糟：npm 判定 "up to date"，一个包都不装。
+          #   挪开清单后同一条命令 539 个包、dsh 正常落地；安装位置仍是仓库根的 node_modules，
+          #   测试的解析路径一字未变。
+          restore_manifest() { if [ -f package.json.plugin ]; then mv -f package.json.plugin package.json; fi }
+          trap restore_manifest EXIT
+          mv package.json package.json.plugin
+          npm install --no-save --no-audit --no-fund "@deepseek-ai/dsh@0.2.0-rc.2"
+          restore_manifest
+          node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
 
       # ★ 不要在这里单独装 0.1.6 的 presets 夹具包。实测（2026-09-25，本仓库第一次推 v1.9.13）：
       #   在 0.1.7 的 peer 树上跑 npm i @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2 会 **ERESOLVE
@@ -56,8 +72,23 @@ jobs:
       #   0.1.7-rc.2 之后这句 `ls` 必然失败 —— v1.9.19 的发布闸门就是这么红的（而套件本身
       #   完全正常，只是被这句提前掐断，连带把后面的发布与 GitHub Release 一起跳过）。
       - name: 换装 0.1.7-rc.2（上一个正式版），稳定腿再跑一遍
+        shell: bash
         run: |
-          npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
+          # ★ 装之前把仓库根的 package.json 挪开，装完立刻放回（trap 兜底）。
+          #   实测（2026-09-30，node 20 + npm 10.8.2）：根清单是**插件清单**，它把
+          #   @deepseek-ai/dsh 声明为 optional peer；在这个组合下
+          #   `npm install --no-save @deepseek-ai/dsh@<线>` 会**成功退出（exit 0）却什么都没装**
+          #   （added 11 packages，npm ls 显示 (empty)，@deepseek-ai/ 下只剩一个平台可选包），
+          #   于是紧随其后的 require 才报 MODULE_NOT_FOUND。node 24 / npm 11 的腿没有这个问题。
+          #   换 --legacy-peer-deps 更糟：npm 判定 "up to date"，一个包都不装。
+          #   挪开清单后同一条命令 539 个包、dsh 正常落地；安装位置仍是仓库根的 node_modules，
+          #   测试的解析路径一字未变。
+          restore_manifest() { if [ -f package.json.plugin ]; then mv -f package.json.plugin package.json; fi }
+          trap restore_manifest EXIT
+          mv package.json package.json.plugin
+          npm install --no-save --no-audit --no-fund "@deepseek-ai/dsh@0.1.7-rc.2"
+          restore_manifest
+          node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
           node test/run.mjs
       - name: 双语配对 + 语言纯度
         run: node tools/verify-translation-pairing.mjs
