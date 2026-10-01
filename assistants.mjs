@@ -34,7 +34,7 @@ import { dshHome, PRESET_DIR } from './paths.mjs'
 import { readPresetMeta, writePresetMeta, presetMetaPath } from './meta.mjs'
 import { writeAtomic } from './atomic.mjs'
 import { unresolvableRows } from './composition.mjs'
-import { seedPreset, seedPresetWithLog } from './seed.mjs'
+import { seedPreset, seedPresetWithLog, dropShippedDescription } from './seed.mjs'
 
 /**
  * Preset ids a directory may use, mirrored from
@@ -324,6 +324,22 @@ export function seedOnActivation({ root, templateDir, composition, log = console
       info(`custom-mode: 已补全 ${dir} 缺失的模板文件（${result.created.join(', ')}）`)
     }
     for (const error of result.errors) log(`custom-mode: 补全 ${dir} 失败 —— ${error}`)
+  }
+
+  // 描述迁移：清掉我们早年播种的那条中英拼接（详见 seed.mjs 的 dropShippedDescription）。
+  //
+  // ★ 必须放在**这里**，不能只放在 `seedPresetWithLog` 里：下面第 348 行 `isSeeded(root)` 一旦为真就直接
+  //   return，那条路永远不会走到 —— 而"已经装过插件"恰恰是这个迁移唯一要处理的场景（实测：装到 1.11.2
+  //   之后描述仍是旧的）。放在这个循环里，每次激活都会检查，且 `dropShippedDescription` 只认**逐字**
+  //   等于我们自己写过的那些串，用户自己写的描述一个字都不会动。
+  for (const dir of existing) {
+    try {
+      if (dropShippedDescription(dir).migrated === true) {
+        info(`custom-mode: 已清空 ${dir} 的描述 —— 它还是我们早年播种的那条中英拼接，壳无法按界面语言本地化产品数据`)
+      }
+    } catch (error) {
+      log(`custom-mode: 描述迁移失败（已忽略）—— ${describe(error)}`)
+    }
   }
 
   // 启动告警：组成文件里有本机这条线解析不到的行时，平台会把整个预设判为 broken 并从选择器里**静默丢弃**。

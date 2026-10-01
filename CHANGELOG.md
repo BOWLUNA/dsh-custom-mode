@@ -8,6 +8,33 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.11.3]
+
+### The 1.11.2 description migration never ran — and it could only ever have run for the wrong people
+
+1.11.2 added a migration for the description (clear the bilingual string we shipped years ago, verbatim).
+Installed on a real machine, the description did not change by a single character.
+
+The cause was where it was called from: the migration lived inside `seedPresetWithLog()`, but
+`seedOnActivation()` **returns early** when `isSeeded(root)` is true — so the one case that actually needs a
+migration, "this plugin is already installed", never reached it. A fresh install would have reached it, and a
+fresh install is exactly the case that does not need it.
+
+The fix moves the migration into the loop in `seedOnActivation()` that runs on **every** activation, placed
+**before** the early return. `dropShippedDescription()` itself is unchanged: it only matches strings we
+shipped, verbatim, and never touches text the user wrote.
+
+★ One rule for the list: **next to an "already exists, skip" branch, anything that only happens on the
+create path has to be asked "and what about everyone who already has data?"** That is the third time this
+sentence has earned its place in this repository.
+
+Also: `tools/ZZ-measure.mjs` — a temporary copy of the render gate used to measure type and spacing on a real
+machine in the previous round — had been committed by mistake. It is gone; throwaway scaffolding does not
+belong in the repository.
+
+15 suites / **873 checks** (was 869; four new ones: the migration must fire on an already-seeded install, and
+user text must be untouched). Mutation M15 (moving the migration back into `seedPresetWithLog`) is verified to
+turn the new assertion red.
 ## [1.11.2]
 
 ### Settings-page styling pass: two type sizes, one row height, tighter copy, no more mixed-language description

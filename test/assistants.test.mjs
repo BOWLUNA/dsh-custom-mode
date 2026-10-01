@@ -36,7 +36,8 @@ const check = (label, condition, detail = '') => {
   }
 }
 
-const { readPresetMeta } = await import('../meta.mjs')
+const { readPresetMeta, writePresetMeta } = await import('../meta.mjs')
+const { SHIPPED_DESCRIPTIONS } = await import('../seed.mjs')
 const {
   allocateId,
   assistantDir,
@@ -268,6 +269,30 @@ console.log('=== 9. reorderAssistant：顺序写进 preset.yml 的 order ===')
   const down = reorderAssistant(roster(), { id: 'b-second', direction: 'down' })
   check('下移成功并落盘', down.ok === true && readPresetMeta(join(root, 'b-second')).order === 2, JSON.stringify({ ok: down.ok, order: readPresetMeta(join(root, 'b-second')).order }))
   check('最终顺序回到 a,b,c', JSON.stringify(ids()) === JSON.stringify(managed), JSON.stringify(ids()))
+}
+
+console.log()
+console.log('=== 已播种之后激活：描述迁移必须照样跑（它必须在 early return 之前）===')
+{
+  // ★ 回归：第一版把迁移只放在 `seedPresetWithLog` 里，而 `seedOnActivation` 在 `isSeeded(root)` 为真时
+  //   **直接 return** —— 于是"已经装过插件"这个唯一需要迁移的场景永远走不到。
+  //   真机实测：桌面端装到 1.11.2 之后，preset.yml 里的描述仍是那条中英拼接。
+  const root = mkdtempSync(join(tmpdir(), 'dsh-custom-act-'))
+  seedOnActivation({ root, templateDir: TEMPLATE })
+  const presetDir = join(root, 'custom')
+  check('激活后默认助手已播种', existsSync(join(presetDir, 'preset.yml')))
+
+  writePresetMeta('自定义模式', SHIPPED_DESCRIPTIONS[1], presetDir)
+  check('先把描述写回成我们早年那条', readPresetMeta(presetDir).description === SHIPPED_DESCRIPTIONS[1], String(readPresetMeta(presetDir).description).slice(0, 36))
+
+  seedOnActivation({ root, templateDir: TEMPLATE })
+  check('已播种状态下再次激活，描述照样被清掉', readPresetMeta(presetDir).description.trim() === '', JSON.stringify(readPresetMeta(presetDir).description))
+
+  writePresetMeta('自定义模式', '用户自己的描述', presetDir)
+  seedOnActivation({ root, templateDir: TEMPLATE })
+  check('用户自己写的描述在激活时也不动', readPresetMeta(presetDir).description === '用户自己的描述', String(readPresetMeta(presetDir).description))
+
+  rmSync(root, { recursive: true, force: true })
 }
 
 rmSync(dir, { recursive: true, force: true })
