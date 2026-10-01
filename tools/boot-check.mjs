@@ -297,7 +297,17 @@ async function justRun() {
   // package manager is an environment problem, and calling it a plugin failure is how a red gate
   // gets ignored.
   const addText = `${add.stdout ?? ""}${add.stderr ?? ""}`;
-  const envish = /pnpm[^\n]*(not found|missing|not on PATH)|install pnpm/i.test(addText);
+  // ★ 措辞因平台而异，而两处的「同一个问题」不该给出两种判决。
+  //   CI 实测（2026-10-01，同一次 push）：
+  //     ubuntu-latest : `dsh: pnpm was not found; install pnpm and make it available on PATH.` → exit 127
+  //     windows-latest: `'pnpm' is not recognized as an internal or external command`            → exit 1
+  //   旧正则只认 "not found|missing|not on PATH"，于是 **windows 腿把环境问题判成了插件问题
+  //   （exit 1）** —— 而按本文件的三态约定，环境问题必须是 exit 2，否则红的那条腿会指向错误的
+  //   责任方，久而久之就被忽略了。
+  const envish =
+    /pnpm[^\n]*(not found|missing|not on PATH)|pnpm'? is not recognized|is not recognized[^\n]*pnpm|install pnpm/i.test(
+      addText,
+    );
   record("A  plugin add", addOk, addOk ? "exit 0" : `exit ${String(add.status)}`);
   if (addOk === false) {
     console.error(addText.trim());

@@ -95,6 +95,14 @@ jobs:
             echo "本线没有复数 presets 包（0.1.7+）—— 夹具由 test/run.mjs 从 dsh-web-app 的声明派生"
           fi
 
+      # `dsh plugin` 会去 PATH 上找 pnpm 来管理 profile 的插件，找不到就**直接失败、没有回退**。
+      # 本机的开发环境一直有 pnpm，所以这个前提第一次上 CI 才发现没被写下来 ——
+      # 姊妹仓（dsh-zcode-farm）的第 6 道守卫首次上 CI 时踩过同一脚，这里照它的做法补上。
+      # 2026-10-01 实测：缺 pnpm 时 ubuntu 报 `pnpm was not found`（exit 127）、
+      # windows 报 `'pnpm' is not recognized`（exit 1）—— 措辞不同，守卫必须都认得出是环境问题。
+      - name: 装 pnpm（`dsh plugin` 需要它在 PATH 上）
+        run: npm install -g --no-audit --no-fund pnpm@12
+
       - name: 语法检查
         shell: bash
         run: |
