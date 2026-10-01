@@ -142,6 +142,24 @@ cd dsh-custom-mode
 The mode needs a profile that ships `agent-presets` — the `web` profile does, `tui` and `headless` do
 not.
 
+### Trying it without installing anything
+
+Every release carries a **`dsh-custom-mode.dshpreset`** beside the source
+([latest](https://github.com/BOWLUNA/dsh-custom-mode/releases/latest/download/dsh-custom-mode.dshpreset)).
+It is a zip holding one ready-to-use assistant: `manifest.json` plus `preset/` — the composition, a
+`prompt.md`, the reader that re-reads it before every model step, and a model-facing tool that reads and
+rewrites that prompt. Import it in the desktop app and you have a working「自定义模式」**without
+installing a package**:
+
+| | |
+| --- | --- |
+| **What you get** | one assistant whose system prompt is a plain file. Edit it in any editor — the agent loop re-reads it before every model step, so the change applies on the next step, with no restart. Or just ask the model to rewrite it: the preset ships exactly that tool. |
+| **What you don't get** | the settings page. That is what the plugin adds — the page itself, plus managing **several** assistants side by side and picking one from the new-session menu. |
+
+So the preset is the 30-second way to see what this is, and the plugin is the way to live with it.
+Importing the preset does not conflict with installing the plugin afterwards: the plugin seeds its own
+preset under `$DSH_HOME/.agent-presets/` and never overwrites a `prompt.md` you wrote.
+
 ## Usage
 
 The settings page (Settings → "Custom mode") is an **assistant manager**: the top of the page lists
