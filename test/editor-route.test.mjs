@@ -971,6 +971,42 @@ console.log('=== 8b. 自动互斥：两套壳不能同时启用（否则预设�
   check('页面外写进去的互斥组合会被点名', illegal.warnings.includes('exclusiveRowsActive'), JSON.stringify(illegal.warnings))
 }
 
+console.log()
+console.log('=== 8c. 宿主报的 broken 必须被点名、被修复（桌面端实测：只修「装不上」会留下死局）===')
+{
+  // 实测依据（2026-10-01，官方桌面端 0.2.0-rc.2，真机）：
+  //   修掉装不上的引擎行之后，`unresolvable` 变空、页面**全绿**，而预设**仍然 broken** ——
+  //   依赖引擎的两个工具在等它（"waiting for workflowEngine"）。用户以为修好了，模式却始终
+  //   不出现在选择器里。⇒ 必须把宿主给的 `broken` 也变成页面上的一句话，并让修复认它。
+  check('brokenRowIds 抠出行 id', JSON.stringify(editor.brokenRowIds('a (@m/x): never started\nb (@m/y): waiting for e')) === '["a","b"]', JSON.stringify(editor.brokenRowIds('a (@m/x): never started\nb (@m/y): waiting for e')))
+  check('brokenRowIds 去重且保序', JSON.stringify(editor.brokenRowIds('a (@m): 1\na (@m): 2')) === '["a"]', '')
+  check('brokenRowIds 对非字符串/认不出的给空数组', editor.brokenRowIds(null).length === 0 && editor.brokenRowIds('随便一句话').length === 0, JSON.stringify(editor.brokenRowIds('随便一句话')))
+
+  const hostRows = (broken) => [{ id: 'custom', trust: 'user', path: compositionPath, name: '自定义模式', broken }]
+  const brokenMsg = 'tool-workflow (@deepseek-ai/dsh-tool-workflow): waiting for workflowEngine'
+
+  const st = editor.readState(hostRows(brokenMsg), 'custom', {})
+  check('宿主报 broken 且我们自己解释不了 → 点名 presetBroken', st.warnings.includes('presetBroken'), JSON.stringify(st.warnings))
+  check('broken 原文透传给页面（详情里能看见）', st.broken === brokenMsg, String(st.broken))
+
+  const notParsed = editor.readState(hostRows('平台换了个措辞，认不出行 id'), 'custom', {})
+  check('认不出行 id 时也照样点名（宁可笼统，不可沉默）', notParsed.warnings.includes('presetBroken'), JSON.stringify(notParsed.warnings))
+
+  const clean = editor.readState(hostRows(undefined), 'custom', {})
+  check('宿主没说坏时不误报', clean.warnings.includes('presetBroken') === false && clean.broken === null, JSON.stringify(clean.warnings))
+
+  // 修复必须**认宿主点名的行**，而不只是我们自己查得到的"装不上"的行。
+  writeFileSync(compositionPath, renderComposition('standard', new Map()), 'utf8')
+  const block = (text, id) => (text.split('- id: ' + id)[1] ?? '').split('- id: ')[0]
+  check('夹具就位：tool-web 开着', /disabled: true/.test(block(readFileSync(compositionPath, 'utf8'), 'tool-web')) === false, block(readFileSync(compositionPath, 'utf8'), 'tool-web').slice(0, 50))
+
+  const repaired = editor.repairComposition(hostRows('tool-web (@deepseek-ai/dsh-tool-web): never started'), { id: 'custom' })
+  check('宿主点名的行被修复关掉', repaired.ok === true && repaired.code === 'repaired' && repaired.params.repairedIds.includes('tool-web'), JSON.stringify(repaired.params ?? repaired))
+  check('磁盘上真的关掉了', /disabled: true/.test(block(readFileSync(compositionPath, 'utf8'), 'tool-web')), block(readFileSync(compositionPath, 'utf8'), 'tool-web').slice(0, 60))
+  const nothing = editor.repairComposition(hostRows('nope (@x/y): never started'), { id: 'custom' })
+  check('宿主报的行不在文本里时不虚报计数', nothing.code === 'repairNotNeeded', JSON.stringify(nothing.params ?? nothing))
+}
+
 rmSync(dir, { recursive: true, force: true })
 
 console.log()

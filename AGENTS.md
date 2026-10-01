@@ -192,6 +192,20 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     ⚠️ 断言这类事时**别写死平台相关的行**：`tool-pwsh` 带 `!!js process.platform === 'win32'`，
     在 Linux 上本来就关着，写死它会做出一个平台相关的假红（第一次就是这么红的）。
 
+22. **宿主说这个预设坏了，页面上就必须有话说 —— 我们自己的检查不是全部。** `unresolvableRows()` 只答
+    "模块装没装"，答不了"它依赖的服务起没起来"。官方桌面端实测（2026-10-01）踩到的正是这个缝：
+    关掉装不上的引擎行之后 `unresolvable` 变空、`warnings` 变空、页面**全绿**，而宿主那边的 `broken`
+    还在（两个工具在"waiting for workflowEngine"）⇒ 模式始终不出现在选择器里，界面上也没有任何办法
+    把它救回来。三条不许破坏：
+    **a)** `readState` 必须把宿主给的 `broken` 透传出来，并在**我们解释不了**它点到的行时点名
+    `presetBroken`（`brokenRowIds()` 解析 `<rowId> (<module>): <reason>`）；
+    **b)** `POST /repair` 必须**同时**关掉"装不上"和"宿主点名"的两类行 —— 只修前一类会留下死局；
+    **c)** 任何"建议用户去点某个按钮"的告警文案，都要确认**那个按钮此刻真的在屏幕上**
+    （实测：修复按钮原先只为 `unresolvableRows` 渲染，第一轮修完就消失，而文案还在叫用户点它）。
+    ⚠️ 桌面端那条线还有个额外事实：它的 profile 只能由 Electron 应用启动
+    （`dsh --profile desktop` 会被拒绝），所以验证它**只能在应用内部**做 —— 在页面里同源 `fetch`
+    插件的 API 是最省力的入口。
+
 ## Known traps (all measured)
 
 - `agent-presets` exists **only in the web profile composition**; tui and headless do not have it, so

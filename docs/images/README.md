@@ -5,12 +5,21 @@ instead of stepping up and down (a 1440x900 shot would also render as a wall of 
 is what "too big" looks like on GitHub).
 
 ```
-01-mode-switch.png        800x800   Settings -> Custom mode: mode name + base mode (top of the switches)
+01-mode-switch.png        800x800   Settings -> Custom mode: mode name + the FIVE base modes
 02-plugin-switches.png    800x800   Plugin switches: flat rows, 1px dividers, tri-state badges
 03-system-prompt.png      800x800   The system prompt editor + change history
-04-preset-picker.png      800x800   The new-session mode picker, custom modes in the list
-05-assistant-manager.png  800x800   The assistant section, assistant dropdown open, two assistants
+04-preset-picker.png      800x800   The new-session mode picker: the custom modes are listed
+05-assistant-manager.png  800x800   The assistant section, dropdown CLOSED, two assistants
 ```
+
+`01` is where the fifth base mode is visible: the pill row reads **Standard / PTC / Minimal / Cordis /
+Custom**. Before 1.11.0 there were four pills, and `04` listed four modes — the two images that carry the
+feature are these two, so re-shoot them whenever the base-mode set changes.
+
+`04` is the one image that is **not** cropped with the shared `PANEL` box. The settings dialog is the panel
+itself, so a fixed box hugs it; the mode picker instead hangs off the **vertically centred** composer, and
+the same box left roughly 320 of the 800 rows as plain background. It now widens the viewport and aims an
+800x800 box at the popup's own centre (still 800x800, so the README table stays flush).
 
 None of them is hand-taken, and none of them carries anybody s private state: they are produced by
 [`tools/screenshots/shoot-fresh.mjs`](../../tools/screenshots/shoot-fresh.mjs) against a **throwaway

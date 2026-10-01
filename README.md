@@ -59,7 +59,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.11.0   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.11.1   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -107,7 +107,8 @@ Electron shell**, so this plugin's page renders there unchanged. One install pat
 
 - **Install from inside the app**: sidebar → **Plugins** → add plugin → search `dsh-custom-mode`.
   The app runs the shared plugin manager with its own bundled pnpm.
-- **Do not try to use the CLI for it — dsh itself refuses** (measured on 0.1.7-rc.2):
+- **Do not try to use a standalone CLI for it — dsh itself refuses** (measured on 0.1.7-rc.2, and again on
+  0.2.0-rc.2):
   ```
   $ dsh plugin --profile desktop add .
   error: profile "desktop" is managed exclusively by the Electron application
@@ -116,8 +117,17 @@ Electron shell**, so this plugin's page renders there unchanged. One install pat
   and startup recovery renames `cordis.patch.yml`. `install.sh` therefore **refuses** `--profile desktop`
   too and points you at the app, so the two agree instead of one silently working around the other.
   (A lab simulation of the profile shape can override it with `DSH_ALLOW_DESKTOP_PROFILE=1`.)
+  **The app's own bundled CLI is the exception** — `<install>\resources\runtime\cli\bin\dsh.cmd` is allowed
+  to operate on that profile (measured on 1.11.1: `add dsh-custom-mode@1.11.1` → `+ dsh-custom-mode 1.11.1`).
+  It is a launcher, not a dsh feature: it starts Electron with `ELECTRON_RUN_AS_NODE=1` and runs the
+  desktop-host CLI, so it is the app talking to its own profile rather than something driving from outside.
 - **Nothing else to do on the preset side**: `$DSH_HOME/.agent-presets/` is product data shared by the
   desktop app and the CLI, and the preset is seeded by the plugin on first activation.
+- **If the mode does not show up in the picker, open Settings → Custom mode and read the warning.** A preset
+  whose rows cannot start on that machine is marked *broken* by the platform and dropped from every picker;
+  the settings page names the rows and offers **Fix for this line**. On the desktop line that can take one
+  click and then a **restart of the app** — the picker re-reads the registry only at boot (measured on
+  1.11.1, see `docs/MEASUREMENTS.md` section 34).
 - If a third-party bundle ever keeps the app from starting, the native recovery dialog offers
   **Disable third-party plugins**; installed packages and the plugin's own data stay on disk.
 
@@ -420,7 +430,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.11.0
+dsh plugin --profile web add dsh-custom-mode@1.11.1
 # then restart the DSH process that serves the web profile
 ```
 

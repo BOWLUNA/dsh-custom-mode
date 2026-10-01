@@ -48,7 +48,7 @@ base mode / plugin switches / multi-assistant / multi-persona。
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.11.0   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.11.1   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -89,7 +89,7 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 安装只有一条路，就是上面那条：
 
 - **在应用里装**：侧栏 → **插件** → 添加插件 → 搜 `dsh-custom-mode`。应用自带 pnpm，走的是同一套插件管理器。
-- **不要试着用 CLI 装 —— dsh 自己就会拒绝**（0.1.7-rc.2 实测）：
+- **不要试着用独立的 CLI 装 —— dsh 自己就会拒绝**（0.1.7-rc.2 实测，0.2.0-rc.2 复测同样）：
   ```
   $ dsh plugin --profile desktop add .
   error: profile "desktop" is managed exclusively by the Electron application
@@ -97,8 +97,15 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
   桌面端独占 `$DSH_HOME/profiles/desktop`：那里的包操作持有 profile 事务锁，启动恢复还会重命名
   `cordis.patch.yml`。所以 `install.sh` 也**拒绝** `--profile desktop` 并指向应用内安装 —— 两边一致，
   而不是某一方偷偷绕过去。（只想在本机模拟 profile 形状时可设 `DSH_ALLOW_DESKTOP_PROFILE=1`。）
+  **应用自带的捆绑 CLI 是例外**：`<安装目录>\resources\runtime\cli\bin\dsh.cmd` 可以操作那个 profile
+  （1.11.1 实测：`add dsh-custom-mode@1.11.1` → `+ dsh-custom-mode 1.11.1`）。它是启动器而不是 dsh 的
+  新功能 —— 它用 `ELECTRON_RUN_AS_NODE=1` 起 Electron 去跑 desktop-host 的 CLI，所以那是**应用在跟自己的
+  profile 说话**，不是从外面驱动它。
 - **预设那一侧不用做任何事**：`$DSH_HOME/.agent-presets/` 是桌面端与 CLI 共享的产品数据，
   预设由插件首次激活时落盘。
+- **模式没出现在选择器里，就去「设置 → 自定义模式」读那条告警。** 行的启动条件在本机不满足时，平台会把整个
+  预设判为 broken 并**从所有选择器里丢掉**；设置页会点名那几行，并给出**「按本线修复」**。在桌面端那条线上，
+  这通常是一次点击 + **重启应用** —— 选择器只在应用启动时重读注册表（1.11.1 实测，见 `docs/MEASUREMENTS.md` §34）。
 - 万一某个第三方 bundle 让应用起不来：原生恢复对话框提供**「禁用第三方插件」**，已安装的包与插件数据都留在磁盘上。
 
 **兼容性是声明出来的，不是猜的。** dsh 会拿每个插件的 `peerDependencies["@deepseek-ai/dsh"]` 与运行时
@@ -323,7 +330,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.11.0
+dsh plugin --profile web add dsh-custom-mode@1.11.1
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

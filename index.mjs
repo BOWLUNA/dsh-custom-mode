@@ -290,6 +290,32 @@ export function configWarnings(text, prompt, meta) {
   return warnings
 }
 
+/**
+ * 从宿主给的那条 `broken` 里抠出**行 id**。
+ *
+ * 平台把"这个预设为什么起不来"写成一行行 `<rowId> (<module>): <reason>`，例如
+ *
+ *     workflow-worker-thread (@deepseek-ai/dsh-workflow-worker-thread): never started
+ *     tool-workflow (@deepseek-ai/dsh-tool-workflow): waiting for workflowEngine
+ *
+ * 这是**唯一**能知道"是哪一行害的"的来源：`unresolvableRows()` 只答"模块装没装"，答不了
+ * "上游服务等不到"。实测（2026-10-01，官方桌面端 0.2.0-rc.2）：关掉那个装不上的引擎行之后
+ * `unresolvable` 变空、页面**全绿**，而预设**仍然 broken**（依赖引擎的两个工具在等它）——
+ * 于是用户再也走不到可用状态，模式一直不出现。见 docs/MEASUREMENTS.md §34。
+ *
+ * @param {unknown} message - the roster row's `broken` string.
+ * @returns {string[]} row ids, de-duplicated, in the order they appear.
+ */
+export function brokenRowIds(message) {
+  if (typeof message !== 'string') return []
+  const ids = []
+  for (const line of message.split('\n')) {
+    const match = /^\s*([A-Za-z0-9][A-Za-z0-9_-]*)\s+\(/.exec(line)
+    if (match !== null) ids.push(match[1])
+  }
+  return [...new Set(ids)]
+}
+
 export function readState(rows, id, options = {}) {
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
@@ -326,6 +352,15 @@ export function readState(rows, id, options = {}) {
     if (!isBaseCompositionUnavailable(error)) throw error
     baseUnavailable = { code: error.code, params: { mode, detail: describe(error) } }
   }
+  // 宿主给的那条 broken（若这条线上有）。**必须在 return 之前算**：warnings 要用它。
+  const selfRow = Array.isArray(rows) ? rows.find((item) => item !== null && typeof item === 'object' && item.id === id) : undefined
+  const hostBroken = typeof selfRow?.broken === 'string' ? selfRow.broken.trim() : ''
+  const unresolvable = unresolvableRows(text)
+  const knownUnresolvable = new Set(unresolvable.map((row) => row.id))
+  const hostBrokenIds = brokenRowIds(hostBroken)
+  // 宿主说坏了，而我们**解释不了**（不是"模块装不上"）—— 那就要单独点名，否则页面全绿、
+  // 模式却在选择器里不出现。抠不出行 id 时（宿主换了措辞）也照样点名：宁可笼统，不可沉默。
+  const unexplainedBroken = hostBroken !== '' && (hostBrokenIds.length === 0 || hostBrokenIds.some((rowId) => knownUnresolvable.has(rowId) === false))
   return {
     ok: true,
     id,
@@ -349,7 +384,10 @@ export function readState(rows, id, options = {}) {
     history: listHistory(directory),
     // 本插件版本 + 本机装的那条 dsh 线上无法解析的行（页面据此显示版本与"按本线修复"）。
     version: PLUGIN_VERSION,
-    unresolvable: unresolvableRows(text),
+    unresolvable,
+    // 宿主自己给的「这个预设为什么起不来」原文。它比 `unresolvable` 宽：除了"模块装不上"，
+    // 还包括"上游服务等不到"这类**装配期**失败。页面据此点名，而不是在坏着的时候显示全绿。
+    broken: hostBroken === '' ? null : hostBroken,
     // 「配置了却不生效」的告警码（文案在页面侧按语言渲染）。
     warnings: [
       ...configWarnings(text, prompt.ok === true ? prompt.text : '', meta),
@@ -357,7 +395,11 @@ export function readState(rows, id, options = {}) {
       // 诚实地把它变成页面上的告警，而不是只留在 console.error 里。
       ...(existsSync(join(directory, 'approval-gate-missing')) ? ['approvalGateMissing'] : []),
       // 本线无法解析的启用行 = 平台会把整个预设判为 broken 并从选择器里丢掉（曾经的 P0）。
-      ...(unresolvableRows(text).length > 0 ? ['unresolvableRows'] : []),
+      ...(unresolvable.length > 0 ? ['unresolvableRows'] : []),
+      // ★ 宿主报了 broken，而**我们自己的检查解释不了**（不是"模块装不上"，而是"服务等不到"之类）。
+      //   不点名的话，页面上 `unresolvable` 空、告警空 —— 一切看起来正常，而模式**根本没出现在
+      //   选择器里**。这正是本仓记录过两次的那种"静默失败"，只是换了个触发面。
+      ...(unexplainedBroken ? ['presetBroken'] : []),
       // 出厂组成取不到：提示词能改，基础模式与插件开关不能。
       ...(baseUnavailable === null ? [] : ['baseCompositionUnavailable']),
     ],
@@ -762,9 +804,30 @@ export function repairComposition(rows, input) {
   const file = compositionFile(directory)
   if (!existsSync(file)) return { ok: false, code: 'compositionMissing', params: { path: file }, error: '找不到组成文件：' + file }
   const text = readFileSync(file, 'utf8')
-  const bad = unresolvableRows(text)
+  // 两类"这一行在本机起不来"，必须**都**关掉：
+  //  ① 模块装不上 —— 我们自己在 node_modules 里查得出来（`unresolvableRows`）；
+  //  ② 装配期失败（"服务等不到"之类）—— 只有宿主知道，写在它给的 `broken` 里。
+  // 只修 ① 会留下一个**页面全绿、预设却仍然 broken**的状态（桌面端实测，见 brokenRowIds 的注释）：
+  // `unresolvable` 变空 ⇒ 告警消失 ⇒ 用户以为修好了，而模式始终没出现在选择器里。
+  const selfRow = Array.isArray(rows) ? rows.find((item) => item !== null && typeof item === 'object' && item.id === id) : undefined
+  // 只关**这份文本里真的有**的行：宿主报的可能是别处的行，而 `disableRowsInPlace` 对不存在的 id
+  // 是无操作 —— 计数会因此说谎（说关了 3 个其实只关了 1 个）。
+  const present = new Set()
+  const collectIds = (list) => {
+    for (const row of list) {
+      present.add(row.id)
+      if (Array.isArray(row.children)) collectIds(row.children)
+    }
+  }
+  try {
+    collectIds(collectRows(text))
+  } catch {
+    /* 文本解析不了就只按 unresolvableRows 走（它自己会兜底） */
+  }
+  const wanted = [...new Set([...unresolvableRows(text).map((row) => row.id), ...brokenRowIds(selfRow?.broken)])]
+  const bad = wanted.map((rowId) => ({ id: rowId })).filter((row) => present.has(row.id))
   if (bad.length === 0) {
-    return { ok: true, id, code: 'repairNotNeeded', note: '这个助手在本机没有无法解析的行，无需修复。' }
+    return { ok: true, id, code: 'repairNotNeeded', note: '这个助手在本机没有起不来的行，无需修复。' }
   }
   // **就地**关闭那几行，不重渲染：重渲染会顺手丢掉 base 之外的自有行，而用户的数据不该被这样动。
   const rendered = disableRowsInPlace(text, bad.map((row) => row.id))
@@ -782,7 +845,7 @@ export function repairComposition(rows, input) {
     // 草稿，否则下一次保存会按草稿重渲染，把刚才的修复原样撤销（issue #8 实测：
     // 修复写进了磁盘，但草稿里那几行仍是启用的，于是保存后 ghost 行又回来了）。
     params: { count: bad.length, ids, repairedIds: bad.map((row) => row.id) },
-    note: '已按本机这条 dsh 线关闭 ' + String(bad.length) + ' 个无法解析的行（' + ids + '）。现在这个模式能重新出现在选择器里。',
+    note: '已按本机这条 dsh 线关闭 ' + String(bad.length) + ' 个起不来的行（' + ids + '）。现在这个模式能重新出现在选择器里。',
   }
 }
 

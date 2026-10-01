@@ -1859,3 +1859,90 @@ reusable part:
 - Mutation M7 (emptying `unionDefaultOff`) stayed **green**: "the rows listed are turned off" is vacuously
   true for an empty list. Rewritten as "each exclusive set has **exactly one** side enabled", which is
   insensitive to which side upstream prefers but cannot pass with both sides on.
+
+## 34. 1.11.1: the official desktop app, really run — and the preset that stayed broken while the page said it was fine (2026-10-01)
+
+**1. What was run.** `C:\Users\BOWLUNA\AppData\Local\Programs\DeepSeek Harness\DeepSeek Harness.exe`,
+FileVersion `0.2.0-rc.2`, Electron 152. Its `DSH_HOME` is `~/.dsh` and its profile is `desktop`
+(`dsh-profile-desktop`, bundles `dsh-base` + `dsh-web-app` + four experimental ones). The Electron userData
+is `%APPDATA%\@deepseek-ai\dsh-desktop`, and the host listens on a **dynamic** port (19387 here), not the
+3080 recorded in `%LOCALAPPDATA%\dsh\dsh-url.txt` (that file is from 09-25 and stale).
+
+Two environment traps, both measured:
+
+- `resources/runtime/cli/bin/dsh.cmd` **sets `ELECTRON_RUN_AS_NODE=1` on purpose** — the desktop app runs the
+  Agent Host as a Node child of the Electron binary. So launching the app from a shell that already carries
+  `ELECTRON_RUN_AS_NODE=1` (WorkBuddy's children do) makes Electron degrade to plain Node and **no window
+  appears**. Clear it before launching.
+- `dsh --profile desktop` from the CLI is refused: **"profile \"desktop\" is managed exclusively by the
+  Electron application"**. The profile can only be booted by the app, so `--dump-config` is not available
+  for it; the plugin's stdout has to be read inside the app.
+
+**2. Installing works, and it installs itself.** `dsh plugin --profile desktop add dsh-custom-mode@1.11.0`
+through the app's own bundled CLI → `+ dsh-custom-mode 1.11.0`, and the app's Plugins page shows
+`已安装 1 · dsh-custom-mode` with the component `custom-mode` **运行中**. Nothing outside the plugin is
+needed — the same "one-click means self-sufficient" property verified on npm/GitHub in section 33.
+
+**3. The mode still did not appear, and the first repair made it worse.** The mode picker listed the four
+shipped modes only. Fetched from inside the app (same origin, so no token):
+
+```
+GET /api/custom-mode
+{"assistants":[
+  {"id":"custom","broken":"workflow-worker-thread (@deepseek-ai/dsh-workflow-worker-thread): never started"},
+  {"id":"writing-assistant","broken":"workflow-worker-thread (@deepseek-ai/dsh-workflow-worker-thread): never started"}]}
+```
+
+A `broken` preset is dropped from the picker. The plugin's own check had already caught this half —
+`warnings: ["unresolvableRows"]`, `unresolvable: [{"id":"workflow-worker-thread", …}]` — so the settings page
+offered **Fix for this line**, and clicking it disabled that row. Then:
+
+```
+GET /api/custom-mode      → both assistants still broken
+    "tool-workflow (@deepseek-ai/dsh-tool-workflow): waiting for workflowEngine
+     tool-ralph (@deepseek-ai/dsh-tool-ralph): waiting for workflowEngine"
+GET /api/custom-mode/state?id=custom
+    warnings: []        ← the page now claimed everything was fine
+    unresolvable: []    ← and our own check agreed
+```
+
+Disabling the engine left the two tools that **wait on** it unable to start. `unresolvableRows()` answers
+"is the module installed"; it cannot answer "did the service it needs come up". The page went green, the
+mode stayed missing, and **nothing in the UI could bring it back** — a dead end that only the desktop line
+exposed (the web line has the engine installed).
+
+**4. Two fixes.** `brokenRowIds()` parses the host's own diagnostic — lines of the form
+`<rowId> (<module>): <reason>` — and `readState` now raises `presetBroken` whenever the host reports
+`broken` and our own check cannot explain every row it names. `POST /repair` turns off those rows as well as
+the unresolvable ones, so repeated clicks converge instead of stalling.
+
+**5. A third fix, in the page.** The **Fix for this line** button rendered only for `unresolvableRows`. After
+the first repair that warning was gone, so the page told the user to click a button that was no longer on
+screen — the exact shape of dead end the warning was meant to prevent. It now renders for `presetBroken`
+too.
+
+**6. Verified end to end on the real app.** Install into the `desktop` profile → relaunch → account menu →
+Settings → Custom mode → **one** click on Fix for this line → restart:
+
+```
+GET /api/custom-mode → custom: OK        (the second assistant stays broken; it has its own engine row)
+mode picker → ["标准模式…", "PTC 模式…", "极简模式…", "创造模式…", "自定义模式 完整编码能力…"]
+```
+
+The picker re-reads the registry **at boot**, so a repair becomes visible after a restart — worth stating
+plainly, because the web line does not need one.
+
+**7. Screenshots.** All five re-shot, each exactly **800x800**: `01` now shows the five base-mode pills
+(Standard / PTC / Minimal / Cordis / Custom) and `04` lists Custom mode. `04` was the one image with a real
+composition problem: it used the shared fixed `PANEL` box, but the picker hangs off the **vertically centred**
+composer, so ~320 of its 800 rows were plain background. It now widens the viewport and aims an 800x800 box
+at the popup's own rect. Measured: popup `324x468` at y=569 → box y=400.
+
+**8. Guards.** 15 suites / **861 checks** (was 850). Three more mutations, each red on the assertion meant to
+catch it:
+
+| mutation | red on |
+| --- | --- |
+| `brokenRowIds` always returns `[]` | `brokenRowIds 抠出行 id` · `宿主点名的行被修复关掉` · `磁盘上真的关掉了` |
+| repair ignores the host's row ids again | `宿主点名的行被修复关掉` · `磁盘上真的关掉了` |
+| `readState` stops raising `presetBroken` | `宿主报 broken 且我们自己解释不了 → 点名 presetBroken` |

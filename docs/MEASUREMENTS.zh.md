@@ -1756,3 +1756,83 @@ warnings=[]   unresolvable=[]   stderr 0 字节
   判决写**文件** —— 静默丢源那个变体下，失败详情里能看见 `"standard=ok\nunion=ok"`。
 - 变异 M7（清空 `unionDefaultOff`）**保持绿色**："列出来的行都被关掉了"对空集合**恒真**。
   已改写成"每一组互斥里**恰好一侧**启用"——它对上游偏好哪一侧不敏感，但两侧同开一定红。
+
+## 34. 1.11.1：官方桌面端，真跑了一遍 —— 以及那个"页面说没事、预设却一直坏着"的死局（2026-10-01）
+
+**1. 跑的是什么。** `C:\Users\BOWLUNA\AppData\Local\Programs\DeepSeek Harness\DeepSeek Harness.exe`，
+FileVersion `0.2.0-rc.2`，Electron 152。它的 `DSH_HOME` 是 `~/.dsh`，profile 是 `desktop`
+（`dsh-profile-desktop`，bundles 为 `dsh-base` + `dsh-web-app` + 四个实验性的）。Electron 的 userData 在
+`%APPDATA%\@deepseek-ai\dsh-desktop`；宿主监听的是**动态端口**（这次是 19387），不是
+`%LOCALAPPDATA%\dsh\dsh-url.txt` 里那个 3080（那个文件是 09-25 的，已经过期）。
+
+两个环境陷阱，都实测过：
+
+- `resources/runtime/cli/bin/dsh.cmd` **故意设 `ELECTRON_RUN_AS_NODE=1`** —— 桌面端是把 Agent Host 当
+  Electron 二进制的 Node 子进程跑的。所以从一个已经带着 `ELECTRON_RUN_AS_NODE=1` 的 shell 里启动它
+  （WorkBuddy 的子进程就带着），Electron 会退化成纯 Node，**窗口根本不出现**。启动前必须清掉。
+- 用 CLI 跑 `dsh --profile desktop` 会被拒绝：**"profile \"desktop\" is managed exclusively by the
+  Electron application"**。这个 profile 只能由应用自己启动，所以它没有 `--dump-config` 可用，
+  插件的 stdout 只能在应用内部读。
+
+**2. 装是装得上的，而且自己播种。** 用应用**自带的**捆绑 CLI 跑
+`dsh plugin --profile desktop add dsh-custom-mode@1.11.0` → `+ dsh-custom-mode 1.11.0`，
+应用的插件页显示 `已安装 1 · dsh-custom-mode`，组件 `custom-mode` **运行中**。
+插件之外什么都不用做 —— 与 §33 在 npm / GitHub 两条路上验过的"一键 = 自给自足"是同一条性质。
+
+**3. 模式还是没出现，而第一次修复让它更糟。** 模式选择器只列了四个出厂模式。在应用内部取（同源，不需要 token）：
+
+```
+GET /api/custom-mode
+{"assistants":[
+  {"id":"custom","broken":"workflow-worker-thread (@deepseek-ai/dsh-workflow-worker-thread): never started"},
+  {"id":"writing-assistant","broken":"workflow-worker-thread (@deepseek-ai/dsh-workflow-worker-thread): never started"}]}
+```
+
+broken 的预设会被从选择器里丢掉。插件自己的检查已经抓到一半 ——
+`warnings: ["unresolvableRows"]`、`unresolvable: [{"id":"workflow-worker-thread", …}]` ——
+所以设置页给了**「按本线修复」**，点下去把那行关掉了。然后：
+
+```
+GET /api/custom-mode      → 两个助手**仍然** broken
+    "tool-workflow (@deepseek-ai/dsh-tool-workflow): waiting for workflowEngine
+     tool-ralph (@deepseek-ai/dsh-tool-ralph): waiting for workflowEngine"
+GET /api/custom-mode/state?id=custom
+    warnings: []        ← 页面现在说一切正常
+    unresolvable: []    ← 我们自己的检查也同意
+```
+
+关掉引擎之后，**等它**的两个工具起不来了。`unresolvableRows()` 答的是"模块装没装"，
+答不了"它需要的服务起没起"。于是页面转绿、模式照旧不出现，而**界面上没有任何办法把它救回来** ——
+这个死局只有桌面端这条线才会踩到（网页线上装了那个引擎）。
+
+**4. 两个修复。** `brokenRowIds()` 解析宿主自己给的诊断 —— 形如 `<rowId> (<module>): <reason>` 的行 ——
+于是 `readState` 在"宿主报 broken、而我们自己的检查解释不了它点到的每一行"时抛出 `presetBroken`。
+`POST /repair` 除了那些无法解析的行，也把宿主点名的行一并关掉，所以反复点击会收敛，而不是卡死。
+
+**5. 第三个修复在页面上。** 「按本线修复」按钮原先只为 `unresolvableRows` 渲染。第一轮修完之后那条告警没了，
+于是页面叫用户去点一个**已经不在屏幕上**的按钮 —— 正是这条告警本来要防的那种死局。现在 `presetBroken`
+也会渲染它。
+
+**6. 在真应用上做了端到端。** 装进 `desktop` profile → 重启 → 账号菜单 → 设置 → 自定义模式 →
+点**一次**「按本线修复」→ 再重启：
+
+```
+GET /api/custom-mode → custom: OK        （第二个助手仍是 broken，它有自己的一行引擎）
+模式选择器 → ["标准模式…", "PTC 模式…", "极简模式…", "创造模式…", "自定义模式 完整编码能力…"]
+```
+
+选择器是在**应用启动时**重读注册表的，所以修好之后要靠一次重启才看得见 —— 这点要说明白，
+因为网页线不需要重启。
+
+**7. 截图。** 五张全部重拍，每张恰好 **800x800**：`01` 现在能看到五个基础模式药丸
+（Standard / PTC / Minimal / Cordis / Custom），`04` 里列着 Custom mode。`04` 是唯一一张有真实构图问题的：
+它沿用了公用的固定 `PANEL` 框，而选择器浮层挂在**垂直居中**的 composer 上，于是 800 行里约 320 行是纯背景。
+现在它把视口加高，并**按弹层自身的矩形**取一个 800x800 的框。实测：弹层 `324x468` @ y=569 → 框 y=400。
+
+**8. 门禁。** 15 套件 / **861 项**（原 850）。另有三个变异，每个都在本该抓它的断言上变红：
+
+| 变异 | 红在哪 |
+| --- | --- |
+| `brokenRowIds` 永远返回 `[]` | `brokenRowIds 抠出行 id` · `宿主点名的行被修复关掉` · `磁盘上真的关掉了` |
+| 修复重新忽略宿主点名的行 | `宿主点名的行被修复关掉` · `磁盘上真的关掉了` |
+| `readState` 不再抛 `presetBroken` | `宿主报 broken 且我们自己解释不了 → 点名 presetBroken` |

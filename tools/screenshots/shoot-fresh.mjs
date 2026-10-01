@@ -239,6 +239,13 @@ if ((await session.evaluate("document.querySelector('.cpfe') === null")) !== tru
   process.exit(2)
 }
 await session.sleep(800)
+
+// ★ 这一张要**按弹层取景**，不能沿用 01/02/03/05 那个固定 PANEL：
+//   设置页是面板本身，固定框贴着它；而选择器浮层挂在**垂直居中**的 composer 上 —— 同一把框拍出来
+//   上半张全是空的（实测：800 里约 320 px 是纯背景，"图不要大"在这里正是这个意思）。
+//   做法：先把视口加高，让 composer（随之居中）有地方落，再把 800x800 的框**对准弹层中心**并夹到视口内。
+//   尺寸仍是 800x800，README 的 2x2 表格照样齐平。04 是最后一张，改动视口不影响前面五张。
+await session.setViewport(1440, 1200, 1)
 await session.evaluate(`(() => {
   const button = [...document.querySelectorAll('button')].find((x) => /mode/i.test(x.innerText || ''))
   if (button !== undefined) button.click()
@@ -256,9 +263,17 @@ if (popup === null) {
   console.error('模式选择器没打开 —— 04/选择器图会有问题')
   process.exit(2)
 }
+const clamp = (value, low, high) => Math.max(low, Math.min(high, Math.round(value)))
+const picker = {
+  x: clamp(popup.x + popup.width / 2 - 400, 0, 1440 - 800),
+  y: clamp(popup.y + popup.height / 2 - 400, 0, 1200 - 800),
+  width: 800,
+  height: 800,
+}
+console.log(`  04 取景：弹层 ${Math.round(popup.width)}x${Math.round(popup.height)} @ y=${Math.round(popup.y)} → 框 y=${picker.y}`)
 // 与 01/02/03/05 同一个 800x800 画布：README 的 2x2 表格里四张图必须一样大，
 // 否则 GitHub 上高低不齐（用户反馈的正是这一点）。
-await shoot('04-preset-picker.png', (file) => session.screenshotBox(file, PANEL))
+await shoot('04-preset-picker.png', (file) => session.screenshotBox(file, picker))
 await session.close()
 
 console.log(JSON.stringify(report, null, 1))

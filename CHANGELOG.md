@@ -8,6 +8,36 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.11.1]
+
+### The desktop app: two things that only show up when you really run it
+
+The official desktop app was finally run for real (Electron 152, dsh `0.2.0-rc.2`, profile `desktop`,
+`DSH_HOME=~/.dsh`). It works - and it exposed two things the web line cannot show.
+
+- **After the first repair the preset was still broken, and the page said everything was fine.**
+  Turning off the rows this line cannot *resolve* (`@deepseek-ai/dsh-workflow-worker-thread` is not installed
+  in the desktop profile) leaves the rows that *wait on it* (`tool-workflow`, `tool-ralph` - "waiting for
+  workflowEngine") unable to start. At that moment `unresolvable` was empty, `warnings` was empty, and the
+  mode **still did not appear** in the picker. The plugin now also reads the **host's own `broken`**
+  diagnostic, extracts the rows it names (`brokenRowIds`), warns on the page when that reason is one our own
+  check cannot explain (`presetBroken`), and `POST /repair` turns those rows off as well. One click now
+  converges instead of stalling halfway.
+- **The repair button vanished exactly when it was still needed.** It used to render only for
+  `unresolvableRows`, so after the first repair the warning text told the user to click a button that was no
+  longer on screen. It now renders for `presetBroken` too.
+- **Verified end to end on the real desktop app**: install into the `desktop` profile through the app's own
+  bundled CLI, relaunch, open the account menu -> Settings -> Custom mode, click "Fix for this line" once,
+  restart - and **Custom mode appears in the mode picker** (five modes, plus the second assistant's
+  "Writing helper"). The picker only re-reads the registry at boot, so a restart is what makes a repaired
+  preset visible.
+- **All screenshots re-shot**, each exactly 800x800 (`01` now shows the five base-mode pills, `04` lists
+  Custom mode). `04` no longer uses the shared fixed crop: the picker hangs off the **vertically centred**
+  composer, so a fixed box left about 320 of its 800 rows as plain background; the box is now aimed at the
+  popup's own centre (still 800x800, so the README table stays flush).
+- 15 suites / **861 checks** (was 850). Three more mutations verified to go red. See `docs/MEASUREMENTS.md`
+  section 34.
+
 ## [1.11.0]
 
 ### A fifth base mode — and the union that would have shipped as a broken preset
