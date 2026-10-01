@@ -1946,3 +1946,55 @@ catch it:
 | `brokenRowIds` always returns `[]` | `brokenRowIds 抠出行 id` · `宿主点名的行被修复关掉` · `磁盘上真的关掉了` |
 | repair ignores the host's row ids again | `宿主点名的行被修复关掉` · `磁盘上真的关掉了` |
 | `readState` stops raising `presetBroken` | `宿主报 broken 且我们自己解释不了 → 点名 presetBroken` |
+
+## 35. 1.11.2: the settings page, measured against the native UI (2026-10-01)
+
+Four pieces of feedback came in against 1.11.1 (screenshots of the real desktop app). Each one was turned
+into a measurement of the **native** UI before anything was changed — the desktop app was still running with
+a CDP port open, so the comparison came from the same window, same theme, same viewport.
+
+**1. Type scale.** The native plugin page's card title measures **14px/20px, weight 500**, the native
+settings nav item **14px/22px, weight 500**, and its body/notes **12px/18px, tertiary** (`rgb(173,178,184)`).
+Ours had four sizes in play: `.cpfe-h` 14/22, `.cpfe-hint-line` 12/18 tertiary, `.cpfe-note` **11/16
+secondary** (`rgb(207,211,214)`), `.cpfe-desc` 13/20. So the same role — the note under a block — had two
+different sizes *and* two different colours. Collapsed to the native two (14/22 titles, 12/18 body), with
+13px kept for inputs because that is the shell's own input size. `.cpfe-h` stays at **22px** and
+`.cpfe-row-head` moves to **20px**: both exist natively, for those two roles.
+
+**2. The 35-vs-24 spacing.** Measured gap between consecutive blocks on our page came out as
+`35, 35, 24, 24, 24, 24`. The cause was not a missing margin — it was an **inherited** one: `.cpfe-note` is a
+`<p>`, and the UA stylesheet gives it `margin-block: 1em`, which at an 11px font is 11px. Blocks preceded by
+a note therefore sat 11+11 = 22px further apart. Fixed by making the margin explicit (`0 0 8px`), which is
+also why the font-size and the spacing had to be fixed together rather than one at a time.
+
+**3. Row height.** Measured: `.cpfe-row` **76px**, `.cpfe-line` 77px — against a native card of **83px that
+carries two lines of description**. Half the content at the same height. Padding 16px -> 12px and title
+line-height 22 -> 20 bring it to **66px**. Two further findings from the same loop:
+
+- Rows varied between **66 and 84px** because `.cpfe-row-note` had `overflow:hidden;text-overflow:ellipsis`
+  but **no `white-space:nowrap`** — a long note wrapped to two lines and grew the row. The native page
+  **elipsises** (`…backed by the packaged ripgrep binar…`), so `nowrap` is the native behaviour, not a
+  compromise; a `title` (already rendered) keeps the full text readable.
+- After `nowrap` the rows were **66 and 67** — a 1px split. Cause: `.cpfe-tag` has a 0.5px border, so a
+  badged line is 19px while an unbadged one is 18px. Pinning `.cpfe-row-badges` to `height:18px` makes
+  every row exactly 66px.
+
+**4. The mixed-language description.** `preset.yml` held
+`完整编码能力，系统提示词来自 prompt.md，可在设置页随时修改、下一步即生效。 / Full coding ability; …`
+as one string. This is not a fresh bug: `CHANGELOG` records 1.7.0 introducing a "short bilingual" description
+as the fix for an English-leak regression. The constraint behind it is real — the description is **product
+data**, and the shell localises its own shipped presets but cannot localise ours. So the template now ships
+**no description at all** (an absent description is a supported state), and
+`dropShippedDescription()` clears it **only** when the on-disk value is one of our own shipped strings,
+verbatim. The `noDescription` warning was removed with it: defaulting to empty while permanently showing a
+warning is self-contradictory, and the description field's placeholder already says it may be left blank.
+
+**5. What the guards now assert.** The render gate went 67 -> **70**; the two new ones are the direct
+regressions for this round: *every row is exactly the same height*, and *the note never wraps*. A third
+asserts the ellipsised note still carries a `title`. The old `行用官方内边距 16px 0` was updated to 12px, and
+the description assertion now accepts empty (`有内容时才不许被截断`). Suite count 861 -> **869** (eight new
+seed checks for the description migration: both shipped strings cleared, the name untouched, user text
+untouched, already-empty is a no-op, missing file does not throw).
+
+**6. All five screenshots re-shot** — `02-plugin-switches.png` is the one that shows the change (uniform
+66px rows, even dividers), and `01-mode-switch.png` shows the five base-mode pills with the unified notes.

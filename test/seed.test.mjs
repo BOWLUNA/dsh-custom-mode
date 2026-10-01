@@ -33,8 +33,9 @@ const check = (label, condition, detail = '') => {
   }
 }
 
-const { seedPreset, seedPresetWithLog, packagedPresetDir, starterComposition, PRESET_FILES } = await import('../seed.mjs')
+const { seedPreset, seedPresetWithLog, packagedPresetDir, starterComposition, PRESET_FILES, dropShippedDescription, SHIPPED_DESCRIPTIONS } = await import('../seed.mjs')
 const { baseCompositionPath, unresolvableRows } = await import('../composition.mjs')
+const { readPresetMeta, writePresetMeta } = await import('../meta.mjs')
 
 console.log()
 console.log('=== 1. 包内预设施集齐全（发布包里必须有这五个文件）===')
@@ -237,6 +238,39 @@ console.log('=== 6. 派生出来的组成文件，在**当前这条线**上必�
   seedPreset(givenDir, packagedPresetDir(), { composition: '# 不该覆盖\n' })
   check('已存在的组成文件不会被覆盖', readFileSync(join(givenDir, 'agent.cordis.yml'), 'utf8') === '# 由本机派生\n')
   rmSync(givenDir, { recursive: true, force: true })
+}
+
+console.log()
+console.log('=== 描述迁移：只清我们自己写过的那条（中英拼接）===')
+{
+  // 实测来源（2026-10-01，BOWLUNA 的反馈）：模式选择器里那条 `中文 / English` 拼接被读成
+  // "一种语言夹在另一种里"。描述是**产品数据**，壳能本地化自己的出厂预设、不能本地化我们的。
+  // 所以模板不再写描述，并把我们早年写进去的那两条**逐字**清掉；用户自己写的，一个字都不动。
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-seed-desc-'))
+
+  const shippedMeta = readPresetMeta(packagedPresetDir())
+  check('包内模板不再带描述', shippedMeta.description.trim() === '', JSON.stringify(shippedMeta.description))
+
+  for (const shipped of SHIPPED_DESCRIPTIONS) {
+    writePresetMeta('自定义模式', shipped, dir)
+    const out = dropShippedDescription(dir)
+    check(
+      `清掉我们当年写的那条（${shipped.slice(0, 12)}…）`,
+      out.migrated === true && readPresetMeta(dir).description.trim() === '',
+      JSON.stringify(out) + ' -> ' + JSON.stringify(readPresetMeta(dir).description),
+    )
+    check('名字没被动过', readPresetMeta(dir).name === '自定义模式', String(readPresetMeta(dir).name))
+  }
+
+  writePresetMeta('自定义模式', '我自己的描述', dir)
+  const kept = dropShippedDescription(dir)
+  check('用户自己写的描述一个字都不动', kept.migrated === false && readPresetMeta(dir).description === '我自己的描述', JSON.stringify(kept))
+
+  writePresetMeta('自定义模式', '', dir)
+  check('本来就是空的：无操作且不报错', dropShippedDescription(dir).migrated === false)
+
+  rmSync(dir, { recursive: true, force: true })
+  check('没有 preset.yml 时不抛', dropShippedDescription(join(tmpdir(), 'dsh-seed-nope-' + String(Date.now()))).migrated === false)
 }
 
 console.log()

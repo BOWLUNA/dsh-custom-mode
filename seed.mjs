@@ -23,6 +23,7 @@
 
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { renderComposition } from './composition.mjs'
+import { readPresetMeta, writePresetMeta } from './meta.mjs'
 import { writeAtomic } from './atomic.mjs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -173,6 +174,49 @@ export function seedPreset(presetDir, sourceDir = packagedPresetDir(), options =
 }
 
 /**
+ * We shipped a **bilingual** description (`中文 / English`) for three years' worth of installs.
+ *
+ * It was a workaround with a real cause: the description is **product data** in `preset.yml`, and the shell
+ * renders it in whatever language the UI happens to be in — it localises its own shipped presets, but it
+ * cannot localise ours. A bilingual line then read as one language inside the other, which is exactly the
+ * complaint that came back ("英文是英文中文是中文，不要混杂"): in the mode picker the entry showed
+ * `完整编码能力… / Full coding ability…` as a single run-on string, and it was long enough to make that
+ * card taller than the shipped ones next to it.
+ *
+ * So the template no longer ships a description at all: an absent description is a state the shell already
+ * supports (it prints its own "no description" placeholder), it cannot be wrong in either language, and the
+ * field stays user-editable on the settings page.
+ *
+ * This migrates installs that still carry **one of our own shipped strings verbatim**. Anything else — a
+ * description the user typed, however similar — is left alone: that is the whole contract of this file.
+ */
+export const SHIPPED_DESCRIPTIONS = [
+  "在设置页编辑本模式的系统提示词 / Edit this mode's system prompt in Settings.",
+  '完整编码能力，系统提示词来自 prompt.md，可在设置页随时修改、下一步即生效。 / Full coding ability; the system prompt lives in prompt.md and can be edited in the settings page — it takes effect on the next step.',
+]
+
+/**
+ * Blank the description **only** when it is one of {@link SHIPPED_DESCRIPTIONS}.
+ *
+ * @param {string} presetDir - the installed preset directory.
+ * @returns {{migrated: boolean, reason?: string}} what happened.
+ */
+export function dropShippedDescription(presetDir) {
+  const file = join(presetDir, 'preset.yml')
+  if (!existsSync(file)) return { migrated: false, reason: 'no preset.yml' }
+  let meta
+  try {
+    meta = readPresetMeta(presetDir)
+  } catch (error) {
+    return { migrated: false, reason: describe(error) }
+  }
+  const current = typeof meta.description === 'string' ? meta.description.trim() : ''
+  if (current === '' || SHIPPED_DESCRIPTIONS.includes(current) === false) return { migrated: false, reason: 'user text' }
+  const written = writePresetMeta(typeof meta.name === 'string' && meta.name.trim() !== '' ? meta.name : '自定义模式', '', presetDir)
+  return written.ok === true ? { migrated: true } : { migrated: false, reason: String(written.code ?? 'writeFailed') }
+}
+
+/**
  * Seed and report, in the form the host half logs.
  *
  * Silent when the preset was already complete — the common case after the first
@@ -199,6 +243,14 @@ export function seedPresetWithLog(presetDir, log = console.error, info = console
   }
   if (result.created.length > 0) {
     info(`custom-mode: 已播种 preset 到 ${presetDir}（新建 ${result.created.length} 个文件: ${result.created.join(', ')}）`)
+  }
+  // 只订正**我们自己写进去的**那条描述（见 dropShippedDescription）。
+  try {
+    if (dropShippedDescription(presetDir).migrated === true) {
+      info(`custom-mode: 已清空描述 —— 它还是我们早年播种的那条中英拼接，壳无法按界面语言本地化产品数据`)
+    }
+  } catch (error) {
+    log(`custom-mode: 描述迁移失败（已忽略）: ${describe(error)}`)
   }
   for (const error of result.errors) {
     log(`custom-mode: preset 播种未完成 —— ${error}`)

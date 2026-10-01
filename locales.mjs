@@ -21,14 +21,14 @@ export const zh = {
   // ── 助手管理 ──────────────────────────────────────────────────────────────
   'assistant.heading': '助手',
   'assistant.hint':
-    '每个助手就是一个独立模式：有自己的系统提示词、基础模式和插件开关，互不影响。新建会话时在模式选择器里挑一个。',
+    '每个助手即一个独立模式：独立的系统提示词、基础模式与插件开关。新建会话时在模式选择器中选择。',
   'assistant.empty': '还没有助手，用下面的输入框新建一个。',
   'assistant.loadingList': '正在读取助手列表…',
   'assistant.newPlaceholder': '新助手的名字（例如：写作助手）',
   'assistant.meta': '标识',
   'assistant.copyName': '「{name}」副本',
   'assistant.broken': '组成文件有问题',
-  'assistant.switchHint': '切换助手不会丢掉未保存的修改：每个助手的草稿各自留着，列表上的「未保存」标记就是它。',
+  'assistant.switchHint': '切换助手保留各自的未保存草稿；列表中的「未保存」标记即为此。',
   'btn.create': '新增助手',
   'btn.creating': '创建中…',
   'btn.duplicate': '复制一份',
@@ -46,7 +46,7 @@ export const zh = {
   'msg.createFailed': '创建失败',
   'msg.deleteFailed': '删除失败',
   'msg.nameRequired': '请先给新助手起个名字。',
-  'msg.readOnlyHint': '这一页只管理本工具创建的助手；手写的 preset 不在这里，也不会被改写。',
+  'msg.readOnlyHint': '仅管理本插件创建的助手；手写 preset 不计入，也不会被改写。',
   'msg.reordered': '顺序已保存：新建会话时的模式选择器按这个顺序排列。',
   'msg.reorderFailed': '调整顺序失败',
   'msg.imported': '已导入到编辑器（还没有保存）：检查后点「保存」。',
@@ -129,7 +129,7 @@ export const zh = {
   'history.label': '改动历史',
   'history.pick': '选择要载入的版本…',
   'history.load': '载入这一版',
-  'history.hint': '每次保存、以及会话内工具或手工改动，都会在这里留一版；载入只改草稿，保存前不落盘。',
+  'history.hint': '每次保存、会话内工具改动或手工编辑都会在此留一版；载入只改草稿，保存前不落盘。',
   'history.by.settings': '设置页保存',
   'history.by.external': '会话内/手工改动',
   'msg.loadFailed': '载入这一版失败',
@@ -145,19 +145,19 @@ export const zh = {
   'delete.plainConfirm': '确定永久删除「{name}」吗？该操作无法撤销。',
 
   'name.heading': '模式名称',
-  'name.hint': '改名只影响显示（模式选择器与上面的助手列表），内部标识和已有会话不受影响。新建会话即可看到新名称。',
+  'name.hint': '仅影响显示名（模式选择器与助手列表）；内部标识与已有会话不变，新建会话后生效。',
   'name.placeholder': '自定义模式',
   'name.descriptionPlaceholder': '模式描述（显示在模式选择器里，可留空）',
 
   'mode.heading': '基础模式',
-  'mode.hint': '选一个官方模式作为底子，下面再按行微调。注意：底子只决定「行集合」与工具能力 —— 本模式的 persona 行始终替换掉底子那一行（提示词由你编辑，complete: false），底子的提示词语义不会被继承。改完保存后，新建会话即生效，不需要重启。',
+  'mode.hint': '底子只决定「行集合」与工具能力：本模式的身份行始终替换底子那一行（提示词由你编辑，complete: false），底子的提示语语义不继承。保存后新建会话即生效，无需重启。',
 
   'rows.heading': '插件开关',
-  'rows.hint': '逐行控制这个模式挂载哪些插件，和官方插件列表一样按行铺开。没拨过的行保持官方默认（含平台判断）；你手动拨了就以你的为准。',
+  'rows.hint': '逐行控制本模式挂载的插件。未拨动的行保持官方默认（含平台判断）；手动拨动后以你的为准。',
 
   'prompt.heading': '系统提示词',
   'prompt.hint':
-    '这段文本在每个模型调用前重新读取，所以保存后下一步即生效，且只影响使用这个助手的会话。「导入」把文件读进编辑器（未保存前不写入任何东西）；「导出」把当前文本存成 .md 文件；「恢复出厂提示词」把出厂模板填回编辑器（同样要保存才写入）。',
+    '每次模型调用前重新读取：保存后下一步生效，仅影响使用本助手的会话。「导入」读文件进编辑器（保存前不写入）；「导出」存为 .md；「恢复出厂提示词」填回出厂模板（同样需保存）。',
 
   'status.enabled': '已启用',
   'status.disabled': '已停用',
@@ -258,14 +258,14 @@ export const en = {
   // ── assistant management ──────────────────────────────────────────────────
   'assistant.heading': 'Assistants',
   'assistant.hint':
-    'Each assistant is an independent mode: its own system prompt, base mode and plugin switches, with no effect on the others. Pick one in the mode picker when you start a new session.',
+    'Each assistant is an independent mode: its own system prompt, base mode and plugin switches. Pick one in the mode picker when you start a new session.',
   'assistant.empty': 'No assistants yet — create one with the field below.',
   'assistant.loadingList': 'Loading assistants…',
   'assistant.newPlaceholder': 'Name of the new assistant (e.g. Writing assistant)',
   'assistant.meta': 'ID',
   'assistant.copyName': '{name} (copy)',
   'assistant.broken': 'Composition problem',
-  'assistant.switchHint': 'Switching assistants never loses unsaved edits: each one keeps its own draft, and the "Unsaved" marker in the list is exactly that.',
+  'assistant.switchHint': 'Switching assistants keeps each draft; the "Unsaved" marker in the list is exactly that.',
   'btn.create': 'New assistant',
   'btn.creating': 'Creating…',
   'btn.duplicate': 'Duplicate',
@@ -283,7 +283,7 @@ export const en = {
   'msg.createFailed': 'Could not create',
   'msg.deleteFailed': 'Could not delete',
   'msg.nameRequired': 'Give the new assistant a name first.',
-  'msg.readOnlyHint': 'This page manages only the assistants this tool created; a hand-written preset is not listed here and is never rewritten.',
+  'msg.readOnlyHint': 'Manages only the assistants this plugin created; a hand-written preset is not listed and is never rewritten.',
   'msg.reordered': 'Order saved: the mode picker for new sessions follows it.',
   'msg.reorderFailed': 'Could not reorder',
   'msg.imported': 'Imported into the editor (not saved yet) — review it, then click Save.',
@@ -383,13 +383,13 @@ export const en = {
 
   'name.heading': 'Mode name',
   'name.hint':
-    'Renaming changes only what is displayed (the mode picker and the assistant list above); the internal id and existing sessions are unaffected. Start a new session to see it.',
+    'Changes the display name only (mode picker and assistant list); the internal id and existing sessions are unaffected. Applies to the next new session.',
   'name.placeholder': 'Custom mode',
   'name.descriptionPlaceholder': 'Mode description (shown in the mode picker, optional)',
 
   'mode.heading': 'Base mode',
   'mode.hint':
-    'Pick an official mode as the base, then adjust it row by row. Note: the base only decides which rows exist — this mode always replaces the base\'s persona row with its own reader (complete: false), so the base\'s prompt semantics are not inherited. A save applies to the next new session; no restart needed.',
+    'The base decides the row set and the tool abilities: this mode always replaces the base\'s persona row with its own reader (complete: false), so the base\'s prompt semantics are not inherited. A save applies to the next new session; no restart needed.',
 
   'rows.heading': 'Plugin switches',
   'rows.hint':

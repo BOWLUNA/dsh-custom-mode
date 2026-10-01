@@ -281,7 +281,9 @@ export function configWarnings(text, prompt, meta) {
     warnings.push('personaOffWithPrompt')
   }
   if (find('custom-prompt-tool')?.disabled === true) warnings.push('toolOff')
-  if (typeof meta?.description !== 'string' || meta.description.trim() === '') warnings.push('noDescription')
+  // **不报「没有描述」**：1.11.2 起模板故意不再播种描述（它是产品数据，壳没法按界面语言本地化 ——
+  // 写一种语言在另一种界面里就是外语，两种都写就成了"中英拼接"）。默认留空却弹一条 ⚠ 是自相矛盾的，
+  // 而且描述框的占位符本来就写着「可留空」。填不填是用户的自由，不该被一直念。
   if (typeof meta?.name !== 'string' || meta.name.trim() === '') warnings.push('noName')
   // 两条互斥的路同时开着 ⇒ 平台会把整个模式判 broken 并**从所有选择器里静默丢弃**。
   // 保存路径已经会自动避让（见 applyRowExclusivity），所以走到这里只可能是手工编辑、直接调 HTTP API，

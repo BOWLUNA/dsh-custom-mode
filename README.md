@@ -59,7 +59,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.11.1   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.11.2   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -118,7 +118,7 @@ Electron shell**, so this plugin's page renders there unchanged. One install pat
   too and points you at the app, so the two agree instead of one silently working around the other.
   (A lab simulation of the profile shape can override it with `DSH_ALLOW_DESKTOP_PROFILE=1`.)
   **The app's own bundled CLI is the exception** — `<install>\resources\runtime\cli\bin\dsh.cmd` is allowed
-  to operate on that profile (measured on 1.11.1: `add dsh-custom-mode@1.11.1` → `+ dsh-custom-mode 1.11.1`).
+  to operate on that profile (measured on 1.11.1: `add dsh-custom-mode@1.11.2` → `+ dsh-custom-mode 1.11.1`).
   It is a launcher, not a dsh feature: it starts Electron with `ELECTRON_RUN_AS_NODE=1` and runs the
   desktop-host CLI, so it is the app talking to its own profile rather than something driving from outside.
 - **Nothing else to do on the preset side**: `$DSH_HOME/.agent-presets/` is product data shared by the
@@ -430,7 +430,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.11.1
+dsh plugin --profile web add dsh-custom-mode@1.11.2
 # then restart the DSH process that serves the web profile
 ```
 

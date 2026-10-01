@@ -387,13 +387,12 @@ console.log('=== 4. GET /custom-mode/state：一个助手的完整状态 ===')
   check('带路径信息（页面底部显示）', state.compositionPath === compositionPath, String(state.compositionPath))
   check('平台条件在宿主端求值为"已停用"（Linux 上 pwsh）', state.rows.find((row) => row.id === 'tool-pwsh')?.disabledExpression !== null)
 
-  // 「配置了却不生效」的告警码：这里的状态是出厂种子（有名字、有描述、身份行开着），
-  // 所以一条都不该报 —— 误报比不报更糟（用户会学会忽略它）。
-  // 这个夹具的 preset.yml 没写描述，所以「没有描述」这一条是**正确**的告警；
-  // 关键是"身份行开着 + 提示词非空"时**不许**报"提示词不生效"。
+  // 「配置了却不生效」的告警码：这里的状态是出厂种子（有名字、身份行开着），所以**一条都不该报** ——
+  // 误报比不报更糟（用户会学会忽略它）。夹具没写描述也**不**告警：1.11.2 起描述默认留空
+  // （产品数据没法按界面语言本地化），默认留空还弹 ⚠ 是自相矛盾的。
   check(
-    '默认状态只报无害项（没写描述），不误报提示词不生效',
-    JSON.stringify(state.warnings) === '["noDescription"]',
+    '默认状态一条告警都不报（描述留空不算问题）',
+    JSON.stringify(state.warnings) === '[]',
     JSON.stringify(state.warnings),
   )
 

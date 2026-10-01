@@ -18,7 +18,7 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 15 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **861 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
+合计 **869 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 并集基础模式（`all`，选择器里的第五项）在 `composition.test.mjs` 的 2d–2f 与 `editor-route.test.mjs`

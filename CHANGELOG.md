@@ -8,6 +8,43 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.11.2]
+
+### Settings-page styling pass: two type sizes, one row height, tighter copy, no more mixed-language description
+
+Four pieces of feedback, and each one started by **measuring the native** UI in the official desktop app
+rather than guessing.
+
+- **Four type sizes collapsed into two.** The same role (the note under a block) had two spellings:
+  `.cpfe-note` was **11px + the secondary colour**, `.cpfe-hint-line` was **12px + tertiary**; with 13px
+  inputs and 14px titles that is four sizes on one page. Now it matches the native scale: **14/22 titles,
+  12/18 body** (inputs stay 13px — that is the shell's own input size). Every 11px is gone.
+- **"The row spacing is inconsistent" had two causes, both fixed.** First, `.cpfe-note` is a `<p>`, so the
+  browser gave it a 1em vertical margin — at 11px that is 11px, which is why two otherwise identical blocks
+  sat **35px and 24px** apart (measured). It now has an explicit `margin:0` plus a uniform 8px. Second,
+  **the note wrapped**, so a row with a note was taller than a row without one. Now it matches the native
+  plugin page: **`white-space:nowrap` + ellipsis**, with a `title` so the text is still readable.
+- **Row height 76px -> 66px, and now identical on every row.** The native plugin card is 83px but carries
+  **two** lines of description; ours was 76px carrying one — half the content, the same height, which is
+  exactly what "too tall" meant. Vertical padding 16px -> 12px, title line-height 22 -> 20. Then the badge
+  line was pinned to 18px: `.cpfe-tag`'s 0.5px border made a badged row 1px taller (measured 66 vs 67).
+  **Every row is 66px now, and an assertion holds it there.**
+- **Copy tightened.** Eight notes went from conversational to written ("pick one" -> "select", "This page
+  manages only the assistants this tool created" -> "Manages only the assistants this plugin created").
+  Both languages updated together.
+- **The description is no longer a Chinese/English run-on.** The `完整编码能力… / Full coding ability…` line
+  was the "short bilingual" compromise introduced in 1.7.0, and it existed for a real reason: the
+  description is **product data**, and the shell localises its own shipped presets but cannot localise ours.
+  One language is foreign in the other UI; both languages is the mixing that got flagged. So the template
+  **no longer seeds a description** — an absent description is a state the shell already supports, and the
+  settings page's Description field is always there. Installs carrying **one of our own shipped strings
+  verbatim** get it cleared; anything the user typed is left alone. The "no description" warning is gone
+  too: defaulting to empty while permanently showing a warning was self-contradictory.
+- **All five screenshots re-shot** (still 800x800).
+
+15 suites / **869 checks** (was 861); the render gate 67 -> **70** (new: identical row heights, non-wrapping
+notes, ellipsis carries a title). See `docs/MEASUREMENTS.md` section 35.
+
 ## [1.11.1]
 
 ### The desktop app: two things that only show up when you really run it
