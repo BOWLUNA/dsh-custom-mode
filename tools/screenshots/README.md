@@ -1,10 +1,11 @@
 # Screenshots
 
 Every image in `docs/images/` is captured by driving a **real running dsh instance** — none of them is
-hand-drawn or stitched together. This script produces `01`–`04`; `05` is the screenshot
-[`../browser-verify.mjs`](../browser-verify.mjs) writes at the end of its assertions, so it is evidence
-of a passing run rather than a separate capture session. The script also writes down the state it observed, into
-[`observed.json`](observed.json).
+hand-drawn or stitched together. `shoot-fresh.mjs` produces **all five** (`01`–`05`) from one fresh
+English profile. Separately, `../browser-verify.mjs` can write a screenshot to `--out` at the end of its
+assertions — that one is a debugging aid and is **in the instance's current language (Chinese)**, so it
+is *not* what `docs/images/05-assistant-manager.png` is made from. The script also writes down the state
+it observed, into [`observed.json`](observed.json).
 
 That is the point: a hand-taken screenshot silently goes stale, and nobody can tell when or on which
 version it was taken. A script gives a path that can be re-run and checked.
@@ -65,7 +66,7 @@ The four README images are **800x800, PNG, scale 1**, for three reasons:
 - **Small**: scale 1 rather than 2. GitHub scales images down to the content column, so a 2x capture
   only multiplies the file size — measured, the same four images went from ~750 KB to ~223 KB, and an
   800px-wide image is displayed at its native size, so the text is if anything clearer.
-- **Few**: it captures only the four images the README uses (`05` is the verifier's own artifact). The dark theme and the English UI are
+- **Few**: it captures only the five images the README uses. The dark theme and the English UI are
   still switched to and asserted (the observations go into `observed.json`) but they are not saved as
   separate pictures — that would be a duplicate screen, not worth several hundred KB of downloads.
 

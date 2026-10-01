@@ -194,6 +194,30 @@ try {
     // 于是下面所有中文断言会大面积假失败（外部评审实测：约 20 项 FAIL，看不出真正原因）。
     // 所以开头就切到中文；切不动就**明确报错退出**，而不是给出一堆看不懂的失败。
     // `switchLanguage` 假定设置面板已经打开（它点的是面板里的「语言」控件），所以先点开侧栏的 Settings。
+    //
+    // ★★ 但**先要关掉首启弹窗**。
+    //
+    // 干净实例（CI，或任何没跑过的 `DSH_HOME`）启动时有首启引导，它**盖在**设置面板上 ——
+    // 于是下面那句"点设置"点不到、面板根本没打开，`switchLanguage` 找不到「通用设置」，
+    // 报 `no-nav` 直接退出。实测 2026-10-01：全新 home + 0.2.0-rc.2 上就是这样，
+    // 而这个脚本的自我要求正是"在干净实例上也能跑"。
+    //
+    // `tools/screenshots/shoot-fresh.mjs` 早就有这一步（它的头注释明确要求
+    // "a fresh English profile"，代码里那段就写着「首启弹窗（英文实例）」）——
+    // 同一个仓库里，一个脚本处理了、另一个漏了。
+    // 这与 issue #10（`openSection` 在干净实例上必失败）**是同一类**：*干净*才是默认前提，不是特例。
+    for (const label of [
+      'Got it', '知道了', 'Configure later', '稍后配置',
+      'Skip', '跳过', 'Continue', '继续', 'Close', '关闭', 'Dismiss',
+    ]) {
+      try {
+        await session.clickTextReal(label, { exact: false })
+      } catch {
+        /* 没有这个按钮就继续 */
+      }
+    }
+    await session.sleep(1200)
+
     try {
       await session.clickTextReal('设置', { exact: true })
     } catch {
@@ -726,6 +750,33 @@ try {
 
     // ── 4. 截图 ────────────────────────────────────────────────────────────
     if (out !== '') {
+      // ★ 截图前先把打开的浮层收掉。
+      //
+      // 本脚本会**真的点开助手下拉**（见 `assistantPills()`）；如果就那样截，画面是
+      // **浮层叠在设置面板上** —— 官方 Menu 的表面色 `--dsw-menu-surface-fill` 自带 alpha
+      // （实测亮色 `#f8f9fa94` ≈ 58%、暗色 `#43454a73` ≈ 45%），面板下面的输入框与说明文字会透出来。
+      // 这和下面截 `04` 之前那段注释批评的是同一类图："弹层叠着设置页，既看不懂也不是产品真实的样子"。
+      //
+      // 注意这张 `--out` 图**不是** `docs/images/05-assistant-manager.png`：那张由
+      // `tools/screenshots/shoot-fresh.mjs` 从**英文**实例产出，而这里跑的是中文断言，
+      // 产出的图是中文的。`tools/screenshots/README.md` 曾把两者的归属写反，已订正。
+      // 这里产出的图是**调试与人工核查**用的。
+      //
+      // 收起浮层用**点锚点 toggle**，不要用 Escape —— Escape 会把整个设置面板（它自己也是一个
+      // `[role=dialog]`）一起关掉，紧接着的 `screenshotElement('[role=dialog]')` 就什么都找不到
+      // （实测：`found nothing`）。对照：`assistantPills()` 里按 Escape 只关了菜单 —— 因为那时
+      // **焦点在菜单上**，菜单在自己的 capture 阶段处理掉了它；这里焦点不在菜单上，会冒泡到 dialog。
+      //
+      // 先判断菜单**真的开着**再点：否则这一点反而会把菜单打开。
+      const menuOpen = await session.evaluate(`document.querySelector('[role=menuitem]') !== null`)
+      if (menuOpen === true) {
+        await session.evaluate(`(() => {
+          const anchor = document.querySelector('.cpfe-picker button');
+          if (anchor !== null) anchor.click();
+          return true;
+        })()`)
+        await session.sleep(500)
+      }
       await session.evaluate(`(() => {
         const el = document.querySelector('.cpfe');
         if (el !== null) el.scrollIntoView({ block: 'start', behavior: 'instant' });

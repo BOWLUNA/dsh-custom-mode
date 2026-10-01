@@ -23,7 +23,7 @@
  *   02-plugin-switches.png    800x800  settings dialog: plugin rows, tri-state badges
  *   03-system-prompt.png      800x800  settings dialog: prompt editor + change history
  *   04-preset-picker.png      <=800    new-session mode picker with the custom modes listed
- *   05-assistant-manager.png  <=800    the assistant section, dropdown open, two assistants
+ *   05-assistant-manager.png  <=800    the assistant section, dropdown **closed**, two assistants
  */
 
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
@@ -210,12 +210,20 @@ await shoot('02-plugin-switches.png', (file) => session.screenshotBox(file, PANE
 await scrollTo(2760)
 await shoot('03-system-prompt.png', (file) => session.screenshotBox(file, PANEL))
 
-// ── 05：助手区块（下拉打开，两个助手）─────────────────────────────────
+// ── 05：助手区块（**收起下拉**，两个助手）───────────────────────────────
+//
+// ★ 这里**故意不点开那个下拉**（旧版点了，见下）。
+//
+// 点开它会拍成"浮层叠在设置页上"：官方 Menu 的表面色 `--dsw-menu-surface-fill` 自带 alpha
+// （实测亮色 `#f8f9fa94` ≈ 58%、暗色 `#43454a73` ≈ 45%），浮层下面的输入框与说明文字会**透出来**，
+// 而这正是下面截 `04` 之前那段注释点名批评过的形态 ——
+// "拍出来是『弹层叠着设置页』，既看不懂也不是产品真实的样子（实测踩过一次）"。
+// 05 是 README 里"助手管理器"的展示图，读者第一眼看到的就是它。
+//
+// 收起状态下，那个锚点仍然写着当前助手的名字（"自定义模式" / "Custom mode"），
+// 这一个区块要讲的东西（名称、新增、说明、以及它可以并存多个）一样在画面里。
 await scrollTo(0)
-await session.evaluate(`(() => { const a = document.querySelector('.cpfe-picker button'); if (a) a.click(); return true })()`)
-await session.sleep(900)
 await shoot('05-assistant-manager.png', (file) => session.screenshotBox(file, PANEL))
-await escape()
 
 // ── 04：新会话的模式选择器（含自定义模式的浮层）───────────────────────
 //
