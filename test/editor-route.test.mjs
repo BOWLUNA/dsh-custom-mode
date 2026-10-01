@@ -1004,6 +1004,15 @@ console.log('=== 8c. 宿主报的 broken 必须被点名、被修复（桌面端
   check('磁盘上真的关掉了', /disabled: true/.test(block(readFileSync(compositionPath, 'utf8'), 'tool-web')), block(readFileSync(compositionPath, 'utf8'), 'tool-web').slice(0, 60))
   const nothing = editor.repairComposition(hostRows('nope (@x/y): never started'), { id: 'custom' })
   check('宿主报的行不在文本里时不虚报计数', nothing.code === 'repairNotNeeded', JSON.stringify(nothing.params ?? nothing))
+
+  // 列表里带上"是哪几行"，页面才能把标签写成「N 行在本机不可用」而不是笼统的「有问题」。
+  const listed = editor.readList([
+    { id: 'custom', trust: 'user', path: compositionPath, name: '自定义模式', broken: brokenMsg },
+    { id: 'writer', trust: 'user', path: compositionPath, name: 'Writer' },
+  ])
+  const customItem = listed.assistants.find((item) => item.id === 'custom')
+  check('列表带出 brokenRows（页面据此显示具体行数）', JSON.stringify(customItem.brokenRows) === JSON.stringify(['tool-workflow']), JSON.stringify(customItem.brokenRows))
+  check('没坏的那些助手不带这个字段', listed.assistants.find((item) => item.id === 'writer').brokenRows === undefined, JSON.stringify(listed.assistants.find((item) => item.id === 'writer')))
 }
 
 rmSync(dir, { recursive: true, force: true })

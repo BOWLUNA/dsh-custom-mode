@@ -225,6 +225,28 @@ if (clientZh !== undefined && clientEn !== undefined) {
   )
 }
 
+// ── 词典值里不许出现**字面 markdown** ────────────────────────────────────────
+//
+// 页面把 `t(key)` 的结果直接塞进文本节点，**不解析 markdown**。于是文案里写 `**静默丢弃**`，
+// 用户看到的就是带星号的那七个字（2026-10-01 真机截图实测，三条 warn 串同时中招）。
+// 强调要靠措辞，或者由页面用元素表达。
+const MARKDOWN = [
+  { name: '加粗', re: /\*\*/ },
+  { name: '行内代码', re: /`/ },
+  { name: '链接', re: /\]\(/ },
+  { name: '标题', re: /(^|\n)#{1,6}\s/ },
+]
+const markdownLeaks = []
+for (const [lang, dict] of [['zh', zh], ['en', en]]) {
+  for (const [key, value] of Object.entries(dict)) {
+    if (typeof value !== 'string') continue
+    for (const { name, re } of MARKDOWN) {
+      if (re.test(value)) markdownLeaks.push(`${lang}:${key} 有${name} → ${value.slice(0, 50)}`)
+    }
+  }
+}
+check('词典值里没有字面 markdown（页面不解析，会原样显示星号）', markdownLeaks.length === 0, markdownLeaks.slice(0, 4).join(' | '))
+
 console.log()
 console.log(`结果: ${passed} 通过, ${failed} 失败`)
 process.exit(failed === 0 ? 0 : 1)

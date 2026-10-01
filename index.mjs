@@ -414,7 +414,12 @@ export function readState(rows, id, options = {}) {
  * @param {Array<object>} rows - the current roster.
  */
 export function readList(rows) {
-  return { ok: true, assistants: assistantsFromRoster(rows), root: userPresetRoot(rows) }
+  // `brokenRows` 是给**页面**用的：只说「这个模式有问题」既看不出严重程度、也看不出修完会怎样。
+  // 宿主那条 `broken` 里点名了是哪几行，抠出来交给页面，标签就能写成「N 行在本机不可用」。
+  const list = assistantsFromRoster(rows).map((item) =>
+    typeof item.broken === 'string' ? { ...item, brokenRows: brokenRowIds(item.broken) } : item,
+  )
+  return { ok: true, assistants: list, root: userPresetRoot(rows) }
 }
 
 /**

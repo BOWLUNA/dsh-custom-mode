@@ -8,6 +8,34 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.11.4]
+
+### The "Composition problem" badge, and three pieces of copy around it that either misled or lied
+
+Four changes, all from one screenshot of a real install.
+
+- **Literal asterisks were rendering on the page (a real bug).** Three notes contained markdown such as
+  `**静默丢弃**`, but the page puts the result of `t(key)` straight into a text node and **does not parse
+  markdown** — so the user saw the asterisks. All four strings are cleaned, and a general guard now rejects
+  literal markdown in any locale value (**bold / inline code / links / headings**), on both languages, in
+  `test/locales.test.mjs`.
+- **The copy named the wrong place.** "点**右侧**的「按本线修复」" — the button renders **below**, not to the
+  right. It now says 下方. The English string never named a position, so it was already correct.
+- **The badge went from an implementation detail to a consequence you can act on.** "组成文件有问题" talks
+  about a file the user has never heard of; it now says what it means for this machine:
+  `{count} row(s) unusable here` — the count comes from the rows the host's own `broken` names, parsed
+  server-side and sent with the list — falling back to "Will not start here" when no count can be parsed.
+  Hovering (the Tag's `title`) gives the full explanation and the next step. It also used to say the same
+  thing as the banner below it, twice, in two different colours (red tag vs ⚠).
+- **One note was simply untrue.** `warn.presetBroken` said "the host's own reason is in Details", while
+  `state.broken` — the platform's own sentence, like `tool-workflow (…): waiting for workflowEngine` —
+  **was never rendered anywhere on the page**. Following the instruction led nowhere. It is now printed on
+  its own line under the warning (monospace, with a title), and the sentence points at it. A platform
+  diagnostic is not our prose, so it gets its own line instead of being folded into the paragraph.
+
+15 suites / **876 checks** (was 873). Two new mutations verified to go red: putting literal markdown back
+into a locale value, and dropping `brokenRows` from `readList`.
+
 ## [1.11.3]
 
 ### The 1.11.2 description migration never ran — and it could only ever have run for the wrong people

@@ -67,7 +67,9 @@ try {
         "assistant.newPlaceholder": "新助手的名字（例如：写作助手）",
         "assistant.meta": "标识",
         "assistant.copyName": "「{name}」副本",
-        "assistant.broken": "组成文件有问题",
+        "assistant.broken": "本机无法启动",
+        "assistant.brokenRows": "{count} 行在本机不可用",
+        "assistant.brokenHint": "平台无法挂载这个模式，所以它不会出现在新会话的选择器里。点下面的「按本线修复」只关掉那几行，其它选择不动。",
         "assistant.switchHint": "切换助手保留各自的未保存草稿；列表中的「未保存」标记即为此。",
         "btn.create": "新增助手",
         "btn.creating": "创建中…",
@@ -110,6 +112,7 @@ try {
         "aria.expand": "展开详情",
         "aria.collapse": "收起详情",
         "detail.id": "行 id",
+        "detail.hostReason": "平台原始信息：",
         "detail.shipped": "出厂状态",
         "detail.shippedOn": "启用",
         "detail.shippedOff": "关闭",
@@ -156,12 +159,12 @@ try {
         "api.savedPromptOnly": "已保存系统提示词（本机取不到基础模式的出厂组成，插件开关与基础模式未改动）。",
         "api.baseCompositionUnavailable": "本机取不到基础模式「{mode}」的出厂组成，无法改动插件开关或基础模式（系统提示词可以单独保存）。",
         "warn.approvalGateMissing": "审批闸门未启用：本机这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。见「详情」。",
-        "warn.unresolvableRows": "有行在本机这条 DSH 线上无法解析：平台会把整个模式判为 broken，并从新会话的选择器里**静默丢弃**。点右侧的「按本线修复」即可（只关掉那几行，其它选择不动）。",
-        "warn.presetBroken": "平台把这个模式判为 broken，它会**从新会话的选择器里消失** —— 而上面的「无法解析」检查解释不了为什么（多半是某一行依赖的服务/引擎没起来）。点右侧的「按本线修复」把那几行关掉即可。宿主给的原因见「详情」。",
-        "warn.exclusiveRowsActive": "两条互斥的壳同时开着（它们注册同名工具）：平台会把整个模式判为 broken，并从新会话的选择器里**静默丢弃**。把其中一条关掉即可 —— 在设置页保存一次也会自动避让。",
+        "warn.unresolvableRows": "有行在本机这条 DSH 线上跑不起来。平台会因此判整个模式为 broken，把它从新会话的选择器里丢掉（不报错）。点下方「按本线修复」只关掉那几行，其它选择不动。",
+        "warn.presetBroken": "平台判这个模式为 broken，它会从新会话的选择器里消失 —— 而上面的「无法解析」检查解释不了原因（多半是某一行依赖的服务没起来）。点下方「按本线修复」把那几行关掉；平台自己给的原因见下面那行。",
+        "warn.exclusiveRowsActive": "两条互斥的壳同时开着（它们注册同名工具），平台会判整个模式为 broken 并从新会话的选择器里丢掉。关掉其中一条即可；在设置页保存一次也会自动避让。",
         "warn.baseCompositionUnavailable": "取不到本机这条 DSH 线的出厂组成：基础模式与插件开关暂时不能改（系统提示词不受影响，照常可保存）。已尝试的途径写在宿主日志里。",
         "warn.approvalGateMissing.label": "审批闸门未启用",
-        "warn.approvalGateMissing.hint": "这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词**不会**弹审批。设置页不受影响；要恢复保护请升级 DSH，或把「custom_prompt 工具」那一行关掉。",
+        "warn.approvalGateMissing.hint": "这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。设置页不受影响；要恢复保护请升级 DSH，或把「custom_prompt 工具」那一行关掉。",
         "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 你写的提示词现在不起作用。要么打开这一行，要么清空提示词。",
         "warn.toolOff": "「custom_prompt 工具」这一行是关的：会话里无法让 agent 改提示词，只能在本页改。",
         "warn.noDescription": "没有描述：新建会话的模式选择器里会显示成「暂无描述」。",
@@ -286,7 +289,9 @@ try {
         "assistant.newPlaceholder": "Name of the new assistant (e.g. Writing assistant)",
         "assistant.meta": "ID",
         "assistant.copyName": "{name} (copy)",
-        "assistant.broken": "Composition problem",
+        "assistant.broken": "Will not start here",
+        "assistant.brokenRows": "{count} row(s) unusable here",
+        "assistant.brokenHint": "The platform cannot mount this mode, so it will not appear in the new-session picker. Click Fix for this line below to turn off just those rows.",
         "assistant.switchHint": "Switching assistants keeps each draft; the \"Unsaved\" marker in the list is exactly that.",
         "btn.create": "New assistant",
         "btn.creating": "Creating…",
@@ -329,6 +334,7 @@ try {
         "aria.expand": "Show details",
         "aria.collapse": "Hide details",
         "detail.id": "Row id",
+        "detail.hostReason": "Host message: ",
         "detail.shipped": "Shipped",
         "detail.shippedOn": "enabled",
         "detail.shippedOff": "disabled",
@@ -379,7 +385,7 @@ try {
         "warn.noDescription": "No description: the new-session mode picker will show it as \"no description yet\".",
         "warn.approvalGateMissing": "The approval gate is off: this DSH build has no tools/pre-execute event, so in-session prompt rewrites do not ask for approval. See the details.",
         "warn.unresolvableRows": "Some rows cannot be resolved on this DSH line: the platform marks the whole mode broken and silently drops it from the new-session picker. Click Fix for this line — it only turns those rows off and leaves your other choices alone.",
-        "warn.presetBroken": "The platform marks this mode broken, so it **disappears from the new-session picker** — and the \"unresolvable\" check above cannot explain why (usually a row whose service or engine never started). Click Fix for this line to turn those rows off. The host's own reason is in Details.",
+        "warn.presetBroken": "The platform marks this mode broken, so it disappears from the new-session picker — and the \"unresolvable\" check above cannot explain why (usually a row whose service or engine never started). Click Fix for this line to turn those rows off. The host's own reason is in Details.",
         "warn.exclusiveRowsActive": "Both shells are on, and they register the same tool names: the platform marks the whole mode broken and silently drops it from the new-session picker. Turn one of them off — saving from the settings page also resolves it automatically.",
         "warn.approvalGateMissing.label": "Approval gate is off",
         "warn.approvalGateMissing.hint": "This DSH build has no tools/pre-execute event, so in-session prompt rewrites do NOT ask for approval. The settings page is unaffected; upgrade DSH or turn the custom_prompt tool row off to restore the gate.",
@@ -1657,14 +1663,29 @@ try {
                             ),
                             dirtyIds.has(item.id) ? react.createElement(A.Tag, { tone: "warning" }, t("msg.unsaved")) : null,
                             typeof item.broken === "string" && item.broken !== ""
-                              ? react.createElement(A.Tag, { tone: "danger" }, t("assistant.broken"))
+                              ? react.createElement(
+                                  A.Tag,
+                                  { tone: "danger", title: t("assistant.brokenHint") },
+                                  Array.isArray(item.brokenRows) && item.brokenRows.length > 0
+                                    ? fillPlaceholders(t("assistant.brokenRows"), { count: item.brokenRows.length })
+                                    : t("assistant.broken"),
+                                )
                               : null,
                           ),
                         ),
                       ),
                   dirtyIds.has(selected) ? react.createElement(A.Tag, { tone: "warning" }, t("msg.unsaved")) : null,
                   typeof (assistants.find((item) => item.id === selected) || {}).broken === "string"
-                    ? react.createElement(A.Tag, { tone: "danger" }, t("assistant.broken"))
+                    ? react.createElement(
+                        A.Tag,
+                        { tone: "danger", title: t("assistant.brokenHint") },
+                        (() => {
+                          const current = assistants.find((item) => item.id === selected) || {}
+                          return Array.isArray(current.brokenRows) && current.brokenRows.length > 0
+                            ? fillPlaceholders(t("assistant.brokenRows"), { count: current.brokenRows.length })
+                            : t("assistant.broken")
+                        })(),
+                      )
                     : null,
                 ),
           react.createElement(
@@ -2033,6 +2054,19 @@ try {
                     "div",
                     { key: code, className: "cpfe-warn-row" },
                     react.createElement("p", { className: "cpfe-warn" }, "⚠ " + t("warn." + code)),
+                    // 平台自己给的那句话（`state.broken`，形如
+                    // `tool-workflow (@deepseek-ai/dsh-tool-workflow): waiting for workflowEngine`）。
+                    //
+                    // ★ 以前它只在 API 载荷里，**页面上根本不渲染** —— 而 `warn.presetBroken` 的文案却写着
+                    //   「宿主给的原因见「详情」」，那个「详情」里从来没有它。文本在说谎，用户按提示去找也找不到。
+                    //   现在把它原样印在告警下面：那是平台的原始信息、不是我们的行文，所以用等宽体单独成行。
+                    code === "presetBroken" && typeof draft.broken === "string" && draft.broken !== ""
+                      ? react.createElement(
+                          "p",
+                          { className: "cpfe-note cpfe-mono", title: draft.broken },
+                          t("detail.hostReason") + draft.broken,
+                        )
+                      : null,
                     // 本线起不来的行可以一键修（只关掉那几行；用户创建它的那个版本可能早于播种改为派生的版本）。
                     //
                     // ★ 两个 code 都要给按钮：`presetBroken` 说的是"平台判它 broken，而『无法解析』解释不了"
