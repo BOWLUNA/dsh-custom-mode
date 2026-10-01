@@ -25,6 +25,17 @@ Three sites, and it is worth knowing which one is the source of truth — only o
 | Site | What it is | How a plugin gets in |
 | --- | --- | --- |
 | [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) | the **curated registry**; also the site whose README and JSON feed most other tools read | **a PR adding one YAML file**, `data/plugins/<owner>__<repo>.yml`, to [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) — `url`, `name`, `category`, `description.en` (+ optional `zh`). Ours is the **root form**: `BOWLUNA__dsh-custom-mode.yml`, `url` = the repository root, `name` = `BOWLUNA/dsh-custom-mode`, category `identity`. The root form is legal because the repository root declares `dsh.bundle`; until 1.10.0 we used the monorepo-subpackage form (`…--editor.yml`, `name: BOWLUNA/dsh-custom-mode#editor`), and that is exactly what rendered the `#editor` suffix on the card |
+
+> **Current state (measured 2026-10-01, 1.11.0).** The root-form PR is **still open and unmerged**
+> (`awesome-dsh-plugin/awesome-dsh-plugin#6255`, opened 2026-09-30T15:33Z). Until it lands the registry
+> serves **only the old entry** — `BOWLUNA__dsh-custom-mode--editor.yml`, `name: "dsh-custom-mode#editor"`,
+> `url: …/tree/main/editor` (**a directory that has not existed since 1.10.0**, so the link 404s) and
+> `version: "1.9.19"`. Measured: the canonical slug `/p/BOWLUNA/dsh-custom-mode/` → **404**, the old slug
+> `/p/BOWLUNA/dsh-custom-mode--editor/` → 200, and `plugins.json` still carries the `#editor` name.
+> **We cannot merge another account's repository**, so the only lever is a polite ping on the PR. Read this
+> paragraph before repeating the paragraph above as if the card were already correct: this is the
+> distribution channel behind `dshmarket` and `dshfind`, and getting it wrong is why the card renders a
+> dead link. Installing straight from npm or from the GitHub URL is unaffected — both are verified above.
 | [**dshmarket.com**](https://dshmarket.com/) | **an in-app plugin market** — itself a dsh plugin (`dsh plugin --profile web add dshmarket`, then Settings → Plugin Market). Host-aware: it reads the `engines.dsh` / peer range each card declares, and shows author-curated shots from the plugin's own `screenshots.json` | **nothing to submit.** Its README says it plainly: "This repo is the market app, not the catalog." Listing follows the registry above |
 | [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | a Chinese learning community with its own plugin index and a mirror of the official docs | **automatic**, aggregated from the GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) — so the lever is the repository's topics, not a form. It re-probes on request (their issue #41 pattern); ours is [#44](https://github.com/hikariming/dshfind/issues/44) because its card still says "not published to npm" and shows an older version |
 

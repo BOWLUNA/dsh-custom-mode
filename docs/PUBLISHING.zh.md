@@ -24,6 +24,17 @@ agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` �
 | 站点 | 是什么 | 怎么进 |
 | --- | --- | --- |
 | [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) | **策展注册表**；别的工具大多读它的 README 与数据 | **提一个 PR，加一个 YAML 文件** `data/plugins/<owner>__<repo>.yml`（`url` / `name` / `category` / `description.en`，`zh` 可选），仓库是 [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。我们那条现在是**根形态**：`BOWLUNA__dsh-custom-mode.yml`，`url` 指向仓库根，`name` 为 `BOWLUNA/dsh-custom-mode`，分类 `identity`。根形态合法，因为仓库根就声明了 `dsh.bundle`；1.10.0 之前用的是 monorepo 子包形态（`…--editor.yml`、`name: BOWLUNA/dsh-custom-mode#editor`），那张卡片上的 `#editor` 后缀正是它渲染出来的 |
+
+> **现状（2026-10-01 实测，1.11.0）。** 根形态那个 PR **仍然是 open、没合**
+> （`awesome-dsh-plugin/awesome-dsh-plugin#6255`，2026-09-30T15:33Z 提交）。在它合并之前，注册表里
+> **只有旧条目**：`BOWLUNA__dsh-custom-mode--editor.yml`，`name: "dsh-custom-mode#editor"`，
+> `url: …/tree/main/editor`（**这个目录从 1.10.0 起就不存在了**，所以链接是 404），
+> 而 `version` 还停在 `"1.9.19"`。
+> 实测：规范 slug `/p/BOWLUNA/dsh-custom-mode/` → **404**，旧 slug `/p/BOWLUNA/dsh-custom-mode--editor/` → 200，
+> `plugins.json` 里也仍是 `#editor` 那个名字。
+> **我们合不了别人的仓**，唯一的杠杆是在 PR 上礼貌 ping 一句。把上面那段当"已经正确"来讲之前，
+> 先读这一段的实测：这条通道正是 `dshmarket` 与 `dshfind` 的数据源，卡片上那个死链就是它造成的。
+> 直接从 npm 或 GitHub 地址安装不受影响 —— 那两条都验过。
 | [**dshmarket.com**](https://dshmarket.com/) | **应用内的插件市场** —— 它自己就是个 dsh 插件（`dsh plugin --profile web add dshmarket`，然后 设置 → 插件市场）。它会读每张卡片声明的 `engines.dsh` / peer 范围来判断与当前宿主是否匹配，并展示插件自己 `screenshots.json` 里的作者精选图 | **不用投稿**。它 README 写得很直白："This repo is the market app, not the catalog." —— 列表跟着上面的注册表走 |
 | [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | 中文学习社区，自带插件索引与官方文档镜像 | **自动聚合**，来源是 GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) —— 所以杠杆是**仓库的 topics**，不是表单。它接受点名重探（见其 issue #41 的做法）；我们已开 [#44](https://github.com/hikariming/dshfind/issues/44)，因为它那张卡片仍写着"尚未发布到 npm"且版本偏旧 |
 
