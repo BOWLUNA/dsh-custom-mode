@@ -14,7 +14,7 @@
  *    random temporary name does not help with *that* collision, only with temp-vs-temp ones.
  */
 import { randomBytes } from 'node:crypto'
-import { renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 
 /** Synchronous backoff: these write paths are synchronous, so waiting is simpler than async plumbing. */
 function sleepSync(ms) {
@@ -81,21 +81,104 @@ export function discardStaged(staged) {
 }
 
 /**
- * Write several files together: stage them all, then commit them all.
+ * Write several files together, as close to a transaction as a filesystem will give us.
  *
- * Not a true transaction — a rename can still fail between two commits — but it shrinks the mixed-state window
- * to a single rename, and any failure discards the staged temporaries so no `.tmp-…` is left behind.
+ * **Why this is not the old two-phase version.** The previous implementation staged everything and then
+ * renamed them one by one, and said so honestly in a comment ("not a true transaction — a rename can still
+ * fail between two commits"). But the callers' contracts do not say that: `savePromptOnly` promises
+ * "提示词与 preset.yml 一起换名，失败则两个都不动", and `saveState` says the three files are written
+ * together (issue #5). A caller that returns `ok:false` while the disk holds new-prompt + old-name is
+ * exactly the state those promises rule out — the user is told nothing was saved and half of it was.
+ *
+ * Two defects were measured by `probes/probe-io.mjs`:
+ *
+ *   L   staging happened **outside** the try, so a staging failure left its `.tmp-…` behind — and the
+ *       module's own comment says an orphan temporary in an assistant directory is not just litter,
+ *       because the roster scans that directory;
+ *   K   committing renamed them in order and gave up on the first failure — the earlier targets were
+ *       already replaced, and the caller saw a plain failure.
+ *
+ * **How it is transactional now**: stage everything, then move every existing target aside to a backup,
+ * then put the new files in place. Any failure anywhere in that sequence restores from the backups and
+ * removes what it had already installed, so the caller's "nothing changed" is true. The backups are
+ * removed only after every destination is in place.
  *
  * @param {Array<[string, string]>} entries - `[file, text]` pairs.
  * @returns {void}
  */
 export function writeAtomicPair(entries) {
-  const staged = entries.map(([file, text]) => stageAtomic(file, text))
+  const stamp = `${String(process.pid)}-${randomBytes(4).toString('hex')}`
+
+  // ── phase 0: refuse to touch a destination that is a directory. ──
+  //
+  // Measured: `probes/probe-io.mjs` K injects the failure by making the second target a directory.
+  // A naive "move the old target aside, then install" transaction **succeeds** on that input — it renames
+  // the user's directory to `.bak-…` and leaves a file where it was. That is worse than failing: it obeys
+  // the letter of "transactional" while quietly relocating a directory nobody asked it to touch.
+  // Being transactional must not mean "willing to move anything out of the way". A directory at a path that
+  // should hold a file is not a target to replace — it is a reason to refuse before anything moves.
+  for (const [file] of entries) {
+    if (existsSync(file) && statSync(file).isDirectory()) {
+      throw new Error(`拒绝写入：目标已存在且是目录 — ${file}（未改动任何文件）`)
+    }
+  }
+
+  // ── phase 1: stage everything. A failure here must not leave a temporary behind. ──
+  const staged = []
   try {
-    for (const one of staged) commitStaged(one)
+    for (const [file, text] of entries) staged.push(stageAtomic(file, text))
   } catch (error) {
     for (const one of staged) discardStaged(one)
     throw error
+  }
+
+  // ── phase 2: move the current targets aside. `null` = the target did not exist. ──
+  const backups = []
+  const installed = []
+  try {
+    for (const one of staged) {
+      if (existsSync(one.file)) {
+        const backup = `${one.file}.bak-${stamp}`
+        renameWithRetry(one.file, backup)
+        backups.push([one.file, backup])
+      } else {
+        backups.push([one.file, null])
+      }
+    }
+    // ── phase 3: install. ──
+    for (const one of staged) {
+      commitStaged(one)
+      installed.push(one)
+    }
+  } catch (error) {
+    // Undo in reverse: remove what we installed, then put the backups back.
+    for (const one of installed) {
+      try {
+        rmSync(one.file, { force: true })
+      } catch {
+        /* best effort — the restore below is what matters */
+      }
+    }
+    for (const [file, backup] of backups) {
+      if (backup === null) continue
+      try {
+        renameWithRetry(backup, file)
+      } catch {
+        /* best effort; the thrown error still tells the caller nothing is consistent */
+      }
+    }
+    for (const one of staged) discardStaged(one)
+    throw error
+  }
+
+  // ── success: drop the backups ──
+  for (const [, backup] of backups) {
+    if (backup === null) continue
+    try {
+      rmSync(backup, { force: true })
+    } catch {
+      /* a leftover .bak-… is inert; failing the whole write over it would be worse */
+    }
   }
 }
 
@@ -104,6 +187,9 @@ export function writeAtomicPair(entries) {
  *
  * The temporary name is unique per call (pid + random suffix). On failure the temporary file is removed —
  * an orphan `.tmp-…` inside an assistant directory is not just litter: the roster scans that directory.
+ * **The staging write itself is inside the try** for the same reason: a `writeFileSync` that fails part way
+ * (a full disk, an EACCES) leaves a partial temporary, and that is exactly the litter this promises not to
+ * leave. Measured by `probes/probe-io.mjs` — the same defect the pair version had.
  *
  * @param {string} file - destination path.
  * @param {string} text - content to write.
@@ -111,8 +197,8 @@ export function writeAtomicPair(entries) {
  */
 export function writeAtomic(file, text) {
   const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
-  writeFileSync(temporary, text, 'utf8')
   try {
+    writeFileSync(temporary, text, 'utf8')
     renameWithRetry(temporary, file)
   } catch (error) {
     try {

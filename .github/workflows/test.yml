@@ -115,6 +115,27 @@ jobs:
       - name: 测试
         run: node test/run.mjs
 
+      # ★★ 对抗性探针 —— 79 条断言，写的是**期望行为**，所以在有缺陷的代码上会红。
+      #
+      # 为什么必须进 CI：这套探针 2026-09-21 写过一轮（79 条里 20 条失败），修完之后
+      # **没有接进 CI**，于是 1.10.0 把 `editor/` 并入仓库根时它们全部指向了不存在的路径 ——
+      # 从那天起整套探针**静默跑不起来**，而没人知道，因为没人跑。
+      # 2026-10-01 修好路径后重跑，仍然红着 14 条：**那是 14 个真缺陷，全都没有 issue**。
+      # 「跑不起来」和「全过」在没人执行时是同一个状态 —— 这就是它们必须在这里的原因。
+      #
+      # 夹具：探针要一份出厂基础模式（`readBaseComposition` 用它做手术）。
+      # 显式指向 test/run.mjs 已经派生好的那份，而不是依赖 $HOME —— CI 里没有 $HOME/.dsh。
+      - name: 对抗性探针（79 条断言）
+        shell: bash
+        run: |
+          FIXTURE="$PWD/node_modules/@deepseek-ai/dsh-agent-presets/presets"
+          if [ ! -d "$FIXTURE" ]; then
+            echo "::error::夹具目录不存在：$FIXTURE（应由上一步 test/run.mjs 派生）。探针没有出厂组成可做手术。"
+            exit 1
+          fi
+          export DSH_SHIPPED_PRESETS_DIR="$FIXTURE"
+          bash tools/probes/run.sh
+
       # Git Bash 也在 Windows 上跑这一段：脚本里任何"绝对路径进 node -e"的写法会在这里
       # 以外的方式暴露（真正抓住它的是 test/meta.test.mjs 的静态守卫）。
       - name: install.sh 自身可解析（bash -n）

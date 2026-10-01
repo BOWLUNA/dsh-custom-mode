@@ -409,17 +409,37 @@ export function reorderAssistant(rows, input, write = writePresetMeta) {
     const result = write(item.name, item.description, directory, { order: position + 1 })
     if (result.ok !== true) {
       const failed = assistantDir(rows, item.id)
+      // 报的必须是**真的回滚了几个**，不是"尝试了几个"。
+      //
+      // 实测（`probes/probe-io.mjs` O）：旧代码把 `written.length` 写进消息，而循环里
+      // 快照为 null 的条目被 `continue` 跳过、写失败的被 catch 吞掉 —— 于是两种都没还原的情况下，
+      // 用户看到的仍然是"已回滚 2 个"。那是一句**被夸大的保证**：磁盘上留着改了一半的时间线，
+      // 而错误消息说安全网已经兜住了。
+      //
+      // 现在分开数：真的还原成功几个、有几个还原不了（快照没读到 / 写回失败）。
+      let restored = 0
+      let unrestorable = 0
       for (const done of written) {
-        if (done.text === null) continue
+        if (done.text === null) {
+          // 快照没读到，就没有可以写回去的内容 —— 这条回滚不了，不能算进"已回滚"。
+          unrestorable += 1
+          continue
+        }
         try {
           writeAtomic(presetMetaPath(done.directory), done.text)
+          restored += 1
         } catch {
-          /* 回滚失败不掩盖原始错误 */
+          /* 回滚失败不掩盖原始错误，但也不算成功 */
+          unrestorable += 1
         }
       }
+      const rollback =
+        unrestorable === 0
+          ? `已回滚 ${String(restored)} 个已写入的顺序`
+          : `已回滚 ${String(restored)} 个；另有 ${String(unrestorable)} 个**未能还原**（快照读不到或写回失败），磁盘上可能留有改动`
       return {
         ...result,
-        error: result.error + `（已回滚 ${String(written.length)} 个已写入的顺序；失败的目录：${String(failed)}）`,
+        error: result.error + `（${rollback}；失败的目录：${String(failed)}）`,
       }
     }
     written.push({ directory, text: snapshot.find((entry) => entry.item.id === item.id)?.text ?? null })

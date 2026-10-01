@@ -627,10 +627,19 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     }
     const sourceMode = modeOf(text)
     const sourcePrompt = readPrompt(fromDir)
+    // 与上面组成文件**同一条纪律**：源提示词读不出来时返回类型化错误，不要静默用空串。
+    //
+    // 实测（`probes/probe-io.mjs` N）：旧代码写 `sourcePrompt.ok === true ? sourcePrompt.text : ''`，
+    // 于是一次复制会返回 `ok / duplicated`，而新助手的 `prompt.md` 长度是 **0** ——
+    // 用户以为自己复制出了一个助手，实际拿到的是**空的系统提示词**，而源里那份提示词还好端端躺着。
+    // 保存路径有 `promptEmpty` 这道闸，复制路径没有；这个不对称就是缺陷本身。
+    //
+    // `readPrompt` 的失败形状已经是带 code 的类型化错误（页面按词典渲染），所以直接透传。
+    if (sourcePrompt.ok !== true) return sourcePrompt
     source = {
       mode: sourceMode,
       overrides: overridesOf(text, sourceMode),
-      prompt: sourcePrompt.ok === true ? sourcePrompt.text : '',
+      prompt: sourcePrompt.text,
       description: readPresetMeta(fromDir).description,
     }
   }

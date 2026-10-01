@@ -65,16 +65,16 @@ export function readEntries(directory) {
     // 模块自己的承诺是"坏一行不该赔上全部版本"，那么坏一个文件更不该赔上这个助手。
     return []
   }
-  const entries = []
+  const parsedLines = []
   for (const line of raw.split('\n')) {
     if (line.trim() === '') continue
     try {
       const parsed = JSON.parse(line)
       if (parsed === null || typeof parsed !== 'object') continue
       if (typeof parsed.text !== 'string') continue
-      entries.push({
-        // 老日志没有 n 时按行序补一个，于是"序号"这个概念对任何日志都成立。
-        n: Number.isInteger(parsed.n) && parsed.n > 0 ? parsed.n : entries.length + 1,
+      parsedLines.push({
+        // 老日志没有 n；显式的 n 先原样带着，是否可用留到下一遍决定。
+        n: Number.isInteger(parsed.n) && parsed.n > 0 ? parsed.n : null,
         at: typeof parsed.at === 'string' ? parsed.at : '',
         by: typeof parsed.by === 'string' ? parsed.by : HISTORY_SOURCE.external,
         text: parsed.text,
@@ -82,6 +82,30 @@ export function readEntries(directory) {
     } catch {
       continue
     }
+  }
+
+  // 第二遍：把序号分配成**互不重复**的。
+  //
+  // 旧实现是单遍的 `entries.length + 1`，只能看见"已经读到几条"，看不见**后面**才出现的显式号码，
+  // 于是会撞车。实测（`probes/probe-io.mjs` I）日志 `[n=5, 无, n=2]` 读出 `[5, 2, 2]` ——
+  // 两条记录共用一个 n，而 `readVersion(n)` 只返回第一个匹配，
+  // 于是用户点"回到某一版"拿到的是隔壁那条的内容，且界面上两行还都显示同一个版本号。
+  //
+  // 规则：显式且**尚未被占用**的号码原样保留；其余（缺失的，以及显式但撞车的）在一张
+  // 已占用表里找最小的空闲号。唯一性优先于"按行序" —— 序号错乱只是显示不好看，
+  // 序号重复会让用户取到**别人的内容**。
+  const taken = new Set()
+  let next = 1
+  const entries = []
+  for (const entry of parsedLines) {
+    if (entry.n !== null && taken.has(entry.n) === false) {
+      taken.add(entry.n)
+      entries.push({ ...entry, n: entry.n })
+      continue
+    }
+    while (taken.has(next)) next += 1
+    taken.add(next)
+    entries.push({ ...entry, n: next })
   }
   return entries
 }
@@ -104,7 +128,10 @@ export function recordPrompt(directory, text, by = HISTORY_SOURCE.settings) {
   if (newest !== undefined && newest.text === text) return { recorded: false, at: newest.at, n: newest.n }
 
   const at = new Date().toISOString()
-  const n = entries.length === 0 ? 1 : entries[entries.length - 1].n + 1
+  // 新序号取**已有序号的最大值 + 1**，不是"最后一条 + 1"：老日志的兜底序号可能让末条不是最大的那个
+  // （实测 [5, 2, 2] 的末条是 2，加一得到 3 —— 而 3 未必空闲）。取 max 并配合 readEntries 的唯一性
+  // 分配，保证新版本号不会与任何已有记录撞车。
+  const n = entries.length === 0 ? 1 : Math.max(...entries.map((entry) => entry.n)) + 1
   // `bytes` 是给人看的体积，所以按 **UTF-8 字节**计（原先用 text.length = UTF-16 码元，
   // CJK 内容下显示值只有真实字节的约 1/3，而界面标注是 "B"）。
   const lines = entries.slice(-(HISTORY_MAX - 1)).map((entry) =>

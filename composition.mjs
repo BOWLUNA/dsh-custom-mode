@@ -137,14 +137,35 @@ export function readBaseComposition(modeId) {
 /**
  * Whether a segment line declares a row id at the expected indentation.
  *
- * Nested group rows are indented four spaces in the shipped compositions, so a
- * top-level row is recognised only at column 0 and a nested one only at that
- * exact depth. Deeper indentation never carries a row id.
+ * A top-level row is recognised only at column 0. A nested row is recognised at **the indentation
+ * that level actually uses** (`indent`), not at a hard-coded depth — see {@link nestedIndent} for
+ * why that distinction is load-bearing.
  */
-function rowIdAt(line, topLevel) {
-  const pattern = topLevel ? /^- id: (.+?)\s*$/ : /^ {4}- id: (.+?)\s*$/
+function rowIdAt(line, topLevel, indent) {
+  const pattern = topLevel ? /^- id: (.+?)\s*$/ : new RegExp(`^ {${String(indent)}}- id: (.+?)\\s*$`)
   const match = pattern.exec(line)
   return match === null ? undefined : match[1].replace(/^['"]|['"]$/g, '')
+}
+
+/**
+ * The indentation a nested level actually uses, measured from its first row line.
+ *
+ * The shipped compositions indent nested rows by four spaces, and this module used to hard-code
+ * that. **YAML does not require it** — any consistent indentation is legal. Measured
+ * (`probes/probe-fuzz.mjs` T): on a file indented by two spaces, every child of a group became
+ * **invisible in the page and impossible to toggle**, while the lines were still in the file. The
+ * user sees rows they cannot reach; the file keeps rows the page denies exist.
+ *
+ * Measuring costs one pass over the level's lines and removes the assumption.
+ */
+function nestedIndent(lines) {
+  for (const line of lines) {
+    const match = /^( +)- id: /.exec(line)
+    if (match !== null) return match[1].length
+  }
+  // No nested row in this level at all: the value is never used (nothing matches), so return the
+  // shipped shape rather than inventing one.
+  return 4
 }
 
 /**
@@ -163,9 +184,10 @@ function rowIdAt(line, topLevel) {
  */
 function splitSegments(text, topLevel) {
   const lines = text.split('\n')
+  const indent = topLevel ? 0 : nestedIndent(lines)
   const starts = []
   for (let i = 0; i < lines.length; i += 1) {
-    const id = rowIdAt(lines[i], topLevel)
+    const id = rowIdAt(lines[i], topLevel, indent)
     if (id !== undefined) starts.push({ index: i, id })
   }
   if (starts.length === 0) return { lead: text, segments: [] }
@@ -257,24 +279,31 @@ function setDisabled(segmentText, disabled) {
   const indent = ownKeyIndent(segmentText)
   const own = disabledLineAt(indent)
   const index = lines.findIndex((line) => own.test(line))
+  // ★ 行尾必须跟着输入走。
+  //
+  // `lines` 来自 `split('\n')`，所以 CRLF 文件里每一行的末尾都还带着 `\r`。这个函数**替换**
+  // 或**插入**的行如果只以 `\n` 结尾，就会在文件里留下一个**裸 LF** —— 整个文件从此混行尾，
+  // 下一个读它的工具会看到不一致的内容（实测 `probes/probe-fuzz.mjs` R：266 个 CRLF 里混进 1 个裸 LF）。
+  // 同样的理由适用于下面两处替换：原行的 `\r` 会随替换一起丢掉。
+  const carriage = segmentText.includes('\r\n') ? '\r' : ''
   if (index !== -1) {
     const shipped = lines[index].trim().replace(/^disabled:\s*/, '')
     if (disabled) {
-      lines[index] = `${' '.repeat(indent)}disabled: true`
+      lines[index] = `${' '.repeat(indent)}disabled: true${carriage}`
     } else if (shipped.startsWith('!!js') && evalDisabledExpression(shipped) !== true) {
       // 显式打开，但出厂那行是平台表达式、且它在本机求值就是"开"：这不是覆盖，而是**撤销覆盖** ——
       // 保持出厂表达式原样，这一行就回到"跟随平台"。（原先这里删掉整行，结果是文件既不是出厂原样、
       // 也不是显式覆盖，页面却显示"未拨过" —— 文件与显示同时失真。）
       return segmentText
     } else {
-      lines[index] = `${' '.repeat(indent)}disabled: false`
+      lines[index] = `${' '.repeat(indent)}disabled: false${carriage}`
     }
     return lines.join('\n')
   }
   if (!disabled) return segmentText
   const nameIndex = lines.findIndex((line) => new RegExp(`^ {${String(indent)}}name:\\s`).test(line))
   if (nameIndex === -1) return segmentText
-  lines.splice(nameIndex + 1, 0, `${' '.repeat(indent)}disabled: true`)
+  lines.splice(nameIndex + 1, 0, `${' '.repeat(indent)}disabled: true${carriage}`)
   return lines.join('\n')
 }
 
@@ -424,12 +453,26 @@ export function collectRows(text) {
  * @param {boolean} topLevel - level selector for {@link splitSegments}.
  * @param {Map<string, boolean>} overrides - explicit per-row states.
  * @param {boolean} nested - whether this call rewrites a group's contents.
+ * @param {boolean} replacePersona - whether the persona row may be replaced wholesale.
+ * @param {Set<string>} consumed - ids already applied at this call site; see below.
  * @returns {string} the rewritten level.
  */
-function applyLevel(text, topLevel, overrides, nested, replacePersona = true) {
+function applyLevel(text, topLevel, overrides, nested, replacePersona = true, consumed = new Set()) {
   const { lead, segments } = splitSegments(text, topLevel)
   if (segments.length === 0) return text
   const rendered = segments.map((segment) => {
+    // ★ 一个 id 只作用于**第一个**匹配的行。
+    //
+    // 组成文件里出现重复 id 时（手写、或两次手术叠加），旧实现按 id 查 `overrides`，
+    // 于是两个同 id 的行**一起被改**。实测（`probes/probe-fuzz.mjs` S）：3 行
+    // （alpha, alpha, beta）里关掉 alpha 会关掉**两处** —— 用户拨的是一个开关，
+    // 文件里被改的是两处。那不是"多改了一点"，是**改了他没指的那一行**。
+    //
+    // 取第一个匹配（页面渲染的也是第一处），其余同 id 行保持原样。
+    // `consumed` 跨层共享：分组内的子行与外层同名时同理，只有第一处被改。
+    const state = consumed.has(segment.id) ? undefined : overrides.get(segment.id)
+    if (state !== undefined) consumed.add(segment.id)
+
     // The persona row is always replaced by this feature's own reader row: the
     // shipped one is a static-string persona whose text cannot be edited, so
     // keeping it would silently disable the editable prompt.
@@ -437,27 +480,32 @@ function applyLevel(text, topLevel, overrides, nested, replacePersona = true) {
     // 但"按本线修复"是**就地**手术，它必须连 persona 段里的注释都原样保留 ——
     // 之前这里无条件替换，导致每次修复都会丢注释 / 或多复制一行身份注释（外部评审实测）。
     if (!nested && segment.id === 'persona' && replacePersona === true) {
-      return setDisabled(PERSONA_ROW, overrides.get('persona'))
+      return setDisabled(PERSONA_ROW, state)
     }
     let body = segment.text
     if (nested) {
       // Nested rows: rewrite only the row's own `disabled`, never recurse.
-      return setDisabled(body, overrides.get(segment.id))
+      return setDisabled(body, state)
     }
     const isGroup = /^\s*group:\s*true\s*$/m.test(body)
     if (isGroup) {
       const children = splitSegments(body, false).segments
       if (children.length > 0) {
         // Rewrite the group's nested block, then the group's own `disabled`.
-        const cut = body.indexOf(`\n    - id: ${children[0].id}`)
+        //
+        // 缩进**用量出来的**，不是写死的 4 —— 同 {@link nestedIndent} 的理由：
+        // 写死时，缩进不是 4 格的合法组成文件里 `cut` 恒为 -1，整个分组的子行**一次都不会被重写**，
+        // 而函数照样返回一份"看起来改过了"的文本。
+        const pad = ' '.repeat(nestedIndent(body.split('\n')))
+        const cut = body.indexOf(`\n${pad}- id: ${children[0].id}`)
         if (cut !== -1) {
           const head = body.slice(0, cut + 1)
           const tail = body.slice(cut + 1)
-          body = head + applyLevel(tail, false, overrides, true)
+          body = head + applyLevel(tail, false, overrides, true, true, consumed)
         }
       }
     }
-    return setDisabled(body, overrides.get(segment.id))
+    return setDisabled(body, state)
   })
   // Empty join: each segment already carries the newline that followed it, so
   // `lead + rendered.join('')` reproduces the input byte-for-byte.

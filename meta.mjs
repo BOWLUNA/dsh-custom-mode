@@ -34,23 +34,90 @@ export function presetMetaPath(directory = PRESET_DIR) {
 /** The legacy single-preset metadata path, kept for callers that address it directly. */
 export const PRESET_META_PATH = presetMetaPath()
 
-/** Strip one layer of matching quotes and undo backslash escaping. */
+/**
+ * YAML double-quoted scalars use C-style escapes — a superset of JSON's, so `JSON.parse` is not enough
+ * (`\e`, `\N`, `\_`, `\L`, `\P`, `\xNN`, `\UNNNNNNNN` have no JSON equivalent).
+ *
+ * Measured (`probes/probe-io.mjs` G): the previous implementation was a plain backslash-stripper, so
+ * `"tab\there"` read back as `tabthere` — the name lost a character every round trip. Four control
+ * characters were checked and all four were wrong, which means a name the page shows and the name the
+ * platform stores drift apart permanently.
+ */
+const DOUBLE_QUOTED_ESCAPES = {
+  0: '\0',
+  a: '\x07',
+  b: '\b',
+  t: '\t',
+  n: '\n',
+  v: '\v',
+  f: '\f',
+  r: '\r',
+  e: '\x1b',
+  ' ': ' ',
+  '"': '"',
+  '/': '/',
+  '\\': '\\',
+  N: '\u0085',
+  _: '\u00a0',
+  L: '\u2028',
+  P: '\u2029',
+}
+
+/** Decode the inside of a YAML double-quoted scalar. */
+function decodeDoubleQuoted(inner) {
+  let out = ''
+  for (let i = 0; i < inner.length; i += 1) {
+    const ch = inner[i]
+    if (ch !== '\\') {
+      out += ch
+      continue
+    }
+    const next = inner[i + 1]
+    if (next === undefined) {
+      out += '\\'
+      break
+    }
+    if (next === 'x' || next === 'u' || next === 'U') {
+      const width = next === 'x' ? 2 : next === 'u' ? 4 : 8
+      const digits = inner.slice(i + 2, i + 2 + width)
+      const code = Number.parseInt(digits, 16)
+      if (digits.length === width && Number.isNaN(code) === false) {
+        out += String.fromCodePoint(code)
+        i += 1 + width
+        continue
+      }
+      out += next
+      i += 1
+      continue
+    }
+    if (Object.prototype.hasOwnProperty.call(DOUBLE_QUOTED_ESCAPES, next)) {
+      out += DOUBLE_QUOTED_ESCAPES[next]
+      i += 1
+      continue
+    }
+    // An unknown escape is a YAML error; taking the character itself keeps the round trip lossless
+    // rather than silently dropping the backslash and the character after it.
+    out += next
+    i += 1
+  }
+  return out
+}
+
+/**
+ * Strip one layer of matching quotes and undo the escaping that the quoting style actually implies.
+ *
+ * The two styles are **not** interchangeable, which the previous version did not model:
+ *  - **double quotes** carry C-style escapes (see above);
+ *  - **single quotes** carry exactly one escape, `''` → `'`; a backslash inside them is a literal.
+ */
 function unquote(value) {
   const quoted =
     value.length >= 2 &&
     ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))
   if (!quoted) return value
   const inner = value.slice(1, -1)
-  let out = ''
-  for (let i = 0; i < inner.length; i += 1) {
-    if (inner[i] === '\\' && i + 1 < inner.length) {
-      out += inner[i + 1]
-      i += 1
-      continue
-    }
-    out += inner[i]
-  }
-  return out
+  if (value.startsWith('"')) return decodeDoubleQuoted(inner)
+  return inner.replace(/''/g, "'")
 }
 
 /**
