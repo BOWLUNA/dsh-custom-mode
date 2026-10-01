@@ -19,6 +19,13 @@ import re
 import sys
 from pathlib import Path
 
+# ★ Windows 上 Python 的 stdout 默认走控制台代码页（charmap），**打印中文会直接 UnicodeEncodeError
+#   并以退出码 1 结束** —— CI 的 windows 腿就是这么红的（2026-10-01，第一次上线这条检查时）。
+#   显式改 UTF-8：GitHub 的日志按 UTF-8 收集，这样两边的输出一致。
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+
 try:
     import yaml
 except ImportError:

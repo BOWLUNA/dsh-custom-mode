@@ -206,6 +206,12 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     （`dsh --profile desktop` 会被拒绝），所以验证它**只能在应用内部**做 —— 在页面里同源 `fetch`
     插件的 API 是最省力的入口。
 
+23. **Windows 上 `python3` 打印中文会 `UnicodeEncodeError` 并退出 1。** 控制台默认走代码页（charmap），
+    编不出来的字直接抛异常 —— 不是"显示成问号"，是**整条命令失败**。实测（2026-10-01）：新加的
+    `tools/verify-workflows.py` 在 CI 的 ubuntu 腿上全绿、**windows 腿上红**，就是这一条。
+    修法：脚本开头 `sys.stdout.reconfigure(encoding="utf-8", errors="replace")`（stderr 同样）——
+    GitHub 的日志按 UTF-8 收集，两边就一致了。**任何要在 CI 里跑的 python 工具都要加这一句。**
+
 ## Known traps (all measured)
 
 - `agent-presets` exists **only in the web profile composition**; tui and headless do not have it, so
