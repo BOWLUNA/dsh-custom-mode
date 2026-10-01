@@ -98,7 +98,7 @@ jobs:
       - name: 语法检查
         shell: bash
         run: |
-          for f in *.mjs client.js preset/*.mjs test/*.mjs; do
+          for f in *.mjs client.js preset/*.mjs test/*.mjs tools/*.mjs; do
             node --check "$f"
           done
 
@@ -130,6 +130,28 @@ jobs:
       # 全部与实际运行结果对齐（外部审阅一次就找出三处漂移，而测试看不到文档）。
       - name: 文档数字与实际一致
         run: node tools/verify-doc-numbers.mjs
+
+      # ★★ 真启动 —— 唯一会**真的 apply 插件**的一道守卫。
+      #
+      # 为什么必须有它：`--dump-config` 只合成配置、不 apply 插件，装配行 `name` 解析失败时
+      # 既不报错也不留痕（行照样列在 dump 里、exit 0、stderr 空）。本仓在这上面栽过：
+      # 0.1.7 换了 preset 机制，设置页的能力闸门把整页关掉 —— 那是插件的**唯一界面**，
+      # 而当时六道守卫全绿，因为**没有一道真正运行过这个插件**。
+      #
+      # 断言四条：A 装得上（0.2.0 起这也是 peer 范围的**安装闸门**，用户就是这么撞上的）、
+      # B `cordis.patch.yml` 的行 name == 包名、C 端口应答**并且按住 2 秒仍在应答**、
+      # D stderr 里没有致命模式（白名单式，允许本插件刻意的降级告警）。
+      # 端口 32010 是本插件的实验台号段（见 docs/20-conventions/06 的端口表）。
+      - name: 真启动（装得上 ≠ 起得来）
+        if: matrix.node-version != '20'
+        run: node tools/boot-check.mjs --port 32010
+
+      # node 20 腿跳过真启动，**并且说出来** —— 有声明地跳过，不是静默缺口。
+      - name: 跳过说明（node 20 不跑真启动守卫）
+        if: matrix.node-version == '20'
+        shell: bash
+        run: |
+          echo "::warning::node 20 腿跳过了真启动守卫：该运行时下宿主装不完整（依赖树里有包要求 node >= 22.19），boot-check 会以退出码 2 判为环境问题。测试套件与其余守卫在这一腿上照常跑。"
 
       # 发布包最容易踩的坑不是"多打了文件"，而是**少打了**：dsh.bundle.patch 指向的补丁、
       # 或浏览器半的 client.js 一旦被 files 白名单漏掉，npm 上的包装了也没用，
