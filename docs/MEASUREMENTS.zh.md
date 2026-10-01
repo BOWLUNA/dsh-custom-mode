@@ -1650,3 +1650,109 @@ total files 26 size 149kB
 > 本节之前的各节里出现的 `editor/...` 路径，是 **1.10.0 之前**布局的实测记录，按原样保留；
 > 1.10.0 起包就在仓库根，对应路径去掉 `editor/` 前缀即可（`client.js`、`index.mjs`、`preset/`、
 > `package.json`）。
+
+
+## 33. 1.11.0：第五个基础模式是并集 —— 而这份并集会发出一份 broken 的预设（2026-10-01）
+
+**1. 缺口，数出来的。** `renderComposition(modeId, overrides)` 改的是**基础模式出厂文本**里那些行的
+`disabled:`，所以那份文本里没有的行，开关**根本碰不到**。在 `0.2.0-rc.2` 上逐份数出厂组成：
+
+```
+standard  32 行
+ptc       33
+cordis    33
+minimal    7
+并集      40     ← 新模式
+```
+
+于是选「标准模式」时有 8 行拨不到：`tool-presentation`（只有 PTC 有）、`persistent-shell` 整组 ——
+`pty`、`terminal-bash`、`persistent-bash`、`terminal-pwsh`、`persistent-pwsh`（只有极简有）——
+以及 `tool-cordis`（只有创造有）。
+
+**2. 并集是坏的，而任何单元测试都看不见。** 把并集组成真的写进
+`.agent-presets/custom/agent.cordis.yml` 并真启动宿主，再问实例自己的 API：
+
+```
+$ curl -s -b "$JAR" …/api/custom-mode
+{"ok":true,"assistants":[{"id":"custom",…,
+  "broken":"persistent-bash (@deepseek-ai/dsh-tool-bash-persistent):
+            tool \"bash\" is already registered in this scope"}]}
+```
+
+broken 的预设会从**所有**选择器里被丢掉 —— 而设置页自己的信号全是绿的（`ok:true`、`warnings:[]`、
+`unresolvable:[]`）。这正是本仓发出过两次的那种 P0 形态，而它对 828 项全过的检查完全隐形。
+
+根因：极简的 `persistent-shell` 那一套和标准的 `tool-bash` / `tool-pwsh` 是同一件东西的两种实现 ——
+都注册一个叫 `bash` 的工具。极简里不冲突，只是因为它**没有**标准那两行。
+
+**3. 到底哪些行相撞，量出来的。** 六个变体，逐个写盘再真启动，读 `broken`：
+
+| 组成 | `broken` |
+| --- | --- |
+| 并集原样 | ✗ `persistent-bash` / `tool-bash` |
+| 并集，关掉 `persistent-shell` | ✓ null |
+| 并集，关掉 `tool-bash` + `tool-pwsh` | ✓ null |
+| 并集，两侧都关 | ✓ null |
+| 并集，不要 `persistent-shell` 那一组 | ✓ null |
+| 并集，不要 `tool-presentation` / `tool-cordis` | ✗ 仍然 broken ⇒ 那两个是清白的 |
+
+两条结论都实测过：**被禁用的行不参与碰撞**（所以那一组可以被带进并集、也可以被开关）；冲突恰好就是
+两套壳。
+
+**4. 出厂默认不能是"照搬源模式的出厂状态"。** `persistent-shell` 在极简模式里是**启用**的 —— 极简的
+全部内容就是它。所以照搬每行的出厂状态合出来的并集，默认就是**非法**的：`POST /state` 发
+`mode: all` + `overrides: {}`，回答 `code: saved`，而 roster 立刻就是 `broken`（不需要重启）。
+
+修法：`composition.mjs` 的 `EXCLUSIVE_ROW_SETS`，并集在**合成时**就把非偏好的一侧关掉，于是默认组成合法。
+
+**5. 用户仍然能把它弄坏，所以保存路径替他解决。** 打开 `persistent-shell` 而标准壳还开着，是那一组
+**主要**的用法，不是边角情况。既然 `broken` 是**活着**可见的，`saveState` 现在会调
+`applyRowExclusivity()`，并如实报出它动了什么：
+
+```
+$ POST /state {mode: all, overrides: {persistent-shell: true}}
+    ok=true  code=savedWithExclusiveRows  rows="tool-bash"
+    磁盘: tool-bash=off  persistent-shell=on  mode=all
+    broken = null
+```
+
+页面**之外**写进去的冲突组成（手工编辑、别的工具、直接调 API）则由既有的告警通道点名
+（`exclusiveRowsActive`）。
+
+**6. 两条支持线上都做了端到端。** 同一个脚本、两台实验台（`0.2.0-rc.2` 与 `0.1.7-rc.2`），各四步 ——
+切到 `all`、拨互斥的另一侧、拨回来、读页面状态：
+
+```
+modes=["standard","ptc","minimal","cordis","all"]
+warnings=[]   unresolvable=[]   stderr 0 字节
+每一步 broken = null
+```
+
+`tools/boot-check.mjs` 在两条线上都是 A/B/C/D 全过（端口 32010 与 32013）。
+
+**7. 门禁。** `node test/run.mjs` → 15 套件 / **850 项**（原 805）。11 个变异都在副本上跑过，每个都在
+本该抓它的那条断言上变红：
+
+| 变异 | 红在哪 |
+| --- | --- |
+| 并集对读不到的源静默跳过 | `并集在残缺目录里是类型化失败` |
+| 并集去掉顶层去重 | `并集里没有重复行 id` · `并集顶层没有重复 id` · `all: 开关可反推` |
+| `UNION_MODE_ID` 改回 `custom` | `并集模式的 id 不与任何出厂模式重名` · 路由测试 · `base.custom.label` |
+| 并集退化成只有标准 | `并集覆盖四个出厂模式的每一行` · `并集确实比单独选 standard 多出行来` |
+| 并集不再关掉互斥的另一侧 | `并集默认在每一组互斥里只留一侧启用` |
+| 互斥表写了出厂里不存在的行 id | `互斥表里的行 id 都真的存在于出厂组成里` |
+| 清空 `unionDefaultOff` | `并集默认在每一组互斥里只留一侧启用` |
+| `applyRowExclusivity` 原样返回开关 | 两个套件里共 8 条断言 |
+| `saveState` 不再报 `savedWithExclusiveRows` | `用专门的 code 说明动过开关` |
+| `configWarnings` 不再点出互斥 | `页面外写进去的互斥组合会被点名` |
+| 给本来就关着的行也写 `false` | `只动本来就启用着的行` |
+
+**8. 新代码与测试自身暴露的三个缺陷**，留在这里是因为形状本身可复用：
+
+- `composition.mjs` 用 `export { … } from …` **再导出** `BaseCompositionUnavailableError` —— 那只建立
+  导出、**不建立本地绑定**。`unionCompositionText()` 抛它时拿到的是 `ReferenceError`，
+  页面会答 **500 而不是降级**。被新加的子进程断言在第一次运行时抓住。
+- 那条断言最初读子进程的 **stdout**；写管道是异步的而子进程立刻退出，所以每次只拿到第一行。现在它把
+  判决写**文件** —— 静默丢源那个变体下，失败详情里能看见 `"standard=ok\nunion=ok"`。
+- 变异 M7（清空 `unionDefaultOff`）**保持绿色**："列出来的行都被关掉了"对空集合**恒真**。
+  已改写成"每一组互斥里**恰好一侧**启用"——它对上游偏好哪一侧不敏感，但两侧同开一定红。

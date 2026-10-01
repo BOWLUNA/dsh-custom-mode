@@ -59,7 +59,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.10.0   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.11.0   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -205,6 +205,23 @@ plugin switches, system prompt) edit **whichever one is selected**.
   this plugin always replaces the base's `persona` row with its own reader (`complete: false`), so the
   base's *prompt* semantics are **not** inherited. Minimal is the visible case: you get minimal's tool set,
   not minimal's prompt.
+- **A fifth base mode: Custom — the union of every shipped row.** The first four are dsh's own; the fifth is
+  **synthesised by this plugin**. Its row set is the union of those four, and a row declared by more than one
+  mode keeps the text and shipped default of whichever mode comes first in `standard → ptc → minimal →
+  cordis` order — so standard's shipped state wins where there is a conflict.
+  Why it has to exist: a switch can only rewrite a row the *base text already has*, so on Standard the rows
+  only PTC declares (`tool-presentation`), only Minimal declares (the persistent-terminal group) and only
+  Cordis declares (`tool-cordis`) were **unreachable** — not hidden in the UI, just absent from the composer.
+  Measured on `0.2.0-rc.2`: standard 32 rows, PTC 33, Cordis 33, Minimal 7, and the union **40**. Groups
+  travel whole with their `isolate` realms and `!!js` conditions intact, so the union cannot invent a row
+  that `dsh-agent-presets` would refuse to mount.
+- **The two shells cannot both be on, and the plugin moves the switch for you.** The union contains one
+  mutually exclusive pair: Minimal's "persistent terminal" set and standard's `tool-bash` / `tool-pwsh` are
+  two implementations of the same thing — both register a tool called `bash`. Enabling both makes
+  `dsh-agent-presets` mark the whole mode **broken**, and a broken mode is silently dropped from **every**
+  picker while the settings page stays green. So in Custom mode, turning one side on turns the other off,
+  and the save message says which row moved. A conflicting combination written outside the page (hand edit,
+  another tool) is named by a warning instead of failing silently.
 - **Switching assistants never discards drafts** — each keeps its own unsaved edits, marked
   "Unsaved" in the list; the only path that throws edits away is the reload button, which renames
   itself to say so.
@@ -403,7 +420,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.10.0
+dsh plugin --profile web add dsh-custom-mode@1.11.0
 # then restart the DSH process that serves the web profile
 ```
 

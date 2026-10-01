@@ -1743,3 +1743,119 @@ pass.
 > Sections above this one mention `editor/...` paths: those are records of the **pre-1.10.0** layout and are
 > kept as measured. From 1.10.0 the package is the repository root, so drop the `editor/` prefix
 > (`client.js`, `index.mjs`, `preset/`, `package.json`).
+
+
+## 33. 1.11.0: the fifth base mode is a union — and the union would have shipped a broken preset (2026-10-01)
+
+**1. The gap, counted.** `renderComposition(modeId, overrides)` rewrites the `disabled:` of rows in the
+base mode's *shipped text*, so a row that text does not contain cannot be reached by a switch at all.
+Counting each shipped composition on `0.2.0-rc.2`:
+
+```
+standard  32 rows
+ptc       33
+cordis    33
+minimal    7
+union     40     ← the new mode
+```
+
+Picking standard therefore left eight rows unswitchable: `tool-presentation` (ptc only), the
+`persistent-shell` group — `pty`, `terminal-bash`, `persistent-bash`, `terminal-pwsh`, `persistent-pwsh`
+(minimal only) — and `tool-cordis` (cordis only).
+
+**2. The union was broken, and no unit test could see it.** Writing the union composition into
+`.agent-presets/custom/agent.cordis.yml` and really starting the harness, then asking the instance's own
+API:
+
+```
+$ curl -s -b "$JAR" …/api/custom-mode
+{"ok":true,"assistants":[{"id":"custom",…,
+  "broken":"persistent-bash (@deepseek-ai/dsh-tool-bash-persistent):
+            tool \"bash\" is already registered in this scope"}]}
+```
+
+A `broken` preset is dropped from **every** picker — while the settings page's own signals were all green
+(`ok:true`, `warnings:[]`, `unresolvable:[]`). That is the P0 shape this repository has shipped twice
+before, and it was invisible to 828 passing checks.
+
+Root cause: minimal's `persistent-shell` set and standard's `tool-bash` / `tool-pwsh` are two
+implementations of the same thing — both register a tool called `bash`. Minimal never collides only
+because it does not *have* the standard rows.
+
+**3. Which rows collide, measured.** Six variants, each written to disk and really started, reading `broken`:
+
+| composition | `broken` |
+| --- | --- |
+| union as-is | ✗ `persistent-bash` / `tool-bash` |
+| union, `persistent-shell` off | ✓ null |
+| union, `tool-bash` + `tool-pwsh` off | ✓ null |
+| union, both sides off | ✓ null |
+| union without the `persistent-shell` group | ✓ null |
+| union without `tool-presentation` / `tool-cordis` | ✗ still broken ⇒ those two are innocent |
+
+Two consequences, both measured: **a disabled row does not collide** (so the group can be carried and
+switched), and the conflict is exactly the two shell sets.
+
+**4. The shipped default cannot be "whatever the source mode shipped".** `persistent-shell` is *enabled*
+in minimal — that is what minimal is. So a union that copied each row's shipped state produced an
+**invalid default**: `POST /state` with `mode: all` and `overrides: {}` answered `code: saved` while the
+roster immediately reported `broken` (no restart needed).
+
+Fixed by `EXCLUSIVE_ROW_SETS` in `composition.mjs`: the union disables the non-preferred side at synthesis
+time, so the default composition is valid.
+
+**5. A user could still break it, so the save path resolves it.** Turning `persistent-shell` on while the
+standard shell stays on is the *primary* use of that group, not an exotic case. `broken` is visible live,
+so `saveState` now calls `applyRowExclusivity()` and reports what it moved:
+
+```
+$ POST /state {mode: all, overrides: {persistent-shell: true}}
+    ok=true  code=savedWithExclusiveRows  rows="tool-bash"
+    磁盘: tool-bash=off  persistent-shell=on  mode=all
+    broken = null
+```
+
+A conflicting composition written **outside** the page (hand edit, another tool, a direct API call) is
+named on the page through the existing warning channel (`exclusiveRowsActive`).
+
+**6. Verified end to end on both supported lines.** Same script, two harnesses (`0.2.0-rc.2` and
+`0.1.7-rc.2`), four steps each — switch to `all`, flip the exclusive side, flip back, read the page state:
+
+```
+modes=["standard","ptc","minimal","cordis","all"]
+warnings=[]   unresolvable=[]   stderr 0 bytes
+broken = null at every step
+```
+
+`tools/boot-check.mjs` passes A/B/C/D on both lines (ports 32010 and 32013).
+
+**7. Guards.** `node test/run.mjs` → 15 suites / **850 checks** (was 805). Eleven mutations were run against
+copies, and each went red on the assertion meant to catch it:
+
+| mutation | red on |
+| --- | --- |
+| union silently continues past a source that failed to resolve | `并集在残缺目录里是类型化失败` |
+| union drops the top-level dedupe | `并集里没有重复行 id` · `并集顶层没有重复 id` · `all: 开关可反推` |
+| `UNION_MODE_ID` renamed back to `custom` | `并集模式的 id 不与任何出厂模式重名` · route test · `base.custom.label` |
+| union degrades to standard only | `并集覆盖四个出厂模式的每一行` · `并集确实比单独选 standard 多出行来` |
+| union stops disabling the exclusive side | `并集默认在每一组互斥里只留一侧启用` |
+| the exclusivity table names a row that does not exist | `互斥表里的行 id 都真的存在于出厂组成里` |
+| `unionDefaultOff` emptied | `并集默认在每一组互斥里只留一侧启用` |
+| `applyRowExclusivity` returns the switches unchanged | 8 assertions across both suites |
+| `saveState` stops reporting `savedWithExclusiveRows` | `用专门的 code 说明动过开关` |
+| `configWarnings` stops naming the conflict | `页面外写进去的互斥组合会被点名` |
+| auto-off writes `false` for rows that were already off | `只动本来就启用着的行` |
+
+**8. Three defects found in the new code and tests themselves**, kept here because the shape is the
+reusable part:
+
+- `composition.mjs` re-exported `BaseCompositionUnavailableError` with `export { … } from …`, which creates
+  an export but **not a local binding**. `unionCompositionText()` threw it and got a `ReferenceError`
+  instead — the page would have answered **500 rather than degrading**. Caught by the new child-process
+  assertion on its first run.
+- That assertion read the child's **stdout**; writes to a pipe are asynchronous and the child exits
+  immediately, so only the first line ever arrived. It now writes its verdict to a **file** — the failure
+  detail shows `"standard=ok\nunion=ok"` under the silent-drop mutation.
+- Mutation M7 (emptying `unionDefaultOff`) stayed **green**: "the rows listed are turned off" is vacuously
+  true for an empty list. Rewritten as "each exclusive set has **exactly one** side enabled", which is
+  insensitive to which side upstream prefers but cannot pass with both sides on.

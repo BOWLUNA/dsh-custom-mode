@@ -84,6 +84,7 @@ export const zh = {
   'meta.version': '插件版本',
   'meta.versionHint': '安装时不钉版本号会受 pnpm 发布冷却期影响（默认 24 小时），可能装到较旧的版本。要换版本请按 README 的钉版本命令重装，然后重启 DSH。',
   'api.saved': '已保存（{name}，基础模式 {mode}）。新建会话即生效，当前会话保持原配置。',
+  'api.savedWithExclusiveRows': '已保存（{name}，基础模式 {mode}）。两套壳注册同名工具、不能同时启用 —— 已自动关掉：{rows}。新建会话即生效，当前会话保持原配置。',
   'api.created': '已创建「{name}」。现在可以为它写系统提示词。',
   'api.duplicated': '已复制自「{from}」。两份从此各改各的。',
   'api.deleted': '已删除「{name}」。正在使用它的会话不受影响；新建会话时它不再出现。',
@@ -116,6 +117,7 @@ export const zh = {
   'api.baseCompositionUnavailable': '本机取不到基础模式「{mode}」的出厂组成，无法改动插件开关或基础模式（系统提示词可以单独保存）。',
   'warn.approvalGateMissing': '审批闸门未启用：本机这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。见「详情」。',
   'warn.unresolvableRows': '有行在本机这条 DSH 线上无法解析：平台会把整个模式判为 broken，并从新会话的选择器里**静默丢弃**。点右侧的「按本线修复」即可（只关掉那几行，其它选择不动）。',
+  'warn.exclusiveRowsActive': '两条互斥的壳同时开着（它们注册同名工具）：平台会把整个模式判为 broken，并从新会话的选择器里**静默丢弃**。把其中一条关掉即可 —— 在设置页保存一次也会自动避让。',
   'warn.baseCompositionUnavailable': '取不到本机这条 DSH 线的出厂组成：基础模式与插件开关暂时不能改（系统提示词不受影响，照常可保存）。已尝试的途径写在宿主日志里。',
   'warn.approvalGateMissing.label': '审批闸门未启用',
   'warn.approvalGateMissing.hint': '这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词**不会**弹审批。设置页不受影响；要恢复保护请升级 DSH，或把「custom_prompt 工具」那一行关掉。',
@@ -244,6 +246,8 @@ export const zh = {
   'base.minimal.note': '只有 Shell 与终端，共 7 行；没有文件、检索、技能、子代理。系统提示词不是极简那一套（persona 行被本模式替换）',
   'base.cordis.label': 'Cordis 模式',
   'base.cordis.note': '标准模式 + 读写运行时的 Cordis 工具集，可让 agent 自己改 harness',
+  'base.all.label': '自定义模式',
+  'base.all.note': '不继承任何单一原生模式：以标准模式的全套行为底，补上只有 PTC / 极简 / 创造模式才有的行，全部都能逐行开关',
 }
 
 /** English dictionary; the parity test keeps its key set equal to {@link zh}. */
@@ -316,6 +320,7 @@ export const en = {
   'meta.version': 'Plugin version',
   'meta.versionHint': 'Installing without a pinned version is subject to pnpm’s release cooldown (24 h by default) and can land on an older release. To change version, reinstall with the pinned command from the README and restart DSH.',
   'api.saved': 'Saved ({name}, base mode {mode}). A new session picks it up; the current one keeps its configuration.',
+  'api.savedWithExclusiveRows': 'Saved ({name}, base mode {mode}). The two shell implementations register the same tool names and cannot both be on — turned off automatically: {rows}. A new session picks it up; the current one keeps its configuration.',
   'api.created': 'Created {name}. You can write its system prompt now.',
   'api.duplicated': 'Copied from {from}. The two are independent from now on.',
   'api.deleted': 'Deleted {name}. Sessions already using it keep running; it no longer appears for new sessions.',
@@ -351,6 +356,7 @@ export const en = {
   'warn.noDescription': 'No description: the new-session mode picker will show it as "no description yet".',
   'warn.approvalGateMissing': 'The approval gate is off: this DSH build has no tools/pre-execute event, so in-session prompt rewrites do not ask for approval. See the details.',
   'warn.unresolvableRows': 'Some rows cannot be resolved on this DSH line: the platform marks the whole mode broken and silently drops it from the new-session picker. Click Fix for this line — it only turns those rows off and leaves your other choices alone.',
+  'warn.exclusiveRowsActive': 'Both shells are on, and they register the same tool names: the platform marks the whole mode broken and silently drops it from the new-session picker. Turn one of them off — saving from the settings page also resolves it automatically.',
   'warn.approvalGateMissing.label': 'Approval gate is off',
   'warn.approvalGateMissing.hint': 'This DSH build has no tools/pre-execute event, so in-session prompt rewrites do NOT ask for approval. The settings page is unaffected; upgrade DSH or turn the custom_prompt tool row off to restore the gate.',
   'warn.noName': 'No name: the mode picker will show the directory id (e.g. custom).',
@@ -477,4 +483,6 @@ export const en = {
   'base.minimal.note': 'Shell and terminal only, 7 rows; no files, search, skills or subagents. The system prompt is not minimal\'s either (this mode replaces the persona row)',
   'base.cordis.label': 'Cordis',
   'base.cordis.note': 'Standard plus the Cordis toolset, letting the agent modify its own harness',
+  'base.all.label': 'Custom',
+  'base.all.note': "Inherits no single shipped mode: standard's full row list plus the rows only PTC / Minimal / Cordis declare, every one of them switchable",
 }

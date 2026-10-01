@@ -52,9 +52,12 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
 import {
+  applyRowExclusivity,
+  BASE_MODE_IDS,
   BASE_MODES,
   collectRows,
   disableRowsInPlace,
+  exclusiveSetsActive,
   isBaseCompositionUnavailable,
   modeOf,
   overridesOf,
@@ -280,6 +283,10 @@ export function configWarnings(text, prompt, meta) {
   if (find('custom-prompt-tool')?.disabled === true) warnings.push('toolOff')
   if (typeof meta?.description !== 'string' || meta.description.trim() === '') warnings.push('noDescription')
   if (typeof meta?.name !== 'string' || meta.name.trim() === '') warnings.push('noName')
+  // 两条互斥的路同时开着 ⇒ 平台会把整个模式判 broken 并**从所有选择器里静默丢弃**。
+  // 保存路径已经会自动避让（见 applyRowExclusivity），所以走到这里只可能是手工编辑、直接调 HTTP API，
+  // 或者上一次是别的工具写的 —— 三种都该被点名（"配置了却不生效"是本页明面上的承诺）。
+  if (exclusiveSetsActive(text).length > 0) warnings.push('exclusiveRowsActive')
   return warnings
 }
 
@@ -488,6 +495,20 @@ export function saveState(rows, input) {
     }
   }
 
+  // ★ 自动互斥（见 applyRowExclusivity 的实测依据）：两套壳注册同名工具，同时启用会让平台把整个模式
+  //   判 broken，并**从所有选择器里静默丢掉** —— 设置页却全绿。开关自己动一下用户能接受，模式凭空
+  //   消失不能，所以这里替他做掉那一步，并在响应里如实说出被关掉的是哪几行。
+  //   取不到出厂组成时会抛：交给下面同一条降级路径，不额外编一套错误。
+  let autoOff = []
+  try {
+    const adjusted = applyRowExclusivity(mode, overrides)
+    autoOff = adjusted.moved
+    overrides.clear()
+    for (const [rowId, enabled] of adjusted.overrides) overrides.set(rowId, enabled)
+  } catch (error) {
+    if (!isBaseCompositionUnavailable(error)) throw error
+  }
+
   let composition
   try {
     composition = renderComposition(mode, overrides, { modeName: effectiveName, assistantId: id })
@@ -551,13 +572,27 @@ export function saveState(rows, input) {
     /* 审计记录失败不影响保存本身 */
   }
 
+  const displayName = effectiveName === '' ? id : effectiveName
+  if (autoOff.length > 0) {
+    return {
+      ok: true,
+      id,
+      mode,
+      code: 'savedWithExclusiveRows',
+      // `rows` 用行 id：页面自己按 `row.<id>.label` 渲染，英文界面不会因为这条掉回中文。
+      params: { name: displayName, mode, rows: autoOff.join(', ') },
+      note:
+        '已保存（' + displayName + '，基础模式 ' + mode + '）。这两套壳注册同名工具、不能同时启用 —— ' +
+        '已自动关掉：' + autoOff.join('、') + '。新建会话即生效，当前会话保持原配置。',
+    }
+  }
   return {
     ok: true,
     id,
     mode,
     code: 'saved',
-    params: { name: effectiveName === '' ? id : effectiveName, mode },
-    note: '已保存（' + (name === '' ? id : name) + '，基础模式 ' + mode + '）。新建会话即生效，当前会话保持原配置。',
+    params: { name: displayName, mode },
+    note: '已保存（' + displayName + '，基础模式 ' + mode + '）。新建会话即生效，当前会话保持原配置。',
   }
 }
 
@@ -636,9 +671,18 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     //
     // `readPrompt` 的失败形状已经是带 code 的类型化错误（页面按词典渲染），所以直接透传。
     if (sourcePrompt.ok !== true) return sourcePrompt
+    // 复制走的是"照抄源助手的开关再重渲染"，所以源里若踩着互斥，抄过来还是踩 —— 与保存路径同一条
+    // 自动避让（见 applyRowExclusivity）。不这么做的话，从这里能造出一个**必然 broken** 的新助手，
+    // 而 broken 的模式会被静默丢掉。取不到出厂组成时保持原样：渲染那一步会走既有的降级/自检。
+    let sourceOverrides = overridesOf(text, sourceMode)
+    try {
+      sourceOverrides = Object.fromEntries(applyRowExclusivity(sourceMode, new Map(Object.entries(sourceOverrides))).overrides)
+    } catch (error) {
+      if (!isBaseCompositionUnavailable(error)) throw error
+    }
     source = {
       mode: sourceMode,
-      overrides: overridesOf(text, sourceMode),
+      overrides: sourceOverrides,
       prompt: sourcePrompt.text,
       description: readPresetMeta(fromDir).description,
     }
@@ -993,7 +1037,9 @@ export function apply(ctx) {
       // 降级路径。两种情况都不阻塞下面的注册表同步 —— 模式可用优先于设置页完整。
       if (declarative !== null) {
         try {
-          const bases = await declarative.fetchBaseCompositions(BASE_MODES.map((mode) => mode.id))
+          // 只问**出厂那四位**：并集模式（BASE_MODES 的第五项）在宿主那里没有文档，
+          // 拿它去 readDocument 只会每次都换来一条"取不到"的错误日志，把真正的故障淹没掉。
+          const bases = await declarative.fetchBaseCompositions(BASE_MODE_IDS)
           setBaseCompositions(bases.fetched)
           if (bases.fetched.size > 0) {
             console.log(

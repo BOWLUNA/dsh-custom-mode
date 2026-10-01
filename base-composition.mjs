@@ -25,6 +25,9 @@
  *  5. nothing left → {@link BaseCompositionUnavailableError}, which callers turn into a **visible,
  *     typed** state instead of a 500.
  *
+ * One mode is not on this chain at all: {@link UNION_MODE_ID} ships nothing, because it is *synthesised*
+ * from the four above (in `composition.mjs`, which owns the splitter). Nothing in this file resolves it.
+ *
  * Why `readDocument` and not `compositionInventory()`: the inventory is **flattened**
  * (`entryId`/`moduleName`/`enabled`/`condition`), so the `isolate` realms a service row must sit inside
  * are gone (measured 2026-09-25; `parse-composition.mjs` rules the same route out for the same reason).
@@ -44,8 +47,29 @@ export const LEGACY_DIR_ENV = 'DSH_SHIPPED_PRESETS_DIR'
 /** Explicit override for the declarative file layout (a directory holding `<mode>.patch.yml`). */
 export const PATCH_DIR_ENV = 'DSH_PRESET_PATCH_DIR'
 
-/** The base modes a user may build on. Kept here so discovery has no opinion about the UI. */
+/**
+ * The **shipped** base modes — the four the host declares.
+ *
+ * Kept here so discovery has no opinion about the UI. Everything that means "ask the host" keys off exactly
+ * these four: legacy/patch discovery, the CI fixture materialisation, and the `readDocument(<mode>)` sweep in
+ * `index.mjs`. The picker offers one more ({@link UNION_MODE_ID}) and it is deliberately **absent** from this
+ * list — there is no shipped file or document behind it, so nothing may go looking for one.
+ */
 export const BASE_MODE_IDS = ['standard', 'ptc', 'minimal', 'cordis']
+
+/**
+ * The fifth base mode a user may build on: all four shipped compositions unioned into one.
+ *
+ * **The id is `all`, not `custom`.** `custom` is the user preset this feature writes
+ * (`$DSH_HOME/.agent-presets/custom/`), so a base mode by that name would make the resolver ask the host for
+ * `readDocument('custom')` and hand the preset its own composition back — the self-inclusion the picker has
+ * always refused. The id is the machine name; the label is the user's (`base.all.label`), exactly as
+ * `cordis` is shown as 「创造模式」.
+ *
+ * Its text is synthesised in `composition.mjs` from the four shipped ones. Only the *name* lives here: the
+ * synthesis needs the composition splitter, and importing that would be a cycle.
+ */
+export const UNION_MODE_ID = 'all'
 
 /**
  * Thrown when no route yields a base composition.

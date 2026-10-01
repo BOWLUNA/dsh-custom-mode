@@ -94,6 +94,7 @@ const {
   resetBaseCompositionCachesForTests,
   setBaseCompositions,
   setPatchPresetsDir,
+  UNION_MODE_ID,
 } = await import('../base-composition.mjs')
 const { BASE_MODES, collectRows, renderComposition, readBaseComposition, overridesOf } = await import('../composition.mjs')
 
@@ -168,8 +169,27 @@ console.log('=== 2. 解析顺序：override → 宿主 → 旧线 → patch → 
 console.log()
 console.log('=== 3. 声明与 UI 的基础模式清单必须同源 ===')
 {
-  const ui = BASE_MODES.map((mode) => mode.id).join(',')
-  check('BASE_MODE_IDS 与 BASE_MODES 一致', ui === BASE_MODE_IDS.join(','), `${ui} vs ${BASE_MODE_IDS.join(',')}`)
+  // UI 清单 = 出厂四位（顺序与 BASE_MODE_IDS 逐位一致）+ 并集模式。并集模式**不在** BASE_MODE_IDS 里，
+  // 因为它没有出厂文件：混进那份清单会让 fixtures 生成、目录发现和 readDocument 都去找一个不存在的东西。
+  const ui = BASE_MODES.map((mode) => mode.id)
+  check(
+    'BASE_MODES 的前四位与 BASE_MODE_IDS 逐位一致',
+    ui.slice(0, BASE_MODE_IDS.length).join(',') === BASE_MODE_IDS.join(','),
+    `${ui.join(',')} vs ${BASE_MODE_IDS.join(',')}`,
+  )
+  check(
+    'BASE_MODES 只比出厂清单多出并集模式这一个',
+    ui.length === BASE_MODE_IDS.length + 1 && ui[BASE_MODE_IDS.length] === UNION_MODE_ID,
+    ui.join(','),
+  )
+  // ★ 并集模式的 id **不能**是 `custom`。`custom` 正是本功能写出来的那个用户预设的名字，
+  //   拿它当基础模式会让解析链去 `readDocument('custom')`，把预设自己的组成交还给自己 ——
+  //   就是 BASE_MODES 的注释里一直拒绝的那种自引用。这条断言把"改回 custom"变成 CI 变红。
+  check(
+    '并集模式的 id 不与任何出厂模式重名',
+    BASE_MODE_IDS.includes(UNION_MODE_ID) === false && UNION_MODE_ID !== 'custom',
+    UNION_MODE_ID,
+  )
 }
 
 console.log()

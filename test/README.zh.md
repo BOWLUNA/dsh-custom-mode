@@ -18,8 +18,16 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 15 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **805 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
+合计 **850 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
 可以直接单独跑。
+
+并集基础模式（`all`，选择器里的第五项）在 `composition.test.mjs` 的 2d–2f 与 `editor-route.test.mjs`
+的 8b 里有专门章节，断言的是**属性**而不是写死的行 id：并集必须覆盖每一个出厂行、两层都不许有重复 id、
+必须严格多于单独选 `standard`、并且**每一行都要经得起"拨一下再读回来"** —— 最后还有一条"没有行落在
+验证的桶之外"，让"40 行里测了 38 行"过不去。2e 用子进程对着一个**故意残缺**的出厂目录，证明少一个源是
+**类型化失败，而不是安静地变短的并集**。2f/8b 覆盖互斥的两套壳：并集默认只留一侧、`applyRowExclusivity()`
+只动另一侧**当前确实启用着**的行、保存路由报 `savedWithExclusiveRows`，而页面之外写进去的冲突组成由
+`exclusiveRowsActive` 告警点名。
 
 解析链有四条，任一条命中即可：`DSH_SHIPPED_PRESETS_DIR` 环境变量 → 从本文件做 Node 解析
 （CI 里 npm 装的 dsh 走这条）→ `$DSH_HOME/profiles/node_modules`（本机装了 dsh 走这条）→

@@ -91,12 +91,25 @@ const BASE_COMPOSITION = [
   '',
 ].join('\n')
 
+// `minimal` 另有一份组成：它带 `persistent-shell` 组 —— 与标准的 `tool-bash` / `tool-pwsh` 互斥
+// （两套壳注册同名工具 `bash` / `pwsh`，实测 2026-10-01）。并集模式会把这一组并进来，所以互斥
+// 只可能在并集上触发 —— 夹具必须复现这一点，否则自动避让在路由层无从断言。
+const MINIMAL_COMPOSITION = BASE_COMPOSITION + [
+  '- id: persistent-shell',
+  '  name: cordis:group',
+  '  group: true',
+  '  children:',
+  '    - id: persistent-bash',
+  "      name: '@deepseek-ai/dsh-tool-bash-persistent'",
+  '',
+].join('\n')
+
 // 夹具自带"像真实安装"的 node_modules：`unresolvableRows` 只在能真正判断时（该根下有 `@deepseek-ai/`）
 // 才报警，否则"查不到"只说明我们不知道。这里放上夹具用到的包名，于是 fixture 里的正常行解析得到、
 // 而测试故意加的那行解析不到 —— 测试因此不依赖这台机器装了哪个 dsh。
 const shippedNodeModules = join(dir, 'node_modules')
 mkdirSync(shippedDir, { recursive: true })
-for (const pkg of ['dsh-tool-bash', 'dsh-tool-pwsh', 'dsh-tool-web']) {
+for (const pkg of ['dsh-tool-bash', 'dsh-tool-pwsh', 'dsh-tool-web', 'dsh-tool-bash-persistent']) {
   mkdirSync(join(shippedNodeModules, '@deepseek-ai', pkg), { recursive: true })
 }
 mkdirSync(join(shippedDir, 'standard'), { recursive: true })
@@ -104,7 +117,7 @@ mkdirSync(join(shippedDir, 'ptc'), { recursive: true })
 mkdirSync(join(shippedDir, 'minimal'), { recursive: true })
 mkdirSync(join(shippedDir, 'cordis'), { recursive: true })
 for (const mode of ['standard', 'ptc', 'minimal', 'cordis']) {
-  writeFileSync(join(shippedDir, mode, 'agent.cordis.yml'), BASE_COMPOSITION, 'utf8')
+  writeFileSync(join(shippedDir, mode, 'agent.cordis.yml'), mode === 'minimal' ? MINIMAL_COMPOSITION : BASE_COMPOSITION, 'utf8')
   writeFileSync(join(shippedDir, mode, 'preset.yml'), `name: ${mode}\n`, 'utf8')
 }
 // 用户模式：本工具「拥有」一个模式的判据是 prompt.md + prompt-reader.mjs，
@@ -357,7 +370,13 @@ console.log('=== 4. GET /custom-mode/state：一个助手的完整状态 ===')
   check('200', res.statusCode === 200, String(res.statusCode))
   const state = JSON.parse(res.body)
   check('ok: true 且带 id', state.ok === true && state.id === 'custom', JSON.stringify({ ok: state.ok, id: state.id }))
-  check('带基础模式列表（四个）', Array.isArray(state.modes) && state.modes.length === 4, JSON.stringify(state.modes?.map((m) => m.id)))
+  // 基础模式列表 = 出厂四位 + 并集模式（`all`）。这里**写死这五个**而不是"长度 ≥ 4"：并集模式是这一版
+  // 的功能本体，它从 payload 里消失就等于功能从界面上消失，而"长度够就行"的写法对这件事完全无感。
+  check(
+    '带基础模式列表（出厂四位 + 并集模式）',
+    Array.isArray(state.modes) && state.modes.map((mode) => mode.id).join(',') === 'standard,ptc,minimal,cordis,all',
+    JSON.stringify(state.modes?.map((mode) => mode.id)),
+  )
   check('当前模式是 standard', state.mode === 'standard', state.mode)
   check('带行树', Array.isArray(state.rows) && state.rows.length > 0, String(state.rows?.length))
   check('带提示词文本', state.prompt === 'PROMPT-ORIGINAL\n', JSON.stringify(state.prompt))
@@ -876,6 +895,55 @@ console.log('=== 12. 每个用户可见的结果都带 code，且每个 code 都
   }
   check(`宿主半每个模块的 ok: false 都带 code（扫了 ${String(hostModules.length)} 个）`, naked.length === 0, naked.join(' | '))
   check('每个 code 在 locales.mjs 里都有中英两条', missing.length === 0, missing.join(', '))
+}
+
+console.log()
+console.log('=== 8b. 自动互斥：两套壳不能同时启用（否则预设被判 broken，并从选择器里静默消失）===')
+{
+  // 实测依据（2026-10-01，dsh 0.2.0-rc.2 真启动 + 读实例自己的 `/api/custom-mode`）：
+  //
+  //   broken = "persistent-bash (@deepseek-ai/dsh-tool-bash-persistent):
+  //             tool \"bash\" is already registered in this scope"
+  //
+  // 而 broken 的预设被从**所有**选择器里丢掉、设置页却全绿（`ok:true` / `warnings:[]`）。
+  // 所以保存路径必须**替用户避让**，并把动过哪一行如实说出来 —— 而不是让他事后面对一个消失的模式。
+  const rowBlock = (text, id) => {
+    const i = text.indexOf('- id: ' + id)
+    const j = text.indexOf('- id: ', i + 6)
+    return j === -1 ? text.slice(i) : text.slice(i, j)
+  }
+  const off = (text, id) => /disabled: true/.test(rowBlock(text, id))
+
+  const first = JSON.parse(
+    (await call(post('/custom-mode/state', { id: 'custom', mode: 'all', prompt: '并集\n', overrides: { 'persistent-shell': true } }))).body,
+  )
+  check('打开另一套壳时保存仍然成功（不是报错）', first.ok === true, String(first.error ?? ''))
+  check('用专门的 code 说明动过开关', first.code === 'savedWithExclusiveRows', String(first.code))
+  check('params 点名被关掉的行', typeof first.params?.rows === 'string' && first.params.rows.includes('tool-bash'), JSON.stringify(first.params))
+  const afterAuto = readFileSync(compositionPath, 'utf8')
+  // 只点名 `tool-bash`：夹具里 `tool-pwsh` 带 `disabled: !!js process.platform === 'win32'`，在 Linux 上
+  // 本来就关着、没有"要关的东西"，写死它会让用例变成平台相关的假红。
+  check('标准壳被真的关掉（磁盘真值）', off(afterAuto, 'tool-bash'), rowBlock(afterAuto, 'tool-bash').slice(0, 70))
+  check('用户要的那一侧留着开着', off(afterAuto, 'persistent-shell') === false, rowBlock(afterAuto, 'persistent-shell').slice(0, 70))
+  const stateAfter = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('避让之后不应再有互斥告警', stateAfter.warnings.includes('exclusiveRowsActive') === false, JSON.stringify(stateAfter.warnings))
+
+  // 两边都在同一次请求里显式打开：没有"用户要的那一侧"可认 ⇒ 退回避让 `unionDefaultOff` 的那一侧。
+  const both = JSON.parse(
+    (await call(post('/custom-mode/state', { id: 'custom', mode: 'all', prompt: '并集\n', overrides: { 'persistent-shell': true, 'tool-bash': true, 'tool-pwsh': true } }))).body,
+  )
+  check('两边都要时也只留一侧', both.code === 'savedWithExclusiveRows', String(both.code))
+  check('两边都要时保留出厂偏好的那一侧', off(readFileSync(compositionPath, 'utf8'), 'persistent-shell') === true, rowBlock(readFileSync(compositionPath, 'utf8'), 'persistent-shell').slice(0, 70))
+
+  // 页面**之外**写进去的互斥组合（手工编辑、别的工具、直接调 API）：必须被点名，而不是沉默。
+  // 保存路径已经会避让，所以这条只由"不是本页写的"文件命中。
+  writeFileSync(
+    compositionPath,
+    renderComposition('all', new Map([['persistent-shell', true], ['tool-bash', true], ['tool-pwsh', true]]), { modeName: '并集探针', assistantId: 'custom' }),
+    'utf8',
+  )
+  const illegal = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('页面外写进去的互斥组合会被点名', illegal.warnings.includes('exclusiveRowsActive'), JSON.stringify(illegal.warnings))
 }
 
 rmSync(dir, { recursive: true, force: true })

@@ -31,7 +31,7 @@ import { writeFileSync } from 'node:fs'
 import { connect } from './screenshots/cdp.mjs'
 
 // 记在 README 里的“浏览器 N 项”必须是实测的：这里把它变成断言，改了检查却忘了改文档会失败。
-const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 65)
+const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 67)
 
 const argv = process.argv.slice(2)
 const arg = (name, fallback) => {
@@ -604,6 +604,37 @@ try {
       check('换回原底子后提示消失', cleared === 0, String(cleared))
     }
 
+    // ── 第五个基础模式（并集）：只有渲染出来的页面能证明的那两件事 ──────────────
+    //
+    // 数据面由 `test/composition.test.mjs` 的 2d–2f 覆盖（并集 40 行、每行可拨、互斥只留一侧）；
+    // 这里补的是**页面**上独有的两个事实：药丸渲染出来了、它的说明走的是词典而不是裸 id。
+    // 不点保存 —— 那会把助手的底子留在并集上，让同一个实例的后续运行从不同状态起步。
+    {
+      const PILLS = ['标准模式', 'PTC 模式', '极简模式', 'Cordis 模式', '自定义模式']
+      const pills = await session.evaluate(
+        `[...document.querySelectorAll('.cpfe-pills *')].map((e) => (e.textContent || '').trim()).filter((t) => t !== '')`,
+      )
+      check('底子药丸里出现了第五个基础模式「自定义模式」', PILLS.every((label) => pills.includes(label)), JSON.stringify(pills))
+
+      await session.evaluate(`(() => {
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => (e.textContent || '').trim() === '自定义模式' && e.getBoundingClientRect().width > 20);
+        if (el !== undefined) el.click();
+        return el !== undefined;
+      })()`)
+      await session.sleep(1000)
+      const note = await session.evaluate(
+        `(() => { const el = document.querySelector('.cpfe-pills'); return el === null ? '' : el.parentElement.textContent.trim(); })()`,
+      )
+      check('第五个底子的说明来自词典（不是裸 id）', /不继承任何单一原生模式/.test(note), note.slice(0, 140))
+      // 换回标准模式（不保存），后面的截图与断言仍按原状态跑。
+      await session.evaluate(`(() => {
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        if (el !== undefined) el.click();
+        return true;
+      })()`)
+      await session.sleep(700)
+    }
+
     // ── 与官方设置页的**度量**对齐（这次 UI 重构的验收面）──────────────────────
     //
     // 由来：用户反馈"文字、间距、边框与官方差别过大，廉价感明显"。追下去是两件事 ——
@@ -742,7 +773,13 @@ try {
       typeof statusEn === 'string' && /Saved/.test(statusEn) && /已保存|基础模式|新建会话即生效/.test(statusEn) === false,
       JSON.stringify(statusEn),
     )
-    check('英文消息带上了插值参数（助手名、基础模式）', /base mode standard/.test(String(statusEn)), JSON.stringify(statusEn))
+    // 不再写死 `standard`：那让这条断言**依赖助手恰好停在哪个底子上**（实测：上一轮把助手留在并集底子上，
+    // 这条就假红）。改成断言真正要守的性质 —— 提示把基础模式说成**人话**，不是机器名。
+    check(
+      '英文消息把基础模式说成标签而不是裸 id',
+      /\(.+,\s*base mode .+\)/.test(String(statusEn)) && !/base mode (standard|ptc|minimal|cordis|all)\b/.test(String(statusEn)),
+      JSON.stringify(statusEn),
+    )
 
     const back = await switchLanguage('中文')
     check('能切回中文界面', back === 'ok', back)

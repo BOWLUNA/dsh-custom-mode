@@ -30,12 +30,16 @@ import { join } from 'node:path'
 // 本模块只消费它 —— 合成与排版手术仍然全部发生在这里。
 import {
   baseCompositionPath,
+  BASE_MODE_IDS,
+  BaseCompositionUnavailableError,
   readBaseCompositionText,
   setShippedPresetsDir,
   shippedPresetsDir,
+  UNION_MODE_ID,
 } from './base-composition.mjs'
 
 export { baseCompositionPath, setShippedPresetsDir, shippedPresetsDir } from './base-composition.mjs'
+export { BASE_MODE_IDS, UNION_MODE_ID } from './base-composition.mjs'
 export {
   BaseCompositionUnavailableError,
   isBaseCompositionUnavailable,
@@ -50,16 +54,27 @@ export {
  */
 
 /**
- * Base modes a user may build on.
+ * Base modes a user may build on — the picker's own list, in order.
  *
- * `custom` is deliberately absent: it is this feature's own output, and offering
- * it as a base would let a preset recursively include itself.
+ * The first four are the **shipped** modes (`BASE_MODE_IDS`); a fifth is synthesised here
+ * ({@link UNION_MODE_ID}), so "which rows can I switch at all" stops being decided by whichever single
+ * shipped mode the user happened to pick.
+ *
+ * `custom` is still deliberately absent, and for the same reason as before: it is this feature's own
+ * output, and a base mode by that name would make a preset recursively include itself. The union mode
+ * sidesteps that by being a **different id** (`all`) whose text is built from the four *shipped* modes —
+ * it never asks the host for the user's own preset.
  */
 export const BASE_MODES = [
   { id: 'standard', label: '标准模式', note: '完整编码能力：Shell、文件、检索、技能、计划、目标、子代理、工作流' },
   { id: 'ptc', label: 'PTC 模式', note: '在标准模式基础上启用 PTC 工具呈现（tool-presentation）' },
   { id: 'minimal', label: '极简模式', note: '只有 Shell 与终端，共 7 行；没有文件、检索、技能、子代理' },
   { id: 'cordis', label: 'Cordis 模式', note: '标准模式 + 读写运行时的 Cordis 工具集，可让 agent 自己改 harness' },
+  {
+    id: UNION_MODE_ID,
+    label: '自定义模式',
+    note: '不继承任何单一原生模式：以标准模式的全套行为底，补上只有 PTC / 极简 / 创造模式才有的行，全部都能逐行开关',
+  },
 ]
 
 /**
@@ -117,6 +132,50 @@ export const ROW_META = {
   'persistent-pwsh': { label: '持久 pwsh' },
 }
 
+/**
+ * 出厂行里的**互斥组**：同一份组成里同时启用，会让挂载方把整个预设判为 **broken**，
+ * 而 broken 的预设被从**所有**选择器里静默丢掉 —— 设置页却照常工作（本仓记录过两次的最阴的一种失败）。
+ *
+ * 实测依据（2026-10-01，dsh `0.2.0-rc.2`）：把并集组成真的写进 `.agent-presets/custom/agent.cordis.yml`
+ * 再启动，然后读实例自己的 `/api/custom-mode`：
+ *
+ *     broken = "persistent-bash (@deepseek-ai/dsh-tool-bash-persistent):
+ *               tool \"bash\" is already registered in this scope"
+ *
+ * 两套壳注册的工具名相同（`bash` / `pwsh`），所以它们是**二选一**，不是叠加。极简模式里不冲突，
+ * 只是因为它**没有**标准那一套。逐行开关本身表达不了"二选一"，所以互斥必须在这里显式声明。
+ *
+ * 同一轮实测的对照（每行都是"写组成 → 真启动 → 读 broken"）：
+ *
+ * | 组成 | broken |
+ * | --- | --- |
+ * | 并集原样 | ✗（上面那条） |
+ * | 只关掉 `persistent-shell` | ✓ null |
+ * | 只关掉 `tool-bash` + `tool-pwsh` | ✓ null |
+ * | 把 `persistent-shell` 整组删掉 | ✓ null |
+ * | 删掉 `tool-presentation` / `tool-cordis`（两个附加行） | ✗ 仍 broken ⇒ 附加行无罪 |
+ *
+ * ★ 这条表**必须被维护**：上游调整行时它就是唯一的真相。`composition.test.mjs` 会断言表里每个 id
+ * 都真的出现在某份出厂组成里 —— 上游把它删了，CI 就红，而不是让这里静默失效。
+ */
+export const EXCLUSIVE_ROW_SETS = [
+  {
+    id: 'shell',
+    sides: [
+      { label: '标准壳', rows: ['tool-bash', 'tool-pwsh'] },
+      { label: '持久终端壳', rows: ['persistent-shell'] },
+    ],
+    /**
+     * 并集模式里默认关掉哪一侧。
+     *
+     * 必须**显式关**，不能指望"取那位模式的出厂默认"：`persistent-shell` 在极简模式里出厂就是**启用**的
+     * （那正是极简模式的全部内容），所以照搬出厂状态合出来的并集是**非法**的。实测：`overrides: {}`
+     * 保存并集模式，写完之后不重启，roster 里立刻就是 `broken`。
+     */
+    unionDefaultOff: ['persistent-shell'],
+  },
+]
+
 /** 出厂组成的路径与解析链都在 base-composition.mjs（下面按名字再导出，调用点不必分支）。 */
 
 /**
@@ -126,12 +185,109 @@ export const ROW_META = {
  * directory → packaged `dsh-web-app` patch — lives in base-composition.mjs, so every route can be
  * tested on its own and the failure carries a `code` instead of a bare message.
  *
+ * {@link UNION_MODE_ID} is the one mode with no route: it is synthesised here (see
+ * {@link unionCompositionText}), so this function stays the single entry point every caller uses and no
+ * caller has to know which modes ship a file.
+ *
  * @param {string} modeId - one of {@link BASE_MODES}.
  * @returns {string} the entry-list YAML of that base mode.
  * @throws {BaseCompositionUnavailableError} when no route yields text (callers degrade, see index.mjs).
  */
 export function readBaseComposition(modeId) {
+  if (modeId === UNION_MODE_ID) return unionCompositionText()
   return readBaseCompositionText(modeId).text
+}
+
+/**
+ * The union of the four shipped compositions — the text behind {@link UNION_MODE_ID}.
+ *
+ * ## Why this exists
+ *
+ * The row list used to be whatever the *single* shipped mode the user picked happened to contain, and a
+ * switch can only rewrite rows the base text already has — so a row declared by one mode and not by the
+ * chosen one was not "hidden in the UI", it was **unreachable through the composer**. Measured on
+ * `0.2.0-rc.2`: `standard` / `ptc` / `cordis` each declare 33 rows and `minimal` declares 7, but their
+ * union is 40. Picking `standard` therefore leaves `tool-presentation` (only in ptc), the whole
+ * `persistent-shell` group (only in minimal) and `tool-cordis` (only in cordis) permanently unswitchable.
+ *
+ * ## How it is built
+ *
+ * Text surgery, exactly like the rest of this module: the four shipped texts are split at the TOP level and
+ * concatenated, skipping a row id that is already present. A group therefore travels **whole** — children,
+ * its `isolate` realm, its comments and its `!!js` conditions included. That is the only way a service row
+ * can be carried into this mode without inventing a realm for it, and inventing one is not cosmetic:
+ * `dsh-agent-presets` rejects a service row that has none, and the platform then drops the entire preset
+ * from every picker.
+ *
+ * Only top-level ids are compared. Children ride along inside their group, so a nested id can never be
+ * half-merged; if two modes both declare a group, the group is taken from whichever mode wins below, and
+ * its children come with it.
+ *
+ * ## Which mode wins
+ *
+ * First writer, in `BASE_MODE_IDS` order (`standard` → `ptc` → `minimal` → `cordis`). The order is not
+ * cosmetic: `standard` is the mode this product's own preset is derived from, so a row declared in more
+ * than one mode keeps **standard's text and standard's shipped default**. The visible consequence is
+ * deliberate — `tool-plugin-manager` ships disabled in `standard` and enabled in `cordis`, and the union
+ * keeps it disabled (the user turns it on per assistant if they want it). The alternative rule, "enabled
+ * if any mode enables it", would silently arm the model's plugin manager in a mode the user never chose.
+ *
+ * ## Nothing is cached
+ *
+ * The four source texts are not stable for the lifetime of a process: the tests swap
+ * `DSH_SHIPPED_PRESETS_DIR` between cases, and the host may re-declare a preset on any registry sync. A
+ * cache here would be a stale answer that looks authoritative. Four extra reads per call is the honest
+ * price, and this is not a hot path.
+ *
+ * ## One source failing is fatal, not skipped
+ *
+ * A union that quietly dropped `minimal` when that one route broke would still render, still look complete,
+ * and be missing the rows the user was told they could switch — precisely the silent lie this module's
+ * typed failure exists to prevent. So a failure propagates as {@link BaseCompositionUnavailableError} with
+ * the failing mode named, and the page degrades honestly: the prompt stays editable while the base mode and
+ * the switches are marked unavailable.
+ *
+ * @returns {string} entry-list YAML: the union, behind a banner recording where each part came from.
+ * @throws {BaseCompositionUnavailableError} when any shipped mode cannot be read.
+ */
+function unionCompositionText() {
+  const seen = new Set()
+  const parts = []
+  const sources = []
+  for (const modeId of BASE_MODE_IDS) {
+    let resolved
+    try {
+      resolved = readBaseCompositionText(modeId)
+    } catch (error) {
+      // 逐条记下**是哪一位**读不到，再抛类型化失败 —— 页面据此说出具体原因，而不是笼统的"取不到"。
+      throw new BaseCompositionUnavailableError(UNION_MODE_ID, [
+        ...sources.map((each) => each.modeId + '：可用（' + each.source + '）'),
+        modeId + '：' + String((error && error.message) || error),
+      ])
+    }
+    sources.push({ modeId, source: resolved.source })
+    for (const segment of splitSegments(resolved.text, true).segments) {
+      if (seen.has(segment.id)) continue
+      seen.add(segment.id)
+      parts.push(segment.text)
+    }
+  }
+  if (parts.length === 0) {
+    throw new BaseCompositionUnavailableError(UNION_MODE_ID, ['四个出厂模式都没有任何行'])
+  }
+  const banner = [
+    '# 本段是四个出厂组成的并集（' + BASE_MODE_IDS.join(' → ') + '）。',
+    '# 同一行在多个模式里都有时，取**先出现的那个模式**的原文与出厂默认（顺序即上面这一行）。',
+    '# 分组是整体搬运的，isolate realm 与 !!js 平台条件因此原样保留。',
+    ...sources.map((each) => '#   ' + each.modeId + ' ← ' + each.source),
+    '',
+  ].join('\n')
+  // 分段自带尾换行、拼接时不加分隔符（splitSegments 的不变量），所以这里同样用 '' 连接。
+  const merged = banner + parts.join('')
+  // ★ 同名工具的两套壳不能同时启用（见 EXCLUSIVE_ROW_SETS 的实测）：并集把"另一侧"**显式关掉**，
+  //   让默认组成是合法的。不关的后果实测过 —— 预设判 broken、从所有选择器里消失，而设置页全绿。
+  const off = EXCLUSIVE_ROW_SETS.flatMap((set) => set.unionDefaultOff)
+  return off.length === 0 ? merged : disableRowsInPlace(merged, off)
 }
 
 /**
@@ -841,4 +997,78 @@ export function overridesOf(text, modeId) {
  */
 export function extraRowIds() {
   return EXTRA_ROWS.map((extra) => extra.id)
+}
+
+/**
+ * 把一组开关调到**每组互斥里只剩一侧启用** —— 保存路径上的「自动互斥」。
+ *
+ * 为什么必须做这一步（实测 2026-10-01，`0.2.0-rc.2`）：两套壳注册同名工具，同时启用会让挂载方把整个
+ * 预设判为 **broken**，而 broken 的预设被从所有选择器里静默丢掉 —— 设置页却全绿。用户可以容忍开关
+ * 自己动一下，不能容忍模式凭空消失，所以这里替他做掉那一步，而不是事后报错。
+ *
+ * 判定的是**生效状态**（显式开关优先，否则取该基础模式的出厂态），不是"请求里带了什么"：
+ * 用户没碰过的行也该参与互斥判断。
+ *
+ * 保留哪一侧，按这个次序：
+ *  1. 这一次**被显式打开**的那一侧 —— 用户要的就是它（正常情况就落在这里）；
+ *  2. 同一次请求里显式打开了多侧（或都没显式开）⇒ 退回避让 `unionDefaultOff` 的那一侧。
+ *
+ * 只把**当前确实启用着**的行写成 `false`。给本来就关着的行写一遍，会在 `overridesOf` 里变成一条
+ * 用户从未做过的"改动"，历史和往返都会说谎。
+ *
+ * @param {string} modeId - one of {@link BASE_MODES}.
+ * @param {Map<string, boolean>} overrides - `rowId → enabled`，会被当作不可变输入。
+ * @returns {{overrides: Map<string, boolean>, moved: string[]}} 调整后的开关，以及被自动关掉的行 id。
+ * @throws {BaseCompositionUnavailableError} 取不到出厂组成时（调用方走既有的降级路径）。
+ */
+export function applyRowExclusivity(modeId, overrides) {
+  const rows = flattenRowObjects(collectRows(readBaseComposition(modeId)))
+  const effective = (id) => {
+    if (overrides.has(id)) return overrides.get(id) === true
+    const row = rows.get(id)
+    return row === undefined ? false : row.disabled !== true
+  }
+  const next = new Map(overrides)
+  const moved = []
+  for (const set of EXCLUSIVE_ROW_SETS) {
+    const live = set.sides.filter((side) => side.rows.some((id) => effective(id)))
+    if (live.length <= 1) continue
+    const explicit = live.filter((side) => side.rows.some((id) => overrides.get(id) === true))
+    const keep =
+      explicit.length === 1
+        ? explicit[0]
+        : live.find((side) => side.rows.some((id) => set.unionDefaultOff.includes(id)) === false) ?? live[0]
+    for (const side of live) {
+      if (side === keep) continue
+      for (const id of side.rows) {
+        if (effective(id)) {
+          next.set(id, false)
+          moved.push(id)
+        }
+      }
+    }
+  }
+  return { overrides: next, moved }
+}
+
+/**
+ * 一份**已经写在磁盘上**的组成有没有踩着互斥（两条路同时启用）。
+ *
+ * 保存路径已经自动避让了，所以这条只可能由三种情况命中：手工编辑、直接调 HTTP API、或者上一次是用
+ * 本插件之外的什么东西写的。它们的共同后果都是**模式从选择器里静默消失**，所以必须被点名而不是沉默。
+ *
+ * @param {string} text - an installed composition.
+ * @returns {string[]} 同时启用了多侧的互斥组 id。
+ */
+export function exclusiveSetsActive(text) {
+  const rows = flattenRowObjects(collectRows(text))
+  return EXCLUSIVE_ROW_SETS.filter((set) => {
+    const on = set.sides.filter((side) =>
+      side.rows.some((id) => {
+        const row = rows.get(id)
+        return row !== undefined && row.disabled !== true
+      }),
+    )
+    return on.length > 1
+  }).map((set) => set.id)
 }

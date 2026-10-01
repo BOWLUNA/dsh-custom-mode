@@ -8,6 +8,42 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.11.0]
+
+### A fifth base mode — and the union that would have shipped as a broken preset
+
+- **「自定义模式」 is now a base mode, not only a preset name.** The picker offers five: the four dsh ships
+  (`standard` / `ptc` / `minimal` / `cordis`) plus `all`, whose row set is the **union** of those four.
+  Until now the row list was whatever the single shipped mode you picked happened to contain, and a switch
+  can only rewrite a row the base text already has — so on standard, `tool-presentation` (PTC only), the
+  whole `persistent-shell` group (Minimal only) and `tool-cordis` (Cordis only) were unreachable. Not hidden
+  by the UI: absent from the composer. Measured on `0.2.0-rc.2`: 32 / 33 / 33 / 7 rows, union **40**. A row
+  declared by several modes keeps the text and shipped default of whichever mode comes first
+  (`standard → ptc → minimal → cordis`), and a group travels whole, `isolate` realms, comments and `!!js`
+  conditions included — inventing a realm for a carried service row is what would make the preset unusable.
+- **Two groups in that union cannot be on at the same time, and the first version did not know.** Minimal's
+  `persistent-shell` set and standard's `tool-bash` / `tool-pwsh` are two implementations of the same thing —
+  both register a tool called `bash`. Enabling both makes `dsh-agent-presets` mark the whole preset
+  **broken**, and a broken preset is silently dropped from every picker *while the settings page stays
+  green*. Measured by writing the composition to disk, really starting the harness and reading the
+  instance's own `/api/custom-mode`. `EXCLUSIVE_ROW_SETS` now records the conflict, the union ships with the
+  non-preferred side off, and `saveState` moves the switches for you — `code: savedWithExclusiveRows` names
+  what it turned off, and the page re-reads what the server actually wrote. A conflicting composition
+  written **outside** the page (hand edit, another tool, a direct API call) is named on the page through the
+  existing `exclusiveRowsActive` warning.
+- **The shipped default could not be "whatever the source mode shipped".** `persistent-shell` is enabled in
+  minimal by definition — that is what minimal is — so copying each row's shipped state produced an invalid
+  default: saving `mode: all` with `overrides: {}` answered `saved`, and the roster was already `broken`.
+  The union now disables the exclusive side at synthesis time.
+- **Verified end to end on both supported lines** (`0.2.0-rc.2` and `0.1.7-rc.2`): same script, two
+  harnesses, four steps each — switch to `all`, flip the exclusive side, flip back, read the page state;
+  `broken` is absent at every step, `warnings` empty, stderr 0 bytes.
+  `tools/boot-check.mjs` passes A/B/C/D on both.
+- 15 suites / **850 checks** (was 805). Eleven mutations were run against copies of the tree and each went
+  red on the assertion meant to catch it — including two that caught defects in the new code and in the new
+  tests themselves (a `ReferenceError` where a typed failure was intended, and a vacuous assertion that
+  stayed green when its configuration was emptied). See `docs/MEASUREMENTS.md` §33.
+
 ## [1.10.0]
 
 ### The repository root is the package now — and dsh 0.2.0-rc.2 is the line CI pins

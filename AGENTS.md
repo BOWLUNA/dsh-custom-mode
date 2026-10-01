@@ -105,7 +105,7 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     （1.9.15 之前的"廉价感"就是它）；判据是 React 能渲染（`$$typeof`）。② 我们自己的 CSS 必须抄官方设置页
     的度量：区块标题 14px/22px w500、引言 12px/18px tertiary、设置行 `padding:16px 0` + 一条 1px 分隔线、
     下拉用壳的 `Menu`。`tools/browser-verify.mjs` 里有对应的断言（含"开关是 `[role=switch]`、不许有手绘
-    checkbox"），改动后必须 65/65。
+    checkbox"），改动后必须 67/67。
 
 14. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
     （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。
@@ -154,6 +154,43 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     对应地，第三方注册表条目是**根形态**（`data/plugins/BOWLUNA__dsh-custom-mode.yml`，`url` 指向仓库根、
     `name` 为 `BOWLUNA/dsh-custom-mode`），不再是 `#editor` 子包形态。
     `test/manifests.test.mjs` 断言根清单非 private、`editor/package.json` 不再存在、且 `files` 覆盖依赖图。
+
+20. **第五个基础模式是合成的，它的名字与失败语义都是硬约束。** 出厂四位（`BASE_MODE_IDS`）之外，选择器
+    还提供并集模式 `all`（`UNION_MODE_ID`）；它的文本由 `composition.mjs` 的 `unionCompositionText()`
+    从四份出厂组成**现取现并**（不缓存 —— 测试会换 `DSH_SHIPPED_PRESETS_DIR`，宿主也会在任意一次同步时
+    重新声明）。三条不许破坏：
+    **a)** 它的 id **不能**是 `custom` —— `custom` 正是本功能写出来的那个用户预设名，拿它当基础模式会让
+    解析链去 `readDocument('custom')`，把预设自己的组成交还给自己。`test/base-composition.test.mjs`
+    把"改回 custom"钉成 CI 变红；
+    **b)** 它**不能**进 `BASE_MODE_IDS` —— 那份清单的含义是"宿主声明过的模式"，fixtures 生成、目录发现
+    与 `readDocument` 扫描都按它办事，混进去就是让它们去找一个不存在的东西；
+    **c)** 四个源里**任何一个**读不到都必须是类型化失败（`BaseCompositionUnavailableError`），
+    **不许**跳过它继续并 —— 少一份组成的并集照样渲染、照样看着完整，只是"能开关的行"里少了几行，
+    而页面仍然告诉用户全都能开。`test/composition.test.mjs` 的 2d/2e 两节钉住三条，并额外要求并集的
+    **每一行都能拨动并读回**（旧设计的失败形态正是"行在列表里、却拨不动"：合成器只能改写基础文本已有的行）。
+
+    ⚠️ 一个开发中实测过的坑：`composition.mjs` 对 `BaseCompositionUnavailableError` 是
+    `export { … } from './base-composition.mjs'` **再导出** —— 那只建立导出、**不建立本地绑定**。
+    要在本模块里 `throw new BaseCompositionUnavailableError(...)`，必须同时把它列进 `import`，
+    否则抛出的是 `ReferenceError`，页面拿到的是 500 而不是降级（正是 §16 那条 P0 的形态）。
+
+21. **互斥的行必须被显式声明 —— 逐行开关表达不了"二选一"。** 并集里有两组行不能同时启用：极简的
+    `persistent-shell` 与标准的 `tool-bash` / `tool-pwsh` 是同一件东西的两种实现，都注册名为 `bash`
+    的工具。同时启用会让 `dsh-agent-presets` 把整个预设判 **broken**，而 broken 的预设被**从所有
+    选择器里静默丢掉**、设置页却全绿（1.11.0 开发中实测：真写组成 + 真启动 + 读实例自己的
+    `/api/custom-mode` 才看见）。三条不许破坏：
+    **a)** `EXCLUSIVE_ROW_SETS` 是**唯一**的真相，且必须被维护：表里每个 id 都要真的存在于某份出厂组成里
+    （上游改行时 CI 要红，而不是让表静默失效）；
+    **b)** 并集在**合成时**就要把非偏好的一侧关掉 —— **不能照搬出厂状态**：
+    `persistent-shell` 在极简模式里定义上就是启用的，照搬出来的默认组成实测**非法**（`overrides: {}`
+    保存后 roster 立刻 `broken`）；
+    **c)** 保存路径必须**替用户避让**（`applyRowExclusivity()`）：打开一侧就关掉另一侧，并把动过的行
+    用 `code: savedWithExclusiveRows` 报出来。**只动当前确实启用着的行** —— 给本来就关着的行写 `false`
+    会变成一条用户从未做过的"改动"，历史与往返都会说谎。
+    再加一条兜底：页面**之外**写进去的冲突组成（手工编辑 / 别的工具 / 直接调 API）由
+    `exclusiveRowsActive` 告警点名，不能沉默。
+    ⚠️ 断言这类事时**别写死平台相关的行**：`tool-pwsh` 带 `!!js process.platform === 'win32'`，
+    在 Linux 上本来就关着，写死它会做出一个平台相关的假红（第一次就是这么红的）。
 
 ## Known traps (all measured)
 

@@ -22,8 +22,19 @@ Per-suite counts are deliberately **not** listed here: they change with every te
 caught this section still showing eight suites and a 333 total. The one number the docs do state — the
 total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
 
-**805 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other fourteen bring
+**850 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other fourteen bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
+
+The union base mode (`all`, the fifth entry in the picker) has its own sections in `composition.test.mjs`
+(2d–2f) and `editor-route.test.mjs` (8b). They assert **properties**, never literal row ids: the union must
+cover every shipped row, carry no duplicate id at either level, be strictly larger than `standard` alone,
+and **every one of its rows must survive a switch and a read-back** — with a final assertion that no row
+escaped those buckets, so "we tested 38 of 40" cannot pass unnoticed. 2e runs a child process against a
+deliberately incomplete shipped directory to prove a missing source is a **typed failure rather than a
+quietly shorter union**. 2f/8b cover the exclusive shell sets: the union's default leaves exactly one side
+on, `applyRowExclusivity()` moves the other side's *enabled* rows only, and the save route reports
+`savedWithExclusiveRows` while a composition written outside the page is named by the
+`exclusiveRowsActive` warning.
 
 There are four resolution paths, and any one of them hitting is enough: the
 `DSH_SHIPPED_PRESETS_DIR` environment variable → Node resolution from this file (the path an

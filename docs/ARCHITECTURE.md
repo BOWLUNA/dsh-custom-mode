@@ -583,3 +583,62 @@ returning an empty row list would have been a lie about what is on disk.
 symptom is a settings page that cannot edit anything. That is exactly the shape that survives a suite whose
 fixture is injected by the test harness — which is how this shipped in 1.9.10 … 1.9.12.
 
+
+## 19. The fifth base mode: a synthesised union (1.11.0, 2026-10-01)
+
+The first four base modes are the ones dsh declares (`BASE_MODE_IDS`). The fifth, `all` (`UNION_MODE_ID`,
+shown as "Custom"), **comes from no resolution route at all** — it is built on the spot by
+`unionCompositionText()` in `composition.mjs`, from the four shipped compositions. It lives there rather
+than in `base-composition.mjs` because the synthesis needs `splitSegments()`, which sits above that module;
+importing it back would be a cycle.
+
+**This solves a routing problem, not a presentation one.** `renderComposition(modeId, overrides)` works by
+"read the base mode's shipped text, then rewrite the `disabled:` of some of its rows" — so a row the base
+text does not contain **cannot be reached by a switch at all**. Measured on `0.2.0-rc.2`: standard 32 rows,
+PTC 33, Cordis 33, Minimal 7, union **40**. On standard, the eight rows `tool-presentation` (PTC only), the
+whole `persistent-shell` group (Minimal only) and `tool-cordis` (Cordis only) were unswitchable. Not hidden
+by the UI — absent from the composer.
+
+**The synthesis rule** (text surgery, like the rest of the module): the four texts are split at the TOP
+level and concatenated in order, skipping a top-level id already taken. A group therefore travels **whole** —
+children, `isolate` realm, comments and `!!js` conditions with it. That is not only the way to lose nothing;
+it is the only *safe* way, because a service row without the realm it must sit inside is rejected by
+`dsh-agent-presets` at mount and the entire preset then disappears from every picker. Inventing a realm is
+not an option; carrying the group is what makes inventing one unnecessary.
+
+**A row declared by several modes is taken from the first one** (`standard → ptc → minimal → cordis`). The
+order is not cosmetic: this product's own preset is derived from standard, so a conflicting row keeps
+standard's text and standard's shipped default. The visible consequence is deliberate — `tool-plugin-manager`
+ships disabled in standard and enabled in Cordis, and the union keeps it **disabled**; turn it on per
+assistant if you want it. The alternative rule, "enabled if any mode enables it", would silently arm the
+model's plugin manager in a mode the user never chose.
+
+**Any one of the four failing to resolve is a typed failure, not a skip.** A union missing one composition
+still renders, still looks complete, and is simply short of rows the user was told they could switch — which
+is why it reuses the same degradation path as §18: the prompt stays editable, the base mode and the switches
+are marked unavailable.
+
+**Nothing is cached.** The four source texts are not stable for the lifetime of a process: the tests swap
+`DSH_SHIPPED_PRESETS_DIR` between cases, and the host may re-declare a preset on any registry sync. A cache
+would be a stale answer that looks authoritative. Four extra reads is the honest price, and this is not a hot
+path.
+
+**Two of the rows it carries cannot be on together.** Minimal's `persistent-shell` set and standard's
+`tool-bash` / `tool-pwsh` are two implementations of the same thing: both register a tool called `bash`.
+Enabling both makes `dsh-agent-presets` mark the whole preset **broken**, and a broken preset is dropped
+from every picker while the settings page reports nothing wrong. Six variants were written to disk and
+really started to establish this — only the shell pair conflicts, and **a disabled row does not collide**,
+which is what makes carrying the group possible at all. `EXCLUSIVE_ROW_SETS` records the pair; the union
+disables the non-preferred side at synthesis time (its *shipped* state cannot be copied: `persistent-shell`
+is enabled in minimal by definition); and `saveState` runs `applyRowExclusivity()` so that flipping one side
+moves the other, reporting `savedWithExclusiveRows`. A conflicting composition that arrived from outside the
+page is named by the `exclusiveRowsActive` warning rather than left to disappear silently.
+
+**Tests**: sections 2d / 2e of `test/composition.test.mjs`. They assert **properties** (covers every shipped
+row, no duplicate id at either level, strictly larger than standard alone, every row survives a switch and a
+read-back, and no row escapes those buckets) rather than literal row ids — pinning `tool-cordis` would go red
+the day upstream reshapes its rows. 2e runs a child process against a deliberately incomplete shipped
+directory to prove a missing source is a typed failure rather than a quietly shorter union. Four mutations
+(silently dropping a source / skipping the dedupe / renaming the id back to `custom` / degrading to
+standard-only) were each verified to go red.
+
