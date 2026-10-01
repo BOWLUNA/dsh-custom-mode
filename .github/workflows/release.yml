@@ -74,18 +74,32 @@ jobs:
       - name: 换装 0.1.7-rc.2（上一个正式版），稳定腿再跑一遍
         shell: bash
         run: |
-          # ★ 装之前把仓库根的 package.json 挪开，装完立刻放回（trap 兜底）。
-          #   实测（2026-09-30，node 20 + npm 10.8.2）：根清单是**插件清单**，它把
-          #   @deepseek-ai/dsh 声明为 optional peer；在这个组合下
-          #   `npm install --no-save @deepseek-ai/dsh@<线>` 会**成功退出（exit 0）却什么都没装**
-          #   （added 11 packages，npm ls 显示 (empty)，@deepseek-ai/ 下只剩一个平台可选包），
-          #   于是紧随其后的 require 才报 MODULE_NOT_FOUND。node 24 / npm 11 的腿没有这个问题。
-          #   换 --legacy-peer-deps 更糟：npm 判定 "up to date"，一个包都不装。
-          #   挪开清单后同一条命令 539 个包、dsh 正常落地；安装位置仍是仓库根的 node_modules，
-          #   测试的解析路径一字未变。
+          # ★★ 一、必须先把根清单挪开。**这一条才是「每版必先失败一次」的根因修复。**
+          #
+          # 根清单是**插件清单**，它把 @deepseek-ai/dsh 声明为 optional peer；在这个组合下
+          # `npm install --no-save @deepseek-ai/dsh@<线>` 会**成功退出却什么都没装**，
+          # 于是紧随其后的 `test/run.mjs` 报「找不到出厂 preset」并 exit 2。
+          #
+          # 证据 —— v1.10.0 的 release run 36737768351（2026-09-30 15:34），那一步的执行体是：
+          #     ##[group]Run npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
+          #     ^[[36;1mnpm install … @deepseek-ai/dsh@0.1.7-rc.2^[[0m
+          #     ^[[36;1mnode test/run.mjs^[[0m          ← 只有这两行，**没有 mv package.json**
+          #     removed 539 packages in 28s             ← 只删，**没有一行 added**
+          #     找不到出厂 preset … exit 2
+          #
+          # 也就是说那次跑的还是**旧版** workflow。加上挪开清单这一步之后，同一天 16:00 重跑即通过。
+          # ⚠️ 此后没有再发过版，所以「加完之后不再失败」**尚未被一次真实的发版验证过**。
+          #
+          # ★ 二、顺带清场：换装前把上一个线的树删掉。
+          #
+          # 这是**防御性**的，不是上面那个根因 —— 我在本机（WSL · npm 11.19）**没能复现**「只删不装」：
+          # 保留 node_modules 时 npm 报 `added 13, removed 30, changed 286` 并正确换到了 0.1.7。
+          # 环境确实不同（CI 第一步 `added 538`，本机只有 289 个包），所以复现不了不等于 CI 上不会。
+          # 保留它的理由很单纯：让上一个线的树参与 npm 的推断没有任何好处，清场能一次性消掉那一类不确定性。
           restore_manifest() { if [ -f package.json.plugin ]; then mv -f package.json.plugin package.json; fi }
           trap restore_manifest EXIT
           mv package.json package.json.plugin
+          rm -rf node_modules
           npm install --no-save --no-audit --no-fund "@deepseek-ai/dsh@0.1.7-rc.2"
           restore_manifest
           node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
