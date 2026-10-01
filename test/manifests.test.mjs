@@ -16,7 +16,7 @@
  * Run: node test/manifests.test.mjs
  */
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from "node:fs"
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 

@@ -8,6 +8,37 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.11.5]
+
+### The workflow files themselves need validating — their mistakes only surface at tag time
+
+While changing the `.dshpreset` manifest (this release also drops its bilingual name), I indented the new
+lines by **4 spaces** inside a `run: |` block whose content sits at 10. A YAML block scalar **ends** at the
+first line shallower than its own first line, so everything after it was parsed as YAML — and `release.yml`
+became syntactically invalid.
+
+The cost is what makes this worth a release of its own: 876 unit checks, the 70-check render gate and every
+ledger guard **all pass**, because none of them reads the workflows. It only blows up at the **next tag** —
+at the moment you are already publishing.
+
+- **New `tools/verify-workflows.py`**: validates `.github/workflows/*.yml` with a **real** YAML parser, and
+  `compile()`s the body of every `<<'TAG'` heredoc after de-indenting it by the tag (valid YAML does not
+  imply valid code inside it). Wired into `test.yml`, so CI runs it every time.
+- **A hand-rolled guard was tried and deleted.** I first wrote a pure-string check in the unit suite, and
+  mutation testing falsified it immediately: **it did not catch the bug it was written for**, because "block
+  ended early" and "block ended normally" look identical at the string level — the 4-space line is
+  structurally plausible as an ordinary terminator, and only a parser can tell. By this repository's own
+  rule — *a guard that has not been turned red by a mutation is not a guard* — that one was removed in
+  favour of the real parser above.
+- **The `.dshpreset` import name is no longer Chinese/English.** It used to be
+  `自定义模式 / Custom mode` plus an English description. The reason is the same as for
+  `preset/preset.yml`: that is **product data**, and the shell localises its own shipped presets but cannot
+  localise ours. The name is now one language and the description is empty; after importing, the user can
+  write their own.
+
+15 suites / **876 checks** (unchanged — the deleted unsound guard balances the new one). Two new mutations
+verified to go red: a shallow block indent, and broken Python inside a heredoc.
+
 ## [1.11.4]
 
 ### The "Composition problem" badge, and three pieces of copy around it that either misled or lied

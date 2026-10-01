@@ -168,9 +168,13 @@ jobs:
           manifest = {
               'format': 'dsh-preset',
               'version': 1,
-              'id': 'custom',
-              'name': '自定义模式 / Custom mode',
-              'description': 'Editable system prompt, base mode and per-row plugin switches — several assistants side by side.',
+          'id': 'custom',
+          # ★ 名字与描述都**只用一种语言**，描述留空 —— 与 preset/preset.yml 同一条理由：
+          #   这是**产品数据**，壳按界面语言渲染自己的出厂预设，但没法本地化我们的。写一种语言，
+          #   另一种界面里就是外语；两种都写（原来是 `自定义模式 / Custom mode`），就是被点名的
+          #   "中英拼接"。导入之后用户可以自己填描述。
+          'name': '自定义模式',
+          'description': '',
               'sourceDshVersion': '0.2.0-rc.2',
               'exportedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
           }

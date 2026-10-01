@@ -160,6 +160,20 @@ jobs:
       - name: 文档数字与实际一致
         run: node tools/verify-doc-numbers.mjs
 
+      # ★ 工作流文件本身也要校验 —— 它的错**只在打 tag 时才会暴露**。
+      #
+      # 实测（2026-10-01）：改 `.dshpreset` 的 manifest 时，新插的几行写成 4 格缩进，而同一个
+      # `run: |` 里的内容用的是 10 格。块标量遇到比块首行更浅的缩进就结束，后面的行被当成 YAML
+      # 解析 ⇒ release.yml 语法错。本地跑测试、跑渲染闸门**都看不见**，只有下一次发布才发现。
+      #
+      # 这一条必须用真解析器：这个仓库是零依赖的（`agent.cordis.yml` 走手写解析器），而
+      # "块被提前结束"与"块正常结束"在字符串层面长得一样 —— 手搓的启发式判不出来（试过，抓不到）。
+      # 顺带校验 heredoc 里的 Python 能编译：YAML 合法不等于里面的代码合法。
+      - name: 工作流 YAML 与 heredoc（python3 + pyyaml）
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 tools/verify-workflows.py
+
       # ★★ 真启动 —— 唯一会**真的 apply 插件**的一道守卫。
       #
       # 为什么必须有它：`--dump-config` 只合成配置、不 apply 插件，装配行 `name` 解析失败时
