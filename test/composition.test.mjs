@@ -351,17 +351,23 @@ console.log('=== 2f. 自动互斥（applyRowExclusivity）：两套壳不能同�
     return row === undefined ? undefined : row.disabled !== true
   }
   const base = readBaseComposition(UNION_MODE_ID)
-  check('并集默认标准壳开着', enabledOf(base, 'tool-bash') === true, String(enabledOf(base, 'tool-bash')))
-  check('并集默认持久终端壳关着', enabledOf(base, 'persistent-shell') === false, String(enabledOf(base, 'persistent-shell')))
+  // ★ 期望值必须**从本平台的真实状态算出来**，不能写死 `tool-bash`：出厂那两行带
+  //   `disabled: !!js process.platform === 'win32'` —— 在 Windows 上本来就关着（实测：CI 的
+  //   windows 腿就是被这条假红拦下的）。真正的不变量是"并集默认只留一侧，且让开时只动开着的那几行"。
+  const [stdSide, termSide] = EXCLUSIVE_ROW_SETS[0].sides
+  const stdOn = stdSide.rows.filter((id) => enabledOf(base, id) === true)
+  const termOn = termSide.rows.filter((id) => enabledOf(base, id) === true)
+  check('并集默认标准壳那一侧有行开着', stdOn.length > 0, JSON.stringify(stdSide.rows.map((id) => [id, enabledOf(base, id)])))
+  check('并集默认持久终端壳那一侧整侧关着', termOn.length === 0, JSON.stringify(termSide.rows.map((id) => [id, enabledOf(base, id)])))
 
-  // 用户打开持久终端壳 ⇒ 标准壳让开，且如实报出被关掉的行
-  //
-  // ⚠️ 断言只点名 `tool-bash`，**不点名 `tool-pwsh`**：后者出厂带 `disabled: !!js process.platform
-  // === 'win32'`，在 Linux 上本来就关着，所以没有"要关的东西"。写死它会让这个用例变成**平台相关**的
-  // 假红（第一次就是这么红的）。下面用"只动本来就启用着的行"这条不变量把它盖住。
+  // 用户打开持久终端壳 ⇒ 标准壳那一侧**当前开着**的行全部让开，且如实报出
   const flipped = applyRowExclusivity(UNION_MODE_ID, new Map([['persistent-shell', true]]))
-  check('自动让开标准壳', flipped.overrides.get('tool-bash') === false, JSON.stringify([...flipped.overrides]))
-  check('如实报出被关掉的行', flipped.moved.includes('tool-bash'), JSON.stringify(flipped.moved))
+  const movedSet = new Set(flipped.moved)
+  check(
+    '标准壳那一侧开着的行全部让开（且只动这些）',
+    stdOn.every((id) => movedSet.has(id)) && flipped.moved.length === stdOn.length,
+    `开着的=${JSON.stringify(stdOn)} 让开的=${JSON.stringify(flipped.moved)}`,
+  )
   check('没有连用户要的那一侧一起关掉', flipped.overrides.get('persistent-shell') === true, String(flipped.overrides.get('persistent-shell')))
   // ★ 只动**当前确实启用着**的行：给本来就关着的行写一遍 `false`，会在 `overridesOf` 里变成一条
   //   用户从未做过的"改动"——历史、往返、以及"未保存"标记都会因此说谎。

@@ -71,7 +71,10 @@ const BASE_COMPOSITION = [
   '',
   '- id: tool-pwsh',
   "  name: '@deepseek-ai/dsh-tool-pwsh'",
-  "  disabled: !!js process.platform === 'win32'",
+  // ★ `!==` 不是 `===`：真实的出厂组成里，两套壳是**按平台二选一**的 —— `tool-bash` 在 Windows 上关、
+  //   `tool-pwsh` 在非 Windows 上关（实测：CI 的 windows 腿显示标准模式里开着的是 pwsh）。
+  //   夹具原先两行都写 `===`，于是在 Windows 上**两行同时关着**，"两套壳互斥"这一节就无从断言了。
+  "  disabled: !!js process.platform !== 'win32'",
   '',
   '- id: planning',
   '  name: ./planning.mjs',
@@ -130,7 +133,7 @@ writeFileSync(join(presetDir, 'prompt-tool.mjs'), '// fixture tool\nexport funct
 process.env.DSH_CUSTOM_PROMPT_PATH = promptPath
 process.env.DSH_SHIPPED_PRESETS_DIR = shippedDir
 
-const { renderComposition, setShippedPresetsDir } = await import('../composition.mjs')
+const { renderComposition, collectRows, setShippedPresetsDir } = await import('../composition.mjs')
 const { readPresetMeta } = await import('../meta.mjs')
 const editor = await import('../index.mjs')
 
@@ -914,16 +917,38 @@ console.log('=== 8b. 自动互斥：两套壳不能同时启用（否则预设�
   }
   const off = (text, id) => /disabled: true/.test(rowBlock(text, id))
 
+  // ★ 期望值必须**从本平台的真实状态算出来**，不能写死 `tool-bash`：夹具里那两行带
+  //   `disabled: !!js process.platform === 'win32'`，在 Windows 上本来就关着 —— 写死它会让
+  //   这一节只在 Linux 上绿。**CI 的 windows 腿就是这么红的**（2026-10-01 实测：code 变成 `saved`、
+  //   磁盘断言指着一行根本没被碰过的行）。真正的不变量是"当前开着的那一侧要让开"，与平台无关。
+  const unionFlat = []
+  const walkUnion = (rows) => {
+    for (const row of rows) {
+      unionFlat.push(row)
+      walkUnion(row.children ?? [])
+    }
+  }
+  walkUnion(collectRows(renderComposition('all', new Map())))
+  const isOn = (id) => unionFlat.find((row) => row.id === id)?.disabled !== true
+  const stdShellsOn = ['tool-bash', 'tool-pwsh'].filter((id) => isOn(id))
+  check('夹具就位：标准壳那一侧在本平台至少有一行开着', stdShellsOn.length > 0, `开机行=${JSON.stringify(stdShellsOn)}`)
+
   const first = JSON.parse(
     (await call(post('/custom-mode/state', { id: 'custom', mode: 'all', prompt: '并集\n', overrides: { 'persistent-shell': true } }))).body,
   )
   check('打开另一套壳时保存仍然成功（不是报错）', first.ok === true, String(first.error ?? ''))
   check('用专门的 code 说明动过开关', first.code === 'savedWithExclusiveRows', String(first.code))
-  check('params 点名被关掉的行', typeof first.params?.rows === 'string' && first.params.rows.includes('tool-bash'), JSON.stringify(first.params))
+  check(
+    'params 点名被关掉的行',
+    typeof first.params?.rows === 'string' && stdShellsOn.some((id) => first.params.rows.includes(id)),
+    `${JSON.stringify(first.params)} 期望含 ${JSON.stringify(stdShellsOn)}`,
+  )
   const afterAuto = readFileSync(compositionPath, 'utf8')
-  // 只点名 `tool-bash`：夹具里 `tool-pwsh` 带 `disabled: !!js process.platform === 'win32'`，在 Linux 上
-  // 本来就关着、没有"要关的东西"，写死它会让用例变成平台相关的假红。
-  check('标准壳被真的关掉（磁盘真值）', off(afterAuto, 'tool-bash'), rowBlock(afterAuto, 'tool-bash').slice(0, 70))
+  check(
+    '标准壳那一侧开着的行被真的关掉（磁盘真值）',
+    stdShellsOn.every((id) => off(afterAuto, id)),
+    `期望关掉 ${JSON.stringify(stdShellsOn)} / ${rowBlock(afterAuto, stdShellsOn[0] ?? 'tool-bash').slice(0, 70)}`,
+  )
   check('用户要的那一侧留着开着', off(afterAuto, 'persistent-shell') === false, rowBlock(afterAuto, 'persistent-shell').slice(0, 70))
   const stateAfter = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
   check('避让之后不应再有互斥告警', stateAfter.warnings.includes('exclusiveRowsActive') === false, JSON.stringify(stateAfter.warnings))
