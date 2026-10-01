@@ -15,12 +15,18 @@
  *   node probe-composition.mjs            # 用本机安装的出厂 presets
  *   DSH_SHIPPED_PRESETS_DIR=/path node probe-composition.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { existsSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
-const REPO = process.env.PROBE_REPO ?? '/home/bowluna/dsh/dsh-custom-mode'
+// 默认值 = **探针自己所在的仓库**（探针住在 `<repo>/tools/probes/`），不是某个开发机的绝对路径。
+//
+// 实测（2026-10-01）：写死 `/home/bowluna/dsh/dsh-custom-mode` 让整套探针**在 CI 上以 exit 2 全红**
+// —— runner 把仓库放在 `/home/runner/work/<repo>/<repo>`。这与"本机一直有 pnpm"是同一类错误：
+// **本地一直成立的前提，恰恰是 CI 要替你找出来的东西。** 从脚本自身位置推导就没有这个前提。
+const HERE = dirname(fileURLToPath(import.meta.url))
+const REPO = process.env.PROBE_REPO ?? resolve(HERE, '..', '..')
 // ★ 2026-10-01：仓库布局变过一次 —— 1.10.0 把 editor/ 并入了仓库根（发布包 = 仓库根），
 //   而原先这里硬编码 'editor/...'，于是那次重构之后**整套探针静默跑不起来了**：
 //   它不在 CI 里，所以坏了 6 天没人知道（"跑不起来"和"全过"在没人执行时是同一个状态）。

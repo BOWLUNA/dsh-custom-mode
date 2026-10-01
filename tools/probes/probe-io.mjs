@@ -14,16 +14,19 @@
  *
  * 用法：node probe-io.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
 // ⚠️ 必须在 import 之前设好：paths.mjs 在模块加载时就把路径算死了
 const HOME = mkdtempSync(join(tmpdir(), 'probe-io-home-'))
 process.env.DSH_HOME = HOME
 
-const REPO = process.env.PROBE_REPO ?? '/home/bowluna/dsh/dsh-custom-mode'
+// 默认值 = **探针自己所在的仓库**（`<repo>/tools/probes/`），不写死开发机路径 —— 理由同
+// probe-composition.mjs：写死的那个在 CI 上必然不存在，会让整套探针以 exit 2 全红。
+const HERE = dirname(fileURLToPath(import.meta.url))
+const REPO = process.env.PROBE_REPO ?? resolve(HERE, '..', '..')
 // 出厂 presets：本机安装目录；离了它 renderComposition 定位不到基础模式
 if (process.env.DSH_SHIPPED_PRESETS_DIR === undefined) {
   process.env.DSH_SHIPPED_PRESETS_DIR = join(

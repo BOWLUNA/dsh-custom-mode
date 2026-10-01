@@ -10,12 +10,15 @@
  *
  * 用法：node probe-fuzz.mjs
  */
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 
-const REPO = process.env.PROBE_REPO ?? '/home/bowluna/dsh/dsh-custom-mode'
+// 默认值 = **探针自己所在的仓库**（`<repo>/tools/probes/`），不写死开发机路径 —— 理由同
+// probe-composition.mjs：写死的那个在 CI 上必然不存在，会让整套探针以 exit 2 全红。
+const HERE = dirname(fileURLToPath(import.meta.url))
+const REPO = process.env.PROBE_REPO ?? resolve(HERE, '..', '..')
 const REAL_SHIPPED = process.env.DSH_SHIPPED_PRESETS_DIR ?? join(
   process.env.HOME ?? '/root', '.dsh/profiles/node_modules/@deepseek-ai/dsh-agent-presets/presets',
 )
