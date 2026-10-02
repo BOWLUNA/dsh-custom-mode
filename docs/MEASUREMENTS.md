@@ -1998,3 +1998,72 @@ untouched, already-empty is a no-op, missing file does not throw).
 
 **6. All five screenshots re-shot** — `02-plugin-switches.png` is the one that shows the change (uniform
 66px rows, even dividers), and `01-mode-switch.png` shows the five base-mode pills with the unified notes.
+
+## 36. Re-measuring the native metrics: two existing assertions were false, and three defects fell out (2026-10-02)
+
+§35 measured the settings page against the native UI once. This round **re-measured it** (trigger: the user
+asked for the fonts, UI style and formatting to match the native UI) by booting **a clean instance on each
+supported line** and putting the official settings page and ours in **the same browser**, reading
+`getComputedStyle` + `getBoundingClientRect` element by element. Both lines gave the same readings.
+
+### 1. Raw readings
+
+```
+official `_row` (settings row)   padding 16px/0/16px/0 · border-bottom 1px solid · radius 0 · h 77px with a note
+official `_title` (row title)    font-size 14px · line-height 22px · font-weight 400
+official `groupTitle` (group)    font-size 14px · line-height 22px · font-weight 400
+official `_selector` (dropdown)  h 36px · radius 12px · bg var(--dsw-alias-bg-module-platform) ·
+                                 padding 0 14px · font-size 14px · line-height 22px · gap 12px · text first
+official `input` (plugins page)  h 36px · radius 12px
+official `cardTitle` (card)      font-size 14px · line-height 20px · font-weight 500
+official `cardDescription`       font-size 12px · line-height 18px · white-space normal · h 36px (two lines)
+```
+
+### 2. Two assertions were false
+
+**① "Section title 14px/22px w500" → the official value is w400.** `AGENTS.md` #13, §29 and §35 all say
+w500. Measured once on each line, the official `_title` and `groupTitle` are **both 400**; the only 14px
+w500 in the shell is the plugin **card** title (line-height 20px, a different shape), and page titles are
+16px/24px w500. Changed to 400.
+
+**② "Row padding 12px" → the official settings row is 16px.** §35 deliberately moved 16px -> 12px to bring
+the row from 76px down to 66px ("the native *card* is 83px yet carries two description lines"). But the
+comparison target was a **card** (`cardContent`, padding 12px 14px) while our rows are **settings rows**
+(1px divider, title left, control right). More to the point, the cause of §35's "rows ranged 66–84px" was
+`.cpfe-row-note` missing `white-space:nowrap` — fixed separately in that same round. Lowering the padding
+was treating a disease that no longer existed. Back at 16px, a row with a note is **77px**, the same height
+as the official settings row.
+
+### 3. Three defects fell out
+
+- **The warning block had no CSS at all.** `.cpfe-warns` / `.cpfe-warn-row` / `.cpfe-warn` had **zero rules**
+  in any stylesheet (walking them returned `[]`), so every warning was a run of un-styled `<p>`. Now
+  12px/18px, `gap 6px`, the shell's `IconWarningOutlineRegular` at 14×14 aligned to the first text line
+  (measured offset 2px).
+- **The dropdown was not the native shape.** It used the shell Button's `ghost` + `size:"sm"` (28px /
+  transparent / 12px text / radius 8px) with the chevron **before** the text. The official control is
+  36px / radius-md / grey fill / 14px text with the chevron **after** it. Now drawn to those metrics
+  (`.cpfe-selector`) — the same approach the shell itself takes: each official settings page **defines its
+  own** `_selector` (four pages, four copies, identical metrics); the Button atom has no such variant.
+- **Input radii disagreed with each other.** input / desc / editor were 8px / 10px / 10px, while the official
+  control uses `--dsw-radius-md` (12px) whether it is a selector or an input. Unified.
+
+### 4. Terminology, copy, and the gate
+
+- **The `cordis` mode is presented as Creator mode in the official UI** (Chinese: 创造模式). Measured in
+  `dsh-client-ui-agent-preset`'s dictionary: `presetCordisName: "创造模式"` / `"Creator mode"` (same on
+  both lines). This repository labelled the pill 「Cordis 模式」 while `base.all.note` in the same
+  dictionary said 创造模式 — one mode with two names on one page. The four English labels
+  (Standard / PTC / Minimal / Cordis) were also all missing the official " mode" suffix; both fixed.
+- Three **dead entries** removed (`assistant.meta`, `aria.expandHint`, `aria.collapseHint`): they existed
+  only in the dictionaries and were never referenced by any call site (the `aria.*Hint` pair is a leftover
+  of the removed collapsible introduction).
+- The five `SectionHint` call sites each passed `id` / `expanded` / `onToggleExpand` / `t` — four props the
+  component **does not read**.
+- One **inaccurate claim**: the English `rows.hint` said the row list was "laid out like the official
+  plugin list", but the official plugin page is a **2-column card grid**
+  (`grid-template-columns: 274.5px 274.5px`) whose descriptions **wrap to two lines** — not the same thing
+  as our single-column, divider-separated list. The clause is gone.
+- The render gate went **70 -> 74**: the official dropdown shape, the chevron after the text, **the warning
+  block having rules in the stylesheet**, and the 14px/22px row title. The two false assertions were moved
+  to the measured values. Run once per line: `0.2.0-rc.2` and `0.1.7-rc.2` both **74 passed / 0 failed**.

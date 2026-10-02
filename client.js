@@ -61,11 +61,10 @@ try {
       const ZH = {
         "nav": "自定义模式",
         "assistant.heading": "助手",
-        "assistant.hint": "每个助手即一个独立模式：独立的系统提示词、基础模式与插件开关。新建会话时在模式选择器中选择。",
+        "assistant.hint": "每个助手即一个独立模式：独立的系统提示词、基础模式与插件开关。新建会话时在模式选择器中选用。",
         "assistant.empty": "还没有助手，用下面的输入框新建一个。",
         "assistant.loadingList": "正在读取助手列表…",
         "assistant.newPlaceholder": "新助手的名字（例如：写作助手）",
-        "assistant.meta": "标识",
         "assistant.copyName": "「{name}」副本",
         "assistant.broken": "本机无法启动",
         "assistant.brokenRows": "{count} 行在本机不可用",
@@ -83,7 +82,7 @@ try {
         "btn.delete": "删除这个助手",
         "btn.cancel": "取消",
         "msg.created": "已创建。现在可以为它写系统提示词。",
-        "msg.duplicated": "已复制。两份从此各改各的。",
+        "msg.duplicated": "已复制。两份配置彼此独立。",
         "msg.deleted": "已删除。",
         "msg.createFailed": "创建失败",
         "msg.deleteFailed": "删除失败",
@@ -99,16 +98,9 @@ try {
         "api.alreadyLast": "「{name}」已经在最后面。",
         "api.badVariableName": "变量引用的写法不合法：{variable} 里的名字只能用小写字母、数字、下划线，且以字母开头。要写字面量花括号，请用单个左花括号，或不闭合的双左花括号。",
         "api.unknownVariable": "{variable} 不是已注册的变量，渲染会报错并让本模式每个请求都失败。可用：{known}。",
-        "assistant.short": "每个助手是一个独立模式：自己的系统提示词、基础模式与插件开关。",
-        "name.short": "改名只影响显示，内部标识与已有会话不受影响。",
-        "mode.short": "底子决定「行集合」与工具能力；persona 行始终由本模式替换。",
         "mode.unavailable": "本机这条 DSH 线没有可读的出厂组成，基础模式暂时不能切换。",
         "rows.unavailable": "出厂组成取不到，插件开关暂时不能编辑；磁盘上原有的行状态仍然生效。",
-        "mode.pendingRows": "底子已改为「{mode}」：保存后，下面的行列表会按新底子重算。",
-        "rows.short": "逐行控制挂载哪些插件；没拨过的行保持官方默认。",
-        "prompt.short": "这段文本就是本模式的系统提示词，保存后下一步生效。",
-        "aria.expandHint": "展开完整说明",
-        "aria.collapseHint": "收起完整说明",
+        "mode.pendingRows": "基础模式已改为「{mode}」：保存后，下面的行列表会按新的基础模式重算。",
         "aria.expand": "展开详情",
         "aria.collapse": "收起详情",
         "detail.id": "行 id",
@@ -129,7 +121,7 @@ try {
         "api.saved": "已保存（{name}，基础模式 {mode}）。新建会话即生效，当前会话保持原配置。",
         "api.savedWithExclusiveRows": "已保存（{name}，基础模式 {mode}）。两套壳注册同名工具、不能同时启用 —— 已自动关掉：{rows}。新建会话即生效，当前会话保持原配置。",
         "api.created": "已创建「{name}」。现在可以为它写系统提示词。",
-        "api.duplicated": "已复制自「{from}」。两份从此各改各的。",
+        "api.duplicated": "已复制自「{from}」。两份配置彼此独立。",
         "api.deleted": "已删除「{name}」。正在使用它的会话不受影响；新建会话时它不再出现。",
         "api.reordered": "顺序已保存：新建会话时的模式选择器按这个顺序排列。",
         "api.nameRequired": "请先给新助手起个名字。",
@@ -163,9 +155,7 @@ try {
         "warn.presetBroken": "平台判这个模式为 broken，它会从新会话的选择器里消失 —— 而上面的「无法解析」检查解释不了原因（多半是某一行依赖的服务没起来）。点下方「按本线修复」把那几行关掉；平台自己给的原因见下面那行。",
         "warn.exclusiveRowsActive": "两条互斥的壳同时开着（它们注册同名工具），平台会判整个模式为 broken 并从新会话的选择器里丢掉。关掉其中一条即可；在设置页保存一次也会自动避让。",
         "warn.baseCompositionUnavailable": "取不到本机这条 DSH 线的出厂组成：基础模式与插件开关暂时不能改（系统提示词不受影响，照常可保存）。已尝试的途径写在宿主日志里。",
-        "warn.approvalGateMissing.label": "审批闸门未启用",
-        "warn.approvalGateMissing.hint": "这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。设置页不受影响；要恢复保护请升级 DSH，或把「custom_prompt 工具」那一行关掉。",
-        "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 你写的提示词现在不起作用。要么打开这一行，要么清空提示词。",
+        "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 所写的提示词不会生效。打开这一行，或清空提示词。",
         "warn.toolOff": "「custom_prompt 工具」这一行是关的：会话里无法让 agent 改提示词，只能在本页改。",
         "warn.noDescription": "没有描述：新建会话的模式选择器里会显示成「暂无描述」。",
         "warn.noName": "没有名字：模式选择器里会显示成目录 id（例如 custom）。",
@@ -191,9 +181,9 @@ try {
         "name.placeholder": "自定义模式",
         "name.descriptionPlaceholder": "模式描述（显示在模式选择器里，可留空）",
         "mode.heading": "基础模式",
-        "mode.hint": "底子只决定「行集合」与工具能力：本模式的身份行始终替换底子那一行（提示词由你编辑，complete: false），底子的提示语语义不继承。保存后新建会话即生效，无需重启。",
+        "mode.hint": "基础模式只决定行集合与工具能力：本模式的身份行始终替换基础模式的那一行（提示词由本页编辑，complete: false），不继承其提示语语义。保存后新建会话即生效，无需重启。",
         "rows.heading": "插件开关",
-        "rows.hint": "逐行控制本模式挂载的插件。未拨动的行保持官方默认（含平台判断）；手动拨动后以你的为准。",
+        "rows.hint": "逐行控制本模式挂载的插件。未改动的行保持官方默认（含平台判断）；手动设置后以手动值为准。",
         "prompt.heading": "系统提示词",
         "prompt.hint": "每次模型调用前重新读取：保存后下一步生效，仅影响使用本助手的会话。「导入」读文件进编辑器（保存前不写入）；「导出」存为 .md；「恢复出厂提示词」填回出厂模板（同样需保存）。",
         "status.enabled": "已启用",
@@ -206,9 +196,6 @@ try {
         "btn.reload": "重新读取",
         "btn.reloadDiscard": "放弃修改并重新读取",
         "msg.unsaved": "有未保存的修改",
-        "msg.loading": "正在读取…",
-        "msg.notLoaded": "（尚未读取）",
-        "msg.reread": "已重新读取",
         "msg.readFailed": "读取失败",
         "msg.saveFailed": "保存失败",
         "msg.saved": "已保存。新建会话即生效，当前会话保持原配置。",
@@ -274,7 +261,13 @@ try {
         "base.ptc.note": "在标准模式基础上启用 PTC 工具呈现（tool-presentation）",
         "base.minimal.label": "极简模式",
         "base.minimal.note": "只有 Shell 与终端，共 7 行；没有文件、检索、技能、子代理。系统提示词不是极简那一套（persona 行被本模式替换）",
-        "base.cordis.label": "Cordis 模式",
+        // ★ 与官方对齐：cordis 这个模式在官方界面里叫「创造模式」（英文 Creator mode），
+        //   不是「Cordis 模式」—— 实测 `dsh-client-ui-agent-preset` 的词典：
+        //   `presetCordisName: "创造模式"` / `"Creator mode"`（0.1.7-rc.2 与 0.2.0-rc.2 同名）。
+        //   「Cordis」在官方用语里是**技术名**（Cordis 插件 / Cordis 运行时），不是模式名。
+        //   此前这里写「Cordis 模式」、而同一份词典的 `base.all.note` 又写「创造模式」，
+        //   同一个模式在一页里有两个名字：用户点了「Cordis 模式」药丸，读到的说明却说「创造模式」。
+        "base.cordis.label": "创造模式",
         "base.cordis.note": "标准模式 + 读写运行时的 Cordis 工具集，可让 agent 自己改 harness",
         "base.all.label": "自定义模式",
         "base.all.note": "不继承任何单一原生模式：以标准模式的全套行为底，补上只有 PTC / 极简 / 创造模式才有的行，全部都能逐行开关"
@@ -287,7 +280,6 @@ try {
         "assistant.empty": "No assistants yet — create one with the field below.",
         "assistant.loadingList": "Loading assistants…",
         "assistant.newPlaceholder": "Name of the new assistant (e.g. Writing assistant)",
-        "assistant.meta": "ID",
         "assistant.copyName": "{name} (copy)",
         "assistant.broken": "Will not start here",
         "assistant.brokenRows": "{count} row(s) unusable here",
@@ -321,16 +313,9 @@ try {
         "api.alreadyLast": "{name} is already last.",
         "api.badVariableName": "{variable} is not a valid variable reference: names may use lower-case letters, digits and underscores, and must start with a letter. For a literal brace, use a single opening brace or an unclosed double brace.",
         "api.unknownVariable": "{variable} is not a registered variable — rendering would fail every request in this mode. Available: {known}.",
-        "assistant.short": "Each assistant is its own mode: its own system prompt, base mode and plugin switches.",
-        "name.short": "Renaming only changes what is displayed — not the internal id or existing sessions.",
-        "mode.short": "The base decides the row set and tool abilities; the persona row is always replaced by this mode.",
         "mode.unavailable": "This DSH line exposes no readable shipped composition, so the base mode cannot be switched right now.",
         "rows.unavailable": "No shipped composition is available, so the plugin switches cannot be edited right now; the row states already on disk still apply.",
-        "mode.pendingRows": "Base changed to {mode}: the row list below is recomputed from the new base when you save.",
-        "rows.short": "Control which plugins this mode mounts, row by row; untouched rows keep the shipped default.",
-        "prompt.short": "Saving this text makes it the system prompt of this mode, and it takes effect on the next step.",
-        "aria.expandHint": "Show the full explanation",
-        "aria.collapseHint": "Hide the full explanation",
+        "mode.pendingRows": "Base mode changed to {mode}: the row list below is recomputed from it when you save.",
         "aria.expand": "Show details",
         "aria.collapse": "Hide details",
         "detail.id": "Row id",
@@ -380,15 +365,13 @@ try {
         "api.badJson": "The request body is not valid JSON",
         "api.savedPromptOnly": "System prompt saved (this machine exposes no shipped composition, so the plugin switches and the base mode were left untouched).",
         "api.baseCompositionUnavailable": "No shipped composition for base mode \"{mode}\" on this machine, so its plugin switches and base mode cannot be changed (the system prompt can still be saved on its own).",
-        "warn.personaOffWithPrompt": "The \"Identity (system prompt)\" row is off, so prompt.md is never injected — the prompt you wrote has no effect. Turn the row on, or clear the prompt.",
+        "warn.personaOffWithPrompt": "The \"Identity (system prompt)\" row is off, so prompt.md is never injected — the prompt being edited has no effect. Turn the row on, or clear the prompt.",
         "warn.toolOff": "The \"custom_prompt tool\" row is off: the agent cannot change the prompt from inside a session, only this page can.",
         "warn.noDescription": "No description: the new-session mode picker will show it as \"no description yet\".",
         "warn.approvalGateMissing": "The approval gate is off: this DSH build has no tools/pre-execute event, so in-session prompt rewrites do not ask for approval. See the details.",
         "warn.unresolvableRows": "Some rows cannot be resolved on this DSH line: the platform marks the whole mode broken and silently drops it from the new-session picker. Click Fix for this line — it only turns those rows off and leaves your other choices alone.",
         "warn.presetBroken": "The platform marks this mode broken, so it disappears from the new-session picker — and the \"unresolvable\" check above cannot explain why (usually a row whose service or engine never started). Click Fix for this line to turn those rows off. The host's own reason is in Details.",
         "warn.exclusiveRowsActive": "Both shells are on, and they register the same tool names: the platform marks the whole mode broken and silently drops it from the new-session picker. Turn one of them off — saving from the settings page also resolves it automatically.",
-        "warn.approvalGateMissing.label": "Approval gate is off",
-        "warn.approvalGateMissing.hint": "This DSH build has no tools/pre-execute event, so in-session prompt rewrites do NOT ask for approval. The settings page is unaffected; upgrade DSH or turn the custom_prompt tool row off to restore the gate.",
         "warn.noName": "No name: the mode picker will show the directory id (e.g. custom).",
         "warn.baseCompositionUnavailable": "This DSH line exposes no shipped composition: the base mode and the plugin switches cannot be changed right now (the system prompt is unaffected and still saves). The routes that were tried are in the host log.",
         "history.label": "Change history",
@@ -415,22 +398,19 @@ try {
         "mode.heading": "Base mode",
         "mode.hint": "The base decides the row set and the tool abilities: this mode always replaces the base's persona row with its own reader (complete: false), so the base's prompt semantics are not inherited. A save applies to the next new session; no restart needed.",
         "rows.heading": "Plugin switches",
-        "rows.hint": "Control row by row which plugins this mode mounts, laid out like the official plugin list. Untouched rows keep the official default (platform conditions included); your manual choice wins.",
+        "rows.hint": "Control row by row which plugins this mode mounts. Untouched rows keep the official default (platform conditions included); an explicit choice wins.",
         "prompt.heading": "System prompt",
         "prompt.hint": "This text is re-read before every model call, so a save applies on the next step and only affects sessions on this assistant. \"Import\" reads a file into the editor (nothing is written until you save); \"Export\" saves the current text as a .md file; \"Reset to factory prompt\" puts the shipped template back into the editor (also saved only when you save).",
         "status.enabled": "Enabled",
         "status.disabled": "Disabled",
         "status.changed": "changed",
-        "tag.essential": "core",
+        "tag.essential": "Core",
         "tag.followPlatform": "follows platform",
         "btn.save": "Save",
         "btn.saving": "Working…",
         "btn.reload": "Reload",
         "btn.reloadDiscard": "Discard edits and reload",
         "msg.unsaved": "Unsaved changes",
-        "msg.loading": "Loading…",
-        "msg.notLoaded": "(not loaded)",
-        "msg.reread": "Reloaded",
         "msg.readFailed": "Load failed",
         "msg.saveFailed": "Save failed",
         "msg.saved": "Saved. A new session picks it up; the current one keeps its configuration.",
@@ -490,16 +470,20 @@ try {
         "row.persistent-bash.label": "Persistent bash",
         "row.terminal-pwsh.label": "Terminal (pwsh)",
         "row.persistent-pwsh.label": "Persistent pwsh",
-        "base.standard.label": "Standard",
+        // ★ 与官方选择器逐字一致（实测 `dsh-client-ui-agent-preset` 的英文字典，两版 DSH 同名）：
+        //   官方英文名都带 " mode" 后缀 —— "Standard mode" / "PTC mode" / "Minimal mode" /
+        //   "Creator mode"。本仓此前写成 "Standard" / "PTC" / "Minimal" / "Cordis"，
+        //   与用户在官方模式选择器里看到的同一个模式名对不上。
+        "base.standard.label": "Standard mode",
         "base.standard.note": "Full coding agent: shell, files, search, skills, planning, goals, subagents, workflows",
-        "base.ptc.label": "PTC",
+        "base.ptc.label": "PTC mode",
         "base.ptc.note": "Standard plus PTC tool presentation (tool-presentation)",
-        "base.minimal.label": "Minimal",
+        "base.minimal.label": "Minimal mode",
         "base.minimal.note": "Shell and terminal only, 7 rows; no files, search, skills or subagents. The system prompt is not minimal's either (this mode replaces the persona row)",
-        "base.cordis.label": "Cordis",
+        "base.cordis.label": "Creator mode",
         "base.cordis.note": "Standard plus the Cordis toolset, letting the agent modify its own harness",
-        "base.all.label": "Custom",
-        "base.all.note": "Inherits no single shipped mode: standard's full row list plus the rows only PTC / Minimal / Cordis declare, every one of them switchable"
+        "base.all.label": "Custom mode",
+        "base.all.note": "Inherits no single shipped mode: standard's full row list plus the rows only PTC / Minimal / Creator declare, every one of them switchable"
       }
 
       const TRANSLATIONS = { zh: ZH, en: EN }
@@ -651,12 +635,14 @@ try {
         IconChevronDownOutline14: "IconChevronDownOutlineRegular",
         IconChevronUpOutline14: "IconChevronUpOutlineRegular",
         IconChevronLeftOutline14: "IconChevronLeftOutlineRegular",
+        IconChevronRightOutline14: "IconChevronRightOutlineRegular",
         IconPlusOutline16: "IconPlusOutlineRegular",
         IconCheckOutline14: "IconCheckOutlineRegular",
         IconCopyOutline16: "IconCopyOutlineRegular",
         IconDownloadOutline16: "IconDownloadOutlineRegular",
         IconRefreshOutline16: "IconRefreshOutlineRegular",
         IconTrashOutline16: "IconTrashOutlineRegular",
+        IconWarningOutline14: "IconWarningOutlineRegular",
       }
 
       function withIconAliases(atoms) {
@@ -700,16 +686,20 @@ try {
        */
       const CSS = [
         ".cpfe{--g:8px;display:flex;flex-direction:column;gap:24px;width:100%;max-width:900px;box-sizing:border-box;padding-bottom:16px}",
-        // ★ 区块标题对齐官方设置页的度量（实测 0.1.7-rc.2：区块标题 14px/22px w500，引言 12px/18px
-        //   tertiary）。原来是 15px w700 —— 在官方页面里那看起来就是"另一个产品"。
-        ".cpfe-h{margin:0 0 2px;font-size:14px;line-height:22px;font-weight:500;color:var(--dsw-alias-label-primary)}",
+        // 分节标题：度量抄官方设置面板里的同类文本。
+        // 实测（**0.1.7-rc.2 与 0.2.0-rc.2 各量一次，结论相同**）：官方 `_title`（设置行标题）
+        // 与 `groupTitle`（插件页分组标题）都是 14px/22px **w400**；官方唯一的 14px w500 是插件
+        // 卡片标题（`cardTitle`，行高 20px，形态不同），页级标题则是 16px/24px w500。
+        // 本页是设置面板里的分节，取 w400。
+        // ⚠️ 本仓长期记作「官方区块标题 14px/22px w500」—— 那一条在 2026-10-02 的复量中被证伪。
+        ".cpfe-h{margin:0 0 2px;font-size:14px;line-height:22px;font-weight:400;color:var(--dsw-alias-label-primary)}",
         ".cpfe-sub{margin:0 0 8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         // 区块引言：官方是标题下的一行 12px 灰字 —— 没有折叠按钮，也没有那个蓝色圆点。
         ".cpfe-hint{display:flex;flex-direction:column;gap:2px;margin:0 0 6px}",
         ".cpfe-hint-line{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-hint-detail{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         // 描述：多行、自适应高度（没有多行输入组件，所以用 textarea + 同一批语义变量）
-        ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:200px;resize:vertical;padding:8px 12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
+        ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:200px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
         ".cpfe-base-pending{color:var(--dsw-alias-state-warn-primary)}",
         ".cpfe-note{display:block;margin:8px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-mono{display:block;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
@@ -725,11 +715,11 @@ try {
         ".cpfe-actions{display:flex;flex-wrap:wrap;gap:var(--g);align-items:center;margin-top:4px}",
         ".cpfe-newrow{display:flex;gap:var(--g);align-items:center;flex-wrap:wrap;margin-top:10px}",
         ".cpfe-field{display:flex;width:100%;margin-bottom:8px}",
-        ".cpfe-row-head{font-size:14px;line-height:20px;color:var(--dsw-alias-label-primary)}",
+        ".cpfe-row-head{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
         ".cpfe-row-switch{flex:0 0 auto}",
         ".cpfe-row-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}",
         ".cpfe-row-note{min-height:18px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-        ".cpfe-row-toggle{flex:0 0 auto;width:22px;height:22px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;font-size:12px;line-height:1}",
+        ".cpfe-row-toggle{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}",
         ".cpfe-row-toggle:hover{background:var(--dsw-alias-bg-layer-2)}",
         ".cpfe-row-open{border-color:var(--dsw-alias-border-l2)}",
         ".cpfe-row-detail{display:flex;flex-direction:column;gap:4px;margin:0 0 12px;padding:0 0 0 16px;border:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
@@ -746,10 +736,10 @@ try {
         ".cpfe-line:last-child{border-bottom:0}",
         ".cpfe-group{display:flex;flex-direction:column;min-width:0}",
         ".cpfe-kids{display:flex;flex-direction:column;margin-left:0;padding-left:16px}",
-        ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:0;padding:12px 0;border:0;border-radius:0;background:none}",
+        ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:0;padding:16px 0;border:0;border-radius:0;background:none}",
         ".cpfe-row-meta{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}",
         ".cpfe-row-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;height:18px}",
-        ".cpfe-editor{box-sizing:border-box;width:100%;min-height:240px;resize:vertical;padding:12px;border-radius:10px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:20px}",
+        ".cpfe-editor{box-sizing:border-box;width:100%;min-height:240px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:20px}",
         ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap}",
         ".cpfe-status{font-size:13px;line-height:20px}",
         ".cpfe-ok{color:var(--dsw-alias-label-secondary)}",
@@ -760,12 +750,12 @@ try {
         ".cpfe-version{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);white-space:nowrap}",
         ".cpfe-path{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         // ── fallback-path controls (unused when the shell provides the atoms) ──
-        ".cpfe-btn{appearance:none;cursor:pointer;padding:0 14px;height:32px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
-        ".cpfe-btn:disabled{opacity:.5;cursor:default}",
-        ".cpfe-btn-sm{height:28px;padding:0 10px;font-size:12px}",
+        ".cpfe-btn{appearance:none;cursor:pointer;padding:0 14px;height:36px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px}",
+        ".cpfe-btn:disabled{opacity:.4;cursor:not-allowed}",
+        ".cpfe-btn-sm{height:28px;padding:0 10px;font-size:12px;line-height:18px;border-radius:var(--dsw-radius-sm)}",
         ".cpfe-btn-primary{background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base);border-color:transparent;font-weight:500}",
         ".cpfe-btn-ghost{border-color:transparent;background:transparent}",
-        ".cpfe-input{box-sizing:border-box;width:100%;height:34px;padding:0 12px;border-radius:8px;border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
+        ".cpfe-input{box-sizing:border-box;width:100%;height:36px;padding:0 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
         ".cpfe-switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;line-height:19px;color:var(--dsw-alias-label-primary)}",
         // 忙碌期间禁掉草稿类控件的交互（issue #6）。
         // 状态层已经拦住了改动（`update()` 在 busy 时直接返回），但对**受控组件**来说，
@@ -780,6 +770,26 @@ try {
         ".cpfe-tag-danger{color:var(--dsw-alias-state-error-primary)}",
         ".cpfe-pill{appearance:none;cursor:pointer;height:28px;padding:0 12px;border-radius:999px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px}",
         ".cpfe-pill-on{border-color:var(--dsw-alias-label-primary);color:var(--dsw-alias-label-primary)}",
+        // ── 官方的「设置项下拉」形态 ────────────────────────────────────────────
+        // 实测（**0.1.7-rc.2 与 0.2.0-rc.2 各量一次，结论相同**）：官方的 `_selector` 是
+        //   height 36px · border-radius var(--dsw-radius-md) · background var(--dsw-alias-bg-module-platform)
+        //   · padding 0 14px · font-size 14px/line-height 22px · gap 12px，hover 换
+        //   var(--dsw-alias-interactive-bg-hover)。
+        // 壳的 Button 只有 primary / ghost / outline / toolbar 四种变体，没有"灰底选择器"这一种 ——
+        // 官方各设置页也是**各自定义** `_selector`（oY77xG / hVGvvW / _2XZxNq / T1PP_q 各一份、
+        // 度量完全一致），所以这里照同一套度量自绘，做法与官方一致。
+        // 双类选择器（`.cpfe .cpfe-selector`）用来压过壳 Button 的单类变体规则，
+        // 免得 `_ghost_` / `_sm_` 把灰底和高度覆盖掉。
+        ".cpfe .cpfe-selector{height:36px;padding:0 14px;gap:12px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px;font-weight:400}",
+        ".cpfe .cpfe-selector:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}",
+        // ── 告警区 ──────────────────────────────────────────────────────────────
+        // 这一段此前**一条 CSS 都没有**（2026-10-02 逐表核对：样式表里 `cpfe-warn` 零规则），
+        // 于是出现告警时它是一串没有排版的裸 `<p>`：没有行距、图标与文字不对齐、
+        // 与页面其余部分（12px/18px）的字号也对不上。度量沿用页面其余部分。
+        ".cpfe-warns{display:flex;flex-direction:column;gap:12px}",
+        ".cpfe-warn-row{display:flex;flex-direction:column;gap:6px;align-items:flex-start}",
+        ".cpfe-warn{display:flex;gap:6px;align-items:flex-start;margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-state-warn-primary)}",
+        ".cpfe-warn svg{flex:0 0 auto;margin-top:2px}",
       ].join("")
 
       /** Apply the page stylesheet once, keyed so a re-mount never duplicates it. */
@@ -890,21 +900,21 @@ try {
       }
 
       /**
-       * A section's one-line hint, with the full explanation behind a disclosure.
+       * A section's one-line introduction, sitting under its heading.
        *
-       * The sections used to open with a paragraph each. On a real screen that is a wall of text above the
-       * controls the user came for, and the same "compact line + open on demand" language as the row list keeps
-       * the page scannable without dropping a word of the explanation.
+       * It takes ONE string and renders it as one line — the shape the official settings pages use:
+       * a single 12px/18px tertiary line under the title, with no disclosure control and no bullet.
+       *
+       * It used to take `hint` + `detail` and pick `detail` when present, for a collapsible
+       * introduction that no longer exists. Every caller passed both, so the short form was
+       * **never rendered** — five dictionary entries (`assistant.short`, `name.short`, `mode.short`,
+       * `rows.short`, `prompt.short`) that looked alive in a grep but reached no pixel. Both are gone.
        */
       function SectionHint(props) {
-        const { hint, detail } = props
-        // 官方设置页的区块引言就是标题下的一段 12px 灰字：没有圆点、没有折叠按钮，也**不重复**。
-        // 有完整说明就用完整说明（它是短句的超集），否则用短句 —— 两个都印会在屏幕上出现两遍。
-        const text = typeof detail === "string" && detail !== "" ? detail : hint
         return react.createElement(
           "div",
           { className: "cpfe-hint" },
-          react.createElement("span", { className: "cpfe-hint-line" }, text),
+          react.createElement("span", { className: "cpfe-hint-line" }, props.text),
         )
       }
 
@@ -971,7 +981,12 @@ try {
                     "aria-label": t(open ? "aria.collapse" : "aria.expand"),
                     onClick: () => onToggleExpand(row.id),
                   },
-                  open ? "▾" : "▸",
+                  // 用壳自己的图标，不再手绘 "▸"/"▾" 字符：字符的字形、基线与粗细都随字体走，
+                  // 与官方那一排 14px 线性图标放在一起就是两种东西。壳没提供时退回原字符。
+                  (() => {
+                    const Icon = open ? A.IconChevronDownOutline14 : A.IconChevronRightOutline14
+                    return renderable(Icon) ? react.createElement(Icon, { size: 14 }) : open ? "▾" : "▸"
+                  })(),
                 ),
                 react.createElement(A.Switch, {
                   checked: effective,
@@ -1595,14 +1610,7 @@ try {
           "section",
           null,
           react.createElement("h2", { className: "cpfe-h" }, t("assistant.heading")),
-          react.createElement(SectionHint, {
-                  id: "hint:assistant",
-                  hint: t("assistant.short", t("assistant.hint")),
-                  detail: t("assistant.hint"),
-                  expanded: expandedRows,
-                  onToggleExpand: toggleRowExpanded,
-                  t: t,
-                }),
+                react.createElement(SectionHint, { text: t("assistant.hint") }),
           list === null
             ? react.createElement("p", { className: "cpfe-sub" }, t("assistant.loadingList"))
             : assistants.length === 0
@@ -1627,14 +1635,17 @@ try {
                           A.Button,
                           {
                             variant: "ghost",
-                            size: "sm",
+                            className: "cpfe-selector",
                             disabled: busy,
-                            icon: renderable(A.IconChevronDownOutline14)
-                              ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
-                              : null,
                             onClick: () => setAssistantOpen((open) => open !== true),
                           },
                           (assistants.find((item) => item.id === selected) || {}).name || selected || t("assistant.heading"),
+                          // 官方设置项的下拉是「文字在左、chevron 在右」（实测「通用设置」页的
+                          // 「工作区内修改 / 中文 / 详细」都是这个形态）⇒ 图标放在 children 末尾，
+                          // 不走 `icon` prop —— 那个会渲染到文字**前面**，成为页面上唯一一个反向的下拉。
+                          renderable(A.IconChevronDownOutline14)
+                            ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
+                            : null,
                         ),
                         items: assistants.map((item) => ({
                           id: item.id,
@@ -1651,7 +1662,7 @@ try {
                       })
                     : react.createElement(
                         "div",
-                        { className: "cpfe-pills cpfe-assistants" },
+                        { className: "cpfe-pills" },
                         assistants.map((item) =>
                           react.createElement(
                             "span",
@@ -1725,14 +1736,7 @@ try {
                 "section",
                 { key: "name" },
                 react.createElement("h2", { className: "cpfe-h" }, t("name.heading")),
-                react.createElement(SectionHint, {
-                  id: "hint:name",
-                  hint: t("name.short", t("name.hint")),
-                  detail: t("name.hint"),
-                  expanded: expandedRows,
-                  onToggleExpand: toggleRowExpanded,
-                  t: t,
-                }),
+                react.createElement(SectionHint, { text: t("name.hint") }),
                 react.createElement(A.Input, {
                   className: "cpfe-field",
                   value: draft.name,
@@ -1808,14 +1812,7 @@ try {
                 "section",
                 { key: "mode" },
                 react.createElement("h2", { className: "cpfe-h" }, t("mode.heading")),
-                react.createElement(SectionHint, {
-                  id: "hint:mode",
-                  hint: t("mode.short", t("mode.hint")),
-                  detail: t("mode.hint"),
-                  expanded: expandedRows,
-                  onToggleExpand: toggleRowExpanded,
-                  t: t,
-                }),
+                react.createElement(SectionHint, { text: t("mode.hint") }),
                 // 降级态（本机这条线没有可读的出厂组成）：不给可点的模式药丸，改说一句为什么 ——
                 // 点了也只会拿到一个服务端错误，那比置灰更糟。
                 draft.baseUnavailable !== null
@@ -1851,14 +1848,7 @@ try {
                 "section",
                 { key: "rows" },
                 react.createElement("h2", { className: "cpfe-h" }, t("rows.heading")),
-                react.createElement(SectionHint, {
-                  id: "hint:rows",
-                  hint: t("rows.short", t("rows.hint")),
-                  detail: t("rows.hint"),
-                  expanded: expandedRows,
-                  onToggleExpand: toggleRowExpanded,
-                  t: t,
-                }),
+                react.createElement(SectionHint, { text: t("rows.hint") }),
                 draft.baseUnavailable !== null
                   ? react.createElement("p", { className: "cpfe-note" }, t("rows.unavailable"))
                   : react.createElement(RowList, {
@@ -1934,14 +1924,7 @@ try {
                     }),
                   ),
                 ),
-                react.createElement(SectionHint, {
-                  id: "hint:prompt",
-                  hint: t("prompt.short", t("prompt.hint")),
-                  detail: t("prompt.hint"),
-                  expanded: expandedRows,
-                  onToggleExpand: toggleRowExpanded,
-                  t: t,
-                }),
+                react.createElement(SectionHint, { text: t("prompt.hint") }),
                 react.createElement("textarea", {
                   className: "cpfe-editor",
                   value: draft.prompt,
@@ -1976,11 +1959,8 @@ try {
                               A.Button,
                               {
                                 variant: "ghost",
-                                size: "sm",
+                                className: "cpfe-selector",
                                 disabled: busy,
-                                icon: renderable(A.IconChevronDownOutline14)
-                                  ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
-                                  : null,
                                 onClick: () => setHistoryOpen((open) => open !== true),
                               },
                               draft.historyPick === ""
@@ -1991,6 +1971,9 @@ try {
                                       ? t("history.pick")
                                       : formatWhen(entry.at) + " · " + t("history.by." + entry.by)
                                   })(),
+                              renderable(A.IconChevronDownOutline14)
+                                ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
+                                : null,
                             ),
                             items: draft.history.map((entry) => ({
                               id: String(entry.n),
@@ -2053,7 +2036,17 @@ try {
                   react.createElement(
                     "div",
                     { key: code, className: "cpfe-warn-row" },
-                    react.createElement("p", { className: "cpfe-warn" }, "⚠ " + t("warn." + code)),
+                    react.createElement(
+                      "p",
+                      { className: "cpfe-warn" },
+                      // 图标与文本分成两个节点：文本单独包一层 span，`align-items:flex-start`
+                      // 才能把图标钉在**第一行**，而不是让它在一段多行告警里垂直居中。
+                      // 壳没提供图标时退回原来的 "⚠" 字符。
+                      renderable(A.IconWarningOutline14)
+                        ? react.createElement(A.IconWarningOutline14, { size: 14 })
+                        : "⚠",
+                      react.createElement("span", null, t("warn." + code)),
+                    ),
                     // 平台自己给的那句话（`state.broken`，形如
                     // `tool-workflow (@deepseek-ai/dsh-tool-workflow): waiting for workflowEngine`）。
                     //

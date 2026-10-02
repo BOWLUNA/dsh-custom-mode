@@ -21,11 +21,10 @@ export const zh = {
   // ── 助手管理 ──────────────────────────────────────────────────────────────
   'assistant.heading': '助手',
   'assistant.hint':
-    '每个助手即一个独立模式：独立的系统提示词、基础模式与插件开关。新建会话时在模式选择器中选择。',
+    '每个助手即一个独立模式：独立的系统提示词、基础模式与插件开关。新建会话时在模式选择器中选用。',
   'assistant.empty': '还没有助手，用下面的输入框新建一个。',
   'assistant.loadingList': '正在读取助手列表…',
   'assistant.newPlaceholder': '新助手的名字（例如：写作助手）',
-  'assistant.meta': '标识',
   'assistant.copyName': '「{name}」副本',
   'assistant.broken': '本机无法启动',
   // 带上具体行数：只说「有问题」用户不知道有多严重，也不知道修完会怎样。
@@ -45,7 +44,7 @@ export const zh = {
   'btn.delete': '删除这个助手',
   'btn.cancel': '取消',
   'msg.created': '已创建。现在可以为它写系统提示词。',
-  'msg.duplicated': '已复制。两份从此各改各的。',
+  'msg.duplicated': '已复制。两份配置彼此独立。',
   'msg.deleted': '已删除。',
   'msg.createFailed': '创建失败',
   'msg.deleteFailed': '删除失败',
@@ -61,16 +60,9 @@ export const zh = {
   'api.alreadyLast': '「{name}」已经在最后面。',
   'api.badVariableName': '变量引用的写法不合法：{variable} 里的名字只能用小写字母、数字、下划线，且以字母开头。要写字面量花括号，请用单个左花括号，或不闭合的双左花括号。',
   'api.unknownVariable': '{variable} 不是已注册的变量，渲染会报错并让本模式每个请求都失败。可用：{known}。',
-  'assistant.short': '每个助手是一个独立模式：自己的系统提示词、基础模式与插件开关。',
-  'name.short': '改名只影响显示，内部标识与已有会话不受影响。',
-  'mode.short': '底子决定「行集合」与工具能力；persona 行始终由本模式替换。',
   'mode.unavailable': '本机这条 DSH 线没有可读的出厂组成，基础模式暂时不能切换。',
   'rows.unavailable': '出厂组成取不到，插件开关暂时不能编辑；磁盘上原有的行状态仍然生效。',
-  'mode.pendingRows': '底子已改为「{mode}」：保存后，下面的行列表会按新底子重算。',
-  'rows.short': '逐行控制挂载哪些插件；没拨过的行保持官方默认。',
-  'prompt.short': '这段文本就是本模式的系统提示词，保存后下一步生效。',
-  'aria.expandHint': '展开完整说明',
-  'aria.collapseHint': '收起完整说明',
+  'mode.pendingRows': '基础模式已改为「{mode}」：保存后，下面的行列表会按新的基础模式重算。',
   'aria.expand': '展开详情',
   'aria.collapse': '收起详情',
   'detail.id': '行 id',
@@ -91,7 +83,7 @@ export const zh = {
   'api.saved': '已保存（{name}，基础模式 {mode}）。新建会话即生效，当前会话保持原配置。',
   'api.savedWithExclusiveRows': '已保存（{name}，基础模式 {mode}）。两套壳注册同名工具、不能同时启用 —— 已自动关掉：{rows}。新建会话即生效，当前会话保持原配置。',
   'api.created': '已创建「{name}」。现在可以为它写系统提示词。',
-  'api.duplicated': '已复制自「{from}」。两份从此各改各的。',
+  'api.duplicated': '已复制自「{from}」。两份配置彼此独立。',
   'api.deleted': '已删除「{name}」。正在使用它的会话不受影响；新建会话时它不再出现。',
   'api.reordered': '顺序已保存：新建会话时的模式选择器按这个顺序排列。',
   'api.nameRequired': '请先给新助手起个名字。',
@@ -125,9 +117,7 @@ export const zh = {
   'warn.presetBroken': '平台判这个模式为 broken，它会从新会话的选择器里消失 —— 而上面的「无法解析」检查解释不了原因（多半是某一行依赖的服务没起来）。点下方「按本线修复」把那几行关掉；平台自己给的原因见下面那行。',
   'warn.exclusiveRowsActive': '两条互斥的壳同时开着（它们注册同名工具），平台会判整个模式为 broken 并从新会话的选择器里丢掉。关掉其中一条即可；在设置页保存一次也会自动避让。',
   'warn.baseCompositionUnavailable': '取不到本机这条 DSH 线的出厂组成：基础模式与插件开关暂时不能改（系统提示词不受影响，照常可保存）。已尝试的途径写在宿主日志里。',
-  'warn.approvalGateMissing.label': '审批闸门未启用',
-  'warn.approvalGateMissing.hint': '这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。设置页不受影响；要恢复保护请升级 DSH，或把「custom_prompt 工具」那一行关掉。',
-  'warn.personaOffWithPrompt': '「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 你写的提示词现在不起作用。要么打开这一行，要么清空提示词。',
+  'warn.personaOffWithPrompt': '「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 所写的提示词不会生效。打开这一行，或清空提示词。',
   'warn.toolOff': '「custom_prompt 工具」这一行是关的：会话里无法让 agent 改提示词，只能在本页改。',
   'warn.noDescription': '没有描述：新建会话的模式选择器里会显示成「暂无描述」。',
   'warn.noName': '没有名字：模式选择器里会显示成目录 id（例如 custom）。',
@@ -155,10 +145,10 @@ export const zh = {
   'name.descriptionPlaceholder': '模式描述（显示在模式选择器里，可留空）',
 
   'mode.heading': '基础模式',
-  'mode.hint': '底子只决定「行集合」与工具能力：本模式的身份行始终替换底子那一行（提示词由你编辑，complete: false），底子的提示语语义不继承。保存后新建会话即生效，无需重启。',
+  'mode.hint': '基础模式只决定行集合与工具能力：本模式的身份行始终替换基础模式的那一行（提示词由本页编辑，complete: false），不继承其提示语语义。保存后新建会话即生效，无需重启。',
 
   'rows.heading': '插件开关',
-  'rows.hint': '逐行控制本模式挂载的插件。未拨动的行保持官方默认（含平台判断）；手动拨动后以你的为准。',
+  'rows.hint': '逐行控制本模式挂载的插件。未改动的行保持官方默认（含平台判断）；手动设置后以手动值为准。',
 
   'prompt.heading': '系统提示词',
   'prompt.hint':
@@ -176,9 +166,6 @@ export const zh = {
   'btn.reloadDiscard': '放弃修改并重新读取',
 
   'msg.unsaved': '有未保存的修改',
-  'msg.loading': '正在读取…',
-  'msg.notLoaded': '（尚未读取）',
-  'msg.reread': '已重新读取',
   'msg.readFailed': '读取失败',
   'msg.saveFailed': '保存失败',
   'msg.saved': '已保存。新建会话即生效，当前会话保持原配置。',
@@ -244,13 +231,19 @@ export const zh = {
   'row.persistent-pwsh.label': '持久 pwsh',
 
   // ── base mode labels ──────────────────────────────────────────────────────
+  // ★ 名字与官方界面逐字一致。实测 `dsh-client-ui-agent-preset` 的词典
+  //   （0.1.7-rc.2 与 0.2.0-rc.2 同名）：standard「标准模式」/ ptc「PTC 模式」/
+  //   minimal「极简模式」/ cordis「**创造模式**」（英文 `Creator mode`）。
+  //   「Cordis」在官方用语里是技术名（Cordis 插件 / Cordis 运行时），不是模式名；
+  //   本仓此前把 cordis 写「Cordis 模式」，而同一份词典的 `base.all.note` 又写「创造模式」——
+  //   同一个模式在一页里有两个名字。英文侧四个名字此前都缺官方的 " mode" 后缀。
   'base.standard.label': '标准模式',
   'base.standard.note': '完整编码能力：Shell、文件、检索、技能、计划、目标、子代理、工作流',
   'base.ptc.label': 'PTC 模式',
   'base.ptc.note': '在标准模式基础上启用 PTC 工具呈现（tool-presentation）',
   'base.minimal.label': '极简模式',
   'base.minimal.note': '只有 Shell 与终端，共 7 行；没有文件、检索、技能、子代理。系统提示词不是极简那一套（persona 行被本模式替换）',
-  'base.cordis.label': 'Cordis 模式',
+  'base.cordis.label': '创造模式',
   'base.cordis.note': '标准模式 + 读写运行时的 Cordis 工具集，可让 agent 自己改 harness',
   'base.all.label': '自定义模式',
   'base.all.note': '不继承任何单一原生模式：以标准模式的全套行为底，补上只有 PTC / 极简 / 创造模式才有的行，全部都能逐行开关',
@@ -267,7 +260,6 @@ export const en = {
   'assistant.empty': 'No assistants yet — create one with the field below.',
   'assistant.loadingList': 'Loading assistants…',
   'assistant.newPlaceholder': 'Name of the new assistant (e.g. Writing assistant)',
-  'assistant.meta': 'ID',
   'assistant.copyName': '{name} (copy)',
   'assistant.broken': 'Will not start here',
   'assistant.brokenRows': '{count} row(s) unusable here',
@@ -301,16 +293,9 @@ export const en = {
   'api.alreadyLast': '{name} is already last.',
   'api.badVariableName': '{variable} is not a valid variable reference: names may use lower-case letters, digits and underscores, and must start with a letter. For a literal brace, use a single opening brace or an unclosed double brace.',
   'api.unknownVariable': '{variable} is not a registered variable — rendering would fail every request in this mode. Available: {known}.',
-  'assistant.short': 'Each assistant is its own mode: its own system prompt, base mode and plugin switches.',
-  'name.short': 'Renaming only changes what is displayed — not the internal id or existing sessions.',
-  'mode.short': 'The base decides the row set and tool abilities; the persona row is always replaced by this mode.',
   'mode.unavailable': 'This DSH line exposes no readable shipped composition, so the base mode cannot be switched right now.',
   'rows.unavailable': 'No shipped composition is available, so the plugin switches cannot be edited right now; the row states already on disk still apply.',
-  'mode.pendingRows': 'Base changed to {mode}: the row list below is recomputed from the new base when you save.',
-  'rows.short': 'Control which plugins this mode mounts, row by row; untouched rows keep the shipped default.',
-  'prompt.short': 'Saving this text makes it the system prompt of this mode, and it takes effect on the next step.',
-  'aria.expandHint': 'Show the full explanation',
-  'aria.collapseHint': 'Hide the full explanation',
+  'mode.pendingRows': 'Base mode changed to {mode}: the row list below is recomputed from it when you save.',
   'aria.expand': 'Show details',
   'aria.collapse': 'Hide details',
   'detail.id': 'Row id',
@@ -360,15 +345,13 @@ export const en = {
   'api.badJson': 'The request body is not valid JSON',
   'api.savedPromptOnly': 'System prompt saved (this machine exposes no shipped composition, so the plugin switches and the base mode were left untouched).',
   'api.baseCompositionUnavailable': 'No shipped composition for base mode "{mode}" on this machine, so its plugin switches and base mode cannot be changed (the system prompt can still be saved on its own).',
-  'warn.personaOffWithPrompt': 'The "Identity (system prompt)" row is off, so prompt.md is never injected — the prompt you wrote has no effect. Turn the row on, or clear the prompt.',
+  'warn.personaOffWithPrompt': 'The "Identity (system prompt)" row is off, so prompt.md is never injected — the prompt being edited has no effect. Turn the row on, or clear the prompt.',
   'warn.toolOff': 'The "custom_prompt tool" row is off: the agent cannot change the prompt from inside a session, only this page can.',
   'warn.noDescription': 'No description: the new-session mode picker will show it as "no description yet".',
   'warn.approvalGateMissing': 'The approval gate is off: this DSH build has no tools/pre-execute event, so in-session prompt rewrites do not ask for approval. See the details.',
   'warn.unresolvableRows': 'Some rows cannot be resolved on this DSH line: the platform marks the whole mode broken and silently drops it from the new-session picker. Click Fix for this line — it only turns those rows off and leaves your other choices alone.',
   'warn.presetBroken': 'The platform marks this mode broken, so it disappears from the new-session picker — and the "unresolvable" check above cannot explain why (usually a row whose service or engine never started). Click Fix for this line to turn those rows off. The host\'s own reason is in Details.',
   'warn.exclusiveRowsActive': 'Both shells are on, and they register the same tool names: the platform marks the whole mode broken and silently drops it from the new-session picker. Turn one of them off — saving from the settings page also resolves it automatically.',
-  'warn.approvalGateMissing.label': 'Approval gate is off',
-  'warn.approvalGateMissing.hint': 'This DSH build has no tools/pre-execute event, so in-session prompt rewrites do NOT ask for approval. The settings page is unaffected; upgrade DSH or turn the custom_prompt tool row off to restore the gate.',
   'warn.noName': 'No name: the mode picker will show the directory id (e.g. custom).',
   'warn.baseCompositionUnavailable': 'This DSH line exposes no shipped composition: the base mode and the plugin switches cannot be changed right now (the system prompt is unaffected and still saves). The routes that were tried are in the host log.',
   'history.label': 'Change history',
@@ -401,7 +384,7 @@ export const en = {
 
   'rows.heading': 'Plugin switches',
   'rows.hint':
-    'Control row by row which plugins this mode mounts, laid out like the official plugin list. Untouched rows keep the official default (platform conditions included); your manual choice wins.',
+    'Control row by row which plugins this mode mounts. Untouched rows keep the official default (platform conditions included); an explicit choice wins.',
 
   'prompt.heading': 'System prompt',
   'prompt.hint':
@@ -410,7 +393,7 @@ export const en = {
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',
   'status.changed': 'changed',
-  'tag.essential': 'core',
+  'tag.essential': 'Core',
   'tag.followPlatform': 'follows platform',
 
   'btn.save': 'Save',
@@ -419,9 +402,6 @@ export const en = {
   'btn.reloadDiscard': 'Discard edits and reload',
 
   'msg.unsaved': 'Unsaved changes',
-  'msg.loading': 'Loading…',
-  'msg.notLoaded': '(not loaded)',
-  'msg.reread': 'Reloaded',
   'msg.readFailed': 'Load failed',
   'msg.saveFailed': 'Save failed',
   'msg.saved': 'Saved. A new session picks it up; the current one keeps its configuration.',
@@ -485,14 +465,14 @@ export const en = {
   'row.persistent-pwsh.label': 'Persistent pwsh',
 
   // ── base mode labels ──────────────────────────────────────────────────────
-  'base.standard.label': 'Standard',
+  'base.standard.label': 'Standard mode',
   'base.standard.note': 'Full coding agent: shell, files, search, skills, planning, goals, subagents, workflows',
-  'base.ptc.label': 'PTC',
+  'base.ptc.label': 'PTC mode',
   'base.ptc.note': 'Standard plus PTC tool presentation (tool-presentation)',
-  'base.minimal.label': 'Minimal',
+  'base.minimal.label': 'Minimal mode',
   'base.minimal.note': 'Shell and terminal only, 7 rows; no files, search, skills or subagents. The system prompt is not minimal\'s either (this mode replaces the persona row)',
-  'base.cordis.label': 'Cordis',
+  'base.cordis.label': 'Creator mode',
   'base.cordis.note': 'Standard plus the Cordis toolset, letting the agent modify its own harness',
-  'base.all.label': 'Custom',
-  'base.all.note': "Inherits no single shipped mode: standard's full row list plus the rows only PTC / Minimal / Cordis declare, every one of them switchable",
+  'base.all.label': 'Custom mode',
+  'base.all.note': "Inherits no single shipped mode: standard's full row list plus the rows only PTC / Minimal / Creator declare, every one of them switchable",
 }

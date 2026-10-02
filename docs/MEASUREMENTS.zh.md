@@ -1877,3 +1877,62 @@ GET /api/custom-mode → custom: OK        （第二个助手仍是 broken，它
 
 **6. 五张截图全部重拍** —— `02-plugin-switches.png` 是能看到变化的那张（行高统一的 66px、分隔线均匀），
 `01-mode-switch.png` 能看到五个基础模式药丸与统一后的说明字号。
+
+## 36. 复量原生度量：两条既有断言被证伪，随之修掉三个缺陷（2026-10-02）
+
+§35 已经对着原生 UI 量过一轮。本轮**复量**（起因：用户要求「字体、UI 样式、格式都要符合原生」），
+做法是在**两条支持线上各起一台干净实例**，把官方设置页与我们的页面放进**同一个浏览器**里逐元素读
+`getComputedStyle` + `getBoundingClientRect`。两侧读数一致。
+
+### 1. 原始读数
+
+```
+官方 `_row`（设置行）      padding 16px/0/16px/0 · border-bottom 1px solid · radius 0 · 带描述时 h 77px
+官方 `_title`（行标题）    font-size 14px · line-height 22px · font-weight 400
+官方 `groupTitle`（分组）  font-size 14px · line-height 22px · font-weight 400
+官方 `_selector`（下拉）   h 36px · radius 12px · bg var(--dsw-alias-bg-module-platform) ·
+                          padding 0 14px · font-size 14px · line-height 22px · gap 12px · 文字在前
+官方 `input`（内置插件）   h 36px · radius 12px
+官方 `cardTitle`（卡片）   font-size 14px · line-height 20px · font-weight 500
+官方 `cardDescription`     font-size 12px · line-height 18px · white-space normal · h 36px（两行）
+```
+
+### 2. 两条断言被证伪
+
+**① 「区块标题 14px/22px w500」→ 官方是 w400。** `AGENTS.md` #13、§29、§35 都写着 w500。
+在两个版本上各量一次，官方的 `_title` 与 `groupTitle` **都是 400**；官方唯一的 14px w500 是插件
+**卡片**标题（行高 20px，形态不同），页级标题则是 16px/24px w500。已改成 400。
+
+**② 「行内边距 12px」→ 官方设置行是 16px。** §35 当年**有意**把它从 16px 改成 12px，理由是把行高从 76px
+压到 66px（"原生卡片 83px 却装两行描述"）。但那个比较对象是**卡片**（`cardContent` padding 12px 14px），
+而我们的行是**设置行**形态（1px 分隔线、左标题右控件）。更要紧的是：§35 里"行高在 66–84 之间浮动"的
+**根因**是 `.cpfe-row-note` 缺 `white-space:nowrap`，而它已在同一轮被单独修掉 ——
+降 padding 治的是已经不存在的病。改回 16px 后，带描述的行是 **77px**，与官方设置行**同高**。
+
+### 3. 由此修掉的三个缺陷
+
+- **告警区没有任何 CSS。** `.cpfe-warns` / `.cpfe-warn-row` / `.cpfe-warn` 三个类在样式表里
+  **零规则**（逐表遍历返回 `[]`），所有告警此前都是一串没有排版的裸 `<p>`。已补 12px/18px、
+  `gap 6px`、壳的 `IconWarningOutlineRegular` 14×14，并与首行文字顶部对齐（实测偏移 2px）。
+- **下拉不是官方形态。** 用的是壳 Button 的 `ghost` + `size:"sm"`（28px / 透明底 / 12px 字 / radius 8px），
+  且 chevron 落在文字**前**。官方是 36px / radius-md / 灰底 / 14px 字 / chevron 在**后**。
+  已照官方度量自绘（`.cpfe-selector`）—— 做法与官方一致：官方各设置页也是**各自定义** `_selector`
+  （四个页面四份、度量完全一致），壳的 Button 并没有这一种变体。
+- **输入框圆角不统一。** input / desc / editor 分别是 8px / 10px / 10px，官方无论选择器还是输入框都用
+  `--dsw-radius-md`(12px)。已统一。
+
+### 4. 术语、文案与门禁
+
+- **`cordis` 模式在官方叫「创造模式」（英文 `Creator mode`）。** 实测 `dsh-client-ui-agent-preset`
+  的词典：`presetCordisName: "创造模式"` / `"Creator mode"`（两版同名）。本仓此前把药丸写成
+  「Cordis 模式」、而同一份词典的 `base.all.note` 又写「创造模式」—— 同一个模式在一页里有两个名字。
+  英文侧四个名字（Standard / PTC / Minimal / Cordis）此前都缺官方的 " mode" 后缀，一并补齐。
+- 删掉三个**死词条**（`assistant.meta`、`aria.expandHint`、`aria.collapseHint`）：它们只出现在词典里，
+  从未被任何调用点引用（`aria.*Hint` 是已移除的"折叠引言"的遗留）。
+- `SectionHint` 的五个调用点此前都多传 `id` / `expanded` / `onToggleExpand` / `t` —— 四个它**不读**的 prop。
+- 一条**不准确的表述**：`rows.hint` 的英文版说行列表 "laid out like the official plugin list"，
+  而实测官方插件页是**2 列卡片网格**（`grid-template-columns: 274.5px 274.5px`）、描述**两行可换行**，
+  与我们的单列分隔线列表不是一回事。该从句已删。
+- 渲染闸门 **70 → 74**，新增四条：下拉的官方形态、chevron 在文字之后、**告警区在样式表里有规则**、
+  行标题 14px/22px。两条被证伪的断言改到实测值。两条线各跑一次：
+  `0.2.0-rc.2` 与 `0.1.7-rc.2` 均 **74 通过 / 0 失败**。

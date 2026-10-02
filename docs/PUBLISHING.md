@@ -390,8 +390,8 @@ holding `manifest.json` plus the five files under `preset/`. The manifest fields
   "format": "dsh-preset",
   "version": 1,
   "id": "custom",
-  "name": "自定义模式 / Custom mode",
-  "description": "one line, matching the README",
+  "name": "自定义模式",
+  "description": "",
   "sourceDshVersion": "the dsh version this release adapts to",
   "exportedAt": "ISO timestamp"
 }
@@ -406,8 +406,8 @@ import json, zipfile, datetime, os
 FILES = ['agent.cordis.yml', 'preset.yml', 'prompt.md', 'prompt-reader.mjs', 'prompt-tool.mjs']
 manifest = {
     'format': 'dsh-preset', 'version': 1, 'id': 'custom',
-    'name': '自定义模式 / Custom mode',
-    'description': '<one line, matching the README>',
+    'name': '自定义模式',
+    'description': '',
     'sourceDshVersion': '<the dsh version this release adapts to>',
     'exportedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
 }

@@ -20,7 +20,7 @@ longer encodes it. Development and verification cover the rows below, newest fir
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `1.11.5` (current release) | `0.2.0-rc.2` (npm `latest` **and** `next`) **and** the previous stable `0.1.7-rc.2` | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0 \|\| >=0.2.0-0 <0.3.0-0`, and CI installs and runs the whole suite against both lines (the render gate runs on `0.2.0-rc.2`). The official desktop app is covered: it is version-locked to dsh and currently ships `0.2.0-rc.2`. Since dsh 0.2.0 an out-of-range plugin is **refused at install time**, so this range is enforcement rather than a warning |
+| `1.11.6` (current release) | `0.2.0-rc.2` (npm `latest` **and** `next`) **and** the previous stable `0.1.7-rc.2` | **Supported** — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0 \|\| >=0.2.0-0 <0.3.0-0`, and CI installs and runs the whole suite against both lines (the render gate runs on `0.2.0-rc.2`). The official desktop app is covered: it is version-locked to dsh and currently ships `0.2.0-rc.2`. Since dsh 0.2.0 an out-of-range plugin is **refused at install time**, so this range is enforcement rather than a warning |
 | `1.9.19` | the same range | Supported (superseded) |
 | `1.9.17` | the same | Supported (superseded) |
 | `1.9.16` | the same | Supported (superseded) |

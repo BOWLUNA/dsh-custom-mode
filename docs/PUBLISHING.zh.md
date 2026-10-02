@@ -365,8 +365,8 @@ git push origin main && git push origin v0.1.6-alpha.2
   "format": "dsh-preset",
   "version": 1,
   "id": "custom",
-  "name": "自定义模式 / Custom mode",
-  "description": "一句话描述，与 README 一致",
+  "name": "自定义模式",
+  "description": "",
   "sourceDshVersion": "本次适配的 dsh 版本",
   "exportedAt": "ISO 时间戳"
 }
@@ -380,8 +380,8 @@ import json, zipfile, datetime, os
 FILES = ['agent.cordis.yml', 'preset.yml', 'prompt.md', 'prompt-reader.mjs', 'prompt-tool.mjs']
 manifest = {
     'format': 'dsh-preset', 'version': 1, 'id': 'custom',
-    'name': '自定义模式 / Custom mode',
-    'description': '<与 README 一致的一句话>',
+    'name': '自定义模式',
+    'description': '',
     'sourceDshVersion': '<本次适配的 dsh 版本>',
     'exportedAt': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
 }

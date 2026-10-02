@@ -31,7 +31,7 @@ import { writeFileSync } from 'node:fs'
 import { connect } from './screenshots/cdp.mjs'
 
 // 记在 README 里的“浏览器 N 项”必须是实测的：这里把它变成断言，改了检查却忘了改文档会失败。
-const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 70)
+const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 74)
 
 const argv = process.argv.slice(2)
 const arg = (name, fallback) => {
@@ -570,7 +570,10 @@ try {
     await clickButton('保存')
     await session.sleep(2800)
     const warningsOff = await warningLines()
-    check('关掉身份行 → 主动点名「提示词不生效」', warningsOff.some((line) => line.includes('不起作用')), JSON.stringify(warningsOff))
+    // ★ 判据不绑死润色：`prompt.md` 是技术标识、不会因文案打磨而变；
+    //   语义那半个锚点取一组同义写法 —— 只钉一个词，改一次文案就得改一次断言。
+    const aboutInactivePrompt = (line) => line.includes('prompt.md') && /不.{0,3}生效|不起作用|无效/.test(line)
+    check('关掉身份行 → 主动点名「提示词不生效」', warningsOff.some(aboutInactivePrompt), JSON.stringify(warningsOff))
 
     check('点得到身份行的开关（恢复）', (await togglePersonaRow(true)) === 'ok')
     await clickButton('保存')
@@ -595,7 +598,7 @@ try {
       check('点了另一个底子后出现"保存后重算"的提示', typeof hint === 'string' && hint.length > 0, `${JSON.stringify(clicked)} → ${JSON.stringify(hint)}`)
       // 换回去（不保存），后面的检查仍按原底子跑。
       await session.evaluate(`(() => {
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard mode)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return true;
       })()`)
@@ -610,7 +613,9 @@ try {
     // 这里补的是**页面**上独有的两个事实：药丸渲染出来了、它的说明走的是词典而不是裸 id。
     // 不点保存 —— 那会把助手的底子留在并集上，让同一个实例的后续运行从不同状态起步。
     {
-      const PILLS = ['标准模式', 'PTC 模式', '极简模式', 'Cordis 模式', '自定义模式']
+      // 名字与官方界面逐字一致（实测 `dsh-client-ui-agent-preset` 的词典）：
+      // cordis 这个模式在官方叫「创造模式」，不是「Cordis 模式」。
+      const PILLS = ['标准模式', 'PTC 模式', '极简模式', '创造模式', '自定义模式']
       const pills = await session.evaluate(
         `[...document.querySelectorAll('.cpfe-pills *')].map((e) => (e.textContent || '').trim()).filter((t) => t !== '')`,
       )
@@ -628,7 +633,7 @@ try {
       check('第五个底子的说明来自词典（不是裸 id）', /不继承任何单一原生模式/.test(note), note.slice(0, 140))
       // 换回标准模式（不保存），后面的截图与断言仍按原状态跑。
       await session.evaluate(`(() => {
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard mode)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return true;
       })()`)
@@ -641,8 +646,13 @@ try {
     //  1. 原子库探测写错（`typeof atoms.Button === "function"`，而壳的组件是 forwardRef 对象），
     //     于是整页退化成手绘控件；
     //  2. 我们自己的 CSS 用了另一套度量（15px w700 的标题、圆角卡片行、带圆点的折叠说明）。
-    // 这里把**官方实测值**写成断言，防止再次漂移（实测环境：0.1.7-rc.2，通用设置页的区块标题
-    // 14px/22px w500、引言 12px/18px tertiary、行 padding 16px 0 且只有一条 1px 分隔线）。
+    // 这里把**官方实测值**写成断言，防止再次漂移。
+    // ★ 2026-10-02 复量（在 **0.1.7-rc.2 与 0.2.0-rc.2 上各自独立量一次，两边结论相同**）：
+    //   官方 `_title`（设置行标题）与 `groupTitle`（插件页分组标题）都是 **14px/22px w400**；
+    //   引言 12px/18px tertiary；设置行 `padding: 16px 0` + 一条 1px 分隔线；
+    //   设置项下拉 36px 高 / radius-md(12px) / 底 `--dsw-alias-bg-module-platform`、chevron 在文字之后。
+    //   ⚠️ 此前这里记的是「区块标题 14px/22px **w500**」、行内边距写成 12px —— **两条都被这次复量证伪**，
+    //   各留一条断言在下面（改标准必须有实测依据，这两次改动就是）。
     const officialFacts = await session.evaluate(`(() => {
       const root = getComputedStyle(document.body);
       const token = (name) => root.getPropertyValue(name).trim();
@@ -663,8 +673,10 @@ try {
       };
     })()`)
     check(
-      '区块标题用官方度量（14px/22px/500）',
-      officialFacts.heads.length >= 4 && officialFacts.heads.every((f) => f === '14px/22px/500'),
+      // 官方同位置是 **w400**：0.1.7-rc.2 与 0.2.0-rc.2 的 `_title` / `groupTitle` 都是 14px/22px w400。
+      // 官方唯一的 14px w500 是插件卡片标题（`cardTitle`，行高 20px），页级标题则是 16px/24px w500。
+      '区块标题用官方度量（14px/22px/400）',
+      officialFacts.heads.length >= 4 && officialFacts.heads.every((f) => f === '14px/22px/400'),
       JSON.stringify(officialFacts.heads),
     )
     check(
@@ -704,9 +716,13 @@ try {
         const cs = getComputedStyle(r);
         return cs.borderTopLeftRadius === '0px' && (cs.backgroundColor === 'rgba(0, 0, 0, 0)' || cs.backgroundColor === 'transparent');
       }).length;
-      const padded = rows.filter((r) => getComputedStyle(r).paddingTop === '12px' && getComputedStyle(r).paddingBottom === '12px').length;
+      const padded = rows.filter((r) => getComputedStyle(r).paddingTop === '16px' && getComputedStyle(r).paddingBottom === '16px').length;
       // 说明行**必须是不换行 + 省略号**：换行会让"有一行说明"的行比"没有说明"的高，行高就不齐 ——
-      // 那正是用户反馈的"各行间距都不一致"。原生插件页也是这么做的（实测标题 14/20、描述单行省略）。
+      // 那正是用户反馈的"各行间距都不一致"。
+      // ⚠️ 这**不是**在模仿官方插件页：实测官方的插件卡片描述是**两行且可换行**（cardDescription
+      //    12px/18px、高 36px、white-space:normal + overflow:hidden 裁掉第三行起）。
+      //    我们这里是 40 行、带 1px 分隔线的列表，一行截断是为了让所有行等高。
+      //    旧注释写"原生插件页同款"是**不准确**的，2026-10-02 复量时订正。
       const single = rows.every((r) => {
         const note = r.querySelector('.cpfe-row-note');
         return note === null || getComputedStyle(note).whiteSpace === 'nowrap';
@@ -719,15 +735,21 @@ try {
         const cs = getComputedStyle(el);
         return cs.borderBottomWidth === '1px' && cs.borderBottomStyle === 'solid';
       }).length;
+      const headEl = rows.length === 0 ? null : rows[0].querySelector('.cpfe-row-head');
+      const headStyle = headEl === null ? null : getComputedStyle(headEl);
       return {
         count: rows.length, min: Math.min(...heights), max: Math.max(...heights), overflowing,
         flat, padded, switches, checkboxes, dividers, single, titled,
+        // 行标题的度量：官方**设置行**的标题是 14px/22px（_title；0.1.7-rc.2 与 0.2.0-rc.2 同值）。
+        // 1.11.x 用的是 14px/**20px**（那是官方插件**卡片**标题 cardTitle 的行高，不是设置行的）。
+        headFont: headStyle === null ? null : headStyle.fontSize + '/' + headStyle.lineHeight,
       };
     })()`)
     check('插件行渲染出来了', rowFacts.count > 10, JSON.stringify(rowFacts))
     check('行是扁平的（无圆角、无卡片底色）—— 官方设置行的形态', rowFacts.flat === rowFacts.count, JSON.stringify(rowFacts))
-    check('行用官方内边距 12px 0', rowFacts.padded === rowFacts.count, JSON.stringify(rowFacts))
-    check('说明行不换行（行高因此整齐；原生插件页同款）', rowFacts.single === true, JSON.stringify({ single: rowFacts.single }))
+    check('行用官方内边距 16px 0', rowFacts.padded === rowFacts.count, JSON.stringify(rowFacts))
+    check('行标题用官方设置行的度量（14px/22px）', rowFacts.headFont === '14px/22px', JSON.stringify({ headFont: rowFacts.headFont }))
+    check('说明行不换行（行高因此整齐）', rowFacts.single === true, JSON.stringify({ single: rowFacts.single }))
     check('被省略的说明带 title（截断了也读得到）', rowFacts.titled === true, JSON.stringify({ titled: rowFacts.titled }))
     check('行间是 1px 分隔线而不是卡片描边', rowFacts.dividers > 0, JSON.stringify({ dividers: rowFacts.dividers, rows: rowFacts.count }))
     // 官方设置行的高度由内容决定（标签一行 + 说明一到两行），所以**不是**等高的 —— 实测官方
@@ -745,6 +767,81 @@ try {
       '行开关是壳自己的控件（[role=switch]，没有手绘 checkbox）',
       rowFacts.switches >= rowFacts.count && rowFacts.checkboxes === 0,
       JSON.stringify({ switches: rowFacts.switches, checkboxes: rowFacts.checkboxes, rows: rowFacts.count }),
+    )
+
+    // ★ 2026-10-02 新增：设置项下拉必须是**官方的形态**。
+    //   实测官方 `_selector`（0.1.7-rc.2 与 0.2.0-rc.2 一致）：高 36px、圆角 radius-md(12px)、
+    //   底色 `--dsw-alias-bg-module-platform`（暗色下 rgb(53,54,56)）、字号 14px、左右内边距 14px、
+    //   chevron 在**文字之后**。1.11.x 用的是壳 Button 的 `ghost` + `size:"sm"`
+    //   （28px / 透明底 / 12px 字 / 圆角 8px / chevron 在文字**前**）—— 那是官方从没用过的组合，
+    //   也是"与官方差别过大"的一部分，所以要有回归防线。
+    const selectorFacts = await session.evaluate(`(() => {
+      const root = getComputedStyle(document.body);
+      // token 值写作 #353638，而 computed style 交回 rgb(53, 54, 56) —— 先归一化再比，
+      // 否则这条断言永远红：同一个颜色的两种写法，比不出差别来。
+      const probe = document.createElement('div');
+      document.body.appendChild(probe);
+      const toRgb = (value) => { probe.style.color = ''; probe.style.color = value; return getComputedStyle(probe).color; };
+      const wanted = toRgb(root.getPropertyValue('--dsw-alias-bg-module-platform').trim());
+      probe.remove();
+
+      const btns = [...document.querySelectorAll('.cpfe-selector')];
+      if (btns.length === 0) return { count: 0, wanted };
+      const btn = btns[0];
+      const cs = getComputedStyle(btn);
+      const rect = btn.getBoundingClientRect();
+      const svgs = [...btn.querySelectorAll('svg')];
+      const last = svgs.length === 0 ? null : svgs[svgs.length - 1];
+      return {
+        count: btns.length,
+        height: Math.round(rect.height),
+        radius: cs.borderTopLeftRadius,
+        radiusMd: root.getPropertyValue('--dsw-radius-md').trim(),
+        background: cs.backgroundColor,
+        wanted: wanted,
+        fontSize: cs.fontSize,
+        padLeft: cs.paddingLeft,
+        // 几何判据，不绑 DOM 结构：chevron 的左边缘落在按钮中线右侧 ⇒ 它在文字**之后**。
+        chevronAfterText: last === null ? null : last.getBoundingClientRect().left - rect.left > rect.width * 0.5,
+      };
+    })()`)
+    check(
+      '设置项下拉用官方形态（36px / radius-md / 灰底 / 14px 字 / 内边距 14px）',
+      selectorFacts.count >= 1 &&
+        selectorFacts.height === 36 &&
+        selectorFacts.radius === selectorFacts.radiusMd &&
+        selectorFacts.background === selectorFacts.wanted &&
+        selectorFacts.fontSize === '14px' &&
+        selectorFacts.padLeft === '14px',
+      JSON.stringify(selectorFacts),
+    )
+    check(
+      '下拉的 chevron 在文字之后（官方形态，不是唯一一个反向的下拉）',
+      selectorFacts.chevronAfterText === true,
+      JSON.stringify({ chevronAfterText: selectorFacts.chevronAfterText }),
+    )
+
+    // ★ 2026-10-02 新增：告警区必须有样式。
+    //   此前 `.cpfe-warns` / `.cpfe-warn-row` / `.cpfe-warn` 三个类**一条 CSS 规则都没有**
+    //   （逐张样式表核对确认），于是告警一出现就是一串没有排版的裸 `<p>`：
+    //   没有行距、图标与文字不齐、字号与页面其余部分也对不上。
+    //   这条断言直接问样式表，因此不依赖"此刻屏幕上恰好有告警"。
+    const warnSelectors = await session.evaluate(`(() => {
+      const out = [];
+      for (const sheet of document.styleSheets) {
+        let rules; try { rules = sheet.cssRules } catch { continue }
+        for (const r of rules) {
+          const sel = r.selectorText;
+          if (typeof sel === 'string' && sel.includes('cpfe-warn')) out.push(sel);
+        }
+      }
+      return out;
+    })()`)
+    const warnExact = new Set(warnSelectors.flatMap((s) => s.split(',').map((x) => x.trim())))
+    check(
+      '告警区有样式（.cpfe-warns / .cpfe-warn-row / .cpfe-warn 都在样式表里）',
+      warnExact.has('.cpfe-warns') && warnExact.has('.cpfe-warn-row') && warnExact.has('.cpfe-warn'),
+      JSON.stringify(warnSelectors),
     )
 
     // 每行都要有详情开关。**展开本身不在这里点**：在 WSL 的 headless 实验室里，测量坐标与真实指针点击之间

@@ -8,6 +8,93 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.11.6]
+
+### Re-measuring the native metrics: two assertions were false, and three UI defects were fixed
+
+The trigger was a one-line request: **the fonts, the UI style and the formatting all have to match the
+native UI**. The method was not to read code but to boot **a clean instance on each supported line** and put
+the official settings page and ours in the same browser, reading `getComputedStyle` +
+`getBoundingClientRect` element by element.
+
+**Two assertions that were already guarded were wrong:**
+
+- **Section title 14px/22px w500 -> the official value is w400.** `AGENTS.md` #13 and
+  `docs/MEASUREMENTS.md` §29/§35 all recorded w500; measured once on each line, the official `_title` and
+  `groupTitle` are **both 400**. The only 14px w500 in the shell is the plugin **card** title (line-height
+  20px, a different shape); page titles are 16px/24px w500.
+- **Row padding 12px -> the official settings row is 16px.** 1.11.2 deliberately squeezed it to 12px to take
+  the row from 76px to 66px, but the comparison target was a **card** (`cardContent`, padding 12px 14px)
+  while our rows are **settings rows** (1px divider, title left, control right). More to the point, the
+  cause of that round's "rows ranged 66–84px" was `.cpfe-row-note` missing `white-space:nowrap`, fixed
+  separately in the same release — lowering the padding was treating a disease that no longer existed.
+  Back at 16px, the row is **77px**, the same height as the official settings row.
+
+**Three real defects:**
+
+- **The warning block had no CSS at all.** `.cpfe-warns` / `.cpfe-warn-row` / `.cpfe-warn` had **zero rules**
+  in any stylesheet, so every warning was a run of un-styled `<p>`. Now 12px/18px, `gap 6px`, and the
+  shell's warning icon at 14×14 aligned to the first text line.
+- **The dropdown was not the native shape.** It used the shell Button's `ghost` + `size:"sm"` (28px /
+  transparent / 12px text / radius 8px) with the chevron **before** the text. The official control is
+  36px / radius-md / grey fill / 14px text with the chevron **after** it. Now drawn to those metrics
+  (`.cpfe-selector`) — each official settings page **defines its own** `_selector`, and the Button atom has
+  no such variant.
+- **Input radii disagreed with each other** (input / desc / editor = 8 / 10 / 10px) while the official
+  control uses `--dsw-radius-md` (12px) throughout. Unified.
+
+**Terminology and copy:**
+
+- The `cordis` mode is presented as **Creator mode** (Chinese 创造模式) in the official UI. This repository
+  labelled the pill 「Cordis 模式」 while `base.all.note` in the same dictionary said 创造模式 — one mode,
+  two names on one page. The four English labels were also all missing the official " mode" suffix.
+- Three **dead entries** removed (`assistant.meta`, `aria.expandHint`, `aria.collapseHint`): they existed
+  only in the dictionaries and were never referenced by any call site.
+- The five `SectionHint` call sites each passed four props the component **does not read**
+  (`id` / `expanded` / `onToggleExpand` / `t`).
+- One **inaccurate claim** removed: the English `rows.hint` said the row list was laid out "like the
+  official plugin list", but the official plugin page is a **2-column card grid** whose descriptions
+  **wrap to two lines** — not the same thing as our single-column, divider-separated list.
+
+The render gate went **70 -> 74** (the official dropdown shape, the chevron after the text, **the warning
+block having rules in the stylesheet**, and the 14px/22px row title); `0.2.0-rc.2` and `0.1.7-rc.2` each
+report **74 passed / 0 failed**. Tests are unchanged at 15 suites / **876 checks**.
+
+### A full read-through: ten entries that looked alive but never reached a pixel
+
+Before releasing, I went through the page once more and checked the **reference surface** rather than
+impressions. A small tool classified every dictionary entry by its call sites and found ten entries (ten in
+each language) that **can never be rendered**:
+
+- **Five `*.short` entries** (`assistant` / `name` / `mode` / `rows` / `prompt`) — the short half of the
+  collapsible introduction. Since the introduction became a **single always-visible line**, `SectionHint`
+  renders only `detail`, and every call site passes `detail` ⇒ the `hint` argument is **never used**.
+  **Visible to grep, invisible on screen** — the hardest kind to notice. Fixed by reducing `SectionHint` to
+  a single `text` prop and deleting the five short entries.
+- **Three `msg.loading` / `msg.notLoaded` / `msg.reread`** — no call site at all.
+- **Two `warn.approvalGateMissing.label` / `.hint`** — masked by the `t("warn." + code)` **dynamic family**:
+  that spelling only ever produces `warn.<code>`, never `warn.<code>.label`.
+
+The dictionary went 216 -> **206** entries. The auditing tool itself had a false positive worth recording:
+it did not recognise `apiText(x, cond ? "a" : "b")`, so it reported two live entries as dead.
+
+**Terminology and wording:**
+
+- **「底子」→「基础模式」** (three places): one thing carrying two names on one page, while the pill itself is
+  labelled 基础模式.
+- Second person and casual phrasing removed: 「你写的提示词现在不起作用」→「所写的提示词不会生效」;
+  「手动拨动后以你的为准」→「手动设置后以手动值为准」; 「两份从此各改各的」→「两份配置彼此独立」.
+- `tag.essential` in English: `core` -> `Core`, matching the Chinese 基础能力.
+
+**One documentation untruth corrected along the way**: `docs/PUBLISHING.md` still showed the `.dshpreset`
+example as `"name": "自定义模式 / Custom mode"`, but 1.11.5 **deliberately dropped the bilingual name**
+(`release.yml` changed with it). The document said one thing and the code did another; both now agree.
+
+The render gate reports **74 passed / 0 failed** on both lines; tests are **15 suites / 876 checks**
+(unchanged — removing dictionary entries does not move the check count); the real-boot guard passes
+A/B/C/D on both. Dictionary parity is pinned by `test/locales.test.mjs`, and this round it earned its keep:
+it caught `client.js` and `locales.mjs` disagreeing on their key sets the moment they did.
+
 ## [1.11.5]
 
 ### The workflow files themselves need validating — their mistakes only surface at tag time

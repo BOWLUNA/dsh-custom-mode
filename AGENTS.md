@@ -103,9 +103,19 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
 13. **UI 必须用壳的原子，度量必须抄官方。** 两件实测过的坑：① 探测壳的组件时**不能**用
     `typeof x === "function"` —— 壳的组件是 `forwardRef`/`memo` 对象，这一条判错会让整页退化成手绘控件
     （1.9.15 之前的"廉价感"就是它）；判据是 React 能渲染（`$$typeof`）。② 我们自己的 CSS 必须抄官方设置页
-    的度量：区块标题 14px/22px w500、引言 12px/18px tertiary、设置行 `padding:16px 0` + 一条 1px 分隔线、
-    下拉用壳的 `Menu`。`tools/browser-verify.mjs` 里有对应的断言（含"开关是 `[role=switch]`、不许有手绘
-    checkbox"），改动后必须 70/70。
+    的度量。**2026-10-02 在两条线上各复量一次，取到的值（两侧一致）：**
+    分节标题 **14px/22px w400**（官方的 `_title` 与 `groupTitle` 都是 400；官方那个 14px **w500** 是插件
+    卡片标题 `cardTitle`，行高 20px，形态不同）、引言 12px/18px tertiary、**设置行 `padding:16px 0`**
+    + 一条 1px 分隔线（带描述时整行 77px，与我们改后的行同高）、**设置项下拉** 36px 高 /
+    `--dsw-radius-md` / 底 `--dsw-alias-bg-module-platform` / `padding:0 14px` / 14px 字 /
+    **chevron 在文字之后**、输入控件圆角一律 `--dsw-radius-md`(12px)。
+    下拉的**浮层**用壳的 `Menu`，但**按钮要自绘**：壳的 Button 只有 primary / ghost / outline / toolbar
+    四种（前两种都是透明底），没有官方那种灰底选择器 —— 而官方各设置页也正是**各自定义** `_selector`
+    （四个页面四份、度量完全一致），所以自绘才是与官方同构的做法。
+    ⚠️ 本条此前记的「区块标题 14px/22px **w500**」是**误记**，已用两版实测订正；同轮还把搞错的
+    行内边距（曾有意压到 12px）改回官方的 16px。两次订正的原始读数见 `docs/MEASUREMENTS.md` §36。
+    `tools/browser-verify.mjs` 里有对应的断言（含"开关是 `[role=switch]`、不许有手绘 checkbox"、
+    "下拉是官方形态且 chevron 在文字之后"、"告警区在样式表里真的有规则"），改动后必须 **74/74**。
 
 14. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
     （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。
