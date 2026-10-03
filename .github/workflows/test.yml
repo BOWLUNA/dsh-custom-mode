@@ -189,12 +189,35 @@ jobs:
         if: matrix.node-version != '20'
         run: node tools/boot-check.mjs --port 32010
 
+      # ★ 并集组成真能挂载（boot-check 覆盖不到的那一格）。
+      #
+      # 第五个基础模式 `all` 是四个出厂组成的并集，而其中两行是**同一件工具的两套实现**
+      # （minimal 的 persistent-shell 与 standard 的 tool-bash / tool-pwsh，都注册名为 bash）。
+      # 单独看任何一个模式都不冲突，并起来就让宿主把整个预设判 broken ——
+      # 而 **broken 的预设被从所有选择器里静默丢掉，设置页照常全绿**。
+      # 这个缺陷对 800+ 项测试**完全隐形**：单测断言的是合成器返回了什么，
+      # 而失败发生在**宿主拿这个结果去挂载**的时候。`renderComposition('all')` 可以返回
+      # 语法完全合法的 YAML，同时被宿主拒绝。
+      #
+      # 所以这一步：真写出并集组成 → 真起一个实例 → **问那个实例自己**
+      # （GET /api/custom-mode/state?id=custom，断言 broken=null / unresolvable=[] /
+      # warnings=[] / mode=all / 41 行都端出来了）。日志安静从来不是信号，宿主的 roster 才是。
+      #
+      # 断言 B 是**超集**而不是"更宽"：并集按定义不含"只属于并集"的行，
+      # 第一版断言写成 `union > 每个 base` 而在**正确的**并集上就红了（41 vs 34）——
+      # 与被保护对象定义矛盾的断言比没有断言更糟，它训练人去"修"本来能跑的代码。
+      #
+      # 端口 32011 是本插件号段里紧挨 boot-check 的下一个（32010 被上一步占着）。
+      - name: 并集组成真能挂载（问实例自己）
+        if: matrix.node-version != '20'
+        run: node tools/union-mount-check.mjs --port 32011
+
       # node 20 腿跳过真启动，**并且说出来** —— 有声明地跳过，不是静默缺口。
       - name: 跳过说明（node 20 不跑真启动守卫）
         if: matrix.node-version == '20'
         shell: bash
         run: |
-          echo "::warning::node 20 腿跳过了真启动守卫：该运行时下宿主装不完整（依赖树里有包要求 node >= 22.19），boot-check 会以退出码 2 判为环境问题。测试套件与其余守卫在这一腿上照常跑。"
+          echo "::warning::node 20 腿跳过了真启动守卫与并集挂载守卫：该运行时下宿主装不完整（依赖树里有包要求 node >= 22.19），两个守卫都会以退出码 2 判为环境问题。测试套件与其余守卫在这一腿上照常跑。"
 
       # 发布包最容易踩的坑不是"多打了文件"，而是**少打了**：dsh.bundle.patch 指向的补丁、
       # 或浏览器半的 client.js 一旦被 files 白名单漏掉，npm 上的包装了也没用，
