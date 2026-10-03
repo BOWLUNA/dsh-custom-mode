@@ -85,6 +85,18 @@ export const BASE_MODES = [
 export const ROW_META = {
   persona: { label: '身份（系统提示词）', essential: true, note: '提示词注入点；关掉后本模式用回部署默认身份' },
   'agent-instructions': { label: '项目指令 AGENTS.md', note: '读取 AGENTS.md / CLAUDE.md' },
+  // 只出现在**最新预览线**（0.2.1-alpha.1）的 standard / cordis / ptc 三个模式里；
+  // 0.2.0-rc.2 及更早**没有**这两行（其 dsh-web-app README 原话："出厂组合不含 time-context、
+  // schedule 和 ui-schedule 行"）。加进来是为了不让它们以裸 id 出现在设置页 ——
+  // 上游每次新增行都会让"每个出厂行都能查到标签"那条断言变红，这正是双线矩阵的价值。
+  'time-context': {
+    label: '时间上下文（模型看得到时间）',
+    note: '在合适的步骤里附上当前时间、浏览器时区与距上一条消息的间隔；默认 10 分钟内不重复注入',
+  },
+  'tool-schedule': {
+    label: '定时提醒工具',
+    note: '让 agent 创建/列出/修改/删除持久提醒；存储与投递由宿主的 schedule 服务负责',
+  },
   'tool-bash': { label: 'Shell（bash）', essential: true },
   'tool-pwsh': { label: 'Shell（pwsh）', essential: true },
   'tool-fs': { label: '文件读写', essential: true, note: '关掉后 agent 无法读写文件' },
