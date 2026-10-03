@@ -72,7 +72,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import net from "node:net";
 
 const REPO = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -243,9 +243,18 @@ const record = (id, ok, detail) => {
 };
 
 // ── the checks ────────────────────────────────────────────────
+//
+// ★ `pathToFileURL(...).href`, not a bare absolute path. A dynamic `import()` takes a **URL**,
+// and only `file:`/`data:`/`node:` are supported. On POSIX a bare `/home/...` string happens to
+// parse as a path so the mistake hides; on Windows `D:\a\...` parses as a URL with the scheme
+// `d:` and the loader throws `ERR_UNSUPPORTED_ESM_URL_SCHEME` (measured on win32, node 24.20.0:
+// bare -> ERR_UNSUPPORTED_ESM_URL_SCHEME, pathToFileURL -> ok). Every other dynamic import in this
+// repo passes a *relative* specifier, which is why only this file was ever wrong.
+const loadRepoModule = (name) => import(pathToFileURL(join(REPO, name)).href);
+
 async function main() {
-  const { renderComposition, collectRows, UNION_MODE_ID } = await import(join(REPO, "composition.mjs"));
-  const { BASE_MODE_IDS } = await import(join(REPO, "base-composition.mjs"));
+  const { renderComposition, collectRows, UNION_MODE_ID } = await loadRepoModule("composition.mjs");
+  const { BASE_MODE_IDS, isBaseCompositionUnavailable } = await loadRepoModule("base-composition.mjs");
 
   // ── A · every shipped base mode resolves on this line ──────
   //
@@ -253,15 +262,33 @@ async function main() {
   // would produce a union that is quietly narrower than it should be. That is a real failure
   // mode, not a hypothetical one: on 0.1.7 before the `readDocument` route existed, every read
   // threw and the settings page answered 500.
+  //
+  // ★ "Cannot read the shipped composition" has two owners and this guard must not mix them up.
+  // `BaseCompositionUnavailableError` means every route was tried and none answered — the
+  // harness/preset tree is not where it should be, i.e. an **environment** problem (exit 2).
+  // Any other throw is our own composition code misbehaving, i.e. a **product** problem (exit 1).
+  // A red gate that points at the wrong owner is a red gate that gets ignored, which is the
+  // whole reason this guard has three exit codes instead of one.
   const baseIds = new Map();
   const unresolved = [];
+  const unavailable = [];
   for (const mode of BASE_MODE_IDS) {
     try {
       const text = renderComposition(mode, new Map(), { modeName: mode, assistantId: "custom" });
       baseIds.set(mode, new Set(rowIdsOf(text, collectRows)));
     } catch (error) {
-      unresolved.push(`${mode}: ${error instanceof Error ? error.message : String(error)}`);
+      const line = `${mode}: ${error instanceof Error ? error.message : String(error)}`;
+      if (isBaseCompositionUnavailable(error)) unavailable.push(line);
+      else unresolved.push(line);
     }
+  }
+  if (unavailable.length > 0) {
+    record("A  all four base modes resolve", false, unavailable.join("; "));
+    console.error("");
+    console.error("   The shipped base composition could not be read at all — that is the harness");
+    console.error("   not serving presets, not a composition bug. Re-run with --keep and inspect");
+    console.error("   DSH_HOME if you need to see the tree.");
+    process.exit(2);
   }
   const aOk = unresolved.length === 0;
   record(
@@ -312,10 +339,13 @@ async function main() {
     console.error("   Otherwise assertion C is validating a composition nobody asked about.");
     process.exit(1);
   }
-  // Rows the union reaches that the widest base does not — the concrete evidence that this is a
-  // union. Not an assertion; recorded because "41 rows" on its own does not say what they are.
-  const fromOthers = [...unionSet].filter((id) => [...baseIds.values()].every((s) => s.has(id) === false));
-  say(`  union reaches ${String(fromOthers.length)} row(s) no single base has: ${fromOthers.slice(0, 8).join(", ")}`);
+  // What the union adds on top of the widest base — the concrete evidence that this is a union
+  // and not a copy. Recorded, not asserted: "41 rows" on its own does not say what they are.
+  // (The rows in *no single base* are 0 **by definition** and carry no information, so they are
+  // deliberately not printed — see the ★ note above.)
+  const widestSet = [...baseIds.entries()].sort((a, b) => b[1].size - a[1].size)[0][1];
+  const beyondWidest = [...unionSet].filter((id) => widestSet.has(id) === false);
+  say(`  the ${String(beyondWidest.length)} row(s) beyond the widest base: ${beyondWidest.slice(0, 10).join(", ")}`);
 
   // ── install, then write the union for real ─────────────────
   mkdirSync(join(HOME_DIR, "profiles", "web"), { recursive: true });
