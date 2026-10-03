@@ -315,13 +315,19 @@ What this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh
 `package.json`, and `tools/verify-version-consistency.mjs` (run in CI) asserts that the DSH
 version CI installs and tests falls inside those ranges.
 
-**Two lines are supported: the newest line (`0.2.0-rc.2`, which npm's `latest` and `next` both point at
-since 2026-09-29, and the line the desktop app ships) and the previous stable (`0.1.7-rc.2` — still inside
+**Three lines are supported: the newest stable line (`0.2.0-rc.2`, which npm's `latest` and `next` both
+point at since 2026-09-29, and the line the desktop app ships), the newest preview line
+(`0.2.1-alpha.1`, which npm's `alpha` points at) and the previous stable (`0.1.7-rc.2` — still inside
 the declared range, and what most existing installs run)** — declared as
-`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0` (the extra clauses exist because
-semver only matches a pre-release inside a range that names its own `major.minor.patch`), and CI installs both
+`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0` (the extra clauses exist because
+semver only matches a pre-release inside a range that names its own `major.minor.patch`), and CI installs all three
 and runs the whole suite against each — the rendered gate runs on the **newest** line, because that is
 where the shell's own UI changes land first.
+**The newest preview line needs its own leg because the stable line's clause does *not* cover it**:
+`>=0.2.0-0 <0.3.0-0` reads like it covers all of `0.2.x`, but the pre-release gate only opens when some
+comparator in the set names the same `major.minor.patch`, and that comparator's tuple is `0.2.0` — so
+`0.2.1-alpha.1` is refused. A range that *looks* wide is therefore neither coverage of the preview line
+nor evidence that it was ever run.
 **The official desktop app (DeepSeek Harness Desktop) is covered too**: it is version-locked to dsh and now
 ships `0.2.0-rc.2`, i.e. the same combination this matrix pins. Install it from inside the app (sidebar →
 Plugins); the CLI is refused for that profile by dsh itself. On `0.2.0-rc.2` measured (2026-09-30, clean
