@@ -20,8 +20,7 @@ export const zh = {
 
   // ── 助手管理 ──────────────────────────────────────────────────────────────
   'assistant.heading': '助手',
-  'assistant.hint':
-    '每个助手即一个独立模式：独立的系统提示词、基础模式与插件开关。新建会话时在模式选择器中选用。',
+  'assistant.hint': '每个助手是一套独立模式，有自己的提示词、基础模式和插件开关。新建会话时在模式菜单里选用。',
   'assistant.empty': '还没有助手，用下面的输入框新建一个。',
   'assistant.loadingList': '正在读取助手列表…',
   'assistant.newPlaceholder': '新助手的名字（例如：写作助手）',
@@ -156,12 +155,11 @@ export const zh = {
   'cap.heading': '能力',
   'cap.expand': '展开能力',
   'cap.collapse': '收起能力',
-  'cap.hint': '基础模式决定有哪些行；插件开关逐行生效。这两项从新建会话起生效。',
+  'cap.hint': '基础模式决定有哪些工具。开关逐行生效。这两项从下一次新建会话开始。',
   'rows.hint': '逐行控制本模式挂载的插件。未改动的行保持官方默认（含平台判断）；手动设置后以手动值为准。',
 
   'prompt.heading': '系统提示词',
-  'prompt.hint':
-    '每次模型调用前重新读取：保存后下一步生效，仅影响使用本助手的会话。「导入」读文件进编辑器（保存前不写入）；「导出」存为 .md；「恢复出厂提示词」填回出厂模板（同样需保存）。',
+  'prompt.hint': '保存后，下一次模型调用就会用这段文字。导入只进编辑器；导出为 Markdown。恢复出厂后仍要点保存。',
 
   'status.enabled': '已启用',
   'status.disabled': '已停用',
@@ -270,7 +268,7 @@ export const en = {
   // ── assistant management ──────────────────────────────────────────────────
   'assistant.heading': 'Assistants',
   'assistant.hint':
-    'Each assistant is an independent mode: its own system prompt, base mode and plugin switches. Pick one in the mode picker when you start a new session.',
+    'Each assistant is its own mode, with its own prompt, base mode and plugin switches. Pick one from the mode menu when you start a session.',
   'assistant.empty': 'No assistants yet — create one with the field below.',
   'assistant.loadingList': 'Loading assistants…',
   'assistant.newPlaceholder': 'Name of the new assistant (e.g. Writing assistant)',
@@ -405,13 +403,13 @@ export const en = {
   'cap.heading': 'Capabilities',
   'cap.expand': 'Show capabilities',
   'cap.collapse': 'Hide capabilities',
-  'cap.hint': 'The base mode chooses the row set. Each switch applies to one row. Both take effect on the next new session.',
+  'cap.hint': 'The base mode chooses the tools. Each switch applies to one row. Both start on the next new session.',
   'rows.hint':
     'Control row by row which plugins this mode mounts. Untouched rows keep the official default (platform conditions included); an explicit choice wins.',
 
   'prompt.heading': 'System prompt',
   'prompt.hint':
-    'This text is re-read before every model call, so a save applies on the next step and only affects sessions on this assistant. "Import" reads a file into the editor (nothing is written until you save); "Export" saves the current text as a .md file; "Reset to factory prompt" puts the shipped template back into the editor (also saved only when you save).',
+    'After you save, the next model step uses this text. Import only fills the editor. Export writes Markdown. Reset to factory still needs a save.',
 
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',

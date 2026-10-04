@@ -8,11 +8,8 @@ base mode / plugin switches / multi-assistant / multi-persona。
 
 ![dsh-custom-mode —— 给 dsh 模式用的设置页](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
 
-<!-- 社区入口：第二排徽章在每个新仓库里都要加（见 SOP/DSH Plugins/仓库门面模板.md） -->
-
 [![Star this repo](https://img.shields.io/badge/Star-this%20repo-1f2430?style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode/stargazers) [![npm](https://img.shields.io/npm/v/dsh-custom-mode?label=npm&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-custom-mode) [![CI](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-custom-mode/test.yml?label=CI&style=flat-square&logo=githubactions&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5--rc.2-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode#readme)
 
-<!-- 徽章：两排统一"深色标签 + 彩色值"的两段式；新仓库照抄这一块 -->
 [![bilibili](https://img.shields.io/badge/bilibili-视频-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white&labelColor=1f2430)](https://b23.tv/qJ4Ev0W) [![抖音](https://img.shields.io/badge/抖音-短视频-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white&labelColor=1f2430)](https://v.douyin.com/VWh0M03Fa4Y/) [![小红书](https://img.shields.io/badge/小红书-笔记-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white&labelColor=1f2430)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-群组-%235865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1f2430)](https://discord.gg/pz97SfAfSy) [![GitHub](https://img.shields.io/github/discussions/BOWLUNA/dsh-custom-mode?label=GitHub&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode/discussions)
 
 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)（dsh）用的自定义模式。它的系统提示词是一个普通文件，可以在 Web 设置页里编辑，**改完下一步模型调用即生效** —— 不用重启，也不用新建会话。
@@ -49,7 +46,7 @@ base mode / plugin switches / multi-assistant / multi-persona。
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.12.0   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.12.1   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -68,7 +65,7 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 
 | 输入 | 填什么 | 说明 |
 | --- | --- | --- |
-| **包名** | `dsh-custom-mode` | 受 pnpm 发布冷却期影响，可能装到旧版。要这一版请钉 `@1.12.0` |
+| **包名** | `dsh-custom-mode` | 受 pnpm 发布冷却期影响，可能装到旧版。要这一版请钉 `@1.12.1` |
 | **GitHub 仓库地址** | `https://github.com/BOWLUNA/dsh-custom-mode` | 指向**仓库根**即可 |
 | **本地插件目录** | `<你 clone 的路径>` | 就是仓库根 —— 仓库根**本身**就是发布包 |
 
@@ -226,13 +223,8 @@ dsh 的系统提示词通常来自 preset 的 YAML，而官方 `@deepseek-ai/dsh
 **支持三条线：最新正式线（`0.2.0-rc.2`，npm 的 `latest` 与 `next` 自 2026-09-29 起都指向它，也是桌面端
 所在的那条线）、最新预览线（`0.2.1-alpha.1`，npm 的 `alpha` 指向它）与上一个正式版（`0.1.7-rc.2`，
 仍在声明范围内，现役安装大多在它上面）** —— 声明为
-`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`（多出来的三段是因为
-semver 只允许范围里**点名了** `major.minor.patch` 的预发布版本被匹配到），CI 会三条线各装一次并各跑一遍
-完整测试 —— 其中**渲染闸门跑在最新线**上，因为壳自己的 UI 改动最先落在那里。
-这里的策略是"只跟最新的几条"：更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）仍在 peer 范围内，但不单独占 CI 腿。
-★ 最新**预览**线必须单独占一条腿，因为它**不会**被正式线的范围顺带覆盖：`>=0.2.0-0 <0.3.0-0` 读起来
-覆盖整个 `0.2.x`，但预发布门只在**某个比较符点名了同 `major.minor.patch`** 时才放行，而那个比较符的
-元组是 `0.2.0` ⇒ `0.2.1-alpha.1` 被拒。所以"声明看着宽"既不等于"预览线被覆盖"，更不等于"跑过"。
+`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`。
+官方一键安装读的是 `peerDependencies`，并且**预发布版参与比较**（`dsh-app-boot` 里的 `semver.satisfies(version, range, { includePrerelease: true })`）。因此当前稳定线 `0.2.0-rc.2` 与预览线 `0.2.1-alpha.1` 都能装上。范围里仍点名预发布版本，是因为 npm / pnpm 的默认比较更严，插件市场走那套语义时也不会把预览线拒掉。CI 对这三条线各装一次并跑完全部测试。渲染闸门只跑 `0.2.0-rc.2`，壳的界面改动先落在这条线上。更早的 `0.1.5` / `0.1.6` 仍在 peer 范围内，不再单独占一条 CI。
 **官方桌面端（DeepSeek Harness Desktop）也在覆盖范围内**：它与 dsh 同版本号，当前即为 `0.2.0-rc.2`，
 正是这条矩阵钉住的组合；在应用内（侧栏 → Plugins）安装即可，CLI 那条路 dsh 自己会拒。
 `0.2.0-rc.2` 实测（2026-09-30，干净的一次性 `DSH_HOME`）：`dsh plugin --profile web add dsh-custom-mode`
@@ -299,43 +291,13 @@ node test/run.mjs        # 15 个套件；自己解析出厂 preset 目录（0.1
 
 MIT
 
----
-
-## 构建环境
-
-| | |
-| --- | --- |
-| 模型 | DeepSeek V4.1 Flash（`deepseek-v4-flash`，provider `deepseek-official`） |
-| 运行时 | 单元测试：`0.2.0-rc.2`、`0.2.1-alpha.1`、`0.1.7-rc.2`。渲染闸门只跑 `0.2.0-rc.2`。下面的用量数字来自更早的 `0.1.6-alpha.2` 那一轮 |
-| 未缓存输入 | 224,058 tok |
-| 缓存读取 | 125,638,016 tok |
-| 输出 | 425,539 tok |
-
-整个项目（含调研与返工）由 DSH 客户端统计：**126,287,613 tok**，缓存命中率 **99.8%**
-
-### 评审驱动的迭代轮次花了多少
-
-四份外部审阅变成了 `1.4.0` … `1.9.0` 这些版本（稳定线选择器修复、Windows 写入竞争、i18n 泄漏、可移植性修复、
-两轮 UI 改动）。同一个客户端里的实测：
-
-| | |
-| --- | --- |
-| 未缓存输入 | 3,973,904 tok |
-| 缓存读取 | 711,962,624 tok |
-| 输出 | 1,559,791 tok |
-
-合计 **717,496,319 tokens**（3,973,904 + 711,962,624 + 1,559,791），缓存命中率 **99.4%**
-（711,962,624 ÷ 715,936,528）。连同第一遍一起，项目累计 **843,783,932 tokens**，缓存命中 **99.5%**
-（837,600,640 ÷ 841,798,602）。
-（缓存读取 ÷ 全部输入 125,862,074）。
-
 ## 更新
 
 插件装在 profile 的 `node_modules` 里，安装由平台负责，所以"更新"就是**再装一次** —— 你的数据不会被碰：
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.12.0
+dsh plugin --profile web add dsh-custom-mode@1.12.1
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

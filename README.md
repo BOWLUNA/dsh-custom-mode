@@ -9,11 +9,8 @@ role-play). · **中文**：DeepSeek Harness（dsh）自定义模式插件 —�
 
 ![dsh-custom-mode — a settings page for dsh agent modes](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png)
 
-<!-- community badge row: required in every new repository (see the storefront template in the operator SOP/DSH Plugins folder) -->
-
 [![Star this repo](https://img.shields.io/badge/Star-this%20repo-1f2430?style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode/stargazers) [![npm](https://img.shields.io/npm/v/dsh-custom-mode?label=npm&style=flat-square&logo=npm&logoColor=white&labelColor=1f2430)](https://www.npmjs.com/package/dsh-custom-mode) [![CI](https://img.shields.io/github/actions/workflow/status/BOWLUNA/dsh-custom-mode/test.yml?label=CI&style=flat-square&logo=githubactions&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode/actions/workflows/test.yml) [![license](https://img.shields.io/badge/license-MIT-97ca00?style=flat-square&logo=opensourceinitiative&logoColor=white&labelColor=1f2430)](LICENSE) [![dsh](https://img.shields.io/badge/dsh-%E2%89%A50.1.5--rc.2-4d6bfe?style=flat-square&logo=deepseek&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode#readme)
 
-<!-- badge rows: same two-part structure (dark label + coloured value) in both rows; every new repo copies this block -->
 [![bilibili](https://img.shields.io/badge/bilibili-videos-%2300A1D6?style=flat-square&logo=bilibili&logoColor=white&labelColor=1f2430)](https://b23.tv/qJ4Ev0W) [![Douyin](https://img.shields.io/badge/Douyin-shorts-%23FE2C55?style=flat-square&logo=tiktok&logoColor=white&labelColor=1f2430)](https://v.douyin.com/VWh0M03Fa4Y/) [![RedNote](https://img.shields.io/badge/RedNote-notes-%23FF2442?style=flat-square&logo=xiaohongshu&logoColor=white&labelColor=1f2430)](https://xhslink.cn/o/A7QtXmePBBF) [![Discord](https://img.shields.io/badge/Discord-chat-%235865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1f2430)](https://discord.gg/pz97SfAfSy) [![GitHub](https://img.shields.io/github/discussions/BOWLUNA/dsh-custom-mode?label=GitHub&style=flat-square&logo=github&logoColor=white&labelColor=1f2430)](https://github.com/BOWLUNA/dsh-custom-mode/discussions)
 
 A custom mode for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (dsh). Its
@@ -57,7 +54,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.12.0   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.12.1   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -317,15 +314,8 @@ version CI installs and tests falls inside those ranges.
 point at since 2026-09-29, and the line the desktop app ships), the newest preview line
 (`0.2.1-alpha.1`, which npm's `alpha` points at) and the previous stable (`0.1.7-rc.2` — still inside
 the declared range, and what most existing installs run)** — declared as
-`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0` (the extra clauses exist because
-semver only matches a pre-release inside a range that names its own `major.minor.patch`), and CI installs all three
-and runs the whole suite against each — the rendered gate runs on the **newest** line, because that is
-where the shell's own UI changes land first.
-**The newest preview line needs its own leg because the stable line's clause does *not* cover it**:
-`>=0.2.0-0 <0.3.0-0` reads like it covers all of `0.2.x`, but the pre-release gate only opens when some
-comparator in the set names the same `major.minor.patch`, and that comparator's tuple is `0.2.0` — so
-`0.2.1-alpha.1` is refused. A range that *looks* wide is therefore neither coverage of the preview line
-nor evidence that it was ever run.
+`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`.
+The official one-click installer reads `peerDependencies` and **lets prereleases match** (`semver.satisfies(version, range, { includePrerelease: true })` in `dsh-app-boot`). The current stable line `0.2.0-rc.2` and the preview line `0.2.1-alpha.1` both install. The range still names those prereleases because npm and pnpm's default comparison is stricter, so a marketplace using that comparison does not reject the preview line either. CI installs all three lines and runs the full suite on each. The render gate runs only on `0.2.0-rc.2`, where the shell's UI changes land first. Older `0.1.5` / `0.1.6` builds stay inside the peer range and no longer have their own CI leg.
 **The official desktop app (DeepSeek Harness Desktop) is covered too**: it is version-locked to dsh and now
 ships `0.2.0-rc.2`, i.e. the same combination this matrix pins. Install it from inside the app (sidebar →
 Plugins); the CLI is refused for that profile by dsh itself. On `0.2.0-rc.2` measured (2026-09-30, clean
@@ -397,36 +387,6 @@ what came out of the last one.
 
 MIT
 
----
-
-## Built with
-
-| | |
-| --- | --- |
-| Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
-| Runtime | Unit tests: `0.2.0-rc.2`, `0.2.1-alpha.1`, `0.1.7-rc.2`. The render gate runs only on `0.2.0-rc.2`. The token figures below are from an earlier `0.1.6-alpha.2` session |
-| Uncached input | 224,058 tok |
-| Cache reads | 125,638,016 tok |
-| Output | 425,539 tok |
-
-The whole project, research and dead ends included, cost the DSH client **126,287,613 tokens** at a
-**99.8%** cache hit rate (cache reads ÷ all input, 125,862,074).
-
-### What the review-driven iterations cost
-
-Four external reviews turned into releases `1.4.0` … `1.9.0` (the stable-line picker fix, the Windows write
-races, the i18n leaks, the portability fixes, the two UI passes). Measured in the same client:
-
-| | |
-| --- | --- |
-| Uncached input | 3,973,904 tok |
-| Cache reads | 711,962,624 tok |
-| Output | 1,559,791 tok |
-
-That is **717,496,319 tokens** (3,973,904 + 711,962,624 + 1,559,791) at a **99.4%** cache hit rate
-(711,962,624 ÷ 715,936,528). Counting the first pass as well, the project stands at **843,783,932 tokens**,
-**99.5%** cached (837,600,640 ÷ 841,798,602).
-
 ## Updating
 
 The plugin lives in the profile's `node_modules` and the platform owns that installation, so updating means
@@ -434,7 +394,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.12.0
+dsh plugin --profile web add dsh-custom-mode@1.12.1
 # then restart the DSH process that serves the web profile
 ```
 
@@ -443,7 +403,7 @@ dsh plugin --profile web add dsh-custom-mode@1.12.0
 hours*. Measured on a clean machine while 1.9.0 was latest: the bare command installed **1.0.1**. Pinning the
 version bypasses the cooldown, which is why the command above carries `@`.
 
-**How to know what you are running**: the settings page shows the installed version at the bottom (`插件版本`).
+**How to know what you are running**: the settings page shows the installed version at the bottom (Plugin version).
 Compare it with `npm view dsh-custom-mode version`.
 
 **What an update does not touch**: `$DSH_HOME/.agent-presets/<your assistants>/` — `prompt.md`, `preset.yml` and

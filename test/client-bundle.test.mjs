@@ -225,10 +225,10 @@ console.log('=== 3. 壳的词典查不到时：内置词典兜底，绝不显示
   check('导航标签不再是裸键 nav', label?.() !== 'nav', String(label?.()))
   check('导航标签落到内置中文词典', label?.() === '自定义模式', String(label?.()))
 
-  // 完全没有 locale 服务时同理。
+  // 完全没有 locale 服务、也没有浏览器语言时，用英文。裸键仍然不允许。
   const none = makeCtx({ withLocale: false })
   exports.apply(none.ctx)
-  check('没有 locale 服务时导航标签也是中文', none.seen.registered?.options?.label?.() === '自定义模式', String(none.seen.registered?.options?.label?.()))
+  check('没有 locale 服务时导航标签是英文，不是裸键', none.seen.registered?.options?.label?.() === 'Custom mode', String(none.seen.registered?.options?.label?.()))
 }
 
 console.log()

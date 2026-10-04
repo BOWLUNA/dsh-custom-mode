@@ -8,6 +8,15 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.12.1]
+
+### Storefront and host alignment
+
+- Colors and the code font use the host tokens (`--dsw-*`, `--ds-font-family-code`), so dark mode, light mode and third-party themes that retint those variables apply to this page.
+- The page follows the shell language. The shell ships Chinese and English. A language pack that selects another language, with no dictionary here, shows English rather than the whole page in Chinese.
+- The official one-click installer matches `peerDependencies` and includes prereleases. The current stable line `0.2.0-rc.2` and the preview line `0.2.1-alpha.1` are both inside the range.
+- The README no longer carries internal notes or token accounting.
+
 ## [1.12.0]
 
 ### The settings page leads with the prompt, and writes no longer disagree with what the page shows
