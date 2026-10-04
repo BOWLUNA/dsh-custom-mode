@@ -8,6 +8,13 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.12.2]
+
+### Storefront
+
+- Header redrawn at 1280×640. It names the product and the install command, and it does not carry a plugin version.
+- The five example images were reshot on a throwaway dsh `0.2.0-rc.2` home. Each file is 800×800. The README shows four of them as a centered 2×2, and the assistant view on its own.
+
 ## [1.12.1]
 
 ### Storefront and host alignment

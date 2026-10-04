@@ -12,9 +12,8 @@ is what "too big" looks like on GitHub).
 05-assistant-manager.png  800x800   The assistant section, dropdown CLOSED, two assistants
 ```
 
-`01` is where the fifth base mode is visible: the pill row reads **Standard / PTC / Minimal / Cordis /
-Custom**. Before 1.11.0 there were four pills, and `04` listed four modes — the two images that carry the
-feature are these two, so re-shoot them whenever the base-mode set changes.
+`01` is where the fifth base mode is visible: the pill row reads **Standard / PTC / Minimal / Creator /
+All shipped rows**. Re-shoot `01` and `04` whenever that set changes.
 
 `04` is the one image that is **not** cropped with the shared `PANEL` box. The settings dialog is the panel
 itself, so a fixed box hugs it; the mode picker instead hangs off the **vertically centred** composer, and
@@ -65,6 +64,7 @@ the same files, which is why they are not relative paths), so **renaming one mea
 ![Mode name and base mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png)
 ```
 
-`header.png` is the repository banner (dark, monospace) - it is rendered from `header.html` with headless
-Chrome, and the same 1600x420 artwork works as the GitHub **social preview** (upload it under
-Settings -> Social preview, which the API cannot set).
+`header.png` is the repository banner, 1280×640, rendered from `header.html` with headless Chrome.
+`header@2x.png` is the same artwork at 2560×1280. The banner does not name a plugin version.
+`social-preview.png` is the same 1280×640 frame for GitHub's social preview (Settings → Social preview;
+the API cannot set it).

@@ -1,55 +1,110 @@
-<!doctype html><html><head><meta charset="utf-8"><style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:1280px; height:640px; }
-  body { background:#0a0e14; font-family:"JetBrains Mono","Cascadia Mono",Consolas,"DejaVu Sans Mono",monospace;
-         color:#e6edf3; position:relative; overflow:hidden; }
-  .grid { position:absolute; inset:0;
-    background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
-                     linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
-    background-size:48px 48px; }
-  .glow { position:absolute; width:1100px; height:1100px; left:-300px; top:-560px;
-    background:radial-gradient(circle,rgba(77,107,254,.22) 0%,rgba(77,107,254,0) 62%); }
-  .glow2 { position:absolute; width:900px; height:900px; right:-320px; bottom:-520px;
-    background:radial-gradient(circle,rgba(0,229,255,.14) 0%,rgba(0,229,255,0) 62%); }
-  .wrap { position:relative; height:100%; padding:64px 80px 56px; display:flex; flex-direction:column; }
-  .title { font-size:92px; font-weight:700; letter-spacing:-2.5px; line-height:1; }
-  .title .dash { color:#4d6bfe; }
-  .cursor { display:inline-block; width:34px; height:11px; background:#4d6bfe; margin-left:14px; vertical-align:12px; }
-  .sub { color:#9aa4b2; font-size:23px; line-height:1.55; margin-top:22px; max-width:1010px; }
-  .sub b { color:#e6edf3; }
-  .strip { display:flex; gap:14px; margin-top:44px; }
-  .row { display:flex; align-items:center; gap:14px; border:1px solid #1c2532; background:#0c1119;
-         border-radius:11px; padding:15px 20px; font-size:17px; color:#8b95a3; }
-  .row .on { color:#e6edf3; }
-  .sw { width:42px; height:23px; border-radius:999px; background:#212a36; position:relative; flex:none; }
-  .sw.on { background:#1f6feb; }
-  .sw::after { content:""; position:absolute; top:3px; left:3px; width:17px; height:17px; border-radius:50%; background:#0a0e14; }
-  .sw.on::after { left:22px; background:#eaf2ff; }
-  .foot { margin-top:auto; display:flex; align-items:center; justify-content:space-between; gap:36px; }
-  .chips { display:flex; gap:13px; }
-  .chip { border:1px solid #222b38; background:#0d131c; color:#9aa4b2; font-size:16px; padding:9px 15px; border-radius:8px; white-space:nowrap; }
-  .chip b { color:#e6edf3; font-weight:600; }
-  .term { border:1px solid #1c2532; background:#0c1119; border-radius:11px; padding:16px 20px; font-size:17px; color:#9aa4b2; white-space:nowrap; }
-  .term .p { color:#4d6bfe; } .term .c { color:#e6edf3; }
-</style></head><body>
-  <div class="grid"></div><div class="glow"></div><div class="glow2"></div>
-  <div class="wrap">
-    <div class="title">dsh<span class="dash">-</span>custom<span class="dash">-</span>mode<span class="cursor"></span></div>
-    <div class="sub">A settings page for <b>dsh</b> agent modes — an editable system prompt that applies on the next
-    model step, per-row plugin switches, several assistants side by side.</div>
-    <div class="strip">
-      <div class="row"><span class="sw on"></span><span class="on">identity (system prompt)</span></div>
-      <div class="row"><span class="sw on"></span><span class="on">custom_prompt tool</span></div>
-      <div class="row"><span class="sw"></span>shell (pwsh)</div>
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; }
+  body {
+    background: #070b12;
+    color: #e7edf5;
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .stage { position: relative; width: 1280px; height: 640px; }
+  .grid {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.028) 1px, transparent 1px);
+    background-size: 64px 64px;
+    mask-image: radial-gradient(ellipse at 30% 50%, #000 20%, transparent 72%);
+  }
+  .wash {
+    position: absolute; width: 720px; height: 720px; left: -180px; top: -220px;
+    background: radial-gradient(circle, rgba(77,107,254,.20) 0%, rgba(77,107,254,0) 68%);
+  }
+  .rule {
+    position: absolute; left: 72px; top: 88px; bottom: 88px; width: 1px;
+    background: linear-gradient(rgba(77,107,254,0), rgba(77,107,254,.85), rgba(77,107,254,0));
+  }
+  .copy {
+    position: absolute; left: 104px; top: 0; bottom: 0; width: 620px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .kicker {
+    font-size: 13px; letter-spacing: .22em; text-transform: uppercase;
+    color: #8ea0c8; font-weight: 600;
+  }
+  h1 {
+    margin-top: 18px; font-size: 64px; line-height: .95; font-weight: 650;
+    letter-spacing: -1.8px;
+  }
+  h1 span { color: #4d6bfe; }
+  .lead {
+    margin-top: 22px; max-width: 520px;
+    font-size: 20px; line-height: 1.45; color: #b7c0ce; font-weight: 400;
+  }
+  .lead b { color: #f2f5f8; font-weight: 600; }
+  .cmd {
+    margin-top: 32px; align-self: flex-start;
+    border: 1px solid #243044; background: #0c121c;
+    border-radius: 10px; padding: 12px 16px;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 15px; color: #d5dbe3;
+  }
+  .cmd i { color: #4d6bfe; font-style: normal; margin-right: 8px; }
+  .card {
+    position: absolute; right: 72px; top: 78px; width: 420px; height: 484px;
+    border: 1px solid #2a3548; border-radius: 16px;
+    background: #0e141e;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    padding: 22px 22px 18px;
+    display: flex; flex-direction: column;
+  }
+  .card h2 { font-size: 13px; font-weight: 600; letter-spacing: .04em; color: #9aa6b8; }
+  .prompt {
+    margin-top: 12px; flex: 1;
+    border: 1px solid #243044; border-radius: 10px;
+    background: #0a1018; padding: 14px 14px;
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 13px; line-height: 1.55; color: #d7dee8;
+  }
+  .prompt em { color: #7f8da3; font-style: normal; }
+  .rows { margin-top: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 36px; padding: 0 2px; border-bottom: 1px solid #1c2636;
+    font-size: 13px; color: #d5dce6;
+  }
+  .sw { width: 36px; height: 20px; border-radius: 999px; background: #4d6bfe; position: relative; }
+  .sw::after {
+    content: ""; position: absolute; top: 2px; left: 18px;
+    width: 16px; height: 16px; border-radius: 50%; background: #f4f7fb;
+  }
+  .sw.off { background: #2a3344; }
+  .sw.off::after { left: 2px; background: #9aa6b8; }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="grid"></div>
+    <div class="wash"></div>
+    <div class="rule"></div>
+    <div class="copy">
+      <div class="kicker">DeepSeek Harness</div>
+      <h1>dsh<span>-</span>custom<span>-</span>mode</h1>
+      <p class="lead">A settings page for agent modes. Edit the <b>system prompt</b>. It applies on the next step. Keep several assistants side by side.</p>
+      <div class="cmd"><i>$</i>dsh plugin add dsh-custom-mode</div>
     </div>
-    <div class="foot">
-      <div class="chips">
-        <div class="chip">dsh <b>&ge; 0.1.5-rc.2</b></div>
-        <div class="chip">npm <b>latest</b></div>
-        <div class="chip"><b>MIT</b></div>
-        <div class="chip">Web <b>settings page</b></div>
+    <aside class="card">
+      <h2>System prompt</h2>
+      <div class="prompt">You are a careful coding agent.<br><em>{{model}}</em> · <em>{{cwd}}</em><br><br>Follow the project instructions.<br>Ask before rewriting the prompt.</div>
+      <div class="rows">
+        <div class="row">Identity <span class="sw"></span></div>
+        <div class="row">File access <span class="sw"></span></div>
+        <div class="row">Shell <span class="sw off"></span></div>
       </div>
-      <div class="term"><span class="p">$</span> <span class="c">dsh plugin add dsh-custom-mode</span></div>
-    </div>
+    </aside>
   </div>
-</body></html>
+</body>
+</html>

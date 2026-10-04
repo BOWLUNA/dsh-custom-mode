@@ -37,16 +37,18 @@ range, but they no longer get a CI leg of their own.
 
 The four official modes (`standard` / `ptc` / `minimal` / `cordis`) are untouched.
 
-|  |  |
-| --- | --- |
-| ![Mode name and base mode](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![Plugin switches](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
-| ![System prompt](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![Mode picker](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
+<p align="center">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png" width="360" alt="Base mode and plugin switches">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png" width="360" alt="Plugin switches"><br>
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png" width="360" alt="System prompt">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png" width="360" alt="Mode picker">
+</p>
 
-The assistant manager, cropped to its own section. All five images are English, **all exactly 800x800**, and
-shot on a throwaway `DSH_HOME` with no sessions by `tools/screenshots/shoot-fresh.mjs` (the rendered page
-is what `tools/browser-verify.mjs` checks):
+<p align="center">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png" width="360" alt="Assistants">
+</p>
 
-![Assistant manager](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
+The four views above are one 2×2 set. The assistant manager sits on its own, centered. Every file is English and exactly 800×800, shot on a throwaway `DSH_HOME` with no sessions.
 
 ## Install
 
@@ -54,7 +56,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.12.1   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.12.2   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -394,7 +396,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.12.1
+dsh plugin --profile web add dsh-custom-mode@1.12.2
 # then restart the DSH process that serves the web profile
 ```
 

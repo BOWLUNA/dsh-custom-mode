@@ -31,22 +31,25 @@ base mode / plugin switches / multi-assistant / multi-persona。
 
 官方四个模式（`standard` / `ptc` / `minimal` / `cordis`）不受影响。
 
-|  |  |
-| --- | --- |
-| ![模式名称与基础模式](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png) | ![插件开关](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png) |
-| ![系统提示词](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png) | ![模式选择器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png) |
+<p align="center">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png" width="360" alt="基础模式与插件开关">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png" width="360" alt="插件开关"><br>
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png" width="360" alt="系统提示词">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/04-preset-picker.png" width="360" alt="模式选择器">
+</p>
 
-多助手管理器（裁到它自己那一段）。五张图都是英文、**统一 800x800**，由一个**没有会话记录的**一次性
-`DSH_HOME` 拍出，脚本是 `tools/screenshots/shoot-fresh.mjs`（渲染后的页面由 `tools/browser-verify.mjs` 校验）：
+<p align="center">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png" width="360" alt="助手">
+</p>
 
-![助手管理器](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png)
+上面四张是一组 2×2。助手管理器单独居中。五张都是英文，文件都是 800×800，用一个没有会话记录的一次性 `DSH_HOME` 拍出。
 
 ## 安装
 
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.12.1   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.12.2   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -65,7 +68,7 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 
 | 输入 | 填什么 | 说明 |
 | --- | --- | --- |
-| **包名** | `dsh-custom-mode` | 受 pnpm 发布冷却期影响，可能装到旧版。要这一版请钉 `@1.12.1` |
+| **包名** | `dsh-custom-mode` | 受 pnpm 发布冷却期影响，可能装到旧版。要这一版请钉 `@1.12.2` |
 | **GitHub 仓库地址** | `https://github.com/BOWLUNA/dsh-custom-mode` | 指向**仓库根**即可 |
 | **本地插件目录** | `<你 clone 的路径>` | 就是仓库根 —— 仓库根**本身**就是发布包 |
 
@@ -297,7 +300,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.12.1
+dsh plugin --profile web add dsh-custom-mode@1.12.2
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

@@ -167,6 +167,13 @@ if ((await session.evaluate('document.querySelector(".cpfe") !== null')) !== tru
   process.exit(2)
 }
 await session.sleep(1500)
+// 公开图不带本机路径，也不钉插件版本号，这样同一套图可以跨版本使用。
+await session.evaluate(`(() => {
+  const style = document.createElement('style')
+  style.textContent = '.cpfe-path,.cpfe-version{display:none !important}'
+  document.head.appendChild(style)
+  return true
+})()`)
 
 /** 设置面板自己的滚动容器（内容是它，不是 .cpfe）。 */
 const scrollTo = async (px) => {
@@ -201,13 +208,45 @@ const shoot = async (name, fn) => {
 // ★ 不能用 screenshotElement('.cpfe')：那截的是整个**滚动列**（实测 559x3859），
 //   远超出 800x800 的上限，README 里会变成一条细高的长图。
 const PANEL = { x: 320, y: 100, width: 800, height: 800 }
-await scrollTo(300)
+const reveal = async (label) => {
+  await session.evaluate(`(() => {
+    const toggle = document.querySelector('[data-cap="toggle"]')
+    if (toggle !== null && toggle.getAttribute('aria-expanded') !== 'true') toggle.click()
+    return true
+  })()`)
+  await session.sleep(400)
+  await session.evaluate(`(() => {
+    const panel = document.querySelector('.cpfe')
+    if (panel === null) return false
+    const box = [...document.querySelectorAll('[class*=options]')].find((element) => element.contains(panel))
+    const wanted = ${JSON.stringify(label)}
+    const node = [...panel.querySelectorAll('h2,button,span')].find((element) => (element.innerText || '').trim().startsWith(wanted))
+    if (box !== undefined && node !== undefined) {
+      const top = node.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop
+      box.scrollTop = Math.max(0, top - 16)
+    }
+    return true
+  })()`)
+  await session.sleep(500)
+}
+await reveal('Base mode')
 await shoot('01-mode-switch.png', (file) => session.screenshotBox(file, PANEL))
 
-await scrollTo(1150)
+await reveal('Plugin switches')
 await shoot('02-plugin-switches.png', (file) => session.screenshotBox(file, PANEL))
 
-await scrollTo(2760)
+await session.evaluate(`(() => {
+  const panel = document.querySelector('.cpfe')
+  if (panel === null) return false
+  const box = [...document.querySelectorAll('[class*=options]')].find((element) => element.contains(panel))
+  const node = [...panel.querySelectorAll('h2')].find((element) => (element.innerText || '').trim() === 'System prompt')
+  if (box !== undefined && node !== undefined) {
+    const top = node.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop
+    box.scrollTop = Math.max(0, top - 16)
+  }
+  return true
+})()`)
+await session.sleep(500)
 await shoot('03-system-prompt.png', (file) => session.screenshotBox(file, PANEL))
 
 // ── 05：助手区块（**收起下拉**，两个助手）───────────────────────────────
