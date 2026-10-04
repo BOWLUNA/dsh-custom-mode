@@ -166,7 +166,7 @@ try {
         "history.label": "改动历史",
         "history.pick": "选择要载入的版本…",
         "history.load": "载入这一版",
-        "history.hint": "每次保存、会话内工具改动或手工编辑都会在此留一版；载入只改草稿，保存前不落盘。",
+        "history.hint": "载入只改草稿，保存前不会写入。",
         "history.by.settings": "设置页保存",
         "history.by.external": "会话内/手工改动",
         "msg.loadFailed": "载入这一版失败",
@@ -181,20 +181,20 @@ try {
         "delete.close": "关闭",
         "delete.plainConfirm": "确定永久删除「{name}」吗？该操作无法撤销。",
         "name.heading": "模式名称",
-        "name.hint": "仅影响显示名（模式选择器与助手列表）；内部标识与已有会话不变，新建会话后生效。",
+        "name.hint": "显示在模式菜单里。内部标识不会变。",
         "name.placeholder": "自定义模式",
         "name.descriptionPlaceholder": "模式描述（显示在模式选择器里，可留空）",
         "mode.heading": "基础模式",
-        "mode.hint": "基础模式只决定有哪些行、有哪些工具。本模式的身份始终用这一页的提示词，不继承基础模式的提示语。保存后新建会话生效，无需重启。",
+        "mode.hint": "选一套官方工具当底子。提示词仍以本页为准。",
         "rows.heading": "插件开关",
         "rows.filterPlaceholder": "筛选行（名称或 id）",
-        "cap.heading": "能力",
-        "cap.expand": "展开能力",
-        "cap.collapse": "收起能力",
-        "cap.hint": "基础模式决定有哪些工具。开关逐行生效。这两项从下一次新建会话开始。",
-        "rows.hint": "逐行控制本模式挂载的插件。未改动的行保持官方默认（含平台判断）；手动设置后以手动值为准。",
+        "cap.heading": "工具",
+        "cap.expand": "显示工具",
+        "cap.collapse": "隐藏工具",
+        "cap.hint": "不改的话，助手继续用现在这套工具。",
+        "rows.hint": "关掉某一行，这个助手就不会用它。",
         "prompt.heading": "系统提示词",
-        "prompt.hint": "保存后，下一次模型调用就会用这段文字。导入只进编辑器；导出为 Markdown。恢复出厂后仍要点保存。",
+        "prompt.hint": "保存后，下一次模型调用就会用这段文字。",
         "status.enabled": "已启用",
         "status.disabled": "已停用",
         "status.changed": "已改",
@@ -395,7 +395,7 @@ try {
         "history.label": "Change history",
         "history.pick": "Pick a version to load…",
         "history.load": "Load this version",
-        "history.hint": "Every save — plus changes made in a session or by hand — leaves a version here. Loading one only edits the draft; nothing is written until you save.",
+        "history.hint": "Loading a version only edits the draft. Nothing is written until you save.",
         "history.by.settings": "saved from this page",
         "history.by.external": "changed in a session / by hand",
         "msg.loadFailed": "Could not load that version",
@@ -410,20 +410,20 @@ try {
         "delete.close": "Close",
         "delete.plainConfirm": "Permanently delete \"{name}\"? This cannot be undone.",
         "name.heading": "Mode name",
-        "name.hint": "Changes the display name only (mode picker and assistant list); the internal id and existing sessions are unaffected. Applies to the next new session.",
+        "name.hint": "Shown in the mode menu. The internal id does not change.",
         "name.placeholder": "Custom mode",
         "name.descriptionPlaceholder": "Mode description (shown in the mode picker, optional)",
         "mode.heading": "Base mode",
-        "mode.hint": "The base decides which rows and tools this mode has. Its identity is always the prompt on this page, not the base mode's own wording. A save applies to the next new session; no restart is required.",
+        "mode.hint": "Pick a shipped tool set as the starting point. The prompt on this page still wins.",
         "rows.heading": "Plugin switches",
         "rows.filterPlaceholder": "Filter rows by name or id",
-        "cap.heading": "Capabilities",
-        "cap.expand": "Show capabilities",
-        "cap.collapse": "Hide capabilities",
-        "cap.hint": "The base mode chooses the tools. Each switch applies to one row. Both start on the next new session.",
-        "rows.hint": "Control row by row which plugins this mode mounts. Untouched rows keep the official default (platform conditions included); an explicit choice wins.",
+        "cap.heading": "Tools",
+        "cap.expand": "Show tools",
+        "cap.collapse": "Hide tools",
+        "cap.hint": "Leave this closed to keep the tools this assistant already has.",
+        "rows.hint": "Turn a row off and this assistant will not use it.",
         "prompt.heading": "System prompt",
-        "prompt.hint": "After you save, the next model step uses this text. Import only fills the editor. Export writes Markdown. Reset to factory still needs a save.",
+        "prompt.hint": "After you save, the next model step uses this text.",
         "status.enabled": "Enabled",
         "status.disabled": "Disabled",
         "status.changed": "changed",
@@ -735,7 +735,7 @@ try {
         ".cpfe-hint-line{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-hint-detail{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         // 描述：多行、自适应高度（没有多行输入组件，所以用 textarea + 同一批语义变量）
-        ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:200px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
+        ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:160px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
         ".cpfe-base-pending{color:var(--dsw-alias-state-warn-primary)}",
         ".cpfe-note{display:block;margin:8px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-mono{display:block;margin:0;font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
@@ -762,7 +762,7 @@ try {
         ".cpfe-detail-line{display:flex;gap:8px;min-width:0}",
         ".cpfe-detail-key{flex:0 0 9.5em;color:var(--dsw-alias-label-secondary)}",
         ".cpfe-detail-value{min-width:0;overflow-wrap:anywhere}",
-        ".cpfe-sec-head{display:flex;align-items:center;justify-content:space-between;gap:var(--g);flex-wrap:wrap}",
+        ".cpfe-sec-head{display:flex;flex-direction:column;align-items:flex-start;gap:8px}",
         ".cpfe-newinput{flex:1;min-width:200px}",
         // 单列、行高统一（对齐官方插件页的形态）；之前的自适应多列网格会让行高参差不齐。
         // ★ 对齐官方设置行（实测 0.1.7-rc.2 的行：padding 16px 0、无背景、无圆角，行间只有一条 1px
@@ -775,11 +775,11 @@ try {
         ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:0;padding:16px 0;border:0;border-radius:0;background:none}",
         ".cpfe-row-meta{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}",
         ".cpfe-row-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;height:18px}",
-        ".cpfe-editor{box-sizing:border-box;width:100%;min-height:240px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:13px;line-height:20px}",
-        ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap}",
-        ".cpfe-savebar{position:sticky;bottom:0;z-index:2;padding:8px 0;background:var(--dsw-alias-bg-base)}",
-        ".cpfe-cap-toggle{appearance:none;cursor:pointer;border:0;background:transparent;padding:0;font:inherit;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
-        ".cpfe-filter{box-sizing:border-box;width:100%;height:36px;margin:0 0 8px;padding:0 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
+        ".cpfe-editor{box-sizing:border-box;width:100%;min-height:180px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:13px;line-height:20px}",
+        ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap;margin-top:8px}",
+        ".cpfe-disclosure{appearance:none;display:inline-flex;align-items:center;gap:6px;margin:8px 0 0;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;font-weight:400;cursor:pointer}",
+        ".cpfe-filter{box-sizing:border-box;width:100%;height:36px;margin:0 0 8px;padding:0 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
+        ".cpfe .cpfe-danger{margin-left:auto}",
         ".cpfe-status{font-size:13px;line-height:20px}",
         ".cpfe-ok{color:var(--dsw-alias-label-secondary)}",
         ".cpfe-err{color:var(--dsw-alias-state-error-primary)}",
@@ -1875,7 +1875,7 @@ try {
           typeof (assistants.find((item) => item.id === selected) || {}).broken === "string"
             ? react.createElement("p", { className: "cpfe-note" }, t("assistant.brokenHint"))
             : null,
-          react.createElement("p", { className: "cpfe-note" }, t("msg.readOnlyHint")),
+          null,
         )
 
         // ── editor ────────────────────────────────────────────────────────────
@@ -2144,7 +2144,7 @@ try {
           // 逐个控件加 `disabled` 会漏（本轮就漏了行开关与描述框），一个根类 + 一条 CSS 反而漏不掉。
           { className: busy === true ? "cpfe cpfe-busy" : "cpfe" },
           assistantList,
-          react.createElement("p", { className: "cpfe-note" }, t("assistant.switchHint")),
+          null,
           // 配了却不生效的项：主动点名，而不是让用户对着"我明明写了"发呆。
           // `draft` 在没选中任何助手时是 null（列表还没加载完 / 一个都没有）—— 这里必须先守卫，
           // 否则整块设置页崩掉（实测：浏览器验收当场报 Cannot read properties of null）。
@@ -2200,7 +2200,7 @@ try {
           ...(editorReady ? editorSections.filter((section) => section.key === "name" || section.key === "prompt") : []),
           react.createElement(
             "div",
-            { className: "cpfe-bar cpfe-savebar" },
+            { className: "cpfe-bar" },
             react.createElement(
               A.Button,
               {
@@ -2235,12 +2235,14 @@ try {
               // （实测：干净机器上按名安装装到 1.0.1，而 latest 是 1.9.x）。
               react.createElement(
                 "span",
-                { className: "cpfe-version", title: t("meta.versionHint") },
-                // payload 在"还没读到任何助手"时是 null —— 页脚仍然会渲染，所以必须判空
-                // （同一条错误这一轮被浏览器验收抓到过三次，单元测试一次都看不到）。
-                payload === null ? "" : t("meta.version") + " v" + String(payload.version ?? "?"),
+                {
+                  className: "cpfe-version",
+                  title:
+                    (editorReady ? String(payload.compositionPath ?? "") + "\n" : "") + t("meta.versionHint"),
+                },
+                payload === null ? "" : "v" + String(payload.version ?? "?"),
               ),
-              react.createElement("span", { className: "cpfe-path" }, editorReady ? payload.compositionPath : ""),
+              null,
             ),
           ),
           editorReady
@@ -2252,11 +2254,17 @@ try {
                   {
                     type: "button",
                     "data-cap": "toggle",
-                    className: "cpfe-h",
+                    className: "cpfe-disclosure",
                     "aria-expanded": capOpen,
+                    "aria-label": capOpen ? t("cap.collapse") : t("cap.expand"),
                     onClick: () => setCapOpen((open) => open !== true),
                   },
-                  (capOpen ? t("cap.collapse") : t("cap.expand")) + " · " + t("cap.heading"),
+                  renderable(capOpen ? A.IconChevronDownOutline14 : A.IconChevronRightOutline14)
+                    ? react.createElement(capOpen ? A.IconChevronDownOutline14 : A.IconChevronRightOutline14, { size: 14 })
+                    : capOpen
+                      ? "▾"
+                      : "▸",
+                  t("cap.heading"),
                 ),
                 react.createElement(SectionHint, { text: t("cap.hint") }),
                 capOpen ? editorSections.filter((section) => section.key === "mode" || section.key === "rows") : null,

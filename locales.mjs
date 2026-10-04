@@ -127,7 +127,7 @@ export const zh = {
   'history.label': '改动历史',
   'history.pick': '选择要载入的版本…',
   'history.load': '载入这一版',
-  'history.hint': '每次保存、会话内工具改动或手工编辑都会在此留一版；载入只改草稿，保存前不落盘。',
+  'history.hint': '载入只改草稿，保存前不会写入。',
   'history.by.settings': '设置页保存',
   'history.by.external': '会话内/手工改动',
   'msg.loadFailed': '载入这一版失败',
@@ -143,23 +143,23 @@ export const zh = {
   'delete.plainConfirm': '确定永久删除「{name}」吗？该操作无法撤销。',
 
   'name.heading': '模式名称',
-  'name.hint': '仅影响显示名（模式选择器与助手列表）；内部标识与已有会话不变，新建会话后生效。',
+  'name.hint': '显示在模式菜单里。内部标识不会变。',
   'name.placeholder': '自定义模式',
   'name.descriptionPlaceholder': '模式描述（显示在模式选择器里，可留空）',
 
   'mode.heading': '基础模式',
-  'mode.hint': '基础模式只决定有哪些行、有哪些工具。本模式的身份始终用这一页的提示词，不继承基础模式的提示语。保存后新建会话生效，无需重启。',
+  'mode.hint': '选一套官方工具当底子。提示词仍以本页为准。',
 
   'rows.heading': '插件开关',
   'rows.filterPlaceholder': '筛选行（名称或 id）',
-  'cap.heading': '能力',
-  'cap.expand': '展开能力',
-  'cap.collapse': '收起能力',
-  'cap.hint': '基础模式决定有哪些工具。开关逐行生效。这两项从下一次新建会话开始。',
-  'rows.hint': '逐行控制本模式挂载的插件。未改动的行保持官方默认（含平台判断）；手动设置后以手动值为准。',
+  'cap.heading': '工具',
+  'cap.expand': '显示工具',
+  'cap.collapse': '隐藏工具',
+  'cap.hint': '不改的话，助手继续用现在这套工具。',
+  'rows.hint': '关掉某一行，这个助手就不会用它。',
 
   'prompt.heading': '系统提示词',
-  'prompt.hint': '保存后，下一次模型调用就会用这段文字。导入只进编辑器；导出为 Markdown。恢复出厂后仍要点保存。',
+  'prompt.hint': '保存后，下一次模型调用就会用这段文字。',
 
   'status.enabled': '已启用',
   'status.disabled': '已停用',
@@ -373,7 +373,7 @@ export const en = {
   'history.label': 'Change history',
   'history.pick': 'Pick a version to load…',
   'history.load': 'Load this version',
-  'history.hint': 'Every save — plus changes made in a session or by hand — leaves a version here. Loading one only edits the draft; nothing is written until you save.',
+  'history.hint': 'Loading a version only edits the draft. Nothing is written until you save.',
   'history.by.settings': 'saved from this page',
   'history.by.external': 'changed in a session / by hand',
   'msg.loadFailed': 'Could not load that version',
@@ -389,27 +389,23 @@ export const en = {
   'delete.plainConfirm': 'Permanently delete "{name}"? This cannot be undone.',
 
   'name.heading': 'Mode name',
-  'name.hint':
-    'Changes the display name only (mode picker and assistant list); the internal id and existing sessions are unaffected. Applies to the next new session.',
+  'name.hint': 'Shown in the mode menu. The internal id does not change.',
   'name.placeholder': 'Custom mode',
   'name.descriptionPlaceholder': 'Mode description (shown in the mode picker, optional)',
 
   'mode.heading': 'Base mode',
-  'mode.hint':
-    'The base decides which rows and tools this mode has. Its identity is always the prompt on this page, not the base mode\'s own wording. A save applies to the next new session; no restart is required.',
+  'mode.hint': 'Pick a shipped tool set as the starting point. The prompt on this page still wins.',
 
   'rows.heading': 'Plugin switches',
   'rows.filterPlaceholder': 'Filter rows by name or id',
-  'cap.heading': 'Capabilities',
-  'cap.expand': 'Show capabilities',
-  'cap.collapse': 'Hide capabilities',
-  'cap.hint': 'The base mode chooses the tools. Each switch applies to one row. Both start on the next new session.',
-  'rows.hint':
-    'Control row by row which plugins this mode mounts. Untouched rows keep the official default (platform conditions included); an explicit choice wins.',
+  'cap.heading': 'Tools',
+  'cap.expand': 'Show tools',
+  'cap.collapse': 'Hide tools',
+  'cap.hint': 'Leave this closed to keep the tools this assistant already has.',
+  'rows.hint': 'Turn a row off and this assistant will not use it.',
 
   'prompt.heading': 'System prompt',
-  'prompt.hint':
-    'After you save, the next model step uses this text. Import only fills the editor. Export writes Markdown. Reset to factory still needs a save.',
+  'prompt.hint': 'After you save, the next model step uses this text.',
 
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',

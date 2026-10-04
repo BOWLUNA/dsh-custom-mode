@@ -8,6 +8,14 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.13.0]
+
+### Settings page reads as one settings page
+
+- The tools disclosure is a single heading, Tools, with a chevron. It no longer says "Hide capabilities · Capabilities".
+- Save sits in normal flow under the prompt. It no longer sticks over the editor. The filesystem path is no longer printed on the page.
+- Section introductions are one line. Repeated explanations under the assistant list are gone. Fields use the same surface token as native inputs.
+
 ## [1.12.2]
 
 ### Storefront
