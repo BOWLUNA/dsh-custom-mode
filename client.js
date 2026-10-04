@@ -81,7 +81,7 @@ try {
         "btn.resetHint": "把编辑器里的内容换成出厂模板（新建助手时得到的那一份）。它同样只改草稿，点保存才落盘 —— 误点可以用「重新读取」撤销。",
         "btn.delete": "删除这个助手",
         "btn.cancel": "取消",
-        "msg.created": "已创建。现在可以为它写系统提示词。",
+        "msg.created": "已创建。现在可以为它写系统提示词。新建会话的模式菜单要刷新一次才会出现它。",
         "msg.duplicated": "已复制。两份配置彼此独立。",
         "msg.deleted": "已删除。",
         "msg.createFailed": "创建失败",
@@ -120,7 +120,8 @@ try {
         "meta.versionHint": "安装时不钉版本号会受 pnpm 发布冷却期影响（默认 24 小时），可能装到较旧的版本。要换版本请按 README 的钉版本命令重装，然后重启 DSH。",
         "api.saved": "已保存（{name}，基础模式 {mode}）。新建会话即生效，当前会话保持原配置。",
         "api.savedWithExclusiveRows": "已保存（{name}，基础模式 {mode}）。两套壳注册同名工具、不能同时启用 —— 已自动关掉：{rows}。新建会话即生效，当前会话保持原配置。",
-        "api.created": "已创建「{name}」。现在可以为它写系统提示词。",
+        "api.created": "已创建「{name}」。现在可以为它写系统提示词。新建会话的模式菜单要刷新一次才会出现它。",
+        "api.savedPrompt": "已保存系统提示词（{name}）。下一步模型调用即生效。",
         "api.duplicated": "已复制自「{from}」。两份配置彼此独立。",
         "api.deleted": "已删除「{name}」。正在使用它的会话不受影响；新建会话时它不再出现。",
         "api.reordered": "顺序已保存：新建会话时的模式选择器按这个顺序排列。",
@@ -153,6 +154,9 @@ try {
         "warn.approvalGateMissing": "审批闸门未启用：本机这个 DSH 版本没有 tools/pre-execute 事件，会话内改写系统提示词不会弹审批。见「详情」。",
         "warn.unresolvableRows": "有行在本机这条 DSH 线上跑不起来。平台会因此判整个模式为 broken，把它从新会话的选择器里丢掉（不报错）。点下方「按本线修复」只关掉那几行，其它选择不动。",
         "warn.presetBroken": "平台判这个模式为 broken，它会从新会话的选择器里消失 —— 而上面的「无法解析」检查解释不了原因（多半是某一行依赖的服务没起来）。点下方「按本线修复」把那几行关掉；平台自己给的原因见下面那行。",
+        "warn.badPromptVariable": "系统提示词里有未注册或写错的变量引用，这个模式的每次请求都会失败。改掉那一处后再保存。",
+        "warn.duplicateRowIds": "组成文件里有重复的行 id。开关只作用于第一处，请删掉重复的那一行。",
+        "warn.predicateFailed": "有一行的平台条件求值失败，这一行已按关闭处理，避免整个模式无法挂载。",
         "warn.exclusiveRowsActive": "两条互斥的壳同时开着（它们注册同名工具），平台会判整个模式为 broken 并从新会话的选择器里丢掉。关掉其中一条即可；在设置页保存一次也会自动避让。",
         "warn.baseCompositionUnavailable": "取不到本机这条 DSH 线的出厂组成：基础模式与插件开关暂时不能改（系统提示词不受影响，照常可保存）。已尝试的途径写在宿主日志里。",
         "warn.personaOffWithPrompt": "「身份（系统提示词）」这一行是关的，所以 prompt.md 不会被注入 —— 所写的提示词不会生效。打开这一行，或清空提示词。",
@@ -170,7 +174,7 @@ try {
         "msg.importTooLarge": "文件太大（上限 1MB）。",
         "msg.exported": "已导出为文件。",
         "msg.exportFailed": "导出失败",
-        "delete.title": "永久删除这个助手？",
+        "delete.title": "永久删除「{name}」？",
         "delete.description": "这会删除磁盘上的模式目录，连同它的系统提示词一起消失，无法撤销。正在使用它的会话不受影响；新建会话时它不再出现在选择器里。（{id}）",
         "delete.acknowledge": "我明白这个助手的提示词会被永久删除",
         "delete.confirm": "永久删除",
@@ -181,8 +185,13 @@ try {
         "name.placeholder": "自定义模式",
         "name.descriptionPlaceholder": "模式描述（显示在模式选择器里，可留空）",
         "mode.heading": "基础模式",
-        "mode.hint": "基础模式只决定行集合与工具能力：本模式的身份行始终替换基础模式的那一行（提示词由本页编辑，complete: false），不继承其提示语语义。保存后新建会话即生效，无需重启。",
+        "mode.hint": "基础模式只决定有哪些行、有哪些工具。本模式的身份始终用这一页的提示词，不继承基础模式的提示语。保存后新建会话生效，无需重启。",
         "rows.heading": "插件开关",
+        "rows.filterPlaceholder": "筛选行（名称或 id）",
+        "cap.heading": "能力",
+        "cap.expand": "展开能力",
+        "cap.collapse": "收起能力",
+        "cap.hint": "基础模式决定有哪些行；插件开关逐行生效。这两项从新建会话起生效。",
         "rows.hint": "逐行控制本模式挂载的插件。未改动的行保持官方默认（含平台判断）；手动设置后以手动值为准。",
         "prompt.heading": "系统提示词",
         "prompt.hint": "每次模型调用前重新读取：保存后下一步生效，仅影响使用本助手的会话。「导入」读文件进编辑器（保存前不写入）；「导出」存为 .md；「恢复出厂提示词」填回出厂模板（同样需保存）。",
@@ -195,6 +204,7 @@ try {
         "btn.saving": "处理中…",
         "btn.reload": "重新读取",
         "btn.reloadDiscard": "放弃修改并重新读取",
+        "btn.reloadConfirm": "放弃未保存的修改并重新读取？",
         "msg.unsaved": "有未保存的修改",
         "msg.readFailed": "读取失败",
         "msg.saveFailed": "保存失败",
@@ -273,7 +283,7 @@ try {
         //   同一个模式在一页里有两个名字：用户点了「Cordis 模式」药丸，读到的说明却说「创造模式」。
         "base.cordis.label": "创造模式",
         "base.cordis.note": "标准模式 + 读写运行时的 Cordis 工具集，可让 agent 自己改 harness",
-        "base.all.label": "自定义模式",
+        "base.all.label": "全部出厂行",
         "base.all.note": "不继承任何单一原生模式：以标准模式的全套行为底，补上只有 PTC / 极简 / 创造模式才有的行，全部都能逐行开关"
       }
 
@@ -300,7 +310,7 @@ try {
         "btn.resetHint": "Puts the shipped template back into the editor (the text a new assistant starts from). Like every other edit it only changes the draft — save to apply, or use Reload to discard.",
         "btn.delete": "Delete this assistant",
         "btn.cancel": "Cancel",
-        "msg.created": "Created. Now you can write its system prompt.",
+        "msg.created": "Created. You can write its system prompt now. Refresh once before the new-session mode menu will list it.",
         "msg.duplicated": "Duplicated. The two are independent from here on.",
         "msg.deleted": "Deleted.",
         "msg.createFailed": "Could not create",
@@ -339,7 +349,8 @@ try {
         "meta.versionHint": "Installing without a pinned version is subject to pnpm’s release cooldown (24 h by default) and can land on an older release. To change version, reinstall with the pinned command from the README and restart DSH.",
         "api.saved": "Saved ({name}, base mode {mode}). A new session picks it up; the current one keeps its configuration.",
         "api.savedWithExclusiveRows": "Saved ({name}, base mode {mode}). The two shell implementations register the same tool names and cannot both be on — turned off automatically: {rows}. A new session picks it up; the current one keeps its configuration.",
-        "api.created": "Created {name}. You can write its system prompt now.",
+        "api.created": "Created {name}. You can write its system prompt now. Refresh once before the new-session mode menu will list it.",
+        "api.savedPrompt": "System prompt saved ({name}). It applies on the next model step.",
         "api.duplicated": "Copied from {from}. The two are independent from now on.",
         "api.deleted": "Deleted {name}. Sessions already using it keep running; it no longer appears for new sessions.",
         "api.reordered": "Order saved: the new-session mode picker follows it.",
@@ -374,7 +385,10 @@ try {
         "warn.noDescription": "No description: the new-session mode picker will show it as \"no description yet\".",
         "warn.approvalGateMissing": "The approval gate is off: this DSH build has no tools/pre-execute event, so in-session prompt rewrites do not ask for approval. See the details.",
         "warn.unresolvableRows": "Some rows cannot be resolved on this DSH line: the platform marks the whole mode broken and silently drops it from the new-session picker. Click Fix for this line — it only turns those rows off and leaves your other choices alone.",
-        "warn.presetBroken": "The platform marks this mode broken, so it disappears from the new-session picker — and the \"unresolvable\" check above cannot explain why (usually a row whose service or engine never started). Click Fix for this line to turn those rows off. The host's own reason is in Details.",
+        "warn.presetBroken": "The platform marks this mode broken, so it disappears from the new-session picker — and the \"unresolvable\" check above cannot explain why (usually a row whose service or engine never started). Click Fix for this line to turn those rows off. The host's own reason is on the line below.",
+        "warn.badPromptVariable": "The system prompt contains an unknown or invalid variable reference, so every request in this mode fails. Fix it, then save.",
+        "warn.duplicateRowIds": "The composition repeats a row id. A switch applies only to the first copy. Remove the duplicate.",
+        "warn.predicateFailed": "A platform condition failed to evaluate. That row is treated as off so the mode can still mount.",
         "warn.exclusiveRowsActive": "Both shells are on, and they register the same tool names: the platform marks the whole mode broken and silently drops it from the new-session picker. Turn one of them off — saving from the settings page also resolves it automatically.",
         "warn.noName": "No name: the mode picker will show the directory id (e.g. custom).",
         "warn.baseCompositionUnavailable": "This DSH line exposes no shipped composition: the base mode and the plugin switches cannot be changed right now (the system prompt is unaffected and still saves). The routes that were tried are in the host log.",
@@ -389,7 +403,7 @@ try {
         "msg.importTooLarge": "That file is too large (1 MB limit).",
         "msg.exported": "Exported to a file.",
         "msg.exportFailed": "Export failed",
-        "delete.title": "Delete this assistant permanently?",
+        "delete.title": "Delete \"{name}\" permanently?",
         "delete.description": "This removes the mode directory from disk, system prompt included, and cannot be undone. Sessions already using it keep running; new sessions no longer offer it. ({id})",
         "delete.acknowledge": "I understand this assistant's prompt will be deleted permanently",
         "delete.confirm": "Delete permanently",
@@ -400,8 +414,13 @@ try {
         "name.placeholder": "Custom mode",
         "name.descriptionPlaceholder": "Mode description (shown in the mode picker, optional)",
         "mode.heading": "Base mode",
-        "mode.hint": "The base decides the row set and the tool abilities: this mode always replaces the base's persona row with its own reader (complete: false), so the base's prompt semantics are not inherited. A save applies to the next new session; no restart needed.",
+        "mode.hint": "The base decides which rows and tools this mode has. Its identity is always the prompt on this page, not the base mode's own wording. A save applies to the next new session; no restart is required.",
         "rows.heading": "Plugin switches",
+        "rows.filterPlaceholder": "Filter rows by name or id",
+        "cap.heading": "Capabilities",
+        "cap.expand": "Show capabilities",
+        "cap.collapse": "Hide capabilities",
+        "cap.hint": "The base mode chooses the row set. Each switch applies to one row. Both take effect on the next new session.",
         "rows.hint": "Control row by row which plugins this mode mounts. Untouched rows keep the official default (platform conditions included); an explicit choice wins.",
         "prompt.heading": "System prompt",
         "prompt.hint": "This text is re-read before every model call, so a save applies on the next step and only affects sessions on this assistant. \"Import\" reads a file into the editor (nothing is written until you save); \"Export\" saves the current text as a .md file; \"Reset to factory prompt\" puts the shipped template back into the editor (also saved only when you save).",
@@ -414,6 +433,7 @@ try {
         "btn.saving": "Working…",
         "btn.reload": "Reload",
         "btn.reloadDiscard": "Discard edits and reload",
+        "btn.reloadConfirm": "Discard unsaved edits and reload?",
         "msg.unsaved": "Unsaved changes",
         "msg.readFailed": "Load failed",
         "msg.saveFailed": "Save failed",
@@ -490,7 +510,7 @@ try {
         "base.minimal.note": "Shell and terminal only, 7 rows; no files, search, skills or subagents. The system prompt is not minimal's either (this mode replaces the persona row)",
         "base.cordis.label": "Creator mode",
         "base.cordis.note": "Standard plus the Cordis toolset, letting the agent modify its own harness",
-        "base.all.label": "Custom mode",
+        "base.all.label": "All shipped rows",
         "base.all.note": "Inherits no single shipped mode: standard's full row list plus the rows only PTC / Minimal / Creator declare, every one of them switchable"
       }
 
@@ -732,7 +752,7 @@ try {
         ".cpfe-row-open{border-color:var(--dsw-alias-border-l2)}",
         ".cpfe-row-detail{display:flex;flex-direction:column;gap:4px;margin:0 0 12px;padding:0 0 0 16px;border:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-detail-line{display:flex;gap:8px;min-width:0}",
-        ".cpfe-detail-key{flex:0 0 62px;color:var(--dsw-alias-label-secondary)}",
+        ".cpfe-detail-key{flex:0 0 9.5em;color:var(--dsw-alias-label-secondary)}",
         ".cpfe-detail-value{min-width:0;overflow-wrap:anywhere}",
         ".cpfe-sec-head{display:flex;align-items:center;justify-content:space-between;gap:var(--g);flex-wrap:wrap}",
         ".cpfe-newinput{flex:1;min-width:200px}",
@@ -749,6 +769,9 @@ try {
         ".cpfe-row-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;height:18px}",
         ".cpfe-editor{box-sizing:border-box;width:100%;min-height:240px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;line-height:20px}",
         ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap}",
+        ".cpfe-savebar{position:sticky;bottom:0;z-index:2;padding:8px 0;background:var(--dsw-alias-bg-base)}",
+        ".cpfe-cap-toggle{appearance:none;cursor:pointer;border:0;background:transparent;padding:0;font:inherit;font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
+        ".cpfe-filter{box-sizing:border-box;width:100%;height:36px;margin:0 0 8px;padding:0 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
         ".cpfe-status{font-size:13px;line-height:20px}",
         ".cpfe-ok{color:var(--dsw-alias-label-secondary)}",
         ".cpfe-err{color:var(--dsw-alias-state-error-primary)}",
@@ -770,7 +793,7 @@ try {
         // 光拦状态还不够：DOM 会先显示用户敲进去的字/翻过去的开关，等下一次重渲染才被拉回来 ——
         // 那就是"我明明改了，它自己弹回去了"。`pointer-events` 让点击根本到不了控件，
         // 视觉上也给一个明确的"此刻不能动"。
-        ".cpfe-busy .cpfe-switch,.cpfe-busy .cpfe-row-toggle,.cpfe-busy .cpfe-input,.cpfe-busy .cpfe-field,.cpfe-busy .cpfe-editor{pointer-events:none;opacity:.65}",
+        ".cpfe-busy .cpfe-switch,.cpfe-busy .cpfe-row-switch,.cpfe-busy .cpfe-row-toggle,.cpfe-busy .cpfe-input,.cpfe-busy .cpfe-field,.cpfe-busy .cpfe-editor,.cpfe-busy .cpfe-pill,.cpfe-busy .cpfe-selector{pointer-events:none;opacity:.65}",
         ".cpfe-busy .cpfe-editor{cursor:progress}",
         ".cpfe-tag{font-size:12px;line-height:18px;padding:0 5px;border-radius:4px;border:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary)}",
         ".cpfe-tag-success,.cpfe-tag-info{color:var(--dsw-alias-state-success-primary)}",
@@ -885,6 +908,7 @@ try {
           // 改动历史：列表来自 state（只有元数据），正文点「载入这一版」时按需取。
           history: Array.isArray(state.history) ? state.history : [],
           historyPick: "",
+          broken: typeof state.broken === "string" && state.broken !== "" ? state.broken : null,
           // 「配置了却不生效」的告警码；文案按当前语言渲染。
           warnings: Array.isArray(state.warnings) ? state.warnings : [],
         }
@@ -935,6 +959,20 @@ try {
        * this change: 33 rows at 274px wide and 84–117px tall with a bare `tool-bash` line each, i.e. uneven
        * heights and a lot of vertical noise for information most users never read.
        */
+      function filterRows(rows, query, translateRow) {
+        const needle = String(query || "").trim().toLowerCase()
+        if (needle === "") return rows
+        const out = []
+        for (const row of rows) {
+          const title = String(translateRow("row." + row.id + ".label", row.label)).toLowerCase()
+          const self = title.includes(needle) || row.id.toLowerCase().includes(needle)
+          const children = Array.isArray(row.children) ? row.children : []
+          const kids = self ? children : filterRows(children, query, translateRow)
+          if (self || kids.length > 0) out.push(self ? row : { ...row, children: kids })
+        }
+        return out
+      }
+
       function RowList(props) {
         const { rows, overrides, onToggle, expanded, onToggleExpand, depth, t } = props
         return react.createElement(
@@ -998,6 +1036,7 @@ try {
                 ),
                 react.createElement(A.Switch, {
                   checked: effective,
+                  disabled: props.disabled === true,
                   onChange: (next) => onToggle(row.id, next),
                   // `Switch` renders NO text: its `label` is the accessible name only, so the
                   // visible title is drawn next to it (an unlabelled toggle is unusable).
@@ -1068,6 +1107,7 @@ try {
                     onToggleExpand: onToggleExpand,
                     depth: depth + 1,
                     t: t,
+                    disabled: props.disabled === true,
                   })
                 : null,
             )
@@ -1115,10 +1155,19 @@ try {
                * 词典里没有这个 id 时（旧宿主 / 未来新增）退回机器名，宁可难看也不要空。
                */
               const params = result.params
-              const shown =
-                params !== null && typeof params === "object" && typeof params.mode === "string"
-                  ? { ...params, mode: translate("base." + params.mode + ".label", params.mode, shellT) }
-                  : params
+              let shown = params
+              if (params !== null && typeof params === "object") {
+                shown = { ...params }
+                if (typeof params.mode === "string") {
+                  shown.mode = translate("base." + params.mode + ".label", params.mode, shellT)
+                }
+                if (typeof params.rows === "string") {
+                  shown.rows = params.rows
+                    .split(",")
+                    .map((id) => translate("row." + id.trim() + ".label", id.trim(), shellT))
+                    .join(", ")
+                }
+              }
               return fillPlaceholders(template, shown)
             }
           }
@@ -1149,6 +1198,9 @@ try {
         // 两个官方风格的下拉（壳的 `Menu`）：助手切换与改动历史。壳不提供 Menu 时退回原生控件。
         const [assistantOpen, setAssistantOpen] = react.useState(false)
         const [historyOpen, setHistoryOpen] = react.useState(false)
+        const [listFailed, setListFailed] = react.useState(false)
+        const [capOpen, setCapOpen] = react.useState(false)
+        const [rowQuery, setRowQuery] = react.useState("")
         /** 本机这条线上有无法解析的行时，一键把它们关掉（服务端复用保存同一条排版手术）。 */
         const repairRowsNow = async () => {
           if (draft === null) return
@@ -1258,10 +1310,12 @@ try {
           const result = await fetchList()
           if (result === null || result === undefined || result.ok !== true) {
             setFailed(true)
+            setListFailed(true)
             setStatus(apiText(result, "msg.readFailed"))
             return
           }
           const assistants = Array.isArray(result.assistants) ? result.assistants : []
+          setListFailed(false)
           setList(assistants)
           const wanted =
             typeof preferId === "string" && preferId !== ""
@@ -1351,7 +1405,18 @@ try {
         }
 
         const pick = async (id) => {
-          if (id === selected) return
+          if (id === selected) {
+            setBusy(true)
+            try {
+              await open(id, { force: true })
+            } catch (error) {
+              setFailed(true)
+              setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.readFailed"), detail: describeError(error) }))
+            } finally {
+              setBusy(false)
+            }
+            return
+          }
           setSelected(id)
           setDeleteOpen(false)
           setAcknowledged(false)
@@ -1369,6 +1434,7 @@ try {
 
         /** Create a new assistant, or duplicate the selected one. */
         const create = async (options) => {
+          if (busy === true) return
           const from = options !== null && typeof options === "object" ? options.from : undefined
           const name =
             options !== null && typeof options === "object" && typeof options.name === "string"
@@ -1549,7 +1615,7 @@ try {
          * confirmation instead of losing the guardrail entirely.
          */
         const askDelete = () => {
-          if (typeof A.RiskConfirmation === "function") {
+          if (renderable(A.RiskConfirmation)) {
             setAcknowledged(false)
             setDeleteOpen(true)
             return
@@ -1577,7 +1643,13 @@ try {
             })
             if (result !== null && result !== undefined && result.ok === true) {
               setFailed(false)
-              setStatus(apiText(result, "msg.saved"))
+              const compositionChanged =
+                entry !== undefined &&
+                (draft.mode !== entry.saved.mode ||
+                  JSON.stringify(draft.overrides) !== JSON.stringify(entry.saved.overrides))
+              const spoken =
+                result.code === "saved" && compositionChanged !== true ? { ...result, code: "savedPrompt" } : result
+              setStatus(apiText(spoken, "msg.saved"))
               // The server normalises what it stores (trimmed name, recomputed overrides),
               // so the just-saved draft is replaced by what it actually wrote. Without this
               // the page would show 「已保存」 and 「未保存」 at the same time.
@@ -1620,7 +1692,14 @@ try {
           react.createElement("h2", { className: "cpfe-h" }, t("assistant.heading")),
                 react.createElement(SectionHint, { text: t("assistant.hint") }),
           list === null
-            ? react.createElement("p", { className: "cpfe-sub" }, t("assistant.loadingList"))
+            ? react.createElement(
+                "div",
+                null,
+                react.createElement("p", { className: "cpfe-sub" }, listFailed ? t("msg.readFailed") : t("assistant.loadingList")),
+                listFailed
+                  ? react.createElement(A.Button, { disabled: busy, onClick: () => reload("") }, t("btn.reload"))
+                  : null,
+              )
             : assistants.length === 0
               ? react.createElement("p", { className: "cpfe-sub" }, t("assistant.empty"))
               : react.createElement(
@@ -1716,7 +1795,7 @@ try {
               placeholder: t("assistant.newPlaceholder"),
               "aria-label": t("assistant.newPlaceholder"),
               onKeyDown: (event) => {
-                if (event.key === "Enter") create()
+                if (event.key === "Enter" && busy !== true) create()
               },
               onChange: (event) => {
                 setNewName(event.target.value)
@@ -1734,6 +1813,60 @@ try {
               busy ? t("btn.creating") : t("btn.create"),
             ),
           ),
+          editorReady
+            ? react.createElement(
+                "div",
+                { className: "cpfe-actions" },
+                react.createElement(
+                  A.Button,
+                  {
+                    variant: "outline",
+                    size: "sm",
+                    icon: A.IconChevronUpOutline14 === undefined ? null : react.createElement(A.IconChevronUpOutline14),
+                    disabled: busy || position <= 0,
+                    onClick: () => move("up"),
+                  },
+                  t("btn.moveUp"),
+                ),
+                react.createElement(
+                  A.Button,
+                  {
+                    variant: "outline",
+                    size: "sm",
+                    icon: A.IconChevronDownOutline14 === undefined ? null : react.createElement(A.IconChevronDownOutline14),
+                    disabled: busy || position === -1 || position >= assistants.length - 1,
+                    onClick: () => move("down"),
+                  },
+                  t("btn.moveDown"),
+                ),
+                react.createElement(
+                  A.Button,
+                  {
+                    variant: "outline",
+                    size: "sm",
+                    icon: A.IconCopyOutline16 === undefined ? null : react.createElement(A.IconCopyOutline16),
+                    disabled: busy,
+                    onClick: duplicate,
+                  },
+                  t("btn.duplicate"),
+                ),
+                react.createElement(
+                  A.Button,
+                  {
+                    variant: "ghost",
+                    size: "sm",
+                    className: "cpfe-danger",
+                    icon: A.IconTrashOutline16 === undefined ? null : react.createElement(A.IconTrashOutline16),
+                    disabled: busy,
+                    onClick: askDelete,
+                  },
+                  t("btn.delete"),
+                ),
+              )
+            : null,
+          typeof (assistants.find((item) => item.id === selected) || {}).broken === "string"
+            ? react.createElement("p", { className: "cpfe-note" }, t("assistant.brokenHint"))
+            : null,
           react.createElement("p", { className: "cpfe-note" }, t("msg.readOnlyHint")),
         )
 
@@ -1766,55 +1899,6 @@ try {
                   "aria-label": t("name.descriptionPlaceholder"),
                   onChange: (event) => update({ description: event.target.value }),
                 }),
-                react.createElement(
-                  "div",
-                  { className: "cpfe-actions" },
-                  react.createElement(
-                    A.Button,
-                    {
-                      variant: "outline",
-                      size: "sm",
-                      icon: A.IconChevronUpOutline14 === undefined ? null : react.createElement(A.IconChevronUpOutline14),
-                      disabled: busy || position <= 0,
-                      onClick: () => move("up"),
-                    },
-                    t("btn.moveUp"),
-                  ),
-                  react.createElement(
-                    A.Button,
-                    {
-                      variant: "outline",
-                      size: "sm",
-                      icon: A.IconChevronDownOutline14 === undefined ? null : react.createElement(A.IconChevronDownOutline14),
-                      disabled: busy || position === -1 || position >= assistants.length - 1,
-                      onClick: () => move("down"),
-                    },
-                    t("btn.moveDown"),
-                  ),
-                  react.createElement(
-                    A.Button,
-                    {
-                      variant: "outline",
-                      size: "sm",
-                      icon: A.IconCopyOutline16 === undefined ? null : react.createElement(A.IconCopyOutline16),
-                      disabled: busy,
-                      onClick: duplicate,
-                    },
-                    t("btn.duplicate"),
-                  ),
-                  react.createElement(
-                    A.Button,
-                    {
-                      variant: "ghost",
-                      size: "sm",
-                      className: "cpfe-danger",
-                      icon: A.IconTrashOutline16 === undefined ? null : react.createElement(A.IconTrashOutline16),
-                      disabled: busy,
-                      onClick: askDelete,
-                    },
-                    t("btn.delete"),
-                  ),
-                ),
               ),
               react.createElement(
                 "section",
@@ -1831,7 +1915,13 @@ try {
                       payload.modes.map((mode) =>
                         react.createElement(
                           A.Pill,
-                          { key: mode.id, active: draft.mode === mode.id, onClick: () => pickMode(mode.id) },
+                          {
+                            key: mode.id,
+                            active: draft.mode === mode.id,
+                            disabled: busy,
+                            "aria-pressed": draft.mode === mode.id,
+                            onClick: () => pickMode(mode.id),
+                          },
                           t("base." + mode.id + ".label", mode.label),
                         ),
                       ),
@@ -1859,15 +1949,30 @@ try {
                 react.createElement(SectionHint, { text: t("rows.hint") }),
                 draft.baseUnavailable !== null
                   ? react.createElement("p", { className: "cpfe-note" }, t("rows.unavailable"))
-                  : react.createElement(RowList, {
-                      expanded: expandedRows,
-                      onToggleExpand: toggleRowExpanded,
-                      rows: payload.rows,
-                      overrides: draft.overrides,
-                      onToggle: (id, next) => update({ overrides: { ...draft.overrides, [id]: next } }),
-                      depth: 0,
-                      t: t,
-                    }),
+                  : react.createElement(
+                      "div",
+                      null,
+                      react.createElement("input", {
+                        className: "cpfe-filter",
+                        value: rowQuery,
+                        placeholder: t("rows.filterPlaceholder"),
+                        "aria-label": t("rows.filterPlaceholder"),
+                        onChange: (event) => setRowQuery(event.target.value),
+                      }),
+                      react.createElement(RowList, {
+                        expanded: expandedRows,
+                        onToggleExpand: toggleRowExpanded,
+                        rows: filterRows(payload.rows, rowQuery, t),
+                        overrides: draft.overrides,
+                        onToggle: (id, next) => {
+                          if (draft.mode !== savedMode) return
+                          update({ overrides: { ...draft.overrides, [id]: next } })
+                        },
+                        depth: 0,
+                        t: t,
+                        disabled: busy === true || draft.mode !== savedMode,
+                      }),
+                    ),
               ),
               react.createElement(
                 "section",
@@ -2084,10 +2189,10 @@ try {
                   ),
                 ),
               ),
-          ...editorSections,
+          ...(editorReady ? editorSections.filter((section) => section.key === "name" || section.key === "prompt") : []),
           react.createElement(
             "div",
-            { className: "cpfe-bar" },
+            { className: "cpfe-bar cpfe-savebar" },
             react.createElement(
               A.Button,
               {
@@ -2103,11 +2208,14 @@ try {
               {
                 variant: "outline",
                 icon: A.IconRefreshOutline16 === undefined ? null : react.createElement(A.IconRefreshOutline16),
-                disabled: busy || editorReady === false,
+                disabled: busy,
                 // Explicitly destructive of the local draft, so it says so while there is
                 // one: switching assistants never discards edits, and this button is the
                 // one place that does.
-                onClick: () => reload(selected, { discard: true }),
+                onClick: () => {
+                  if (dirty && typeof window !== "undefined" && window.confirm(t("btn.reloadConfirm")) !== true) return
+                  reload(selected, { discard: true })
+                },
               },
               dirty ? t("btn.reloadDiscard") : t("btn.reload"),
             ),
@@ -2127,13 +2235,32 @@ try {
               react.createElement("span", { className: "cpfe-path" }, editorReady ? payload.compositionPath : ""),
             ),
           ),
+          editorReady
+            ? react.createElement(
+                "section",
+                null,
+                react.createElement(
+                  "button",
+                  {
+                    type: "button",
+                    "data-cap": "toggle",
+                    className: "cpfe-h",
+                    "aria-expanded": capOpen,
+                    onClick: () => setCapOpen((open) => open !== true),
+                  },
+                  (capOpen ? t("cap.collapse") : t("cap.expand")) + " · " + t("cap.heading"),
+                ),
+                react.createElement(SectionHint, { text: t("cap.hint") }),
+                capOpen ? editorSections.filter((section) => section.key === "mode" || section.key === "rows") : null,
+              )
+            : null,
           // The confirmation is a portal: rendering it here keeps every piece of this page's
           // state in one component.
-          typeof A.RiskConfirmation === "function" && editorReady
+          renderable(A.RiskConfirmation) && editorReady
             ? react.createElement(A.RiskConfirmation, {
                 open: deleteOpen,
-                title: t("delete.title"),
-                description: fillPlaceholders(t("delete.description"), { id: draft.id }),
+                title: fillPlaceholders(t("delete.title"), { name: draft.name || draft.id }),
+                description: fillPlaceholders(t("delete.description"), { id: draft.id, name: draft.name || draft.id }),
                 acknowledgeLabel: t("delete.acknowledge"),
                 cancelLabel: t("btn.cancel"),
                 closeLabel: t("delete.close"),

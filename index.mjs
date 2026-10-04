@@ -39,7 +39,7 @@
  * rows the user changed by diffing against the same shipped base mode.
  */
 
-import { writeAtomic, writeAtomicPair } from './atomic.mjs'
+import { restoreBackups, writeAtomic, writeAtomicPair } from './atomic.mjs'
 import {
   BACKEND_DECLARATIVE,
   BACKEND_UNUSABLE,
@@ -48,7 +48,7 @@ import {
   detectPresetBackend,
   effectiveRosterRows,
 } from './preset-backend/index.mjs'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
 import {
@@ -58,6 +58,7 @@ import {
   collectRows,
   disableRowsInPlace,
   exclusiveSetsActive,
+  hasFailedPredicate,
   isBaseCompositionUnavailable,
   modeOf,
   overridesOf,
@@ -289,6 +290,21 @@ export function configWarnings(text, prompt, meta) {
   // 保存路径已经会自动避让（见 applyRowExclusivity），所以走到这里只可能是手工编辑、直接调 HTTP API，
   // 或者上一次是别的工具写的 —— 三种都该被点名（"配置了却不生效"是本页明面上的承诺）。
   if (exclusiveSetsActive(text).length > 0) warnings.push('exclusiveRowsActive')
+  const seenIds = new Set()
+  let duplicate = false
+  const walk = (list) => {
+    for (const row of list) {
+      if (seenIds.has(row.id)) duplicate = true
+      else seenIds.add(row.id)
+      if (Array.isArray(row.children) && row.children.length > 0) walk(row.children)
+    }
+  }
+  walk(rows)
+  if (duplicate) warnings.push('duplicateRowIds')
+  if (hasFailedPredicate(text)) warnings.push('predicateFailed')
+  if (typeof prompt === 'string' && prompt.trim() !== '' && checkPromptText(prompt).ok !== true) {
+    warnings.push('badPromptVariable')
+  }
   return warnings
 }
 
@@ -321,6 +337,7 @@ export function brokenRowIds(message) {
 export function readState(rows, id, options = {}) {
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
+  restoreBackups(directory)
   const composition = compositionFile(directory)
   if (!existsSync(composition)) return { ok: false, code: 'compositionMissing', params: { path: composition }, error: '找不到组成文件：' + composition }
   const text = readFileSync(composition, 'utf8')
@@ -759,17 +776,28 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
 
   const created = createAssistantDir({ root, id, composition, templateDir })
   if (created.ok !== true) return created
+  const abortCreate = (result) => {
+    try {
+      rmSync(created.dir, { recursive: true, force: true })
+    } catch (error) {
+      return {
+        ...result,
+        error: result.error + '；且未能清理半成品目录 ' + created.dir + '（' + describe(error) + '）',
+      }
+    }
+    return result
+  }
 
   // The template ships a starter prompt; a duplicate replaces it with the source's.
   if (source !== null) {
     try {
       writeAtomic(promptFile(created.dir), source.prompt)
     } catch (error) {
-      return { ok: false, code: 'promptWriteFailed', params: { detail: describe(error) }, error: '写入提示词失败：' + describe(error) }
+      return abortCreate({ ok: false, code: 'promptWriteFailed', params: { detail: describe(error) }, error: '写入提示词失败：' + describe(error) })
     }
   }
   const metaResult = writePresetMeta(name, description === '' && source !== null ? source.description : description, created.dir)
-  if (metaResult.ok !== true) return metaResult
+  if (metaResult.ok !== true) return abortCreate(metaResult)
 
   return {
     ok: true,
@@ -1265,24 +1293,24 @@ export function apply(ctx) {
         }
         await ensureShipped()
         const targetId = parsed !== null && typeof parsed === 'object' && typeof parsed.id === 'string' ? parsed.id : ''
+        // 一把锁覆盖同一棵预设树。分钥匙会让「删除」和「保存」交错，把刚删的目录再写成半成品。
         if (pathname === STATE_PATH) {
-          const result = await serializedWrite('save:' + targetId, async () => saveState(await roster(), parsed))
+          const result = await serializedWrite('preset-write', async () => saveState(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === CREATE_PATH) {
-          // 新建与排序改的是整棵树（根目录 + 每个助手的 preset.yml），所以用同一把"树锁"。
-          const result = await serializedWrite('tree', async () => createAssistant(await roster(), parsed))
+          const result = await serializedWrite('preset-write', async () => createAssistant(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === REPAIR_PATH) {
-          const result = await serializedWrite('repair:' + targetId, async () => repairComposition(await roster(), parsed))
+          const result = await serializedWrite('preset-write', async () => repairComposition(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
         if (pathname === REORDER_PATH) {
-          const result = await serializedWrite('tree', async () => reorderAssistant(await roster(), parsed))
+          const result = await serializedWrite('preset-write', async () => reorderAssistant(await roster(), parsed))
           return json(result, result.ok === true ? 200 : 400)
         }
-        const result = await serializedWrite('delete:' + targetId, async () => deleteAssistant(await roster(), parsed, presetRemover()))
+        const result = await serializedWrite('preset-write', async () => deleteAssistant(await roster(), parsed, presetRemover()))
         return json(result, result.ok === true ? 200 : 400)
       } catch (error) {
         // 兜底也要带 code：这是**意料之外**的异常，页面拿到的是 Node 的原始错误串，方向反着也一样糟

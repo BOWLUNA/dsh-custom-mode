@@ -498,8 +498,25 @@ function evalDisabledExpression(expression) {
     const fn = new Function('process', `return (${expression.slice(4).trim()});`)
     return fn(process) === true
   } catch {
+    // 求值失败与「表达式不存在」都是 undefined。调用方若已经确认这是 `!!js`，
+    // 必须把 undefined 当成关闭：挂载侧同样按关闭处理，两边不能一个开一个关。
     return undefined
   }
+}
+
+/**
+ * 组成文本里是否有求值失败的 `disabled: !!js`。
+ *
+ * @param {string} text
+ * @returns {boolean}
+ */
+export function hasFailedPredicate(text) {
+  if (typeof text !== 'string' || text === '') return false
+  const pattern = /^[ \t]*disabled:[ \t]*(!!js\s+\S.*?)\s*$/gm
+  for (const match of text.matchAll(pattern)) {
+    if (evalDisabledExpression(match[1]) === undefined) return true
+  }
+  return false
 }
 
 /** Build one row's UI description from its segment text. */
@@ -578,11 +595,13 @@ function describeRow(id, segmentText, children) {
   // machine, so the page shows the state actually in force rather than "has a key".
   // 只看"有没有 disabled 键"是不够的：`disabled: false` 也是字面量，但它表示**开着**。
   const literalOff = own.present && !own.value.startsWith('!!js') && own.value === 'true'
-  const fromExpression = own.present ? evalDisabledExpression(own.value) : undefined
+  const fromExpression = own.present && own.value.startsWith('!!js') ? evalDisabledExpression(own.value) : undefined
+  // `!!js` 抛错时求值器返回 undefined。页面按关闭显示，与声明式挂载的 catch 一致。
+  const expressionFailed = own.present && own.value.startsWith('!!js') && fromExpression === undefined
   return {
     id,
     group: children.length > 0,
-    disabled: literalOff || fromExpression === true,
+    disabled: literalOff || fromExpression === true || expressionFailed,
     disabledExpression: own.present && own.value.startsWith('!!js') ? own.value : null,
     // 新线（声明式注册表）要把行交给 register()，需要模块说明符与 config —— 见 moduleNameOf。
     moduleName: moduleNameOf(segmentText),
@@ -931,7 +950,9 @@ export function unresolvableRows(text) {
       if (flag !== null) {
         // 字面量直接读，`!!js` 一类交给求值器（它对字面量不做布尔化）。
         const raw = flag[1].replace(/^['"]|['"]$/g, '')
-        disabled = raw === 'true' ? true : raw === 'false' ? false : evalDisabledExpression(flag[1]) === true
+        const evaluated = evalDisabledExpression(flag[1])
+        const failedJs = flag[1].trim().startsWith('!!js') && evaluated === undefined
+        disabled = raw === 'true' ? true : raw === 'false' ? false : failedJs || evaluated === true
       }
     }
     if (name === undefined || disabled) continue
@@ -957,7 +978,8 @@ export function modeOf(text) {
 /** Flatten a row tree into `Map<id, disabled>`. */
 function flattenRows(rows, into = new Map()) {
   for (const row of rows) {
-    into.set(row.id, row.disabled)
+    // 重复 id 只认文档顺序的第一处，与 applyLevel 的写入方向一致。
+    if (into.has(row.id) === false) into.set(row.id, row.disabled)
     flattenRows(row.children, into)
   }
   return into
@@ -966,7 +988,7 @@ function flattenRows(rows, into = new Map()) {
 /** 同 {@link flattenRows}，但保留整行对象：判断"未触碰"要看**文本形态**，不只是求值结果。 */
 function flattenRowObjects(rows, into = new Map()) {
   for (const row of rows) {
-    into.set(row.id, row)
+    if (into.has(row.id) === false) into.set(row.id, row)
     flattenRowObjects(row.children, into)
   }
   return into

@@ -268,7 +268,7 @@ function makeDefinition(modeName) {
  * @param {object} ctx - the preset row's scope.
  * @returns {boolean} whether a gate was registered.
  */
-function registerApprovalGate(ctx) {
+function registerApprovalGate(ctx, config) {
   if (typeof ctx.on !== 'function') return false
   ctx.effect(
     () => ctx.on('tools/pre-execute', (exec, next) => {
@@ -293,7 +293,7 @@ function registerApprovalGate(ctx) {
         // **双语**：这是安全决策界面 —— 用哪种界面语言的用户都必须读懂自己要批准什么。
         // （页面其它文案走词典，但审批面板由平台渲染，插件侧拿不到当前界面语言。）
         reason:
-          '把「' + resolveModeName(undefined) + '」的系统提示词' + verb + ' ' + String(text.length) + ' 字符' +
+          '把「' + resolveModeName(config) + '」的系统提示词' + verb + ' ' + String(text.length) + ' 字符' +
           (firstLine === '' ? '' : '：' + firstLine.trim().slice(0, 60)) +
           '（写入 ' + PROMPT_PATH + '）' +
           " ／ Change this mode's system prompt: " + (action === 'append' ? 'append ' : 'replace with ') +
@@ -323,7 +323,7 @@ export function apply(ctx, config = {}) {
 
   // 审批闸门。宿主若不支持 `tools/pre-execute`（比本插件声明的下限还老的构建），这里会**明确**
   // 说一声再继续 —— 降级是有的，但不许静默。
-  const gateReady = registerApprovalGate(ctx) === true
+  const gateReady = registerApprovalGate(ctx, config) === true
   try {
     if (gateReady) rmSync(join(dirname(PROMPT_PATH), GATE_MARKER), { force: true })
     else writeFileSync(join(dirname(PROMPT_PATH), GATE_MARKER), 'this host has no tools/pre-execute event\n', 'utf8')
@@ -364,8 +364,8 @@ function renameWithRetry(from, to, attempts = 8) {
 
 function writeAtomic(file, text) {
   const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
-  writeFileSync(temporary, text, 'utf8')
   try {
+    writeFileSync(temporary, text, 'utf8')
     renameWithRetry(temporary, file)
   } catch (error) {
     try {

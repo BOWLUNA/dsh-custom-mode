@@ -268,6 +268,8 @@ try {
   check('能打开「自定义模式」设置页', opened === true, (await session.visibleText()).slice(0, 400).replace(/\n/g, ' | '))
 
   if (opened === true) {
+    await session.evaluate(`(() => { const b = document.querySelector('[data-cap="toggle"]'); if (b && b.getAttribute('aria-expanded') !== 'true') b.click(); return true; })()`)
+    await session.sleep(200)
     const panel = await session.evaluate(`(() => {
       const el = document.querySelector('.cpfe');
       return el === null ? '' : el.innerText;
@@ -752,9 +754,7 @@ try {
     check('说明行不换行（行高因此整齐）', rowFacts.single === true, JSON.stringify({ single: rowFacts.single }))
     check('被省略的说明带 title（截断了也读得到）', rowFacts.titled === true, JSON.stringify({ titled: rowFacts.titled }))
     check('行间是 1px 分隔线而不是卡片描边', rowFacts.dividers > 0, JSON.stringify({ dividers: rowFacts.dividers, rows: rowFacts.count }))
-    // 官方设置行的高度由内容决定（标签一行 + 说明一到两行），所以**不是**等高的 —— 实测官方
-    // 行本身就在 60–90px 之间浮动。这里守的是"没有夸张的长条"，而不是强行压成等高：
-    // 为等高牺牲说明的可读性，正是上一版看起来"挤且丑"的原因之一。
+    // 这一句是高度上限。紧接着的断言要求本页行高完全一致。
     check('行高在合理区间（不高出 110px，也不是被压扁的小条）', rowFacts.max <= 110 && rowFacts.min >= 40, JSON.stringify(rowFacts))
     // ★ 用户反馈（2026-10-01）："各行间距都不一致，要么连在一起，要么中间能停航母"。
     //   行高必须**完全一致** —— 说明行不换行（上面那条）+ 内边距固定（再上面那条）之后，这是可得的。

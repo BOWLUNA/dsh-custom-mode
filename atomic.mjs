@@ -14,7 +14,8 @@
  *    random temporary name does not help with *that* collision, only with temp-vs-temp ones.
  */
 import { randomBytes } from 'node:crypto'
-import { existsSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 /** Synchronous backoff: these write paths are synchronous, so waiting is simpler than async plumbing. */
 function sleepSync(ms) {
@@ -195,6 +196,35 @@ export function writeAtomicPair(entries) {
  * @param {string} text - content to write.
  * @returns {void}
  */
+/**
+ * 掉电落在「旧文件已改名为 .bak、新文件还没装上」时，把唯一的备份移回原名。
+ *
+ * 多于一份备份时不动：无法判断哪一份是最后的好内容。
+ *
+ * @param {string} directory - one assistant directory.
+ * @returns {void}
+ */
+export function restoreBackups(directory) {
+  const names = ['prompt.md', 'agent.cordis.yml', 'preset.yml']
+  let entries
+  try {
+    entries = readdirSync(directory)
+  } catch {
+    return
+  }
+  for (const name of names) {
+    const file = join(directory, name)
+    if (existsSync(file)) continue
+    const backups = entries.filter((entry) => entry.startsWith(name + '.bak-'))
+    if (backups.length !== 1) continue
+    try {
+      renameSync(join(directory, backups[0]), file)
+    } catch {
+      /* 恢复失败就留着备份，下一次读取再试 */
+    }
+  }
+}
+
 export function writeAtomic(file, text) {
   const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
   try {

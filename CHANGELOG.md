@@ -8,6 +8,16 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [1.12.0]
+
+### The settings page leads with the prompt, and writes no longer disagree with what the page shows
+
+- The system prompt and the save bar come before the plugin switches. Capabilities (base mode and row switches) start collapsed, and rows can be filtered by name. The fifth base mode is named "All shipped rows".
+- When the host marks a mode broken, its reason is shown under the warning. A prompt-only save says the next model step picks it up.
+- Unknown `{{…}}` variables, repeated row ids, and platform conditions that fail to evaluate are named on the page.
+- Save, repair, delete, create, and reorder share one write lock. A create that fails after the directory exists removes that directory. Declarative delete moves the directory aside before unregistering.
+- The in-session approval dialog uses the current assistant's name. `npm publish` runs only on a version tag.
+
 ## [1.11.6]
 
 ### Re-measuring the native metrics: two assertions were false, and three UI defects were fixed

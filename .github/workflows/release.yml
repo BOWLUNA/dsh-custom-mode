@@ -128,12 +128,18 @@ jobs:
           npm whoami
 
       - name: 发布（已存在的版本直接跳过）
+        # 手动 dispatch 只做凭据自检，不从 main 把未打 tag 的版本发上 npm。
+        if: startsWith(github.ref, 'refs/tags/v')
         # 混合认证：若配置了仓库 secret NPM_TOKEN（granular token，可勾 Bypass 2FA），就用它；
         # 没配置时该 env 为空，npm 会回退到 OIDC（Trusted Publishing）。两条路都不需要交互式 2FA。
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           VERSION="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} 与 package.json ${VERSION} 不一致"
+            exit 1
+          fi
           if npm view "dsh-custom-mode@${VERSION}" version >/dev/null 2>&1; then
             echo "dsh-custom-mode@${VERSION} 已经在 npm 上 —— 什么都不做"
             exit 0

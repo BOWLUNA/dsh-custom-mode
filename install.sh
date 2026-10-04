@@ -58,7 +58,20 @@ command -v dsh >/dev/null 2>&1 || { echo "找不到 dsh CLI，请先安装 DeepS
 # 让用户对着 pnpm 的 Rust panic 猜要好。
 echo "==> 0/3 前置自检"
 
-DSH_VERSION="$(dsh --version 2>/dev/null | head -1 | tr -d '[:space:]')"
+DSH_ERR="$(mktemp)"
+DSH_OUT="$(mktemp)"
+set +e
+dsh --version >"$DSH_OUT" 2>"$DSH_ERR"
+DSH_STATUS=$?
+set -e
+DSH_VERSION="$(head -1 "$DSH_OUT" | tr -d '[:space:]')"
+if [ "$DSH_STATUS" -ne 0 ]; then
+  echo "    错误: dsh 已在 PATH 里，但 dsh --version 退出 ${DSH_STATUS}。安装中止。" >&2
+  cat "$DSH_ERR" >&2
+  rm -f "$DSH_ERR" "$DSH_OUT"
+  exit 1
+fi
+rm -f "$DSH_ERR" "$DSH_OUT"
 # 兼容性由根 package.json 声明的范围定义（engines.dsh 与 peer 范围），包版本走自己的线，
 # 两者不再相等。判断逻辑只保留一份，就在那个脚本里。
 # 读声明范围：**传相对路径给脚本**，不把绝对路径嵌进 `node -e` 字符串 —— Git Bash 下

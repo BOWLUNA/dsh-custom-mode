@@ -27,15 +27,13 @@ modes ("assistants") can live side by side, each with its own prompt.
 Also searched for as: custom mode · custom prompt · system-prompt editor · multi-mode / several assistants ·
 multi-agent · roleplay (RP) / chat personas.
 
-**Two dsh lines are supported: the newest line and the previous stable** — both checked on every push,
-neither merely claimed. npm's `latest` and `next` have both pointed at `0.2.0-rc.2` since 2026-09-29, so
-"latest stable" and "latest preview" are one release now; the second leg stays because most installs in
-the field are still on `0.1.7-rc.2`:
+**Unit tests cover three lines. The render gate runs only on `0.2.0-rc.2`.** npm's `latest` and `next` have both pointed at `0.2.0-rc.2` since 2026-09-29:
 
 | dsh | role | status |
 | --- | --- | --- |
 | `0.2.0-rc.2` | **newest line** — npm's `latest` *and* `next`, and the line the official desktop app ships (it is version-locked to dsh) | ✅ CI (ubuntu node 20/24 + **windows**) + a real instance: install, composition and the seeded preset verified on this line (the full render gate runs here) |
-| `0.1.7-rc.2` | previous stable — still inside the declared range, and what most existing installs run | ✅ CI + a real instance: verified rendered on this line since 1.9.15 |
+| `0.2.1-alpha.1` | preview line — npm `alpha`. Covered by unit tests; the render gate does not run here | ✅ CI |
+| `0.1.7-rc.2` | previous stable — still inside the declared range, and what most existing installs run | ✅ CI. On this line the page falls back where the shell does not provide atoms; the render gate does not run here |
 
 Older builds (`0.1.5-rc.3`, `0.1.6-alpha.*`) use the same mechanisms and remain inside the declared peer
 range, but they no longer get a CI leg of their own.
@@ -59,7 +57,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.11.6   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@1.12.0   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -118,7 +116,7 @@ Electron shell**, so this plugin's page renders there unchanged. One install pat
   too and points you at the app, so the two agree instead of one silently working around the other.
   (A lab simulation of the profile shape can override it with `DSH_ALLOW_DESKTOP_PROFILE=1`.)
   **The app's own bundled CLI is the exception** — `<install>\resources\runtime\cli\bin\dsh.cmd` is allowed
-  to operate on that profile (measured on 1.11.1: `add dsh-custom-mode@1.11.6` → `+ dsh-custom-mode 1.11.1`).
+  to operate on that profile (an older note claimed a pin installed a different version; that note is withdrawn).
   It is a launcher, not a dsh feature: it starts Electron with `ELECTRON_RUN_AS_NODE=1` and runs the
   desktop-host CLI, so it is the app talking to its own profile rather than something driving from outside.
 - **Nothing else to do on the preset side**: `$DSH_HOME/.agent-presets/` is product data shared by the
@@ -406,7 +404,7 @@ MIT
 | | |
 | --- | --- |
 | Model | DeepSeek V4.1 Flash (`deepseek-v4-flash`, provider `deepseek-official`) |
-| Runtime | DeepSeek Harness **0.2.0-rc.2** (newest line) / **0.1.7-rc.2** (previous stable) — the two supported lines; the token figures below are from an earlier `0.1.6-alpha.2` session |
+| Runtime | Unit tests: `0.2.0-rc.2`, `0.2.1-alpha.1`, `0.1.7-rc.2`. The render gate runs only on `0.2.0-rc.2`. The token figures below are from an earlier `0.1.6-alpha.2` session |
 | Uncached input | 224,058 tok |
 | Cache reads | 125,638,016 tok |
 | Output | 425,539 tok |
@@ -436,7 +434,7 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@1.11.6
+dsh plugin --profile web add dsh-custom-mode@1.12.0
 # then restart the DSH process that serves the web profile
 ```
 

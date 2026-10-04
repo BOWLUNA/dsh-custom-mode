@@ -22,12 +22,13 @@ base mode / plugin switches / multi-assistant / multi-persona。
 常见的叫法：自定义模式 · 自定义提示词 · 系统提示词编辑 · 多助手／多模式 · 多个 Agent 模式 ·
 角色扮演／聊天人格（RP）。
 
-**支持两条线：最新线（npm 的 `latest` 与 `next` 自 2026-09-29 起都指向 `0.2.0-rc.2`）与上一个正式版** —— 两条都是每次 push 真跑，不是声明：
+**单元测试覆盖三条线，渲染闸门只跑 `0.2.0-rc.2`。** npm 的 `latest` 与 `next` 自 2026-09-29 起都指向 `0.2.0-rc.2`：
 
 | dsh | 定位 | 状态 |
 | --- | --- | --- |
 | `0.2.0-rc.2` | **最新线** —— npm 的 `latest` 与 `next` 都指向它，官方桌面端也在这一条线上（与 dsh 同版本号） | ✅ CI（ubuntu node 20/24 + **windows**）+ 真机：这条线上安装、组合树与播种都验过（整道渲染闸门跑在这里）|
-| `0.1.7-rc.2` | 上一个正式版 —— 仍在声明范围内，现役安装大多在它上面 | ✅ CI + 真机：自 1.9.15 起就在这条线上验过渲染 |
+| `0.2.1-alpha.1` | 预览线 —— npm 的 `alpha` 指向它。单元测试覆盖；渲染闸门不在这条线上 | ✅ CI |
+| `0.1.7-rc.2` | 上一个正式版 —— 仍在声明范围内，现役安装大多在它上面 | ✅ CI。设置页在这条线上会退回壳没提供的控件；渲染闸门不在这里 |
 
 更早的线（`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，但不再单独占 CI 腿。
 
@@ -48,7 +49,7 @@ base mode / plugin switches / multi-assistant / multi-persona。
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@1.11.6   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@1.12.0   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -67,7 +68,7 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 
 | 输入 | 填什么 | 说明 |
 | --- | --- | --- |
-| **包名** | `dsh-custom-mode` | 最省事 |
+| **包名** | `dsh-custom-mode` | 受 pnpm 发布冷却期影响，可能装到旧版。要这一版请钉 `@1.12.0` |
 | **GitHub 仓库地址** | `https://github.com/BOWLUNA/dsh-custom-mode` | 指向**仓库根**即可 |
 | **本地插件目录** | `<你 clone 的路径>` | 就是仓库根 —— 仓库根**本身**就是发布包 |
 
@@ -98,7 +99,7 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
   `cordis.patch.yml`。所以 `install.sh` 也**拒绝** `--profile desktop` 并指向应用内安装 —— 两边一致，
   而不是某一方偷偷绕过去。（只想在本机模拟 profile 形状时可设 `DSH_ALLOW_DESKTOP_PROFILE=1`。）
   **应用自带的捆绑 CLI 是例外**：`<安装目录>\resources\runtime\cli\bin\dsh.cmd` 可以操作那个 profile
-  （1.11.1 实测：`add dsh-custom-mode@1.11.6` → `+ dsh-custom-mode 1.11.1`）。它是启动器而不是 dsh 的
+  （1.11.1 实测时，命令写的版本和装上的版本对不上，这次记录作废）。它是启动器而不是 dsh 的
   新功能 —— 它用 `ELECTRON_RUN_AS_NODE=1` 起 Electron 去跑 desktop-host 的 CLI，所以那是**应用在跟自己的
   profile 说话**，不是从外面驱动它。
 - **预设那一侧不用做任何事**：`$DSH_HOME/.agent-presets/` 是桌面端与 CLI 共享的产品数据，
@@ -305,7 +306,7 @@ MIT
 | | |
 | --- | --- |
 | 模型 | DeepSeek V4.1 Flash（`deepseek-v4-flash`，provider `deepseek-official`） |
-| 运行时 | DeepSeek Harness **0.2.0-rc.2**（最新线）/ **0.1.7-rc.2**（上一个正式版）—— 支持的就是这两条线；下面的用量数字来自更早的 `0.1.6-alpha.2` 那一轮 |
+| 运行时 | 单元测试：`0.2.0-rc.2`、`0.2.1-alpha.1`、`0.1.7-rc.2`。渲染闸门只跑 `0.2.0-rc.2`。下面的用量数字来自更早的 `0.1.6-alpha.2` 那一轮 |
 | 未缓存输入 | 224,058 tok |
 | 缓存读取 | 125,638,016 tok |
 | 输出 | 425,539 tok |
@@ -334,7 +335,7 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@1.11.6
+dsh plugin --profile web add dsh-custom-mode@1.12.0
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 

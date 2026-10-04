@@ -23,8 +23,8 @@
  * `agent.cordis.yml` 仍然写盘 —— 它是用户可见、可迁移、可手改的真相，也是旧线唯一的输入。
  */
 
-import { existsSync, readFileSync, rmSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, renameSync, rmSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseComposition } from './parse-composition.mjs'
 
@@ -171,7 +171,7 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
    * 自己完成 —— 而这正是设置页在 0.1.7 上**根本删不掉助手**的原因：宿主那半只认 `agentPresets.remove()`，
    * 拿不到就回一个类型化的 `noRemoveApi`，页面弹完确认框只显示"删除失败"。
    *
-   * 顺序不能反：先注销，选择器立刻不再提供它；再删目录。删目录失败时**如实抛出**（调用方转成
+   * 先把目录挪到同盘的隐藏名，再注销，最后删掉隐藏名。挪不动就不注销。删目录失败时**如实抛出**（调用方转成
    * `deleteFailed` 并把路径带给用户），而不是报告"已删除"却把目录留在磁盘上 —— 那样下次同步
    * 会把它重新挂回来，用户看到的是"删了又回来了"。
    *
@@ -180,10 +180,29 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
    */
   async function remove(id, dir) {
     const remembered = mounted.get(id)?.dir
-    await unmount(id)
     const target = typeof dir === 'string' && dir !== '' ? dir : remembered
     if (typeof target !== 'string' || target === '') return { ok: false, code: 'noDirectory', id }
-    rmSync(target, { recursive: true, force: true })
+    // 先挪走目录再注销。删目录失败时选择器不会把原 id 挂回来；注销失败则把目录移回。
+    const trash = join(dirname(target), '.' + basename(target) + '.removing-' + String(process.pid))
+    try {
+      renameSync(target, trash)
+    } catch (error) {
+      if (error !== null && typeof error === 'object' && error.code === 'ENOENT') {
+        return { ok: false, code: 'noDirectory', id }
+      }
+      throw error
+    }
+    try {
+      await unmount(id)
+    } catch (error) {
+      try {
+        renameSync(trash, target)
+      } catch {
+        /* 移回失败时目录留在隐藏名下，下次不会以原 id 复活 */
+      }
+      throw error
+    }
+    rmSync(trash, { recursive: true, force: true })
     return { ok: true, id, dir: target }
   }
 

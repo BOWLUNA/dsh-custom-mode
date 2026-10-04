@@ -8,13 +8,14 @@ set -euo pipefail
 
 PROFILE=web
 PRESET_ID=custom
+PRESET_ID_EXPLICIT=0
 PURGE=0
 DSH_HOME="${DSH_HOME:-$HOME/.dsh}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --profile) PROFILE="${2:?}"; shift 2 ;;
-    --preset-id) PRESET_ID="${2:?}"; shift 2 ;;
+    --preset-id) PRESET_ID="${2:?}"; PRESET_ID_EXPLICIT=1; shift 2 ;;
     --purge) PURGE=1; shift ;;
     -h|--help) sed -n '2,6p' "$0"; exit 0 ;;
     *) echo "未知参数: $1" >&2; exit 2 ;;
@@ -75,6 +76,11 @@ if (next.length !== bundles.length) {
 }
 NODE
 
+if ! printf '%s' "$PRESET_ID" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+  echo "助手 id 不合法: $PRESET_ID（只能用 a-z、0-9 与连字符，且不能是路径）" >&2
+  exit 2
+fi
+
 PRESET_ROOT="$DSH_HOME/.agent-presets"
 PRESET_DIR="$PRESET_ROOT/$PRESET_ID"
 
@@ -103,7 +109,7 @@ if [ "$PURGE" = "1" ]; then
   while IFS= read -r dir; do
     if [ "$dir" = "$PRESET_DIR" ]; then named=1; fi
   done <<< "$MANAGED"
-  if [ -d "$PRESET_DIR" ] && [ "$named" = "0" ]; then
+  if [ -d "$PRESET_DIR" ] && [ "$named" = "0" ] && [ "$PRESET_ID_EXPLICIT" = "1" ]; then
     # 组成文件被改坏、或身份不再走 prompt-reader.mjs 时名单会漏掉它；
     # 但 --preset-id 明确点名了这个目录，就按点名的删。
     echo "    $PRESET_DIR（按 --preset-id 指名）"
