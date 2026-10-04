@@ -34,6 +34,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 let passed = 0
 let failed = 0
@@ -727,6 +728,57 @@ console.log('=== 8. POST /custom-mode/delete：只能删自己管理的模式 ==
   check('目录真的没了', !existsSync(join(userRoot, 'writer')))
   check('列表里也没了', !JSON.parse((await call(makeReq('GET', { url: '/custom-mode' }))).body).assistants.some((item) => item.id === 'writer'))
   check('其它助手不受影响', existsSync(join(userRoot, 'custom-2')))
+}
+
+console.log()
+console.log('=== 6b. 姿态只是起点，底子仍是官方预设 ===')
+{
+  mounted = mount()
+  const list = JSON.parse((await call(makeReq('GET', { url: '/custom-mode' }))).body)
+  const ids = (list.postures || []).map((item) => item.id)
+  check('列表公开三种姿态', ids.join(',') === 'develop,write,chat', JSON.stringify(ids))
+  const official = new Set(['standard', 'ptc', 'minimal', 'cordis', 'all'])
+  check(
+    '每种姿态的 base 都是官方预设',
+    Array.isArray(list.postures) && list.postures.every((item) => official.has(item.base)),
+    JSON.stringify(list.postures),
+  )
+
+  const factory = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'preset', 'prompt.md'), 'utf8')
+  const developed = JSON.parse((await call(post('/custom-mode/create', { name: 'Posture Dev', posture: 'develop' }))).body)
+  check('develop 创建成功', developed.ok === true, JSON.stringify(developed).slice(0, 120))
+  const devState = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + developed.id }))).body)
+  check('develop 与不带姿态一样用出厂提示词', devState.prompt === factory, String(devState.prompt).slice(0, 60))
+  check('develop 的底是 standard', devState.mode === 'standard', devState.mode)
+  check('develop 不把 bash 写成开', devState.overrides['tool-bash'] !== true)
+
+  const chatted = JSON.parse((await call(post('/custom-mode/create', { name: 'Posture Chat', posture: 'chat', locale: 'en' }))).body)
+  const chatState = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + chatted.id }))).body)
+  check('聊天姿态的底仍是 standard', chatState.mode === 'standard', chatState.mode)
+  check('聊天关掉出厂开启的 tool-web', chatState.overrides['tool-web'] === false, JSON.stringify(chatState.overrides))
+  check('聊天不把 persona 关掉', chatState.overrides.persona !== false)
+  check('聊天用英文起步提示词', typeof chatState.prompt === 'string' && chatState.prompt.includes('conversation partner'), String(chatState.prompt).slice(0, 80))
+
+  const written = JSON.parse((await call(post('/custom-mode/create', { name: 'Posture Write', posture: 'write', locale: 'zh-CN' }))).body)
+  const writeState = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + written.id }))).body)
+  check('写作姿态的底仍是 standard', writeState.mode === 'standard', writeState.mode)
+  check('写作关掉 tool-web', writeState.overrides['tool-web'] === false)
+  check('写作用中文起步提示词', typeof writeState.prompt === 'string' && writeState.prompt.includes('只改用户点名的文件'), String(writeState.prompt).slice(0, 40))
+  check('写作的恢复出厂就是新建时那一份', writeState.factoryPrompt === writeState.prompt, String(writeState.factoryPrompt).slice(0, 40))
+  check('起步稿落在助手目录里', existsSync(join(userRoot, written.id, 'prompt.starter.md')))
+  const changed = await call(post('/custom-mode/state', {
+    id: written.id,
+    mode: 'standard',
+    prompt: '改过的写作稿\n',
+    overrides: writeState.overrides,
+  }))
+  check('改写提示词成功', JSON.parse(changed.body).ok === true, changed.body.slice(0, 120))
+  const afterEdit = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + written.id }))).body)
+  check('后来的保存不改写起步稿', afterEdit.prompt.includes('改过的写作稿') && afterEdit.factoryPrompt === writeState.prompt)
+
+  const unknown = await call(post('/custom-mode/create', { name: 'Nope Posture', posture: 'tavern' }))
+  check('未知姿态 → 400 postureUnknown', unknown.statusCode === 400 && JSON.parse(unknown.body).code === 'postureUnknown', unknown.body.slice(0, 140))
+  check('未知姿态不留下目录', !existsSync(join(userRoot, 'nope-posture')) && !existsSync(join(userRoot, 'tavern')))
 }
 
 console.log()

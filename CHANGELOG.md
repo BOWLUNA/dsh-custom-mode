@@ -8,6 +8,14 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.0.0]
+
+### The settings page is the assistant, then its prompt
+
+- Each assistant still has its own system prompt, one of the four shipped base modes, and plugin switches. Choosing nothing, or Coding, creates the same assistant as before.
+- Writing and Chat are starters for a new assistant only. They do not change the assistant already on screen. Each stores the prompt it was created with, and Restore reads that file back.
+- The page order is the current assistant first: prompt, name, save, base mode, plugin switches. New assistant is its own section at the end.
+
 ## [1.13.0]
 
 ### Settings page reads as one settings page

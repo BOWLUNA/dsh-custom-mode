@@ -9,8 +9,11 @@
  *   GET  /api/custom-mode/history?id=…&n=… — one prompt revision (metadata comes with the state).
  *   POST /api/custom-mode/state        — { id, mode, overrides, prompt, name, description }:
  *                                        validate, render a fresh `agent.cordis.yml`, write both files.
- *   POST /api/custom-mode/create       — { name, description }: seed a new assistant from the
- *                                        packaged template and give it the standard base mode.
+ *   POST /api/custom-mode/create       — { name, description, posture?, locale? }: seed a new
+ *                                        assistant. Omitting `posture` (or sending `develop`) is the
+ *                                        historical path: the packaged prompt and the standard base,
+ *                                        with shipped row states. Other postures still use an official
+ *                                        base; they only change the starter prompt and the initial switches.
  *   POST /api/custom-mode/delete       — { id }: remove a locally authored assistant.
  *   POST /api/custom-mode/reorder      — { id, direction }: move one assistant up/down in the
  *                                        picker order by writing `order` into each `preset.yml`.
@@ -52,6 +55,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
 import {
+  allowlistOverrides,
   applyRowExclusivity,
   BASE_MODE_IDS,
   BASE_MODES,
@@ -72,6 +76,7 @@ import {
 import { presetMetaText, readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
 import { listHistory, readVersion, recordExternalChange, recordPrompt, HISTORY_SOURCE } from './journal.mjs'
 import { packagedPresetDir, starterComposition } from './seed.mjs'
+import { postureById, postureLocale, posturePrompt, publicPostures } from './postures.mjs'
 import {
   allocateId,
   assistantDir,
@@ -194,6 +199,33 @@ export function checkPromptText(text) {
 /** Absolute path of one preset directory's editable prompt file. */
 export function promptFile(directory) {
   return join(directory, 'prompt.md')
+}
+
+/**
+ * The prompt this assistant was created with.
+ *
+ * Kept beside `prompt.md` and never updated by a later save, so "restore the
+ * starter" means that text on Windows and Linux alike. Assistants created
+ * before this file existed fall back to the packaged coding prompt, which is
+ * what they were seeded with.
+ */
+export const STARTER_PROMPT_FILE = 'prompt.starter.md'
+
+/** @param {string} directory */
+export function starterPromptFile(directory) {
+  return join(directory, STARTER_PROMPT_FILE)
+}
+
+/**
+ * @param {string} directory
+ * @returns {string | null}
+ */
+function readStarterPrompt(directory) {
+  try {
+    return readFileSync(starterPromptFile(directory), 'utf8')
+  } catch {
+    return null
+  }
 }
 
 /** Absolute path of one preset directory's composition file. */
@@ -398,7 +430,9 @@ export function readState(rows, id, options = {}) {
     presetMetaPath: presetMetaPath(directory),
     // 回退用的出厂文本。它不是"当前值"，页面只把它填进编辑器，保存前不落盘 —— 所以
     // 一次误点不会破坏任何东西（重新读取即可丢弃）。
-    factoryPrompt: typeof options.factoryPrompt === 'string' ? options.factoryPrompt : null,
+    // 回退用的起步文本。优先是这个助手新建时写下的 prompt.starter.md；
+    // 没有该文件的旧助手用打包的开发提示词，那就是它们当初得到的文本。
+    factoryPrompt: readStarterPrompt(directory) ?? (typeof options.factoryPrompt === 'string' ? options.factoryPrompt : null),
     // 改动历史（只有元数据，正文按需取：见 GET /custom-mode/history）。
     history: listHistory(directory),
     // 本插件版本 + 本机装的那条 dsh 线上无法解析的行（页面据此显示版本与"按本线修复"）。
@@ -436,7 +470,7 @@ export function readList(rows) {
   const list = assistantsFromRoster(rows).map((item) =>
     typeof item.broken === 'string' ? { ...item, brokenRows: brokenRowIds(item.broken) } : item,
   )
-  return { ok: true, assistants: list, root: userPresetRoot(rows) }
+  return { ok: true, assistants: list, postures: publicPostures(), root: userPresetRoot(rows) }
 }
 
 /**
@@ -754,11 +788,41 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
     }
   }
 
+  // 复制沿用源助手，不套姿态。省略姿态或显式 `develop` 与旧版创建相同：标准底、出厂开关、出厂提示词。
+  const requestedPosture = source !== null
+    ? ''
+    : input !== null && typeof input === 'object' && typeof input.posture === 'string'
+      ? input.posture.trim()
+      : ''
+  const posture = requestedPosture === '' || requestedPosture === 'develop' ? null : postureById(requestedPosture)
+  if (requestedPosture !== '' && requestedPosture !== 'develop' && posture === null) {
+    return {
+      ok: false,
+      code: 'postureUnknown',
+      params: { posture: requestedPosture },
+      error: '没有这个姿态：' + requestedPosture,
+    }
+  }
+  if (posture !== null && posture.hands !== 'allow') {
+    return {
+      ok: false,
+      code: 'postureUnknown',
+      params: { posture: posture.id },
+      error: '没有这个姿态：' + posture.id,
+    }
+  }
+  const createMode = source !== null ? source.mode : posture === null ? 'standard' : posture.base
+
   let composition
   try {
-    composition = source === null
-      ? renderComposition('standard', new Map(), { modeName: name, assistantId: id })
-      : renderComposition(source.mode, source.overrides, { modeName: name, assistantId: id })
+    if (source !== null) {
+      composition = renderComposition(source.mode, source.overrides, { modeName: name, assistantId: id })
+    } else if (posture !== null && posture.hands === 'allow') {
+      const exclusive = applyRowExclusivity(posture.base, allowlistOverrides(posture.base, posture.allow))
+      composition = renderComposition(posture.base, exclusive.overrides, { modeName: name, assistantId: id })
+    } else {
+      composition = renderComposition('standard', new Map(), { modeName: name, assistantId: id })
+    }
   } catch (error) {
     // 与保存路径的 `renderFailed` 同一套：**每个**用户可见的结果都要带 `code`，否则页面无从本地化
     // —— client.js 的 apiText 在没有 code 时直接退回下面这串中文，英文界面会在这一刻掉回中文
@@ -767,7 +831,7 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
       return {
         ok: false,
         code: error.code,
-        params: { mode: 'standard', detail: describe(error) },
+        params: { mode: createMode, detail: describe(error) },
         error: '本机取不到出厂组成，暂时无法新建助手。',
       }
     }
@@ -789,15 +853,38 @@ export function createAssistant(rows, input, templateDir = packagedPresetDir()) 
   }
 
   // The template ships a starter prompt; a duplicate replaces it with the source's.
+  // 姿态只替换草稿，不改模板目录里的 prompt.md。`develop` 与省略姿态停在模板那一份。
   if (source !== null) {
     try {
       writeAtomic(promptFile(created.dir), source.prompt)
     } catch (error) {
       return abortCreate({ ok: false, code: 'promptWriteFailed', params: { detail: describe(error) }, error: '写入提示词失败：' + describe(error) })
     }
+  } else if (posture !== null) {
+    let starter
+    try {
+      starter = posturePrompt(posture.id, postureLocale(input.locale))
+    } catch (error) {
+      return abortCreate({
+        ok: false,
+        code: 'posturePromptMissing',
+        params: { posture: posture.id, detail: describe(error) },
+        error: '读不到这个姿态的起步提示词：' + describe(error),
+      })
+    }
+    try {
+      writeAtomic(promptFile(created.dir), starter)
+    } catch (error) {
+      return abortCreate({ ok: false, code: 'promptWriteFailed', params: { detail: describe(error) }, error: '写入提示词失败：' + describe(error) })
+    }
   }
   const metaResult = writePresetMeta(name, description === '' && source !== null ? source.description : description, created.dir)
   if (metaResult.ok !== true) return abortCreate(metaResult)
+  try {
+    writeAtomic(starterPromptFile(created.dir), readFileSync(promptFile(created.dir), 'utf8'))
+  } catch (error) {
+    return abortCreate({ ok: false, code: 'promptWriteFailed', params: { detail: describe(error) }, error: '写入提示词失败：' + describe(error) })
+  }
 
   return {
     ok: true,

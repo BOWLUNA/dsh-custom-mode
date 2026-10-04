@@ -1026,6 +1026,35 @@ export function overridesOf(text, modeId) {
 }
 
 /**
+ * 按允许名单生成显式开关。
+ *
+ * 只写下和出厂状态不同的行，这样没被点名的行仍保持 `!!js` 平台条件。名单里没有、而出厂是开的行，
+ * 写成关闭。上游以后新增的行不在名单里，因此对「写作 / 聊天」默认关闭。
+ *
+ * @param {string} modeId - one of {@link BASE_MODES}.
+ * @param {string[]} allowIds - 希望保持可用的行 id。`persona` 与 `custom-prompt-tool` 总会被加进去。
+ * @returns {Map<string, boolean>}
+ */
+export function allowlistOverrides(modeId, allowIds) {
+  const allow = new Set(Array.isArray(allowIds) ? allowIds : [])
+  allow.add('persona')
+  allow.add('custom-prompt-tool')
+  const rows = flattenRowObjects(collectRows(readBaseComposition(modeId)))
+  for (const extra of EXTRA_ROWS) {
+    if (rows.has(extra.id) === false) {
+      rows.set(extra.id, { id: extra.id, disabled: false, disabledExpression: null })
+    }
+  }
+  const overrides = new Map()
+  for (const [id, row] of rows) {
+    const want = allow.has(id)
+    const shippedOn = row.disabled !== true
+    if (want !== shippedOn) overrides.set(id, want)
+  }
+  return overrides
+}
+
+/**
  * Rows this feature always adds, for the settings UI to show alongside the base
  * mode's own rows.
  */
