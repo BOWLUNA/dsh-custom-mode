@@ -111,6 +111,16 @@ if (firstRow === undefined) {
   problems.push(`SECURITY.md 支持表的第一行不是当前版本 ${manifest.version}\n    ${firstRow.trim()}`)
 }
 
+for (const rel of ['docs/TROUBLESHOOTING.md', 'docs/TROUBLESHOOTING.zh.md']) {
+  const text = readFileSync(join(REPO, rel), 'utf8')
+  if (text.includes('ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION') === false) {
+    problems.push(`${rel} 没有写明 ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`)
+  }
+  if (text.includes('minimumReleaseAgeExclude') === false || text.includes('- dsh-custom-mode') === false) {
+    problems.push(`${rel} 没有写明单条 minimumReleaseAgeExclude`)
+  }
+}
+
 if (problems.length > 0) {
   console.error('')
   for (const problem of problems) console.error(`✗ ${problem}`)

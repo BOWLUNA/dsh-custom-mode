@@ -49,7 +49,7 @@ base mode / plugin switches / multi-assistant / multi-persona。
 一条命令装完——设置页插件，以及它在首次激活时自动播种的 preset：
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.0.0   # 钉版本才能确定拿到这一版
+dsh plugin --profile web add dsh-custom-mode@2.0.1   # 钉版本才能确定拿到这一版
 # 不带版本号会受 pnpm 的发布冷却期影响（`minimumReleaseAge`，默认一天）：发布后数小时内按名安装
 # 可能**静默装到旧版** —— 实测 1.3.0 发布 38 分钟后按名安装装到了 1.0.3。用 profile 里的
 # `npm ls dsh-custom-mode` 核对实际装到的版本，或像上面那样钉版本。
@@ -68,7 +68,7 @@ dsh `0.1.6-alpha.2` 起有插件管理页：**侧边栏 → 插件 → 添加插
 
 | 输入 | 填什么 | 说明 |
 | --- | --- | --- |
-| **包名** | `dsh-custom-mode` | 受 pnpm 发布冷却期影响，可能装到旧版。要这一版请钉 `@2.0.0` |
+| **包名** | `dsh-custom-mode` | 受 pnpm 发布冷却期影响，可能装到旧版。要这一版请钉 `@2.0.1` |
 | **GitHub 仓库地址** | `https://github.com/BOWLUNA/dsh-custom-mode` | 指向**仓库根**即可 |
 | **本地插件目录** | `<你 clone 的路径>` | 就是仓库根 —— 仓库根**本身**就是发布包 |
 
@@ -300,15 +300,16 @@ MIT
 
 ```sh
 # 钉版本的写法：要哪版就是哪版
-dsh plugin --profile web add dsh-custom-mode@2.0.0
+dsh plugin --profile web add dsh-custom-mode@2.0.1
 # 然后重启为该 profile 提供服务的 DSH 进程
 ```
 
-**想要这一版就别用不带版本号的安装。** pnpm 有发布冷却期（`minimumReleaseAge`，默认 24 小时），
-`dsh plugin add dsh-custom-mode` 会解析成**"超过 24 小时的最新版"**。实测：在 1.9.0 已是 latest 的干净机器上，
-不带版本号的命令装到的是 **1.0.1**。钉版本可以绕过冷却期，所以上面的命令带 `@`。
+**不要按裸名安装，也不要用 `@latest`。** pnpm 有发布冷却期（`minimumReleaseAge`，默认 24 小时）。
+`dsh plugin add dsh-custom-mode` 会解析成**超过 24 小时的最新版**。实测：npm 上 `latest` 已是发布 6 分钟的 1.12.2 时，`@latest` 装成了 1.11.6。请钉精确版本。
 
-**怎么知道自己在跑哪一版**：设置页底部显示已安装版本（「插件版本」），与 `npm view dsh-custom-mode version` 对照即可。
+每次钉精确版本，pnpm 都会在 profile 的 `pnpm-workspace.yaml` 里追加一条 `minimumReleaseAgeExclude`。pnpm 11.7.0 只认第一条命中包名的记录（[pnpm#12463](https://github.com/pnpm/pnpm/issues/12463)）。这个包只留一条 `dsh-custom-mode`，不要留一串版本号。本插件不改这个文件。若安装报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`，把列表收成那一条再装一次：`node_modules` 里可能已经是新版本，而 `package.json` 仍写着旧版本。
+
+**怎样算升级成功**：重启 dsh，再看本设置页底部的版本号。
 
 **更新不会碰的东西**：`$DSH_HOME/.agent-presets/<你的助手>/` —— `prompt.md`、`preset.yml` 与你逐行拨过的开关都属于你。
 播种只补**缺失**的文件，你写过的提示词永远不会被覆盖。

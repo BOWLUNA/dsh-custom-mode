@@ -476,11 +476,20 @@ $ dsh plugin --profile web add dsh-custom-mode
 发布了 13 小时被跳过，24.3 小时的 alpha.1 被装上。整个过程 registry 都是对的 —— `latest` 与两份
 packument 都指向 alpha.2，`npm install dsh-custom-mode@latest` 也解析到它。
 
-解决：装**精确版本**——pnpm 会接受，并把这条记进 profile 的 `pnpm-workspace.yaml`
-（`minimumReleaseAgeExclude`）；或者干脆等一天：
+解决：装**精确版本**。pnpm 会把这次钉版本记进 profile 的 `pnpm-workspace.yaml`。这个包只保留**一条**豁免。pnpm 11.7.0 对 `minimumReleaseAgeExclude` 只认第一条命中包名的记录（[pnpm#12463](https://github.com/pnpm/pnpm/issues/12463)），所以 `dsh-custom-mode@1.11.0`、`@1.12.2` 这样逐条追加，后面的版本并不豁免。安装会报 `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`。
+
+```yaml
+# 只留这一条。裸包名豁免这个包的所有版本。
+minimumReleaseAgeExclude:
+  - dsh-custom-mode
+```
+
+也可以写成一条析取，仍然只有一行：`dsh-custom-mode@1.13.0 || 2.0.1`。不要把 `minimumReleaseAge` 设成 `0`，那会关掉这个 profile 里所有包的冷却期。本插件不改这个文件。
+
+失败的安装可能是半完成的：`node_modules` 里已经是新版本，`package.json` 和 `pnpm-lock.yaml` 仍是旧版本。把豁免收成一条之后，再跑一次安装。设置页上的版本号是正在运行的版本，而且要重启 dsh 之后才变。
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@0.1.6-alpha.2
+dsh plugin --profile web add dsh-custom-mode@2.0.1
 ```
 
 另外，别只看你敲了什么，要看真的装上了什么：

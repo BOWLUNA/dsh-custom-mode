@@ -56,7 +56,7 @@ One command installs everything — the settings-page plugin, and the preset it 
 activation:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.0.0   # pin the version to get this one for sure
+dsh plugin --profile web add dsh-custom-mode@2.0.1   # pin the version to get this one for sure
 # A bare `add dsh-custom-mode` is subject to pnpm's release cooldown (`minimumReleaseAge`, 1 day by
 # default): for hours after a release it can silently install an OLDER version — measured: a bare
 # install 38 minutes after 1.3.0 shipped landed on 1.0.3. Check what you got with `npm ls
@@ -396,17 +396,22 @@ installing again — your data is not touched:
 
 ```sh
 # the pinned form: what you ask for is what you get
-dsh plugin --profile web add dsh-custom-mode@2.0.0
+dsh plugin --profile web add dsh-custom-mode@2.0.1
 # then restart the DSH process that serves the web profile
 ```
 
-**Do not install by bare name if you want this release.** pnpm applies a release cooldown (`minimumReleaseAge`,
-24 hours by default) and a bare `dsh plugin add dsh-custom-mode` resolves to *the newest version older than 24
-hours*. Measured on a clean machine while 1.9.0 was latest: the bare command installed **1.0.1**. Pinning the
-version bypasses the cooldown, which is why the command above carries `@`.
+**Do not install by bare name, and do not use `@latest`.** pnpm applies a release cooldown
+(`minimumReleaseAge`, 24 hours by default). A bare `dsh plugin add dsh-custom-mode` resolves to *the newest
+version older than 24 hours*. Measured: while npm `latest` was 1.12.2 and six minutes old, `@latest` installed
+1.11.6. Pin the exact version.
 
-**How to know what you are running**: the settings page shows the installed version at the bottom (Plugin version).
-Compare it with `npm view dsh-custom-mode version`.
+Each exact pin appends a `minimumReleaseAgeExclude` line in the profile's `pnpm-workspace.yaml`. pnpm 11.7.0
+honours only the first line that matches the package name ([pnpm#12463](https://github.com/pnpm/pnpm/issues/12463)).
+Keep one line, `dsh-custom-mode`, not a list of versions. This plugin does not edit that file. If install fails
+with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`, merge the list to that one line and run the install again:
+`node_modules` may already show the new version while `package.json` still names the old one.
+
+**How to know the upgrade worked**: restart dsh, then read the version at the bottom of this settings page.
 
 **What an update does not touch**: `$DSH_HOME/.agent-presets/<your assistants>/` — `prompt.md`, `preset.yml` and
 your row switches are yours. Seeding only fills in *missing* files, so a prompt you wrote is never overwritten.

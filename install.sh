@@ -148,7 +148,23 @@ echo "    安装前 bundles: $BUNDLES_BEFORE"
 echo "==> 2/3 安装设置页插件 \"$PKG_NAME\" 到 profile \"$PROFILE\""
 # 先移除旧 link，避免链接指向已移动的目录（从别处再次 clone 后运行会踩到）。
 dsh plugin --profile "$PROFILE" remove "$PKG_NAME" >/dev/null 2>&1 || true
-dsh plugin --profile "$PROFILE" add "$ROOT"
+ADD_LOG="$(mktemp)"
+if ! dsh plugin --profile "$PROFILE" add "$ROOT" >"$ADD_LOG" 2>&1; then
+  cat "$ADD_LOG" >&2
+  if grep -q 'ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION' "$ADD_LOG"; then
+    echo "安装被 pnpm 的发布冷却期拦住（ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION）。" >&2
+    echo "profile 的 pnpm-workspace.yaml 里，dsh-custom-mode 只能有一条 minimumReleaseAgeExclude。" >&2
+    echo "推荐写成：  - dsh-custom-mode" >&2
+    echo "不要由本脚本改这个文件。收成一条后重新运行安装。node_modules 里的版本不能当作已经升级成功。" >&2
+    echo "见 docs/TROUBLESHOOTING.md 第 17 节。" >&2
+    rm -f "$ADD_LOG"
+    exit 3
+  fi
+  rm -f "$ADD_LOG"
+  exit 1
+fi
+cat "$ADD_LOG"
+rm -f "$ADD_LOG"
 
 # dsh 在 add 之后会按「已安装状态」校正 bundles；这里只补一件事：确保本插件的
 # 名字确实在列表里（旧版 dsh 不一定会自动追加）。绝不移除任何条目。

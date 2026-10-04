@@ -496,11 +496,29 @@ resolution and pnpm falls back to the newest version that is. Measured: alpha.2 
 skipped; alpha.1, 24.3 hours old, was installed. The registry was correct the whole time — `latest` and
 both packuments pointed at alpha.2, and `npm install dsh-custom-mode@latest` resolved to it.
 
-Fix — install the exact version, which pnpm accepts and records as an exception in the profile's
-`pnpm-workspace.yaml` (`minimumReleaseAgeExclude`), or simply wait a day:
+Fix — install the exact version. pnpm records that pin as an exception in the profile's
+`pnpm-workspace.yaml`. Keep **one** exception for this package. pnpm 11.7.0 reads only the first
+`minimumReleaseAgeExclude` entry that matches the package name ([pnpm#12463](https://github.com/pnpm/pnpm/issues/12463)),
+so a growing list of `dsh-custom-mode@1.11.0`, `@1.12.2`, … does not exempt the later versions. The
+install then fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` even though you pinned.
+
+```yaml
+# One line. A bare name exempts every version of this package.
+minimumReleaseAgeExclude:
+  - dsh-custom-mode
+```
+
+Or one disjunction, still a single entry: `dsh-custom-mode@1.13.0 || 2.0.1`. Do not set
+`minimumReleaseAge: 0`; that turns the cooldown off for every package in the profile. This plugin
+does not edit that file.
+
+A failed install can be half-finished: `node_modules` may already contain the new version while
+`package.json` and `pnpm-lock.yaml` still name the old one. After you merge the exception to one
+line, run the install again. The version on the settings page is the one that is actually running,
+and only after you restart dsh.
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@0.1.6-alpha.2
+dsh plugin --profile web add dsh-custom-mode@2.0.1
 ```
 
 and check what actually landed instead of what you typed:

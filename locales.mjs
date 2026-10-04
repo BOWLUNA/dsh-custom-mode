@@ -174,8 +174,8 @@ export const zh = {
   'status.enabled': '已启用',
   'status.disabled': '已停用',
   'status.changed': '已改',
-  'tag.essential': '基础能力',
-  'tag.followPlatform': '跟随平台',
+  'tag.essential': '核心',
+  'tag.followPlatform': '随平台',
 
   'btn.save': '保存',
   'btn.saving': '处理中…',
@@ -430,7 +430,7 @@ export const en = {
   'status.disabled': 'Disabled',
   'status.changed': 'changed',
   'tag.essential': 'Core',
-  'tag.followPlatform': 'follows platform',
+  'tag.followPlatform': 'Platform',
 
   'btn.save': 'Save',
   'btn.saving': 'Working…',

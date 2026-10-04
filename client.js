@@ -208,8 +208,8 @@ try {
         "status.enabled": "已启用",
         "status.disabled": "已停用",
         "status.changed": "已改",
-        "tag.essential": "基础能力",
-        "tag.followPlatform": "跟随平台",
+        "tag.essential": "核心",
+        "tag.followPlatform": "随平台",
         "btn.save": "保存",
         "btn.saving": "处理中…",
         "btn.reload": "重新读取",
@@ -442,7 +442,7 @@ try {
         "status.disabled": "Disabled",
         "status.changed": "changed",
         "tag.essential": "Core",
-        "tag.followPlatform": "follows platform",
+        "tag.followPlatform": "Platform",
         "btn.save": "Save",
         "btn.saving": "Working…",
         "btn.reload": "Reload",
@@ -731,7 +731,9 @@ try {
        * grids, the status line).
        */
       const CSS = [
-        ".cpfe{--g:8px;display:flex;flex-direction:column;gap:24px;width:100%;max-width:900px;box-sizing:border-box;padding-bottom:16px;font:inherit;color:inherit}",
+        ".cpfe{--g:8px;display:flex;flex-direction:column;gap:16px;width:100%;max-width:900px;box-sizing:border-box;padding-bottom:16px;font:inherit;color:inherit}",
+        ".cpfe > section{padding-top:16px;border-top:1px solid var(--dsw-alias-border-l1)}",
+        ".cpfe > section:first-child{padding-top:0;border-top:0}",
         // 分节标题：度量抄官方设置面板里的同类文本。
         // 实测（**0.1.7-rc.2 与 0.2.0-rc.2 各量一次，结论相同**）：官方 `_title`（设置行标题）
         // 与 `groupTitle`（插件页分组标题）都是 14px/22px **w400**；官方唯一的 14px w500 是插件
@@ -745,11 +747,13 @@ try {
         ".cpfe-hint-line{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-hint-detail{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         // 描述：多行、自适应高度（没有多行输入组件，所以用 textarea + 同一批语义变量）
-        ".cpfe-desc{box-sizing:border-box;min-height:56px;max-height:160px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:8px}",
+        ".cpfe-desc{box-sizing:border-box;min-height:40px;max-height:120px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:0}",
         ".cpfe-base-pending{color:var(--dsw-alias-state-warn-primary)}",
         ".cpfe-note{display:block;margin:8px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-mono{display:block;margin:0;font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         ".cpfe-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}",
+        ".cpfe-pills > *{flex:0 0 auto;white-space:nowrap}",
+        ".cpfe-pills button{white-space:nowrap}",
         ".cpfe-picker{display:flex;align-items:center;gap:8px;margin:2px 0 4px}",
         // 壳的菜单浮层靠一个独立的 backing 元素上色（实测在 0.1.7-rc.2 + headless 下那块是透明的，
         // 文字会"压"在下面的输入框上）。用官方 token 显式补一层底色，真实浏览器与 headless 一致。
@@ -766,7 +770,7 @@ try {
         ".cpfe-row-head{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
         ".cpfe-row-switch{flex:0 0 auto}",
         ".cpfe-row-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}",
-        ".cpfe-row-note{min-height:18px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
+        ".cpfe-row-note{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
         ".cpfe-row-toggle{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}",
         ".cpfe-row-toggle:hover{background:var(--dsw-alias-bg-layer-2)}",
         ".cpfe-row-open{border-color:var(--dsw-alias-border-l2)}",
@@ -785,10 +789,10 @@ try {
         ".cpfe-line:last-child{border-bottom:0}",
         ".cpfe-group{display:flex;flex-direction:column;min-width:0}",
         ".cpfe-kids{display:flex;flex-direction:column;margin-left:0;padding-left:16px}",
+        ".cpfe-row-meta{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}",
+        ".cpfe-row-badges{display:flex;align-items:center;gap:4px;flex:0 1 auto;min-width:0}",
         ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:0;padding:16px 0;border:0;border-radius:0;background:none}",
-        ".cpfe-row-meta{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}",
-        ".cpfe-row-badges{display:flex;align-items:center;gap:6px;flex-wrap:wrap;height:18px}",
-        ".cpfe-editor{box-sizing:border-box;width:100%;min-height:180px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:13px;line-height:20px}",
+        ".cpfe-editor{box-sizing:border-box;width:100%;min-height:120px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:13px;line-height:20px}",
         ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap;margin-top:8px}",
         ".cpfe-disclosure{appearance:none;display:inline-flex;align-items:center;gap:6px;margin:8px 0 0;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;font-weight:400;cursor:pointer}",
         ".cpfe-filter{box-sizing:border-box;width:100%;height:36px;margin:0 0 8px;padding:0 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
@@ -1023,11 +1027,6 @@ try {
                     react.createElement(
                       "div",
                       { className: "cpfe-row-badges" },
-                      react.createElement(
-                        A.Tag,
-                        { tone: effective ? "success" : "neutral" },
-                        effective ? t("status.enabled") : t("status.disabled"),
-                      ),
                       row.essential ? react.createElement(A.Tag, { tone: "warning" }, t("tag.essential")) : null,
                       row.disabledExpression !== null && row.disabledExpression !== undefined
                         ? react.createElement(A.Tag, { tone: "outline" }, t("tag.followPlatform"))
@@ -1035,9 +1034,9 @@ try {
                       changed ? react.createElement(A.Tag, { tone: "info" }, t("status.changed")) : null,
                     ),
                   ),
-                  // 折叠时只留一行说明（超出截断，悬停给全文）。**没有说明就留空**：裸露的行 id
-                  // 是开发者信息，已经在「详情」里 —— 之前它作为副标题占了每行一行。
-                  react.createElement("span", { className: "cpfe-row-note", title: note ?? "" }, note ?? ""),
+                  note
+                    ? react.createElement("span", { className: "cpfe-row-note", title: note }, note)
+                    : null,
                 ),
                 react.createElement(
                   "button",
@@ -1924,6 +1923,7 @@ try {
                 ),
               )
             : null,
+          createGroup,
           typeof (assistants.find((item) => item.id === selected) || {}).broken === "string"
             ? react.createElement("p", { className: "cpfe-note" }, t("assistant.brokenHint"))
             : null,
@@ -2178,11 +2178,11 @@ try {
                           variant: "outline",
                           size: "sm",
                           disabled: busy || draft.historyPick === "",
+                          title: t("history.hint"),
                           onClick: loadVersion,
                         },
                         t("history.load"),
                       ),
-                      react.createElement("span", { className: "cpfe-history-hint" }, t("history.hint")),
                     ),
               ),
             ]
@@ -2322,7 +2322,6 @@ try {
                   : null,
               )
             : null,
-          createGroup,
           // The confirmation is a portal: rendering it here keeps every piece of this page's
           // state in one component.
           renderable(A.RiskConfirmation) && editorReady

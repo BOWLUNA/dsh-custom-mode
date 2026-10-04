@@ -8,6 +8,14 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.0.1]
+
+### The page fits one screen more closely
+
+- Plugin rows no longer repeat On/Off next to the switch, and a row with no note does not keep an empty second line. Base-mode pills stay on one line.
+- Sections are separated by the same hairline the settings pages use. New assistant sits with the assistant block, not after the switches.
+- Upgrade notes: restart dsh after install. Existing assistants stay. `prompt.starter.md` is written only when you create an assistant.
+
 ## [2.0.0]
 
 ### The settings page is the assistant, then its prompt
