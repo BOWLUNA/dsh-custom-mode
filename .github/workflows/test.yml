@@ -164,6 +164,11 @@ jobs:
       - name: 双语配对一致性
         run: node tools/verify-translation-pairing.mjs
 
+      # 44f7fdb 缩短中文词典后，browser-verify 仍点旧按钮，闸门在第 33 项抛掉。
+      # 词条必须来自 locales.mjs；这一步在不启动浏览器的情况下挡住下一次漂移。
+      - name: 渲染闸门词条跟词典走
+        run: node tools/verify-browser-literals.mjs
+
       # 文档里的数字也是声明，所以也当检查跑：套件数/检查数/dsh 范围/支持表里的版本，
       # 全部与实际运行结果对齐（外部审阅一次就找出三处漂移，而测试看不到文档）。
       - name: 文档数字与实际一致

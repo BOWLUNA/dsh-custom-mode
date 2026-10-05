@@ -127,6 +127,7 @@ try {
         "meta.version": "插件版本",
         "meta.versionHint": "未钉版本时，可能装到较旧的发布。要换版本，按 README 钉版本重装，然后重启。",
         "api.saved": "已保存（{name}，{mode}）。新会话使用新配置，当前会话不变。",
+        "api.conflict": "磁盘上的提示词已经变了，这次没有写入。先重新读取，再决定要不要覆盖。",
         "api.savedWithExclusiveRows": "已保存（{name}，{mode}）。已关闭不能同时启用的行：{rows}。",
         "api.created": "已创建「{name}」。刷新后，新会话的模式菜单里会出现它。",
         "api.savedPrompt": "已保存系统提示词（{name}）。下一步模型调用即生效。",
@@ -360,6 +361,7 @@ try {
         "meta.version": "Plugin version",
         "meta.versionHint": "Without a pinned version, an older release may be installed. To change it, reinstall with the version pin from the README, then restart.",
         "api.saved": "Saved ({name}, {mode}). New sessions use it. The current session does not change.",
+        "api.conflict": "The prompt on disk has changed, so this save was not written. Reload, then decide whether to overwrite.",
         "api.savedWithExclusiveRows": "Saved ({name}, {mode}). Turned off rows that cannot be on together: {rows}.",
         "api.created": "Created {name}. Refresh once, then it appears in the mode menu for a new session.",
         "api.savedPrompt": "System prompt saved ({name}). It applies on the next model step.",
@@ -791,7 +793,7 @@ try {
         ".cpfe-kids{display:flex;flex-direction:column;margin-left:0;padding-left:16px}",
         ".cpfe-row-meta{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}",
         ".cpfe-row-badges{display:flex;align-items:center;gap:4px;flex:0 1 auto;min-width:0}",
-        ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:0;padding:16px 0;border:0;border-radius:0;background:none}",
+        ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:74px;padding:16px 0;border:0;border-radius:0;background:none}",
         ".cpfe-editor{box-sizing:border-box;width:100%;min-height:120px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:13px;line-height:20px}",
         ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap;margin-top:8px}",
         ".cpfe-disclosure{appearance:none;display:inline-flex;align-items:center;gap:6px;margin:8px 0 0;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;font-weight:400;cursor:pointer}",
@@ -1661,6 +1663,7 @@ try {
         const save = async () => {
           setBusy(true)
           try {
+            const newest = Array.isArray(draft.history) && draft.history.length > 0 ? draft.history[0].n : undefined
             const result = await postJson(ROUTES.state, {
               id: draft.id,
               mode: draft.mode,
@@ -1668,6 +1671,7 @@ try {
               prompt: draft.prompt,
               name: draft.name,
               description: draft.description,
+              ...(typeof newest === "number" ? { baseN: newest } : {}),
             })
             if (result !== null && result !== undefined && result.ok === true) {
               setFailed(false)

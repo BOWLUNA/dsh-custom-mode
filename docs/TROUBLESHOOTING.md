@@ -508,7 +508,7 @@ minimumReleaseAgeExclude:
   - dsh-custom-mode
 ```
 
-Or one disjunction, still a single entry: `dsh-custom-mode@1.13.0 || 2.0.1`. Do not set
+Or one disjunction, still a single entry: `dsh-custom-mode@1.13.0 || 2.1.0`. Do not set
 `minimumReleaseAge: 0`; that turns the cooldown off for every package in the profile. This plugin
 does not edit that file.
 
@@ -518,7 +518,7 @@ line, run the install again. The version on the settings page is the one that is
 and only after you restart dsh.
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.0.1
+dsh plugin --profile web add dsh-custom-mode@2.1.0
 ```
 
 and check what actually landed instead of what you typed:

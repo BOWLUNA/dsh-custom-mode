@@ -484,12 +484,12 @@ minimumReleaseAgeExclude:
   - dsh-custom-mode
 ```
 
-也可以写成一条析取，仍然只有一行：`dsh-custom-mode@1.13.0 || 2.0.1`。不要把 `minimumReleaseAge` 设成 `0`，那会关掉这个 profile 里所有包的冷却期。本插件不改这个文件。
+也可以写成一条析取，仍然只有一行：`dsh-custom-mode@1.13.0 || 2.1.0`。不要把 `minimumReleaseAge` 设成 `0`，那会关掉这个 profile 里所有包的冷却期。本插件不改这个文件。
 
 失败的安装可能是半完成的：`node_modules` 里已经是新版本，`package.json` 和 `pnpm-lock.yaml` 仍是旧版本。把豁免收成一条之后，再跑一次安装。设置页上的版本号是正在运行的版本，而且要重启 dsh 之后才变。
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.0.1
+dsh plugin --profile web add dsh-custom-mode@2.1.0
 ```
 
 另外，别只看你敲了什么，要看真的装上了什么：

@@ -7,8 +7,10 @@
  *   GET  /api/custom-mode              — every assistant this feature manages.
  *   GET  /api/custom-mode/state?id=…   — one assistant: base mode, rows, switches, prompt.
  *   GET  /api/custom-mode/history?id=…&n=… — one prompt revision (metadata comes with the state).
- *   POST /api/custom-mode/state        — { id, mode, overrides, prompt, name, description }:
+ *   POST /api/custom-mode/state        — { id, mode, overrides, prompt, name, description, baseN? }:
  *                                        validate, render a fresh `agent.cordis.yml`, write both files.
+ *                                        `baseN` is the newest history number the page loaded. A JSON
+ *                                        number that is not the prompt now on disk refuses the write.
  *   POST /api/custom-mode/create       — { name, description, posture?, locale? }: seed a new
  *                                        assistant. Omitting `posture` (or sending `develop`) is the
  *                                        historical path: the packaged prompt and the standard base,
@@ -492,6 +494,38 @@ export function readList(rows) {
  */
 const writeChains = new Map()
 
+/**
+ * 打开页面之后、按下保存之前，`prompt.md` 可能已被会话工具或手工改过。
+ *
+ * 先把磁盘上的那一版记进历史。页面带了 JSON 数字 `baseN`，且那个版本不是磁盘上这一版时，
+ * 拒绝写入：磁盘保持外部文本。不带 `baseN` 的旧客户端仍覆盖，但原文已经在历史里。
+ * 数字字符串不算 `baseN`。留痕自己失败时不挡住这次保存。
+ *
+ * @param {string} directory
+ * @param {string} prompt - the text this save wants to write.
+ * @param {unknown} baseN
+ * @returns {object|null} a `conflict` result, or null when the write may proceed.
+ */
+function refuseStalePrompt(directory, prompt, baseN) {
+  try {
+    const diskPrompt = readPrompt(directory)
+    if (diskPrompt.ok !== true || diskPrompt.text === prompt) return null
+    recordExternalChange(directory, diskPrompt.text)
+    if (typeof baseN === 'number' && readVersion(directory, baseN) !== diskPrompt.text) {
+      return {
+        ok: false,
+        code: 'conflict',
+        params: { baseN },
+        error: '磁盘上的提示词已经变了，这次保存没有写入。',
+        note: '磁盘上的提示词已经变了，这次保存没有写入。',
+      }
+    }
+  } catch {
+    /* 审计留痕失败不挡住这次保存 */
+  }
+  return null
+}
+
 function serializedWrite(key, work) {
   const previous = writeChains.get(key) ?? Promise.resolve()
   const next = previous.then(work, work)
@@ -509,12 +543,13 @@ function serializedWrite(key, work) {
  * 的行集合也就不变，这是所有选项里破坏性最小的一个。
  *
  * @param {string} directory - the assistant's preset directory.
- * @param {{id: string, mode: string, prompt: string, name: string, description: string, displayName?: string}} input
+ * @param {{id: string, mode: string, prompt: string, name: string, description: string, displayName?: string, baseN?: number}} input
  *   - the validated save; `name` decides whether `preset.yml` is written, `displayName` is what the response
- *   reports (the disk name when the request omitted one — issue #9).
+ *   reports (the disk name when the request omitted one — issue #9). `baseN` is the same stale-save
+ *   token as {@link saveState}: a JSON number only.
  * @returns {object} the shape `saveState` returns, with `code: 'savedPromptOnly'`.
  */
-export function savePromptOnly(directory, { id, mode, prompt, name, description, displayName }) {
+export function savePromptOnly(directory, { id, mode, prompt, name, description, displayName, baseN }) {
   // 与正常保存同一条纪律：提示词与 preset.yml 一起换名，失败则两个都不动。
   let metaText = null
   if (name !== '') {
@@ -522,6 +557,8 @@ export function savePromptOnly(directory, { id, mode, prompt, name, description,
     if (rendered.ok !== true) return rendered
     metaText = rendered.text
   }
+  const conflict = refuseStalePrompt(directory, prompt, baseN)
+  if (conflict !== null) return conflict
   try {
     writeAtomicPair([
       [promptFile(directory), prompt],
@@ -618,7 +655,15 @@ export function saveState(rows, input) {
     // 还想改开关时明确拒绝，而不是悄悄丢掉用户的意图。
     if (isBaseCompositionUnavailable(error)) {
       if (overrides.size === 0 && existsSync(compositionFile(directory))) {
-        return savePromptOnly(directory, { id, mode, prompt, name, description, displayName: effectiveName })
+        return savePromptOnly(directory, {
+          id,
+          mode,
+          prompt,
+          name,
+          description,
+          displayName: effectiveName,
+          baseN: input !== null && typeof input === 'object' ? input.baseN : undefined,
+        })
       }
       return {
         ok: false,
@@ -650,6 +695,8 @@ export function saveState(rows, input) {
     if (rendered.ok !== true) return rendered
     metaText = rendered.text
   }
+  const conflict = refuseStalePrompt(directory, prompt, input !== null && typeof input === 'object' ? input.baseN : undefined)
+  if (conflict !== null) return conflict
   try {
     writeAtomicPair([
       [compositionFile(directory), composition],

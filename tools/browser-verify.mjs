@@ -28,7 +28,16 @@
  */
 
 import { writeFileSync } from 'node:fs'
+import { en, zh } from '../locales.mjs'
 import { connect } from './screenshots/cdp.mjs'
+
+const locale = (dict, key) => {
+  const value = dict[key]
+  if (typeof value !== 'string' || value === '') throw new Error('browser-verify: locale missing ' + key)
+  return value
+}
+const z = (key) => locale(zh, key)
+const e = (key) => locale(en, key)
 
 // 记在 README 里的“浏览器 N 项”必须是实测的：这里把它变成断言，改了检查却忘了改文档会失败。
 const EXPECTED_CHECKS = Number(process.env.EXPECTED_BROWSER_CHECKS ?? 74)
@@ -257,7 +266,7 @@ try {
         await clickEither(['设置', 'Settings'])
         await session.sleep(1200)
       }
-      await clickEither(['自定义模式', 'Custom mode'])
+      await clickEither([z('nav'), e('nav')])
       await session.sleep(2200)
       const ready = await session.evaluate(`document.querySelector('.cpfe') !== null`)
       if (ready === true) return true
@@ -281,17 +290,17 @@ try {
 
     // ── 2. 文案是翻译过的 ──────────────────────────────────────────────────
     for (const [label, needle] of [
-      ['区块标题「助手」', '助手'],
-      ['「新增助手」按钮', '新增助手'],
-      ['「上移」按钮', '上移'],
-      ['「下移」按钮', '下移'],
-      ['「复制一份」按钮', '复制一份'],
-      ['「导出提示词」按钮', '导出提示词'],
-      ['「导入提示词」按钮', '导入提示词'],
-      ['「恢复出厂提示词」按钮', '恢复出厂提示词'],
-      ['系统提示词区块', '系统提示词'],
-      ['基础模式区块', '基础模式'],
-      ['插件开关区块', '插件开关'],
+      ['区块标题「助手」', z('assistant.heading')],
+      ['「新增助手」按钮', z('btn.create')],
+      ['「上移」按钮', z('btn.moveUp')],
+      ['「下移」按钮', z('btn.moveDown')],
+      ['「复制」按钮', z('btn.duplicate')],
+      ['「导出」按钮', z('btn.export')],
+      ['「导入」按钮', z('btn.import')],
+      ['「恢复出厂」按钮', z('btn.reset')],
+      ['系统提示词区块', z('prompt.heading')],
+      ['基础模式区块', z('mode.heading')],
+      ['插件开关区块', z('rows.heading')],
     ]) {
       check(`渲染出${label}`, panel.includes(needle), panel.slice(0, 300).replace(/\n/g, ' | '))
     }
@@ -369,7 +378,7 @@ try {
     const broken = await editorText()
     check('能把编辑器内容改成任意文本（准备阶段）', broken === '被改坏的提示词（浏览器验证）', JSON.stringify(broken))
 
-    check('点得到「恢复出厂提示词」按钮', (await clickButton('恢复出厂提示词')) === 'clicked')
+    check('点得到「恢复出厂」按钮', (await clickButton(z('btn.reset'))) === 'clicked')
     const afterReset = await editorText()
     check(
       '点「恢复出厂提示词」→ 编辑器变回出厂模板',
@@ -379,7 +388,7 @@ try {
     check('确实与改坏时不同', afterReset !== broken, JSON.stringify(afterReset).slice(0, 60))
 
     // 只改草稿：磁盘没被写，重新读取即可撤销。
-    check('点得到「重新读取」按钮', (await clickButton('重新读取')) === 'clicked')
+    check('点得到「重新读取」按钮', (await clickButton(z('btn.reload'))) === 'clicked')
     const afterReload = await editorText()
     check('恢复只改草稿：重新读取回到磁盘上的文本', afterReload === beforeReset, `页面=${JSON.stringify((afterReload ?? '').slice(0, 40))} 磁盘=${JSON.stringify((beforeReset ?? '').slice(0, 40))}`)
 
@@ -387,10 +396,12 @@ try {
     //
     // 这条对应"提示词被谁改过"的可见性：在此之前，会话内的 custom_prompt 工具或手工编辑
     // 改掉 prompt.md，页面只会显示"当前文本"。这里真存两版、真点一次载入，并确认它只改草稿。
+    const saveLabels = JSON.stringify([z('btn.save'), e('btn.save')])
     const saveNow = async () => {
       await session.evaluate(`(() => {
+        const labels = ${saveLabels};
         const button = [...document.querySelectorAll('button,[role=button]')]
-          .find((el) => /^(保存|Save)$/.test(el.textContent.trim()));
+          .find((el) => labels.includes((el.textContent || '').trim()));
         if (button !== undefined && button.disabled !== true) button.click();
         return true;
       })()`)
@@ -419,7 +430,7 @@ try {
       `[...document.querySelectorAll('[role=menuitem]')].map((el) => ({ label: (el.textContent || '').trim(), id: el.getAttribute('data-value') }))`,
     )
     check('出现历史控件且带至少两个版本', Array.isArray(historyOptions) && historyOptions.length >= 2, JSON.stringify(historyOptions))
-    check('历史项显示来源（设置页保存）', historyOptions.some((option) => option.label.includes('设置页保存')), JSON.stringify(historyOptions))
+    check('历史项显示来源（此页保存）', historyOptions.some((option) => option.label.includes(z('history.by.settings'))), JSON.stringify(historyOptions))
 
     // 选最早的一版（最后一项）并载入：真的点那一项，而不是改 select.value。
     const oldestLabel = historyOptions[historyOptions.length - 1]?.label ?? ''
@@ -432,11 +443,11 @@ try {
     })()`)
     check('能在历史下拉里选中一版（' + oldestLabel.slice(0, 24) + '…）', picked === 'clicked', JSON.stringify(picked))
     await session.sleep(400)
-    check('点得到「载入这一版」按钮', (await clickButton('载入这一版')) === 'clicked')
+    check('点得到「载入」按钮', (await clickButton(z('history.load'))) === 'clicked')
     const afterLoad = await editorText()
     check('载入旧版本 → 编辑器内容变了', afterLoad !== savedSecond, JSON.stringify(afterLoad === null ? null : afterLoad.slice(0, 50)))
 
-    await clickButton('重新读取')
+    await clickButton(z('btn.reload'))
     {
       const onDisk = await savedPrompt()
       check(
@@ -449,7 +460,7 @@ try {
     // ── 3. 浏览器里跑一遍增删 ──────────────────────────────────────────────
     const created = '浏览器验证助手'
     await session.fill('.cpfe-newrow input', created)
-    await session.clickTextReal('新增助手', { exact: false })
+    await session.clickTextReal(z('btn.create'), { exact: true })
     await session.sleep(3000)
     /** The assistant pills only — the base-mode selector uses `.cpfe-pills` too. */
     /**
@@ -494,44 +505,55 @@ try {
     // 人点它，于是下一条 CDP 命令直接超时（CPU 0%，看起来像浏览器崩了）。现在由 cdp.mjs 自动接管
     // （session.dialogs 留痕），两条路径都能跑到底 —— 而且断言的是「真的删掉了」，不是「弹窗出现过」。
     const dialogsBefore = session.dialogs.length
-    await session.clickTextReal('删除这个助手', { exact: false })
+    await session.clickTextReal(z('btn.delete'), { exact: true })
     await session.sleep(1600)
     const native = session.dialogs.slice(dialogsBefore)
+    const plainParts = z('delete.plainConfirm').split('{name}').filter((part) => part !== '')
+    const ack = JSON.stringify(z('delete.acknowledge'))
+    const confirmLabel = JSON.stringify(z('delete.confirm'))
     if (native.length > 0) {
       const last = native[native.length - 1]
       check('这条线没有壳内确认 → 走原生 confirm（CDP 已自动接受）', last.type === 'confirm' && last.accepted === true, JSON.stringify(last).slice(0, 140))
-      check('原生确认问的是「永久删除」', /永久删除/.test(String(last.message)), String(last.message).slice(0, 120))
+      check('原生确认问的是词典里的删除确认', plainParts.every((part) => String(last.message).includes(part)), String(last.message).slice(0, 120))
     } else {
       const confirmText = await session.evaluate(`(() => {
+        const ack = ${ack};
         const dlg = [...document.querySelectorAll('[role=dialog]')]
-          .find((el) => (el.innerText || '').includes('永久删除'));
+          .filter((el) => (el.innerText || '').includes(ack) && el.querySelector('.cpfe') === null)
+          .sort((a, b) => (a.innerText || '').length - (b.innerText || '').length)[0];
         return dlg === undefined ? '' : dlg.innerText;
       })()`)
-      check('删开风险确认弹窗（壳提供了 RiskConfirmation）', confirmText.includes('永久删除'), confirmText.slice(0, 120).replace(/\n/g, ' | '))
+      check('删开风险确认弹窗（壳提供了 RiskConfirmation）', confirmText.includes(z('delete.acknowledge')), confirmText.slice(0, 120).replace(/\n/g, ' | '))
 
       const ticked = await session.evaluate(`(() => {
+        const ack = ${ack};
         const dlg = [...document.querySelectorAll('[role=dialog]')]
-          .find((el) => (el.innerText || '').includes('永久删除'));
+          .filter((el) => (el.innerText || '').includes(ack) && el.querySelector('.cpfe') === null)
+          .sort((a, b) => (a.innerText || '').length - (b.innerText || '').length)[0];
         if (dlg === undefined) return { ok: false };
         const box = dlg.querySelector('input[type=checkbox]');
         if (box !== null && box.checked !== true) box.click();
         return { ok: true, ticked: box !== null };
       })()`)
-      check('弹窗里有「我明白」勾选框', ticked.ok === true && ticked.ticked === true, JSON.stringify(ticked))
+      check('弹窗里有确认勾选框', ticked.ok === true && ticked.ticked === true, JSON.stringify(ticked))
       await session.sleep(600)
 
       const confirmed = await session.evaluate(`(() => {
+        const ack = ${ack};
+        const confirmLabel = ${confirmLabel};
         const dlg = [...document.querySelectorAll('[role=dialog]')]
-          .find((el) => (el.innerText || '').includes('永久删除'));
+          .filter((el) => (el.innerText || '').includes(ack) && el.querySelector('.cpfe') === null)
+          .sort((a, b) => (a.innerText || '').length - (b.innerText || '').length)[0];
         if (dlg === undefined) return { ok: false, reason: 'no dialog' };
-        const buttons = [...dlg.querySelectorAll('button')];
-        const target = buttons.find((b) => b.textContent.trim() === '永久删除');
-        if (target === undefined) return { ok: false, reason: 'no confirm button', buttons: buttons.map((b) => b.textContent.trim()) };
-        if (target.disabled === true) return { ok: false, reason: 'confirm disabled' };
-        target.click();
-        return { ok: true };
+        const buttons = [...dlg.querySelectorAll('button')].map((b) => ({ t: (b.textContent || '').trim(), disabled: b.disabled === true }));
+        const target = [...dlg.querySelectorAll('button')].find((b) => (b.textContent || '').trim() === confirmLabel);
+        if (target === undefined) return { ok: false, reason: 'no confirm button', buttons };
+        if (target.disabled === true) return { ok: false, reason: 'confirm disabled', buttons };
+        const rect = target.getBoundingClientRect();
+        return { ok: true, buttons, x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
       })()`)
-      check('点「永久删除」', confirmed.ok === true, JSON.stringify(confirmed))
+      if (confirmed.ok === true) await session.clickAt(confirmed.x, confirmed.y)
+      check('点词典里的删除确认按钮', confirmed.ok === true, JSON.stringify(confirmed))
     }
     await session.sleep(2600)
     const afterDelete = await assistantPills()
@@ -549,9 +571,12 @@ try {
     // 这是最坑的一种静默自相矛盾（用户只会想"我明明写了提示词"），必须主动点名；
     // 恢复之后告警也必须消失 —— 误报一次，用户就学会忽略它了。
     // 控件形态按线而变（见上面那段注释）：壳的 atom 读 `aria-checked`，回退的 checkbox 读 `checked`。
+    const personaLabelsJson = JSON.stringify([z('row.persona.label'), e('row.persona.label')])
+    const inactivePrompt = z('warn.personaOffWithPrompt')
     const togglePersonaRow = async (wantOn) => {
       const outcome = await session.evaluate(`(() => {
-        const row = [...document.querySelectorAll('.cpfe-row')].find((el) => /身份（系统提示词）|Identity \\(system prompt\\)/.test(el.textContent));
+        const personaLabels = ${personaLabelsJson};
+        const row = [...document.querySelectorAll('.cpfe-row')].find((el) => personaLabels.some((label) => (el.textContent || '').includes(label)));
         if (row === undefined) return 'no-row';
         const atom = row.querySelector('[role=switch]');
         const fallback = row.querySelector('input[type=checkbox]');
@@ -569,19 +594,16 @@ try {
     const warningLines = () => session.evaluate(`(() => [...document.querySelectorAll('.cpfe-warn')].map((el) => (el.textContent || '').trim()))()`)
 
     check('点得到身份行的开关', (await togglePersonaRow(false)) === 'ok')
-    await clickButton('保存')
+    await clickButton(z('btn.save'))
     await session.sleep(2800)
     const warningsOff = await warningLines()
-    // ★ 判据不绑死润色：`prompt.md` 是技术标识、不会因文案打磨而变；
-    //   语义那半个锚点取一组同义写法 —— 只钉一个词，改一次文案就得改一次断言。
-    const aboutInactivePrompt = (line) => line.includes('prompt.md') && /不.{0,3}生效|不起作用|无效/.test(line)
-    check('关掉身份行 → 主动点名「提示词不生效」', warningsOff.some(aboutInactivePrompt), JSON.stringify(warningsOff))
+    check('关掉身份行 → 主动点名「提示词不生效」', warningsOff.some((line) => line.includes(inactivePrompt)), JSON.stringify(warningsOff))
 
     check('点得到身份行的开关（恢复）', (await togglePersonaRow(true)) === 'ok')
-    await clickButton('保存')
+    await clickButton(z('btn.save'))
     await session.sleep(2800)
     const warningsOn = await warningLines()
-    check('恢复后告警消失（不许误报）', warningsOn.every((line) => line.includes('不起作用') === false), JSON.stringify(warningsOn))
+    check('恢复后告警消失（不许误报）', warningsOn.every((line) => line.includes(inactivePrompt) === false), JSON.stringify(warningsOn))
 
     // ── 底子切换：改过但未保存时必须明说（审阅记成"点了没反应"）──────────────
     {
@@ -589,7 +611,7 @@ try {
       check('未改底子时没有多余提示', before === 0, String(before))
       // 必须点一个**不是当前底子**的 pill：点已经是当前底子的那个，按设计不会出现提示。
       const clicked = await session.evaluate(`(() => {
-        const wanted = ['PTC 模式', '极简模式', 'Cordis 模式', 'PTC mode', 'Minimal', 'Cordis mode'];
+        const wanted = ${JSON.stringify([z('base.ptc.label'), z('base.minimal.label'), z('base.cordis.label'), e('base.ptc.label'), e('base.minimal.label'), e('base.cordis.label')])};
         const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el === undefined) return null;
         el.click();
@@ -600,7 +622,8 @@ try {
       check('点了另一个底子后出现"保存后重算"的提示', typeof hint === 'string' && hint.length > 0, `${JSON.stringify(clicked)} → ${JSON.stringify(hint)}`)
       // 换回去（不保存），后面的检查仍按原底子跑。
       await session.evaluate(`(() => {
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard mode)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const wanted = ${JSON.stringify([z('base.standard.label'), e('base.standard.label')])};
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return true;
       })()`)
@@ -617,25 +640,30 @@ try {
     {
       // 名字与官方界面逐字一致（实测 `dsh-client-ui-agent-preset` 的词典）：
       // cordis 这个模式在官方叫「创造模式」，不是「Cordis 模式」。
-      const PILLS = ['标准模式', 'PTC 模式', '极简模式', '创造模式', '自定义模式']
+      const PILLS = [z('base.standard.label'), z('base.ptc.label'), z('base.minimal.label'), z('base.cordis.label'), z('base.all.label')]
       const pills = await session.evaluate(
         `[...document.querySelectorAll('.cpfe-pills *')].map((e) => (e.textContent || '').trim()).filter((t) => t !== '')`,
       )
-      check('底子药丸里出现了第五个基础模式「自定义模式」', PILLS.every((label) => pills.includes(label)), JSON.stringify(pills))
+      check('底子药丸含词典里的五个基础模式（含并集）', PILLS.every((label) => pills.includes(label)), JSON.stringify(pills))
 
       await session.evaluate(`(() => {
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => (e.textContent || '').trim() === '自定义模式' && e.getBoundingClientRect().width > 20);
+        const wanted = ${JSON.stringify(z('base.all.label'))};
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => (e.textContent || '').trim() === wanted && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return el !== undefined;
       })()`)
       await session.sleep(1000)
-      const note = await session.evaluate(
-        `(() => { const el = document.querySelector('.cpfe-pills'); return el === null ? '' : el.parentElement.textContent.trim(); })()`,
-      )
-      check('第五个底子的说明来自词典（不是裸 id）', /不继承任何单一原生模式/.test(note), note.slice(0, 140))
+      const note = await session.evaluate(`(() => {
+        const wanted = ${JSON.stringify(z('base.all.label'))};
+        const pills = [...document.querySelectorAll('.cpfe-pills')].find((el) => (el.textContent || '').includes(wanted));
+        if (pills === undefined || pills.parentElement === null) return '';
+        return pills.parentElement.textContent.trim();
+      })()`)
+      check('第五个底子的说明来自词典（不是裸 id）', note.includes(z('base.all.note')), note.slice(0, 140))
       // 换回标准模式（不保存），后面的截图与断言仍按原状态跑。
       await session.evaluate(`(() => {
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => /^(标准模式|Standard mode)$/.test((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const wanted = ${JSON.stringify([z('base.standard.label'), e('base.standard.label')])};
+        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return true;
       })()`)
@@ -745,6 +773,8 @@ try {
         // 行标题的度量：官方**设置行**的标题是 14px/22px（_title；0.1.7-rc.2 与 0.2.0-rc.2 同值）。
         // 1.11.x 用的是 14px/**20px**（那是官方插件**卡片**标题 cardTitle 的行高，不是设置行的）。
         headFont: headStyle === null ? null : headStyle.fontSize + '/' + headStyle.lineHeight,
+        bareRows: rows.filter((r) => r.querySelector('.cpfe-row-note') === null).length,
+        noteRows: rows.filter((r) => r.querySelector('.cpfe-row-note') !== null).length,
       };
     })()`)
     check('插件行渲染出来了', rowFacts.count > 10, JSON.stringify(rowFacts))
@@ -758,7 +788,7 @@ try {
     check('行高在合理区间（不高出 110px，也不是被压扁的小条）', rowFacts.max <= 110 && rowFacts.min >= 40, JSON.stringify(rowFacts))
     // ★ 用户反馈（2026-10-01）："各行间距都不一致，要么连在一起，要么中间能停航母"。
     //   行高必须**完全一致** —— 说明行不换行（上面那条）+ 内边距固定（再上面那条）之后，这是可得的。
-    check('行高完全一致（"各行间距不一致"的直接回归防线）', rowFacts.max === rowFacts.min, JSON.stringify({ min: rowFacts.min, max: rowFacts.max }))
+    check('行高完全一致（"各行间距不一致"的直接回归防线）', rowFacts.max === rowFacts.min, JSON.stringify({ min: rowFacts.min, max: rowFacts.max, bareRows: rowFacts.bareRows, noteRows: rowFacts.noteRows }))
     check('没有行横向溢出（说明文字截断而不是撑破）', rowFacts.overflowing === 0, JSON.stringify(rowFacts))
     // ★ 这一条是本次重构的核心回归防线：壳把原子库交出来时，行开关**必须**是壳自己的
     //   `[role=switch]`，而不是我们手绘的 `input[type=checkbox]`。探测写错的那三个版本里，
@@ -869,34 +899,34 @@ try {
 
     const toEnglish = await switchLanguage('English')
     check('能切到英文界面', toEnglish === 'ok', toEnglish)
-    await openOurSection('自定义模式|Custom mode')
+    await openOurSection(z('nav') + '|' + e('nav'))
     const englishPanel = await session.evaluate(`(() => { const el = document.querySelector('.cpfe'); return el === null ? '' : el.innerText; })()`)
-    check('英文界面里面板本身是英文', /Assistant|Plugin switches|System prompt/.test(englishPanel), englishPanel.slice(0, 80))
+    const englishNeedles = [e('assistant.heading'), e('rows.heading'), e('prompt.heading')]
+    check('英文界面里面板本身是英文', englishNeedles.some((needle) => englishPanel.includes(needle)), englishPanel.slice(0, 80))
 
     // 保存按钮在没有改动时是禁用的 —— 先改一处，让"保存成功"这件事真的发生。
     await session.fill('.cpfe-editor', 'D2 语言检查：这一版从英文界面保存。\n')
     await session.sleep(400)
-    check('英文界面里点得到 Save', (await clickButton('Save')) === 'clicked')
+    check('英文界面里点得到 Save', (await clickButton(e('btn.save'))) === 'clicked')
     await session.sleep(2800)
     const statusEn = await session.evaluate(`(() => { const el = document.querySelector('.cpfe-status'); return el === null ? null : el.textContent.trim(); })()`)
-    // 注意：状态里会插值**用户自己的助手名**（这里叫「自定义模式」），那部分是用户数据、不该被翻译，
-    // 所以判据是"消息文本是英文"，而不是"整行没有 CJK"。
+    const promptSavedEn = e('api.savedPrompt')
+    const savedHead = promptSavedEn.slice(0, promptSavedEn.indexOf('{'))
+    const savedTail = promptSavedEn.slice(promptSavedEn.indexOf('}') + 1)
     check(
       '英文界面里保存结果是英文消息（助手名作为用户数据保留）',
-      typeof statusEn === 'string' && /Saved/.test(statusEn) && /已保存|基础模式|新建会话即生效/.test(statusEn) === false,
+      typeof statusEn === 'string' && statusEn.startsWith(savedHead) && statusEn.endsWith(savedTail) && /已保存|新建会话即生效/.test(statusEn) === false,
       JSON.stringify(statusEn),
     )
-    // 不再写死 `standard`：那让这条断言**依赖助手恰好停在哪个底子上**（实测：上一轮把助手留在并集底子上，
-    // 这条就假红）。改成断言真正要守的性质 —— 提示把基础模式说成**人话**，不是机器名。
     check(
-      '英文消息把基础模式说成标签而不是裸 id',
-      /\(.+,\s*base mode .+\)/.test(String(statusEn)) && !/base mode (standard|ptc|minimal|cordis|all)\b/.test(String(statusEn)),
+      '英文消息不回落到中文词典句，也不印裸模式 id',
+      typeof statusEn === 'string' && statusEn.includes(z('api.savedPrompt').slice(0, 4)) === false && /\b(standard|ptc|minimal|cordis|all)\b/.test(statusEn) === false,
       JSON.stringify(statusEn),
     )
 
     const back = await switchLanguage('中文')
     check('能切回中文界面', back === 'ok', back)
-    await openOurSection('自定义模式|Custom mode')
+    await openOurSection(z('nav') + '|' + e('nav'))
 
     // ── 4. 截图 ────────────────────────────────────────────────────────────
     if (out !== '') {

@@ -8,6 +8,14 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.1.0]
+
+### A stale settings save no longer discards a prompt written outside the page
+
+- The page sends the newest history number as `baseN`. If `prompt.md` changed after that revision, the save returns `conflict` and does not write. The other text stays on disk and in history. Reload, then decide whether to overwrite.
+- A client that omits `baseN` still overwrites. The replaced text is kept in history. A numeric string is not a `baseN`. The prompt-only fallback uses the same rule.
+- Plugin rows use one height (`min-height: 74px`). The browser gate reads its labels from the dictionary, and delete confirmation clicks the dialog that is outside `.cpfe`.
+
 ## [2.0.1]
 
 ### The page fits one screen more closely

@@ -106,7 +106,7 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     的度量。**2026-10-02 在两条线上各复量一次，取到的值（两侧一致）：**
     分节标题 **14px/22px w400**（官方的 `_title` 与 `groupTitle` 都是 400；官方那个 14px **w500** 是插件
     卡片标题 `cardTitle`，行高 20px，形态不同）、引言 12px/18px tertiary、**设置行 `padding:16px 0`**
-    + 一条 1px 分隔线（带描述时整行 77px，与我们改后的行同高）、**设置项下拉** 36px 高 /
+    + 一条 1px 分隔线，行盒 `min-height:74px`（有说明和没有说明的行同高。没有说明的一档实测是 56px，不要把 `min-height` 写成 56）、**设置项下拉** 36px 高 /
     `--dsw-radius-md` / 底 `--dsw-alias-bg-module-platform` / `padding:0 14px` / 14px 字 /
     **chevron 在文字之后**、输入控件圆角一律 `--dsw-radius-md`(12px)。
     下拉的**浮层**用壳的 `Menu`，但**按钮要自绘**：壳的 Button 只有 primary / ghost / outline / toolbar
@@ -120,6 +120,7 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
 14. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
     （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。
     凡是"点了会发生什么"的断言，都用程序化点击，并同时对**磁盘真值**断言，而不是对页面早先显示过什么。
+    删除确认是例外：portal 里的按钮用程序化 `click()` 会报通过，助手却还在。要点不含 `.cpfe` 的对话框，并用真实坐标。
 
 15. **Every user-visible host result carries a `code`** (plus `params`); the page renders it from its own
     bilingual dictionary. The Chinese `note`/`error` strings stay as the HTTP API's compatibility face — but

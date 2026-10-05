@@ -1067,6 +1067,121 @@ console.log('=== 8c. 宿主报的 broken 必须被点名、被修复（桌面端
   check('没坏的那些助手不带这个字段', listed.assistants.find((item) => item.id === 'writer').brokenRows === undefined, JSON.stringify(listed.assistants.find((item) => item.id === 'writer')))
 }
 
+console.log()
+console.log('=== 5.6 陈旧保存：过期 baseN 拒绝写入，不带 baseN 只记历史 ===')
+{
+  mounted = mount()
+  const baseline = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: '页面基线\n', name: '自定义模式' }))
+  check('基线保存 200', baseline.statusCode === 200, baseline.body.slice(0, 120))
+  const opened = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  const baseN = opened.history[0]?.n
+  check('历史最新一条在数组前面，序号是数字', typeof baseN === 'number', JSON.stringify(opened.history?.[0]))
+
+  writeFileSync(promptPath, 'EXTERNAL-EDIT-B\n', 'utf8')
+  const conflict = await call(post('/custom-mode/state', {
+    id: 'custom',
+    mode: 'standard',
+    prompt: 'STALE-PAGE-EDIT-A\n',
+    name: '自定义模式',
+    baseN,
+  }))
+  const conflictBody = JSON.parse(conflict.body)
+  check(
+    '过期 baseN → 400 conflict',
+    conflict.statusCode === 400 && conflictBody.ok === false && conflictBody.code === 'conflict',
+    `${String(conflict.statusCode)} ${conflict.body.slice(0, 160)}`,
+  )
+  check('冲突时 prompt.md 仍是外部文本', readFileSync(promptPath, 'utf8') === 'EXTERNAL-EDIT-B\n', JSON.stringify(readFileSync(promptPath, 'utf8')))
+  const afterConflict = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  const externalB = afterConflict.history.find((entry) => entry.preview === 'EXTERNAL-EDIT-B')
+  check('冲突把外部文本记成 external', externalB !== undefined && externalB.by === 'external', JSON.stringify(afterConflict.history.map((entry) => entry.preview)))
+  const fetchedB = externalB === undefined
+    ? { ok: false }
+    : JSON.parse((await call(makeReq('GET', { url: `/custom-mode/history?id=custom&n=${String(externalB.n)}` }))).body)
+  check('能按序号取回外部文本', fetchedB.ok === true && fetchedB.text === 'EXTERNAL-EDIT-B\n', JSON.stringify(fetchedB).slice(0, 100))
+
+  const omitted = await call(post('/custom-mode/state', {
+    id: 'custom',
+    mode: 'standard',
+    prompt: 'STALE-PAGE-EDIT-A\n',
+    name: '自定义模式',
+  }))
+  check('不带 baseN 仍是 200', omitted.statusCode === 200 && JSON.parse(omitted.body).ok === true, omitted.body.slice(0, 120))
+  check('不带 baseN 时磁盘变成页面文本', readFileSync(promptPath, 'utf8') === 'STALE-PAGE-EDIT-A\n', JSON.stringify(readFileSync(promptPath, 'utf8')))
+  const afterOmit = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('不带 baseN 时历史里仍有外部文本', afterOmit.history.some((entry) => entry.preview === 'EXTERNAL-EDIT-B'), JSON.stringify(afterOmit.history.map((entry) => entry.preview)))
+
+  writeFileSync(promptPath, 'EXTERNAL-EDIT-C\n', 'utf8')
+  const asString = await call(post('/custom-mode/state', {
+    id: 'custom',
+    mode: 'standard',
+    prompt: 'STALE-PAGE-EDIT-A\n',
+    name: '自定义模式',
+    baseN: String(baseN),
+  }))
+  check('数字字符串不算 baseN，保存仍 200', asString.statusCode === 200 && JSON.parse(asString.body).ok === true, asString.body.slice(0, 120))
+  const afterString = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('数字字符串那次把外部文本留在历史里', afterString.history.some((entry) => entry.preview === 'EXTERNAL-EDIT-C'), JSON.stringify(afterString.history.map((entry) => entry.preview)))
+
+  const current = afterString.history[0]?.n
+  const again = await call(post('/custom-mode/state', {
+    id: 'custom',
+    mode: 'standard',
+    prompt: '正常再存一版\n',
+    name: '自定义模式',
+    baseN: current,
+  }))
+  check('与磁盘一致的 baseN 保存仍是 200', again.statusCode === 200 && JSON.parse(again.body).ok === true, again.body.slice(0, 140))
+  check('正常保存写入了新文本', readFileSync(promptPath, 'utf8') === '正常再存一版\n', JSON.stringify(readFileSync(promptPath, 'utf8')))
+}
+
+console.log()
+console.log('=== 5.7 降级保存使用同一条冲突规则 ===')
+{
+  const degraded = join(userRoot, 'degraded-only')
+  mkdirSync(degraded, { recursive: true })
+  writeFileSync(join(degraded, 'prompt.md'), '降级基线\n', 'utf8')
+  const journal = await import('../journal.mjs')
+  const seeded = editor.savePromptOnly(degraded, {
+    id: 'degraded-only',
+    mode: 'standard',
+    prompt: '降级基线\n',
+    name: '',
+    description: '',
+    displayName: 'degraded-only',
+  })
+  check('降级保存基线成功', seeded.ok === true && seeded.code === 'savedPromptOnly', JSON.stringify(seeded))
+  const seededN = journal.listHistory(degraded)[0]?.n
+  writeFileSync(join(degraded, 'prompt.md'), 'EXTERNAL-DEGRADED\n', 'utf8')
+  const conflict = editor.savePromptOnly(degraded, {
+    id: 'degraded-only',
+    mode: 'standard',
+    prompt: 'STALE-DEGRADED\n',
+    name: '',
+    description: '',
+    displayName: 'degraded-only',
+    baseN: seededN,
+  })
+  check('降级路径的过期 baseN 返回 conflict', conflict.ok === false && conflict.code === 'conflict', JSON.stringify(conflict))
+  check('降级冲突不改 prompt.md', readFileSync(join(degraded, 'prompt.md'), 'utf8') === 'EXTERNAL-DEGRADED\n', JSON.stringify(readFileSync(join(degraded, 'prompt.md'), 'utf8')))
+  check(
+    '降级冲突把外部文本记进历史',
+    journal.listHistory(degraded).some((entry) => entry.preview === 'EXTERNAL-DEGRADED' && entry.by === 'external'),
+    JSON.stringify(journal.listHistory(degraded)),
+  )
+  const plain = editor.savePromptOnly(degraded, {
+    id: 'degraded-only',
+    mode: 'standard',
+    prompt: 'STALE-DEGRADED\n',
+    name: '',
+    description: '',
+    displayName: 'degraded-only',
+  })
+  check('降级保存不带 baseN 仍写入', plain.ok === true && plain.code === 'savedPromptOnly', JSON.stringify(plain))
+  check('降级不带 baseN 后磁盘是页面文本', readFileSync(join(degraded, 'prompt.md'), 'utf8') === 'STALE-DEGRADED\n')
+  check('降级不带 baseN 后历史仍能看到外部文本', journal.listHistory(degraded).some((entry) => entry.preview === 'EXTERNAL-DEGRADED'))
+}
+
 rmSync(dir, { recursive: true, force: true })
 
 console.log()
