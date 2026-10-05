@@ -2,16 +2,29 @@
 
 [English](README.md) | 中文
 
-在 DeepSeek Harness（`dsh`）里改一个模式的系统提示词、基础模式和插件开关。可以有多个助手。标准、PTC、极简、创造仍留在菜单里。
+在 DeepSeek Harness（`dsh`）里改自定义模式的系统提示词、基础模式和插件开关。可以有多个助手。custom mode、system prompt、prompt editor。
 
-![设置页](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png)
+<p align="center">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png" width="820" alt="dsh-custom-mode">
+</p>
+
+<table align="center">
+<tr>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png" width="360" alt="助手"></td>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png" width="360" alt="系统提示词"></td>
+</tr>
+<tr>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png" width="360" alt="基础模式"></td>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png" width="360" alt="插件开关"></td>
+</tr>
+</table>
 
 ## 安装
 
 钉版本。只写包名时，pnpm 的发布冷却期可能装到旧版。细节见 [docs/TROUBLESHOOTING.zh.md](docs/TROUBLESHOOTING.zh.md)。
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.0
+dsh plugin --profile web add dsh-custom-mode@2.2.1
 ```
 
 重启为这个 profile 提供服务的进程。设置页上的版本号才是正在运行的版本。
@@ -46,7 +59,7 @@ dsh plugin --profile web add dsh-custom-mode@2.2.0
 
 声明范围：`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-| dsh | 声明 | 2.2.0 核对 |
+| dsh | 声明 | 2.2.1 核对 |
 | --- | --- | --- |
 | `0.2.0-rc.2` | 声明支持 | 本版发布前的 Windows web profile |
 | `0.2.1-alpha.1` | 声明支持，CI 有这条腿 | 本版没有重跑 |

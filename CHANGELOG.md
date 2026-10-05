@@ -8,6 +8,18 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.2.1]
+
+### Storefront
+
+- README shows a centered 2×2 of four 800×400 screenshots: assistants, system prompt, base mode, plugin switches. No letterbox.
+- npm keywords cover the English search terms and 自定义模式 / 系统提示词 / 提示词编辑.
+- Header banner states the same sentence in English and Chinese.
+
+### What you need to do
+
+Nothing, unless you want the pictures. Restart is not required for a README-only install, but installing `2.2.1` still needs a restart of dsh.
+
 ## [2.2.0]
 
 ### The prompt you save is what a new session starts from

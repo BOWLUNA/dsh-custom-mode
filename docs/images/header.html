@@ -41,10 +41,14 @@
   }
   h1 span { color: #4d6bfe; }
   .lead {
-    margin-top: 22px; max-width: 520px;
+    margin-top: 22px; max-width: 540px;
     font-size: 20px; line-height: 1.45; color: #b7c0ce; font-weight: 400;
   }
   .lead b { color: #f2f5f8; font-weight: 600; }
+  .zh {
+    margin-top: 10px; max-width: 540px;
+    font-size: 18px; line-height: 1.45; color: #9aa8bc; font-weight: 400;
+  }
   .cmd {
     margin-top: 32px; align-self: flex-start;
     border: 1px solid #243044; background: #0c121c;
@@ -93,7 +97,8 @@
     <div class="copy">
       <div class="kicker">DeepSeek Harness</div>
       <h1>dsh<span>-</span>custom<span>-</span>mode</h1>
-      <p class="lead">A settings page for agent modes. Edit the <b>system prompt</b>. It applies on the next step. Keep several assistants side by side.</p>
+      <p class="lead">Edit the <b>system prompt</b>, base mode, and plugin switches. The next model step rereads the file.</p>
+      <p class="zh">改系统提示词、基础模式和插件开关。下一步组装时重读这个文件。</p>
       <div class="cmd"><i>$</i>dsh plugin add dsh-custom-mode</div>
     </div>
     <aside class="card">

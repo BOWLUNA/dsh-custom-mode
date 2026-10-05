@@ -2,16 +2,29 @@
 
 English | [中文](README.zh.md)
 
-Edit a DeepSeek Harness (`dsh`) mode's system prompt, base mode, and plugin switches. Keep more than one assistant. Standard, PTC, Minimal, and Creator stay in the menu.
+Edit a DeepSeek Harness (`dsh`) custom mode: system prompt, base mode, and plugin switches. Keep more than one assistant. 自定义模式、系统提示词、提示词编辑。
 
-![Settings](https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png)
+<p align="center">
+<img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/header.png" width="820" alt="dsh-custom-mode">
+</p>
+
+<table align="center">
+<tr>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/05-assistant-manager.png" width="360" alt="Assistants"></td>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/03-system-prompt.png" width="360" alt="System prompt"></td>
+</tr>
+<tr>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/01-mode-switch.png" width="360" alt="Base mode"></td>
+<td align="center"><img src="https://raw.githubusercontent.com/BOWLUNA/dsh-custom-mode/main/docs/images/02-plugin-switches.png" width="360" alt="Plugin switches"></td>
+</tr>
+</table>
 
 ## Install
 
 Pin the version. A bare name can install an older build during pnpm's release cooldown. Details: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.0
+dsh plugin --profile web add dsh-custom-mode@2.2.1
 ```
 
 Restart the process that serves the profile. The version on the settings page is the one that is running.
@@ -46,7 +59,7 @@ New assistants start as one posture. That choice applies only to the assistant y
 
 Declared range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-| dsh | Claim | Checked for 2.2.0 |
+| dsh | Claim | Checked for 2.2.1 |
 | --- | --- | --- |
 | `0.2.0-rc.2` | declared | Windows web profile, before this release |
 | `0.2.1-alpha.1` | declared, in CI | not re-run for this release |

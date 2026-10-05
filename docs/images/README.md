@@ -1,8 +1,6 @@
 # Screenshots
 
-Five images, all **English**, and **all exactly 800x800** - one canvas, so the README 2x2 table lines up
-instead of stepping up and down (a 1440x900 shot would also render as a wall of mostly-empty shell: that
-is what "too big" looks like on GitHub).
+Five images used in the README are **800×400**, cropped inside the settings dialog so the 2×2 grid is one size and has no letterbox. Maximum frame is 800×800.
 
 ```
 01-mode-switch.png        800x800   Settings -> Custom mode: mode name + the FIVE base modes

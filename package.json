@@ -1,7 +1,7 @@
 {
   "name": "dsh-custom-mode",
-  "version": "2.2.0",
-  "description": "Edit a DeepSeek Harness (dsh) mode's system prompt, base mode, and plugin switches.",
+  "version": "2.2.1",
+  "description": "Edit a DeepSeek Harness (dsh) custom mode: system prompt, base mode, and plugin switches.",
   "license": "MIT",
   "type": "module",
   "author": "bowluna <ai@bowluna.com>",
@@ -21,14 +21,21 @@
   },
   "keywords": [
     "dsh",
-    "deepseek-harness",
     "deepseek",
+    "deepseek-harness",
+    "deepseek-ai",
     "dsh-plugin",
     "plugin",
-    "agent-preset",
     "custom-mode",
     "system-prompt",
-    "prompt-editor"
+    "prompt-editor",
+    "agent-preset",
+    "assistant",
+    "base-mode",
+    "自定义模式",
+    "系统提示词",
+    "提示词编辑",
+    "DeepSeek插件"
   ],
   "dsh": {
     "bundle": {
