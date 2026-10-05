@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "2.2.1",
+  "version": "2.2.2",
   "description": "Edit a DeepSeek Harness (dsh) custom mode: system prompt, base mode, and plugin switches.",
   "license": "MIT",
   "type": "module",

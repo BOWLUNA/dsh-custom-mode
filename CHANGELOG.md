@@ -8,6 +8,17 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.2.2]
+
+### Logic tree
+
+- The settings page is two branches. This assistant keeps all five base modes selectable. New assistant keeps Coding, Writing, and Chat selectable, and shows the official modes with only Standard lit. The other four are dim and cannot be chosen there.
+- A new assistant still starts on the official Standard mode. The dim row is the same rule, shown on the page.
+
+### What you need to do
+
+Install `2.2.2` and restart dsh.
+
 ## [2.2.1]
 
 ### Storefront

@@ -612,7 +612,7 @@ try {
       // 必须点一个**不是当前底子**的 pill：点已经是当前底子的那个，按设计不会出现提示。
       const clicked = await session.evaluate(`(() => {
         const wanted = ${JSON.stringify([z('base.ptc.label'), z('base.minimal.label'), z('base.cordis.label'), e('base.ptc.label'), e('base.minimal.label'), e('base.cordis.label')])};
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el === undefined) return null;
         el.click();
         return (el.textContent || '').trim();
@@ -623,7 +623,7 @@ try {
       // 换回去（不保存），后面的检查仍按原底子跑。
       await session.evaluate(`(() => {
         const wanted = ${JSON.stringify([z('base.standard.label'), e('base.standard.label')])};
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return true;
       })()`)
@@ -642,20 +642,20 @@ try {
       // cordis 这个模式在官方叫「创造模式」，不是「Cordis 模式」。
       const PILLS = [z('base.standard.label'), z('base.ptc.label'), z('base.minimal.label'), z('base.cordis.label'), z('base.all.label')]
       const pills = await session.evaluate(
-        `[...document.querySelectorAll('.cpfe-pills *')].map((e) => (e.textContent || '').trim()).filter((t) => t !== '')`,
+        `[...document.querySelectorAll('.cpfe-pills[data-live="base"] *')].map((e) => (e.textContent || '').trim()).filter((t) => t !== '')`,
       )
       check('底子药丸含词典里的五个基础模式（含并集）', PILLS.every((label) => pills.includes(label)), JSON.stringify(pills))
 
       await session.evaluate(`(() => {
         const wanted = ${JSON.stringify(z('base.all.label'))};
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => (e.textContent || '').trim() === wanted && e.getBoundingClientRect().width > 20);
+        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] *')].find((e) => (e.textContent || '').trim() === wanted && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return el !== undefined;
       })()`)
       await session.sleep(1000)
       const note = await session.evaluate(`(() => {
         const wanted = ${JSON.stringify(z('base.all.label'))};
-        const pills = [...document.querySelectorAll('.cpfe-pills')].find((el) => (el.textContent || '').includes(wanted));
+        const pills = [...document.querySelectorAll('.cpfe-pills[data-live="base"]')].find((el) => (el.textContent || '').includes(wanted));
         if (pills === undefined || pills.parentElement === null) return '';
         return pills.parentElement.textContent.trim();
       })()`)
@@ -663,7 +663,7 @@ try {
       // 换回标准模式（不保存），后面的截图与断言仍按原状态跑。
       await session.evaluate(`(() => {
         const wanted = ${JSON.stringify([z('base.standard.label'), e('base.standard.label')])};
-        const el = [...document.querySelectorAll('.cpfe-pills *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
         if (el !== undefined) el.click();
         return true;
       })()`)

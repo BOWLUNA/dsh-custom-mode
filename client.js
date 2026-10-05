@@ -2,11 +2,10 @@
  * Browser half: 「自定义模式」settings page — the assistant manager.
  *
  * Blocks:
- *   0. 助手        — pick, create, duplicate, delete.
- *   1. 系统提示词  — the prompt, then Save directly under it.
- *   2. 模式名称    — display name and description.
- *   3. 基础模式    — standard / ptc / minimal / cordis / all.
- *   4. 插件开关    — collapsed until the user opens it.
+ *   0. 助手        — which assistant is selected.
+ *   1. 当前助手    — prompt, name, five live base modes, plugin switches.
+ *   2. 新建助手    — Coding / Writing / Chat stay selectable. The official
+ *                  modes are shown beside them, and only Standard is lit.
  *
  * Three decisions worth knowing before editing this file:
  *
@@ -62,13 +61,20 @@ try {
         "nav": "自定义模式",
         "assistant.heading": "助手",
         "assistant.hint": "每个助手单独保存系统提示词、基础模式和插件开关。",
-        "posture.hint": "只用于新建，不改变当前助手。",
+        "posture.hint": "这一支只在点「新增助手」时写入。",
+        "tree.posture": "起步",
+        "tree.base": "工具底",
+        "tree.baseHold": "新建时固定用官方标准模式。",
+        "tree.baseSkip": "这一支点不了。建好后到「当前助手」里改。",
+        "tree.baseLocked": "只有官方标准模式是亮的。其余四档是暗的，新建时点不了。",
         "posture.develop.label": "开发",
-        "posture.develop.note": "新建后：标准模式，工具按出厂。",
+        "posture.develop.note": "官方标准模式，工具按出厂。",
         "posture.write.label": "写作",
-        "posture.write.note": "新建后：终端关闭，文件读写打开。",
+        "posture.write.note": "官方标准模式。终端关闭，文件读写打开。",
         "posture.chat.label": "聊天",
-        "posture.chat.note": "新建后：文件和终端关闭。",
+        "posture.chat.note": "官方标准模式。文件和终端关闭。",
+        "editor.heading": "当前助手",
+        "editor.hint": "这一支改上面选中的助手。基础模式五档都可以点。",
         "assistant.empty": "还没有助手，用下面的输入框新建一个。",
         "assistant.loadingList": "正在读取助手列表…",
         "assistant.newPlaceholder": "新助手的名字（例如：写作助手）",
@@ -78,7 +84,7 @@ try {
         "assistant.brokenHint": "此模式在本机无法启动，不会出现在新会话菜单里。点「按本线修复」只关闭那些行。",
         "assistant.switchHint": "切换助手保留各自的未保存草稿；列表中的「未保存」标记即为此。",
         "btn.create": "新增助手",
-        "create.heading": "新建",
+        "create.heading": "新建助手",
         "btn.creating": "创建中…",
         "btn.duplicate": "复制",
         "btn.moveUp": "上移",
@@ -196,7 +202,7 @@ try {
         "name.placeholder": "自定义模式",
         "name.descriptionPlaceholder": "描述，显示在模式菜单里，可留空",
         "mode.heading": "基础模式",
-        "mode.hint": "选一套官方预设作为工具底。提示词以本页为准。",
+        "mode.hint": "五档都可以点。改的是当前这位助手。提示词仍以本页为准。",
         "rows.heading": "插件开关",
         "rows.filterPlaceholder": "按名称或 id 筛选",
         "cap.heading": "插件开关",
@@ -296,13 +302,20 @@ try {
         "nav": "Custom mode",
         "assistant.heading": "Assistants",
         "assistant.hint": "Each assistant keeps its own system prompt, base mode and plugin switches.",
-        "posture.hint": "Applies only to the assistant you are about to create.",
+        "posture.hint": "This branch is written only when you click New assistant.",
+        "tree.posture": "Starter",
+        "tree.base": "Tool base",
+        "tree.baseHold": "A new assistant always starts on the official Standard mode.",
+        "tree.baseSkip": "Cannot be chosen on this branch. Change it later under This assistant.",
+        "tree.baseLocked": "Only the official Standard mode is lit. The other four are dim and cannot be chosen when creating.",
         "posture.develop.label": "Coding",
-        "posture.develop.note": "After create: Standard, tools as shipped.",
+        "posture.develop.note": "Official Standard mode, tools as shipped.",
         "posture.write.label": "Writing",
-        "posture.write.note": "After create: terminal off, file access on.",
+        "posture.write.note": "Official Standard mode. Terminal off, file access on.",
         "posture.chat.label": "Chat",
-        "posture.chat.note": "After create: files and terminal off.",
+        "posture.chat.note": "Official Standard mode. Files and terminal off.",
+        "editor.heading": "This assistant",
+        "editor.hint": "This branch edits the assistant selected above. All five base modes can be chosen.",
         "assistant.empty": "No assistants yet — create one with the field below.",
         "assistant.loadingList": "Loading assistants…",
         "assistant.newPlaceholder": "Name of the new assistant (e.g. Writing assistant)",
@@ -430,7 +443,7 @@ try {
         "name.placeholder": "Custom mode",
         "name.descriptionPlaceholder": "Description, shown in the mode menu. Optional.",
         "mode.heading": "Base mode",
-        "mode.hint": "Pick a shipped preset as the tool base. The prompt on this page still applies.",
+        "mode.hint": "All five can be chosen. This edits the assistant selected above. The prompt on this page still applies.",
         "rows.heading": "Plugin switches",
         "rows.filterPlaceholder": "Filter by name or id",
         "cap.heading": "Plugin switches",
@@ -767,7 +780,12 @@ try {
         ".cpfe-actions{display:flex;flex-wrap:wrap;gap:var(--g);align-items:center;margin-top:4px}",
         ".cpfe-newrow{display:flex;gap:var(--g);align-items:center;flex-wrap:wrap;margin-top:10px}",
         ".cpfe-postures{display:flex;flex-direction:column;gap:6px}",
-        ".cpfe-create{display:flex;flex-direction:column;gap:6px;margin-top:8px}",
+        ".cpfe-create{display:flex;flex-direction:column;gap:6px}",
+        ".cpfe-branch{display:flex;flex-direction:column;gap:16px;margin-top:8px;padding-left:12px;border-left:1px solid var(--dsw-alias-border-l1)}",
+        ".cpfe-node{display:flex;flex-direction:column;gap:4px}",
+        ".cpfe-node-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
+        ".cpfe-locked button:disabled:not([aria-pressed=true]){opacity:.4;cursor:default}",
+        ".cpfe-locked button:disabled[aria-pressed=true]{opacity:1;cursor:default}",
         ".cpfe-field{display:flex;width:100%;margin-bottom:8px}",
         ".cpfe-row-head{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
         ".cpfe-row-switch{flex:0 0 auto}",
@@ -1717,38 +1735,70 @@ try {
             : "cpfe-status cpfe-ok"
         const shown = dirty && status === "" ? t("msg.unsaved") : status
 
+        const lockedModes =
+          payload !== null && Array.isArray(payload.modes) && payload.modes.length > 0
+            ? payload.modes
+            : [{ id: "standard" }, { id: "ptc" }, { id: "minimal" }, { id: "cordis" }, { id: "all" }]
         const createGroup = react.createElement(
           "section",
           { className: "cpfe-create" },
           react.createElement("h2", { className: "cpfe-h" }, t("create.heading")),
           react.createElement(SectionHint, { text: t("posture.hint") }),
-          postureChoices.length === 0
-            ? null
-            : react.createElement(
-                "div",
-                null,
-                react.createElement(
-                  "div",
-                  { className: "cpfe-pills", role: "radiogroup", "aria-label": t("posture.hint") },
-                  postureChoices.map((item) =>
-                    react.createElement(
-                      A.Pill,
-                      {
-                        key: item.id,
-                        active: item.id === posture,
-                        disabled: busy,
-                        "aria-pressed": item.id === posture,
-                        onClick: () => setPosture(item.id),
-                      },
-                      t("posture." + item.id + ".label", item.id),
-                    ),
-                  ),
-                ),
-                react.createElement("p", { className: "cpfe-note" }, t("posture." + posture + ".note", "")),
-              ),
           react.createElement(
             "div",
-            { className: "cpfe-newrow" },
+            { className: "cpfe-branch" },
+            postureChoices.length === 0
+              ? null
+              : react.createElement(
+                  "div",
+                  { className: "cpfe-node" },
+                  react.createElement("span", { className: "cpfe-node-label" }, t("tree.posture")),
+                  react.createElement(
+                    "div",
+                    { className: "cpfe-pills", role: "radiogroup", "aria-label": t("tree.posture") },
+                    postureChoices.map((item) =>
+                      react.createElement(
+                        A.Pill,
+                        {
+                          key: item.id,
+                          active: item.id === posture,
+                          disabled: busy,
+                          "aria-pressed": item.id === posture,
+                          onClick: () => setPosture(item.id),
+                        },
+                        t("posture." + item.id + ".label", item.id),
+                      ),
+                    ),
+                  ),
+                  react.createElement("p", { className: "cpfe-note" }, t("posture." + posture + ".note", "")),
+                ),
+            react.createElement(
+              "div",
+              { className: "cpfe-node" },
+              react.createElement("span", { className: "cpfe-node-label" }, t("tree.base")),
+              react.createElement(
+                "div",
+                { className: "cpfe-pills cpfe-locked", role: "radiogroup", "aria-disabled": "true", "aria-label": t("tree.base") },
+                lockedModes.map((mode) =>
+                  react.createElement(
+                    A.Pill,
+                    {
+                      key: mode.id,
+                      active: mode.id === "standard",
+                      disabled: true,
+                      "aria-pressed": mode.id === "standard",
+                      title: mode.id === "standard" ? t("tree.baseHold") : t("tree.baseSkip"),
+                      onClick: () => {},
+                    },
+                    t("base." + mode.id + ".label", mode.label),
+                  ),
+                ),
+              ),
+              react.createElement("p", { className: "cpfe-note" }, t("tree.baseLocked")),
+            ),
+            react.createElement(
+              "div",
+              { className: "cpfe-newrow" },
             react.createElement(A.Input, {
               className: "cpfe-newinput",
               value: newName,
@@ -1771,6 +1821,7 @@ try {
                 onClick: () => create(),
               },
               busy ? t("btn.creating") : t("btn.create"),
+            ),
             ),
           ),
         )
@@ -1927,7 +1978,6 @@ try {
                 ),
               )
             : null,
-          createGroup,
           typeof (assistants.find((item) => item.id === selected) || {}).broken === "string"
             ? react.createElement("p", { className: "cpfe-note" }, t("assistant.brokenHint"))
             : null,
@@ -1975,7 +2025,7 @@ try {
                   ? react.createElement("p", { className: "cpfe-note" }, t("mode.unavailable"))
                   : react.createElement(
                       "div",
-                      { className: "cpfe-pills" },
+                      { className: "cpfe-pills", "data-live": "base" },
                       payload.modes.map((mode) =>
                         react.createElement(
                           A.Pill,
@@ -2251,8 +2301,17 @@ try {
                   ),
                 ),
               ),
-          ...(editorReady ? editorSections.filter((section) => section.key === "prompt") : []),
-          react.createElement(
+          editorReady
+            ? react.createElement(
+                "section",
+                null,
+                react.createElement("h2", { className: "cpfe-h" }, t("editor.heading")),
+                react.createElement(SectionHint, { text: t("editor.hint") }),
+                react.createElement(
+                  "div",
+                  { className: "cpfe-branch" },
+                  editorSections.filter((section) => section.key === "prompt"),
+                  react.createElement(
             "div",
             { className: "cpfe-bar" },
             react.createElement(
@@ -2326,6 +2385,10 @@ try {
                   : null,
               )
             : null,
+                ),
+              )
+            : null,
+          createGroup,
           // The confirmation is a portal: rendering it here keeps every piece of this page's
           // state in one component.
           renderable(A.RiskConfirmation) && editorReady

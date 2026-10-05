@@ -24,7 +24,7 @@ Edit a DeepSeek Harness (`dsh`) custom mode: system prompt, base mode, and plugi
 Pin the version. A bare name can install an older build during pnpm's release cooldown. Details: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.1
+dsh plugin --profile web add dsh-custom-mode@2.2.2
 ```
 
 Restart the process that serves the profile. The version on the settings page is the one that is running.
@@ -41,13 +41,13 @@ On Windows, `install.sh` is bash and it needs a `dsh` executable on `PATH`. Othe
 
 The prompt is `prompt.md`. The next time a model step is assembled, that file is read again. History can load an older draft into the editor; loading does not write. A save computed against an older copy is refused when the file changed underneath. The model can change the same file only through `custom_prompt`, which asks first.
 
-New assistants start as one posture. That choice applies only to the assistant you create next.
+The page is two branches. This assistant edits the one you have open, and all five base modes can be chosen. New assistant writes only when you click New assistant: Coding, Writing, and Chat stay selectable, and only the official Standard mode is lit. The other four official modes are dim and cannot be chosen there.
 
 | Posture | After create |
 | --- | --- |
-| Develop | Built-in Standard tool set. |
-| Write | Terminal off. File tools on. |
-| Chat | Files and terminal off. |
+| Develop | Official Standard mode, tools as shipped. |
+| Write | Official Standard mode. Terminal off, file tools on. |
+| Chat | Official Standard mode. Files and terminal off. |
 
 ## Boundaries
 
@@ -59,7 +59,7 @@ New assistants start as one posture. That choice applies only to the assistant y
 
 Declared range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-| dsh | Claim | Checked for 2.2.1 |
+| dsh | Claim | Checked for 2.2.2 |
 | --- | --- | --- |
 | `0.2.0-rc.2` | declared | Windows web profile, before this release |
 | `0.2.1-alpha.1` | declared, in CI | not re-run for this release |
