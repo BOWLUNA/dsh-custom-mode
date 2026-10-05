@@ -1,0 +1,15 @@
+name: remove-stale-alpha
+on:
+  workflow_dispatch:
+jobs:
+  rm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: remove alpha dist-tag
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm dist-tag rm dsh-custom-mode alpha
