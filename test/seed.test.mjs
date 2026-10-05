@@ -17,6 +17,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { ensureUnsetDefaultPreset } from '../defaults.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = dirname(HERE)
@@ -271,6 +272,27 @@ console.log('=== 描述迁移：只清我们自己写过的那条（中英拼接
 
   rmSync(dir, { recursive: true, force: true })
   check('没有 preset.yml 时不抛', dropShippedDescription(join(tmpdir(), 'dsh-seed-nope-' + String(Date.now()))).migrated === false)
+}
+
+console.log()
+console.log('=== agent-presets.default：只填空缺 ===')
+{
+  const home = mkdtempSync(join(tmpdir(), 'dsh-default-'))
+  const preset = join(home, '.agent-presets', 'custom')
+  mkdirSync(preset, { recursive: true })
+  const missing = ensureUnsetDefaultPreset(home, 'custom')
+  check('没有 prompt.md 时不写 settings.yaml', missing.wrote === false && missing.reason === 'no-preset' && existsSync(join(home, 'settings.yaml')) === false, JSON.stringify(missing))
+  writeFileSync(join(preset, 'prompt.md'), 'hello\n', 'utf8')
+  const created = ensureUnsetDefaultPreset(home, 'custom')
+  check('空 home 写成 custom', created.wrote === true && readFileSync(join(home, 'settings.yaml'), 'utf8').includes('default: custom'), JSON.stringify(created))
+  writeFileSync(join(home, 'settings.yaml'), 'locale: zh\nagent-presets:\n  default: standard\n', 'utf8')
+  const kept = ensureUnsetDefaultPreset(home, 'custom')
+  check('已有 standard 时不改', kept.wrote === false && readFileSync(join(home, 'settings.yaml'), 'utf8').includes('default: standard'), JSON.stringify(kept))
+  writeFileSync(join(home, 'settings.yaml'), 'locale: zh\n', 'utf8')
+  const appended = ensureUnsetDefaultPreset(home, 'custom')
+  const appendedText = readFileSync(join(home, 'settings.yaml'), 'utf8')
+  check('没有该键时追加，并保留原有键', appended.wrote === true && appendedText.includes('locale: zh') && appendedText.includes('default: custom'), appendedText)
+  rmSync(home, { recursive: true, force: true })
 }
 
 console.log()

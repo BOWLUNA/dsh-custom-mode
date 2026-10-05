@@ -175,6 +175,14 @@ console.log('=== 5. CLI：真跑一遍（合成日志写进一次性 home）==='
   }
   check('找不到日志时以退出码 2 结束（不是静默成功）', exitCode === 2, String(exitCode))
   rmSync(home, { recursive: true, force: true })
+
+  const homeV4 = mkdtempSync(join(tmpdir(), 'dsh-trace-v4-'))
+  const dirV4 = join(homeV4, 'sessions', '--project--', 'session-v4only')
+  mkdirSync(dirV4, { recursive: true })
+  writeFileSync(join(dirV4, 'session.v4.jsonl.zstd'), multiFrame)
+  const summaryV4 = execFileSync(process.execPath, ['tools/session-trace.mjs', '--home', homeV4, '--summary'], { encoding: 'utf8' })
+  check('只有 v4 日志时 CLI 仍能汇总', summaryV4.includes('custom_prompt(append)'), summaryV4.slice(0, 240))
+  rmSync(homeV4, { recursive: true, force: true })
 }
 
 console.log()

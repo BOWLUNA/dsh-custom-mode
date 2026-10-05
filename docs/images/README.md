@@ -44,7 +44,7 @@ wrong: the settings dialog must be opened with a **real pointer** (this shell de
 that treats "a dialog exists" as "settings is open" spends the whole run looking for the sidebar inside that
 modal, and every page shot silently becomes the same picture.
 
-The rendered page is what [`tools/browser-verify.mjs`](../../tools/browser-verify.mjs) checks (70 checks,
+The rendered page is what [`tools/browser-verify.mjs`](../../tools/browser-verify.mjs) checks (74 checks,
 including the official metrics these images show); `observed.json` next to the older capture script records
 the state that run verified (theme, language, what the save returned, the mode list, the toggle it flipped).
 

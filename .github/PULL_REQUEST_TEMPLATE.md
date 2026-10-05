@@ -12,8 +12,7 @@ The checklist below exists for exactly those failure modes.
 
 ## Self-check
 
-- [ ] `node test/run.mjs` is green across all 13 suites, and `node tools/verify-doc-numbers.mjs` agrees with
-      whatever number the docs claim (it runs the suite itself — do not paste counts by hand)
+- [ ] `node test/run.mjs` is green, and `node tools/verify-doc-numbers.mjs` agrees with the docs (it runs the suite itself — do not paste a suite count by hand)
 - [ ] Changed a string in `client.js` → also changed `locales.mjs` (section 6 catches drift)
 - [ ] Changed anything about the private route in `index.mjs` → it is still registered through
       `ctx.connection.fetch.register(...)` on the fenced `/api` channel (never the raw `webServer` table), and

@@ -8,13 +8,13 @@
  * mistake was only caught by opening the trajectory tab in a browser and reading it by hand. This makes that a
  * single command.
  *
- * **How a session log is stored**: `$DSH_HOME/sessions/<project>/<session-id>/session.v3.jsonl.zstd` — that is
- * **multi-frame** Zstandard (one frame per appended record). Node's one-shot decoder returns the *first* frame
- * and silently ignores the rest, which is why a naive read shows a single record; dsh's own reader sidesteps
- * this with a private stream trick plus a frame index, which is fragile across Node releases. This tool stays
- * on public API: scan for the frame magic and decode from every candidate offset. Real frames decode
- * individually, false magics inside compressed bytes fail to decode and are skipped. Measured on a 9.3 MB log
- * with 5,722 frames: all frames decoded, all 8,915 lines parsed as JSON, ~0.5 s.
+ * **How a session log is stored**: `$DSH_HOME/sessions/<project>/<session-id>/session.v4.jsonl.zstd`
+ * (dsh 0.2) or `session.v3.jsonl.zstd` (older). Either file is **multi-frame** Zstandard (one frame per
+ * appended record). Node's one-shot decoder returns the *first* frame and silently ignores the rest, which
+ * is why a naive read shows a single record; dsh's own reader sidesteps this with a private stream trick
+ * plus a frame index, which is fragile across Node releases. This tool stays on public API: scan for the
+ * frame magic and decode from every candidate offset. Real frames decode individually, false magics inside
+ * compressed bytes fail to decode and are skipped.
  *
  * Usage:
  *   node tools/session-trace.mjs                        # latest session in $DSH_HOME
@@ -187,7 +187,10 @@ export function summarize(records) {
   }
 }
 
-/** Session log files, newest first. */
+/** Newest log wins when a session directory has both formats. */
+const SESSION_LOG_NAMES = ['session.v4.jsonl.zstd', 'session.v3.jsonl.zstd']
+
+/** Session log files, newest first. One file per session: v4 preferred when it is newer, else v3. */
 function findLogs(home) {
   const root = join(home, 'sessions')
   const found = []
@@ -206,15 +209,54 @@ function findLogs(home) {
       continue
     }
     for (const session of sessions) {
-      const log = join(projectDir, session, 'session.v3.jsonl.zstd')
-      try {
-        found.push({ session, log, mtime: statSync(log).mtimeMs })
-      } catch {
-        continue
+      const present = []
+      for (const name of SESSION_LOG_NAMES) {
+        const log = join(projectDir, session, name)
+        try {
+          present.push({ session, log, mtime: statSync(log).mtimeMs })
+        } catch {
+          /* this format is absent */
+        }
       }
+      if (present.length === 0) continue
+      present.sort((a, b) => b.mtime - a.mtime)
+      found.push(present[0])
     }
   }
   return found.sort((a, b) => b.mtime - a.mtime)
+}
+
+/** Basenames sitting in session directories when neither log name matched. */
+function straySessionFiles(home) {
+  const root = join(home, 'sessions')
+  const names = []
+  let projects
+  try {
+    projects = readdirSync(root)
+  } catch {
+    return names
+  }
+  for (const project of projects) {
+    const projectDir = join(root, project)
+    let sessions
+    try {
+      sessions = readdirSync(projectDir)
+    } catch {
+      continue
+    }
+    for (const session of sessions) {
+      let files
+      try {
+        files = readdirSync(join(projectDir, session))
+      } catch {
+        continue
+      }
+      for (const name of files) {
+        if (!SESSION_LOG_NAMES.includes(name) && names.length < 8) names.push(name)
+      }
+    }
+  }
+  return names
 }
 
 function truncate(text) {
@@ -352,7 +394,9 @@ function main() {
 
   const logs = findLogs(home)
   if (logs.length === 0) {
-    console.error(`没有在 ${join(home, 'sessions')} 下找到会话日志 —— 换个 --home，或先在那个 home 里跑一次会话。`)
+    const stray = straySessionFiles(home)
+    const seen = stray.length === 0 ? '' : ` 看到的文件：${stray.join(', ')}。`
+    console.error(`没有在 ${join(home, 'sessions')} 下找到 session.v4.jsonl.zstd 或 session.v3.jsonl.zstd。${seen}`)
     process.exit(2)
   }
   const chosen = wanted === undefined ? logs[0] : logs.find((entry) => entry.session.includes(wanted))

@@ -66,14 +66,14 @@ export {
  * it never asks the host for the user's own preset.
  */
 export const BASE_MODES = [
-  { id: 'standard', label: '标准模式', note: '完整编码能力：Shell、文件、检索、技能、计划、目标、子代理、工作流' },
-  { id: 'ptc', label: 'PTC 模式', note: '在标准模式基础上启用 PTC 工具呈现（tool-presentation）' },
-  { id: 'minimal', label: '极简模式', note: '只有 Shell 与终端，共 7 行；没有文件、检索、技能、子代理' },
-  { id: 'cordis', label: 'Cordis 模式', note: '标准模式 + 读写运行时的 Cordis 工具集，可让 agent 自己改 harness' },
+  { id: 'standard', label: '标准模式', note: '出厂的完整工具集。' },
+  { id: 'ptc', label: 'PTC 模式', note: '标准模式，另开 PTC 工具呈现。' },
+  { id: 'minimal', label: '极简模式', note: '只有 Shell 与终端。提示词仍以本页为准。' },
+  { id: 'cordis', label: '创造模式', note: '标准模式，另开 Cordis 运行时工具。' },
   {
     id: UNION_MODE_ID,
-    label: '自定义模式',
-    note: '不继承任何单一原生模式：以标准模式的全套行为底，补上只有 PTC / 极简 / 创造模式才有的行，全部都能逐行开关',
+    label: '全部出厂行',
+    note: '四套官方预设的行合在一处，均可开关。',
   },
 ]
 

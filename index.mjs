@@ -55,7 +55,8 @@ import {
 } from './preset-backend/index.mjs'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR } from './paths.mjs'
+import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR, dshHome } from './paths.mjs'
+import { ensureUnsetDefaultPreset } from './defaults.mjs'
 import {
   allowlistOverrides,
   applyRowExclusivity,
@@ -579,7 +580,7 @@ export function savePromptOnly(directory, { id, mode, prompt, name, description,
     code: 'savedPromptOnly',
     // 响应里的名字用**磁盘上的那个**（issue #9）：请求省略 name 时不该把 params.name 报成裸目录 id。
     params: { name: (displayName === undefined || displayName === '' ? name : displayName) === '' ? id : (displayName === undefined || displayName === '' ? name : displayName), mode },
-    note: '已保存系统提示词（本机取不到基础模式的出厂组成，插件开关与基础模式未改动）。新建会话即生效。',
+    note: '已保存系统提示词（本机取不到基础模式的出厂组成，插件开关与基础模式未改动）。下一步组装时会重读这个文件。',
   }
 }
 
@@ -730,7 +731,7 @@ export function saveState(rows, input) {
       params: { name: displayName, mode, rows: autoOff.join(', ') },
       note:
         '已保存（' + displayName + '，基础模式 ' + mode + '）。这两套壳注册同名工具、不能同时启用 —— ' +
-        '已自动关掉：' + autoOff.join('、') + '。新建会话即生效，当前会话保持原配置。',
+        '已自动关掉：' + autoOff.join('、') + '。下一步组装时会重读已保存的提示词。',
     }
   }
   return {
@@ -739,7 +740,7 @@ export function saveState(rows, input) {
     mode,
     code: 'saved',
     params: { name: displayName, mode },
-    note: '已保存（' + displayName + '，基础模式 ' + mode + '）。新建会话即生效，当前会话保持原配置。',
+    note: '已保存（' + displayName + '，基础模式 ' + mode + '）。下一步组装时会重读已保存的提示词。',
   }
 }
 
@@ -1122,6 +1123,15 @@ export function apply(ctx) {
     })
   } catch (error) {
     console.error('custom-mode: 初始化 preset 目录时出现意外错误（已忽略）: ' + describe(error))
+  }
+
+  try {
+    const presetDefault = ensureUnsetDefaultPreset(dshHome(), LEGACY_ID)
+    if (presetDefault.wrote) {
+      console.log('custom-mode: settings.yaml 里没有 agent-presets.default，已写成 ' + LEGACY_ID + '。已有的值不会改。')
+    }
+  } catch (error) {
+    console.error('custom-mode: 没有写 agent-presets.default: ' + describe(error))
   }
 
   try {

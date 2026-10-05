@@ -8,6 +8,20 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.2.0]
+
+### The prompt you save is what a new session starts from
+
+- When `settings.yaml` has no `agent-presets.default`, the plugin writes `custom`. A value you already set, including `standard`, stays. Standard, PTC, Minimal, and Creator remain in the menu.
+- Save sits directly under the system prompt. Plugin switches stay behind "Show plugin switches".
+- Session logs named `session.v4.jsonl.zstd` are read by `tools/session-trace.mjs`, as well as `session.v3.jsonl.zstd`.
+- The save message says the next model step rereads `prompt.md`. It no longer says the current session keeps the old prompt.
+- Package description, keywords, and this README no longer claim a role-play preset.
+
+### What you need to do
+
+Restart dsh after installing `2.2.0`. If a new session should stay on Standard, set `agent-presets.default: standard` in `settings.yaml` before the first launch of this version, or change it back afterward.
+
 ## [2.1.0]
 
 ### A stale settings save no longer discards a prompt written outside the page

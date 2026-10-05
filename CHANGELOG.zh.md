@@ -6,6 +6,20 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [2.2.0]
+
+### 保存的提示词就是新会话的起点
+
+- `settings.yaml` 里没有 `agent-presets.default` 时，插件写成 `custom`。你已经写过的值，包括 `standard`，保持不动。标准、PTC、极简、创造仍在菜单里。
+- 保存按钮紧挨系统提示词。插件开关仍在「显示插件开关」后面。
+- `tools/session-trace.mjs` 同时读 `session.v4.jsonl.zstd` 和 `session.v3.jsonl.zstd`。
+- 保存后的说明改为：下一步组装时重读 `prompt.md`。不再写「当前会话保持原配置」。
+- 包描述、keywords 和本 README 不再承诺角色扮演预设。
+
+### 你需要做什么
+
+安装 `2.2.0` 后重启 dsh。如果新会话仍要用标准模式，在第一次启动本版之前把 `settings.yaml` 里的 `agent-presets.default` 写成 `standard`，或启动后再改回去。
+
 ## [2.1.0]
 
 ### 陈旧的设置页保存不再盖掉页面之外写过的提示词

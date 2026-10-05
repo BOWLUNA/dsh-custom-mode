@@ -1,9 +1,10 @@
 {
   "name": "dsh-custom-mode",
-  "version": "2.1.0",
-  "description": "Custom modes and custom prompts for DeepSeek Harness (dsh): edit a mode's system prompt on the settings page (it takes effect on the next model step), pick its base mode, switch plugin rows one by one, and keep several assistants side by side — coding, chat or roleplay (RP) personas (multi-mode / multi-agent).",
+  "version": "2.2.0",
+  "description": "Edit a DeepSeek Harness (dsh) mode's system prompt, base mode, and plugin switches.",
   "license": "MIT",
   "type": "module",
+  "author": "bowluna <ai@bowluna.com>",
   "main": "./index.mjs",
   "exports": {
     ".": "./index.mjs",
@@ -23,31 +24,11 @@
     "deepseek-harness",
     "deepseek",
     "dsh-plugin",
-    "cordis",
     "plugin",
     "agent-preset",
-    "agent-mode",
     "custom-mode",
-    "multi-mode",
-    "assistant",
     "system-prompt",
-    "custom-prompt",
-    "prompt-editor",
-    "prompt-engineering",
-    "persona",
-    "multi-agent",
-    "roleplay",
-    "chat",
-    "settings-page",
-    "自定义模式",
-    "系统提示词",
-    "提示词编辑",
-    "多助手",
-    "角色扮演",
-    "deepseek-desktop",
-    "agent-preset",
-    "persona-editor",
-    "dshpreset"
+    "prompt-editor"
   ],
   "dsh": {
     "bundle": {
@@ -69,6 +50,7 @@
     "paths.mjs",
     "locales.mjs",
     "journal.mjs",
+    "defaults.mjs",
     "cordis.patch.yml",
     "LICENSE",
     "postures.mjs",
@@ -78,7 +60,14 @@
   "scripts": {
     "test": "node test/run.mjs",
     "verify-translation-pairing": "node tools/verify-translation-pairing.mjs",
-    "verify-doc-numbers": "node tools/verify-doc-numbers.mjs"
+    "verify-doc-numbers": "node tools/verify-doc-numbers.mjs",
+    "verify-version-consistency": "node tools/verify-version-consistency.mjs",
+    "verify-browser-literals": "node tools/verify-browser-literals.mjs",
+    "boot-check": "node tools/boot-check.mjs",
+    "union-mount-check": "node tools/union-mount-check.mjs",
+    "session-trace": "node tools/session-trace.mjs",
+    "browser-verify": "node tools/browser-verify.mjs",
+    "upgrade-preflight": "node tools/upgrade-preflight.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh": ">=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0"

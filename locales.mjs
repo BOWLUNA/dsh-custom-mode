@@ -87,11 +87,11 @@ export const zh = {
   'msg.repaired': '已修复',
   'meta.version': '插件版本',
   'meta.versionHint': '未钉版本时，可能装到较旧的发布。要换版本，按 README 钉版本重装，然后重启。',
-  'api.saved': '已保存（{name}，{mode}）。新会话使用新配置，当前会话不变。',
+  'api.saved': '已保存（{name}，{mode}）。下一步组装时会重读已保存的提示词。',
   'api.conflict': '磁盘上的提示词已经变了，这次没有写入。先重新读取，再决定要不要覆盖。',
   'api.savedWithExclusiveRows': '已保存（{name}，{mode}）。已关闭不能同时启用的行：{rows}。',
   'api.created': '已创建「{name}」。刷新后，新会话的模式菜单里会出现它。',
-  'api.savedPrompt': '已保存系统提示词（{name}）。下一步模型调用即生效。',
+  'api.savedPrompt': '已保存系统提示词（{name}）。下一步组装时会重读这个文件。',
   'api.duplicated': '已从「{from}」复制。两份互不影响。',
   'api.deleted': '已删除「{name}」。正在使用它的会话不受影响。',
   'api.reordered': '顺序已保存。新会话的模式菜单按此排列。',
@@ -170,7 +170,7 @@ export const zh = {
   'rows.hint': '关闭的行，这个助手不会使用。',
 
   'prompt.heading': '系统提示词',
-  'prompt.hint': '保存后，下一步模型调用即生效。',
+  'prompt.hint': '保存后，下一步组装模型输入时重读这个文件。',
 
   'status.enabled': '已启用',
   'status.disabled': '已停用',
@@ -187,7 +187,7 @@ export const zh = {
   'msg.unsaved': '有未保存的修改',
   'msg.readFailed': '读取失败',
   'msg.saveFailed': '保存失败',
-  'msg.saved': '已保存。新会话使用新配置，当前会话不变。',
+  'msg.saved': '已保存。下一步组装时会重读这个文件。',
   // 把「一句已翻译的话 + 一个底层细节」拼起来时，中间那个标点也必须**按语言**走 ——
   // 硬编码全角冒号会让英文界面在出错那一刻出现中文标点（issue #7）。
   'status.detail': '{message}：{detail}',
@@ -343,11 +343,11 @@ export const en = {
   'msg.repaired': 'Repaired',
   'meta.version': 'Plugin version',
   'meta.versionHint': 'Without a pinned version, an older release may be installed. To change it, reinstall with the version pin from the README, then restart.',
-  'api.saved': 'Saved ({name}, {mode}). New sessions use it. The current session does not change.',
+  'api.saved': 'Saved ({name}, {mode}). The next model step rereads the saved prompt.',
   'api.conflict': 'The prompt on disk has changed, so this save was not written. Reload, then decide whether to overwrite.',
   'api.savedWithExclusiveRows': 'Saved ({name}, {mode}). Turned off rows that cannot be on together: {rows}.',
   'api.created': 'Created {name}. Refresh once, then it appears in the mode menu for a new session.',
-  'api.savedPrompt': 'System prompt saved ({name}). It applies on the next model step.',
+  'api.savedPrompt': 'System prompt saved ({name}). The next model step rereads this file.',
   'api.duplicated': 'Copied from {from}. The two are independent from now on.',
   'api.deleted': 'Deleted {name}. Sessions already using it are unchanged.',
   'api.reordered': 'Order saved. New sessions list modes in this order.',
@@ -426,7 +426,7 @@ export const en = {
   'rows.hint': 'A row that is off is not used by this assistant.',
 
   'prompt.heading': 'System prompt',
-  'prompt.hint': 'After you save, the next model step uses this text.',
+  'prompt.hint': 'After you save, the next model step rereads this file.',
 
   'status.enabled': 'Enabled',
   'status.disabled': 'Disabled',
@@ -443,7 +443,7 @@ export const en = {
   'msg.unsaved': 'Unsaved changes',
   'msg.readFailed': 'Load failed',
   'msg.saveFailed': 'Save failed',
-  'msg.saved': 'Saved. New sessions use it. The current session does not change.',
+  'msg.saved': 'Saved. The next model step rereads this file.',
   'status.detail': '{message}: {detail}',
 
   // ── row labels ────────────────────────────────────────────────────────────
