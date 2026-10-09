@@ -91,6 +91,7 @@
  *   --settle <ms>   how long C must keep holding (default 2000)
  *   --home <dir>    throwaway DSH_HOME           (default: a fresh mkdtemp)
  *   --dsh-bin <p>   harness entry point          (see above)
+ *   --package <p>   packed archive or registry spec (default: this source directory)
  *   --profile <n>   profile to use               (default web)
  *   --keep          keep the throwaway home (for inspecting a failure)
  *   --quiet         only print the verdict
@@ -118,6 +119,7 @@ const TIMEOUT = Number(flag("timeout") ?? 60_000);
 const SETTLE = Number(flag("settle") ?? 2000);
 const PROFILE = flag("profile") ?? "web";
 const DSH_BIN = flag("dsh-bin");
+const PACKAGE_SOURCE = flag("package") ?? REPO;
 const QUIET = has("quiet");
 const KEEP = has("keep");
 
@@ -290,7 +292,7 @@ async function justRun() {
   // runtime is refused here with `installation rejected`. That is the user's path, so it is
   // asserted rather than assumed.
   mkdirSync(join(HOME_DIR, "profiles", PROFILE), { recursive: true });
-  const add = run(["plugin", "--profile", PROFILE, "add", REPO]);
+  const add = run(["plugin", "--profile", PROFILE, "add", PACKAGE_SOURCE]);
   const addOk = add.status === 0;
 
   // Classify "the harness cannot even run" separately from "the plugin is broken": a missing

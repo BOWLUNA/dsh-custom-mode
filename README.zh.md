@@ -24,7 +24,7 @@
 钉版本。只写包名时，pnpm 的发布冷却期可能装到旧版。细节见 [docs/TROUBLESHOOTING.zh.md](docs/TROUBLESHOOTING.zh.md)。
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.2
+dsh plugin --profile web add dsh-custom-mode@2.2.3
 ```
 
 重启为这个 profile 提供服务的进程。设置页上的版本号才是正在运行的版本。
@@ -37,7 +37,7 @@ dsh plugin --profile web add dsh-custom-mode@2.2.2
 
 1. 打开设置 → 自定义模式。
 2. 改系统提示词。保存按钮在编辑器下面。
-3. `settings.yaml` 里还没有 `agent-presets.default` 时，新会话用这个助手。已经写过的值保持原样。
+3. `settings.yaml` 里还没有 `agent-presets.default` 时，新会话用这个助手。已经写过的值保持原样。`agent-presets` 使用行内对象、标量或别名时也原样保留，不向里面插入 YAML。
 
 提示词是 `prompt.md`。下一步组装模型输入时会重读这个文件。历史可以把旧稿载入编辑器；载入不落盘。打开页面之后文件被改过时，这一次保存会被拒绝。模型要改同一份文件，只能走 `custom_prompt`，并且先问过你。
 
@@ -59,13 +59,28 @@ dsh plugin --profile web add dsh-custom-mode@2.2.2
 
 声明范围：`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-| dsh | 声明 | 2.2.2 核对 |
-| --- | --- | --- |
-| `0.2.0-rc.2` | 声明支持 | 本版发布前的 Windows web profile |
-| `0.2.1-alpha.1` | 声明支持，CI 有这条腿 | 本版没有重跑 |
-| `0.1.7-rc.2` | 声明支持，CI 有这条腿 | 本版没有重跑 |
+2026-10-09 实时核对 npm：`latest` 和 `next` 仍是 `0.2.0-rc.2`，`alpha` 是当天发布的 `0.2.1-alpha.2`。上游尚未发布去掉预发布后缀的正式稳定版。
 
-单元套件在 WSL2 Ubuntu 26.04 下也通过了（只有 Node，没有 dsh 进程，没有浏览器）。这不是 Linux 桌面的结果。
+| dsh | 通道 | 2.2.3 核对 |
+| --- | --- | --- |
+| `0.2.0-rc.2` | npm `latest` / `next` | 精确 npm 宿主、打包加载、API 生命周期、Windows web profile 设置页与选择器 |
+| `0.2.1-alpha.2` | npm `alpha` | 同一套隔离检查，读取该宿主自己的预设声明 |
+| `0.1.7-rc.2` | 先前声明支持的版本 | 保留在 CI 回归矩阵里 |
+
+发布必须等待单元、启动和浏览器工作流通过。已有精确版本的宿主安装时，可以这样复现：
+
+```sh
+node tools/compat-check.mjs --host-install /path/to/host --out /tmp/custom-mode-check
+node tools/runtime-check.mjs --host-install /path/to/host --out /tmp/custom-mode-check --browser /path/to/chrome
+```
+
+两项工具只使用新生成的 home 和普通 mock 提示词。运行检查覆盖全部五档基础模式、重复保存、卸载、重装、用户数据保留与重复安装，不需要调用模型。不宣称 VMware 或原生 Linux 桌面已通过验收。
+
+## 插件市场
+
+`dshmarket`、DSH Plugin Hub（`dsh-plugin`）和 DSH Plugin Store（`dshmarketplace-plugin`）使用不同目录，但安装的是同一个 profile bundle。根 npm 清单提供 `dsh.bundle.patch`、浏览器导出、公开仓库和一致的兼容范围，不需要额外的运行时适配器或构建脚本。
+
+运行 `node tools/market-check.mjs --out /tmp/custom-mode-markets.json` 检查它们的公开发现数据。目录不可访问、条目未审核或数据过期都会明确报告。工具不执行目录提供的 shell 命令，也不提交收录。[市场接口与限制](docs/MARKETPLACES.zh.md)。
 
 ## 文档
 

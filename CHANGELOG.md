@@ -8,6 +8,21 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.2.3]
+
+- Preserve flow-style, scalar, and alias `agent-presets` settings when choosing a default assistant. Recognize quoted section and default keys, so an existing choice is never overwritten and valid YAML is not corrupted.
+- Keep nested `!!js` configuration values in the host loader's expression format. Creator's skill directories now resolve instead of failing schema validation; disk composition text stays intact.
+- Use native Input and Button atoms for filtering and disclosure controls. Remove menu, selector, disabled-state, and danger-button repaints; document textareas follow the native InlineEditor surface and font while preserving manual save and ordinary newlines.
+- Test the current default host `0.2.0-rc.2` and the new preview `0.2.1-alpha.2` against their own shipped declarations. Tests no longer assume removed Codex/Claude subagent rows exist.
+- Add reproducible packed-install and runtime checks, covering every base mode, rendered settings, repeated operations, uninstall/reinstall, and user-data preservation. Release now waits for both compatibility and browser workflows; the browser matrix covers both channels and redacts startup tokens.
+- Add read-only discovery adapters and checks for dshmarket, DSH Plugin Hub, and DSH Plugin Store. Stale, unreachable, and unverified directory entries remain explicit limitations; no external listing is submitted.
+- Verify candidate installation, activation and removal through the real dshmarket and Plugin Hub UI paths. Store still hides this package under its upstream install-tested-only filter and offers no custom-source input; no Store approval is claimed.
+- Make npm publish failures propagate through the release log pipeline with `pipefail`; E403, OTP, successful publication and already-published conflict outcomes were verified without registry writes.
+
+This release targets the Web profile, tested on both current channels. VMware/Electron desktop coverage remains unverified and is not claimed by this release. Store listing approval remains an external distribution limitation.
+
+Install `2.2.3` and restart the profile's DSH process. No prompt or preset migration is required.
+
 ## [2.2.2]
 
 ### Logic tree

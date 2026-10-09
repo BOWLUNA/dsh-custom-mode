@@ -12,6 +12,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish_version:
+        description: 'Exact package version to publish from main; blank checks identity only'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   # ★ contents 必须是 write：除了发 npm，这一步还要**创建 GitHub Release**。
@@ -23,7 +29,16 @@ permissions:
   id-token: write
 
 jobs:
+  compatibility:
+    uses: ./.github/workflows/test.yml
+    permissions:
+      contents: read
+  browser:
+    uses: ./.github/workflows/browser.yml
+    permissions:
+      contents: read
   publish:
+    needs: [compatibility, browser]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,90 +46,7 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      # 与 test.yml 相同的守卫：发布前必须全绿，否则一个坏版本就上了 npm。
-      # 发布闸门也要能测**新版那条线**：0.1.7 起出厂 presets 由声明式注册表提供，夹具由
-      # test/run.mjs 从已安装主机的 dsh-web-app 声明派生（与产品同一条代码路径）。
-      # 从前这里只装 0.1.6-alpha.2，于是"闸门全绿"和"CI 上 0.1.7 三条腿全红"可以同时成立
-      # —— 1.9.10 … 1.9.12 三个版本就是这么发出去的，而设置页在那条线上整体不可用。
-      - name: 安装 DSH 0.2.0-rc.2（当前主轴；夹具由其声明派生）
-        shell: bash
-        run: |
-          # ★ 装之前把仓库根的 package.json 挪开，装完立刻放回（trap 兜底）。
-          #   实测（2026-09-30，node 20 + npm 10.8.2）：根清单是**插件清单**，它把
-          #   @deepseek-ai/dsh 声明为 optional peer；在这个组合下
-          #   `npm install --no-save @deepseek-ai/dsh@<线>` 会**成功退出（exit 0）却什么都没装**
-          #   （added 11 packages，npm ls 显示 (empty)，@deepseek-ai/ 下只剩一个平台可选包），
-          #   于是紧随其后的 require 才报 MODULE_NOT_FOUND。node 24 / npm 11 的腿没有这个问题。
-          #   换 --legacy-peer-deps 更糟：npm 判定 "up to date"，一个包都不装。
-          #   挪开清单后同一条命令 539 个包、dsh 正常落地；安装位置仍是仓库根的 node_modules，
-          #   测试的解析路径一字未变。
-          restore_manifest() { if [ -f package.json.plugin ]; then mv -f package.json.plugin package.json; fi }
-          trap restore_manifest EXIT
-          mv package.json package.json.plugin
-          npm install --no-save --no-audit --no-fund "@deepseek-ai/dsh@0.2.0-rc.2"
-          restore_manifest
-          node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
-
-      # ★ 不要在这里单独装 0.1.6 的 presets 夹具包。实测（2026-09-25，本仓库第一次推 v1.9.13）：
-      #   在 0.1.7 的 peer 树上跑 npm i @deepseek-ai/dsh-agent-presets@0.1.6-alpha.2 会 **ERESOLVE
-      #   失败**，而 GitHub 的 bash -e 直接判这一步失败 —— 闸门红了，宁可不发布。同一类错误此前让
-      #   test.yml 的三条 0.1.7 腿红了三个版本（见 1.9.13 的 CHANGELOG），所以两边都改成「不装旧包」。
-      - name: 套件（当前主轴）
-        run: node test/run.mjs
-
-      # 稳定线也要在**发布前**过一遍：它是另一条声明式线，夹具仍由宿主自己的声明派生。
-      # 支持策略是"两个最新的"：最新线 0.2.0-rc.2（上面那条，也是 npm latest/next）+ 上一个正式版 0.1.7-rc.2。
-      #
-      # ★ 这里**不要**再断言 `node_modules/@deepseek-ai/dsh-agent-presets/presets` 存在。
-      #   那条 `ls -d` 是 0.1.5 时代留下的：当时换装最新正式版会把复数包拉进仓库根，成为
-      #   `test/run.mjs` 的第一解析顺位。0.1.7 起该包不再发布（声明式注册表），稳定线换成
-      #   0.1.7-rc.2 之后这句 `ls` 必然失败 —— v1.9.19 的发布闸门就是这么红的（而套件本身
-      #   完全正常，只是被这句提前掐断，连带把后面的发布与 GitHub Release 一起跳过）。
-      - name: 换装 0.1.7-rc.2（上一个正式版），稳定腿再跑一遍
-        shell: bash
-        run: |
-          # ★★ 一、必须先把根清单挪开。**这一条才是「每版必先失败一次」的根因修复。**
-          #
-          # 根清单是**插件清单**，它把 @deepseek-ai/dsh 声明为 optional peer；在这个组合下
-          # `npm install --no-save @deepseek-ai/dsh@<线>` 会**成功退出却什么都没装**，
-          # 于是紧随其后的 `test/run.mjs` 报「找不到出厂 preset」并 exit 2。
-          #
-          # 证据 —— v1.10.0 的 release run 36737768351（2026-09-30 15:34），那一步的执行体是：
-          #     ##[group]Run npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.7-rc.2
-          #     ^[[36;1mnpm install … @deepseek-ai/dsh@0.1.7-rc.2^[[0m
-          #     ^[[36;1mnode test/run.mjs^[[0m          ← 只有这两行，**没有 mv package.json**
-          #     removed 539 packages in 28s             ← 只删，**没有一行 added**
-          #     找不到出厂 preset … exit 2
-          #
-          # 也就是说那次跑的还是**旧版** workflow。加上挪开清单这一步之后，同一天 16:00 重跑即通过。
-          # ⚠️ 此后没有再发过版，所以「加完之后不再失败」**尚未被一次真实的发版验证过**。
-          #
-          # ★ 二、顺带清场：换装前把上一个线的树删掉。
-          #
-          # 这是**防御性**的，不是上面那个根因 —— 我在本机（WSL · npm 11.19）**没能复现**「只删不装」：
-          # 保留 node_modules 时 npm 报 `added 13, removed 30, changed 286` 并正确换到了 0.1.7。
-          # 环境确实不同（CI 第一步 `added 538`，本机只有 289 个包），所以复现不了不等于 CI 上不会。
-          # 保留它的理由很单纯：让上一个线的树参与 npm 的推断没有任何好处，清场能一次性消掉那一类不确定性。
-          restore_manifest() { if [ -f package.json.plugin ]; then mv -f package.json.plugin package.json; fi }
-          trap restore_manifest EXIT
-          mv package.json package.json.plugin
-          rm -rf node_modules
-          npm install --no-save --no-audit --no-fund "@deepseek-ai/dsh@0.1.7-rc.2"
-          restore_manifest
-          node -e "console.log('dsh 已安装:', require('./node_modules/@deepseek-ai/dsh/package.json').version)"
-          node test/run.mjs
-      - name: 双语配对 + 语言纯度
-        run: node tools/verify-translation-pairing.mjs
-      - name: 文档数字
-        run: node tools/verify-doc-numbers.mjs
-      - name: 版本一致性（稳定线与预览线都必须在声明范围内）
-        run: |
-          # 两个"最新的"：最新预览版 + 最新正式版（见 AGENTS.md 第 10 条的支持策略）
-          node tools/verify-version-consistency.mjs --dsh 0.2.0-rc.2
-          node tools/verify-version-consistency.mjs --dsh 0.1.7-rc.2
-
-      # 凭据自检：改过 npm 密码、或怀疑 token 失效时，用 workflow_dispatch 手动跑一次这条工作流，
+      # Blank dispatch checks identity; an explicit matching version publishes only from main.
       # 这一步会直接告诉你 NPM_TOKEN 还能不能用（而不是等到下次发版才发现）。
       - name: 凭据自检（NPM_TOKEN 是否仍有效）
         env:
@@ -127,17 +59,53 @@ jobs:
           echo "NPM_TOKEN 存在，验证身份："
           npm whoami
 
+      - name: Validate release target and prepare its tag
+        id: release_target
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_version != '')
+        env:
+          REQUESTED_VERSION: ${{ inputs.publish_version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          test "$PACKAGE" = 'dsh-custom-mode'
+          if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ] && [ -n "$REQUESTED_VERSION" ]; then
+            if [ "$GITHUB_REF" != 'refs/heads/main' ] || [ "$REQUESTED_VERSION" != "$VERSION" ]; then
+              echo '::error::Manual publication requires main and the exact package version'
+              exit 1
+            fi
+            TAG="v${VERSION}"
+            if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+              TARGET="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TAG}" --jq .sha)"
+              if [ "$TARGET" != "$GITHUB_SHA" ]; then
+                echo '::error::Existing release tag points to a different commit; no overwrite allowed'
+                exit 1
+              fi
+            else
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                -f "ref=refs/tags/${TAG}" -f "sha=${GITHUB_SHA}" >/dev/null
+            fi
+          else
+            TAG="$GITHUB_REF_NAME"
+            test "$TAG" = "v${VERSION}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: 发布（已存在的版本直接跳过）
-        # 手动 dispatch 只做凭据自检，不从 main 把未打 tag 的版本发上 npm。
-        if: startsWith(github.ref, 'refs/tags/v')
+        # Blank dispatch checks identity; an explicit matching version publishes only from main.
+        if: steps.release_target.outputs.tag != ''
         # 混合认证：若配置了仓库 secret NPM_TOKEN（granular token，可勾 Bypass 2FA），就用它；
         # 没配置时该 env 为空，npm 会回退到 OIDC（Trusted Publishing）。两条路都不需要交互式 2FA。
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ steps.release_target.outputs.tag }}
         run: |
+          # tee must not turn a failed npm publish into a successful release.
+          set -o pipefail
           VERSION="$(node -p "require('./package.json').version")"
-          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} 与 package.json ${VERSION} 不一致"
+          if [ "${RELEASE_TAG}" != "v${VERSION}" ]; then
+            echo "::error::tag ${RELEASE_TAG} 与 package.json ${VERSION} 不一致"
             exit 1
           fi
           if npm view "dsh-custom-mode@${VERSION}" version >/dev/null 2>&1; then
@@ -166,7 +134,7 @@ jobs:
       #   sourceDshVersion 是**本次适配的 dsh 版本**（不是插件版本），与 test.yml 的 matrix、
       #   engines.dsh 的钉子同源；换 dsh 线时一起改（见 AGENTS.md 第 10 条）。
       - name: 打包 .dshpreset（桌面端可直接导入）
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.release_target.outputs.tag != ''
         run: |
           python3 - <<'ZIP'
           import json, zipfile, datetime, os
@@ -195,11 +163,12 @@ jobs:
       #   而 README / 代码其实早就更新了 —— 一个纯粹"看不见"的缺口。
       #   正文直接从 CHANGELOG 抠出本 tag 那一节，不另写一份会漂移的文案。
       - name: 建 GitHub Release（正文取自 CHANGELOG）
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.release_target.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_target.outputs.tag }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="$RELEASE_TAG"
           VER="${TAG#v}"
           node -e '
             const fs = require("fs");
@@ -211,4 +180,4 @@ jobs:
             const next = rest.indexOf("\n## [");
             fs.writeFileSync(out, (next === -1 ? rest : rest.slice(0, next)).trimEnd() + "\n");
           ' "$VER" CHANGELOG.md /tmp/release-notes.md
-          gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md dsh-custom-mode.dshpreset
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file /tmp/release-notes.md dsh-custom-mode.dshpreset

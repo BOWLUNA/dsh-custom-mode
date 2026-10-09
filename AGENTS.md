@@ -78,14 +78,14 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
    unwritable `DSH_HOME` is reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-10. **支持策略：只跟两个"最新的"** —— 最新线（npm 的 `latest` 与 `next` 自 2026-09-29 起都指向
-    **`0.2.0-rc.2`**，也是官方桌面端所在的那条线）与上一个正式版 **`0.1.7-rc.2`**（仍在 peer 范围内，
-    现役安装大多在它上面），也就是 `test.yml` 的腿 + `release.yml` 发布前各跑一遍的那两条；
-    **渲染闸门（browser.yml）跑在最新线上**，因为壳自己的 UI 改动最先落在那里。更早的线
+10. **支持策略：默认与预览两个最新通道都要实测。** 2026-10-09 核对 npm，`latest` / `next`
+    是 **`0.2.0-rc.2`**，`alpha` 是 **`0.2.1-alpha.2`**；官方尚未发布无预发布后缀的稳定版。
+    `test.yml` 和 `browser.yml` 都测这两个通道，`release.yml` 必须等待这两个可复用工作流成功。
+    **`0.1.7-rc.2`** 仍保留单元和启动回归腿。更早的线
     （`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，
     但**不为每条历史线加 CI 腿**：成本随版本数线性增长，而机制差异只有两次
     （≤0.1.6 扫描目录 / ≥0.1.7 声明式注册表 / ≥0.2.0 同一声明式 API 但**安装期就强制校验 peer 范围**）。
-    换主轴版本时，这几处都要一起改：`test.yml` 的 matrix、`release.yml` 的两次安装、`engines.dsh`、
+    换主轴版本时，这几处都要一起核对：`test.yml` 和 `browser.yml` 的 matrix、`engines.dsh`、
     根 `package.json` 的 peer 范围（dsh 的**插件兼容性检查**读的就是它；0.2.0 起范围不覆盖会直接**拒绝安装**）、
     以及 SECURITY/README 里的版本钉。
 
@@ -108,14 +108,15 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
     卡片标题 `cardTitle`，行高 20px，形态不同）、引言 12px/18px tertiary、**设置行 `padding:16px 0`**
     + 一条 1px 分隔线，行盒 `min-height:74px`（有说明和没有说明的行同高。没有说明的一档实测是 56px，不要把 `min-height` 写成 56）、**设置项下拉** 36px 高 /
     `--dsw-radius-md` / 底 `--dsw-alias-bg-module-platform` / `padding:0 14px` / 14px 字 /
-    **chevron 在文字之后**、输入控件圆角一律 `--dsw-radius-md`(12px)。
-    下拉的**浮层**用壳的 `Menu`，但**按钮要自绘**：壳的 Button 只有 primary / ghost / outline / toolbar
-    四种（前两种都是透明底），没有官方那种灰底选择器 —— 而官方各设置页也正是**各自定义** `_selector`
-    （四个页面四份、度量完全一致），所以自绘才是与官方同构的做法。
+    **chevron 在文字之后**。2026-10-09 用户要求优先沿用原生控件默认外观：
+    过滤框使用 `Input`，折叠与菜单触发按钮使用 `Button`，浮层使用 `Menu`；不得再覆盖这些原子的
+    字体、颜色、圆角、内边距或禁用状态。单行输入保留原生 32px 高度。文档输入需要普通换行与手动
+    保存，不能直接使用 Enter 即保存的 `InlineEditor`，但表面与字体应沿用它的官方 CSS，只有文档
+    高度与宽度作为布局差异。最新两通道的实际检查见 `docs/CURRENT_COMPATIBILITY.md`。
     ⚠️ 本条此前记的「区块标题 14px/22px **w500**」是**误记**，已用两版实测订正；同轮还把搞错的
     行内边距（曾有意压到 12px）改回官方的 16px。两次订正的原始读数见 `docs/MEASUREMENTS.md` §36。
     `tools/browser-verify.mjs` 里有对应的断言（含"开关是 `[role=switch]`、不许有手绘 checkbox"、
-    "下拉是官方形态且 chevron 在文字之后"、"告警区在样式表里真的有规则"），改动后必须 **74/74**。
+    "控件外观与原生默认值一致且 chevron 在文字之后"、"告警区在样式表里真的有规则"），改动后必须 **74/74**。
 
 14. **UI 改动必须真点一遍**：`tools/browser-verify.mjs`。这条踩过两次 —— 按钮渲染出来了但点不动
     （`draftOf` 丢字段让它一直置灰），以及真实鼠标点击落在被盖住的坐标上（同一按钮程序化点击正常）。

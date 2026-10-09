@@ -761,18 +761,19 @@ try {
         ".cpfe-hint{display:flex;flex-direction:column;gap:2px;margin:0 0 6px}",
         ".cpfe-hint-line{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-hint-detail{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
-        // 描述：多行、自适应高度（没有多行输入组件，所以用 textarea + 同一批语义变量）
-        ".cpfe-desc{box-sizing:border-box;min-height:40px;max-height:120px;resize:vertical;padding:8px 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px;line-height:20px;margin-bottom:0}",
+        // The native InlineEditor saves on Enter and autofocuses; document editing must keep
+        // Enter as a newline and manual Save. Use its exact surface/font tokens for these
+        // controlled textareas, with only document height and width as layout differences.
+        ".cpfe-desc,.cpfe-editor{box-sizing:border-box;min-width:0;margin:0;padding:3px 8px;border:.5px solid var(--dsw-alias-border-l4);border-radius:var(--dsw-radius-sm);outline:none;background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:var(--dsw-font-xs-13);font-family:Inter,var(--dsw-font-family);overflow-y:auto}",
+        ".cpfe-desc:focus,.cpfe-editor:focus{border-color:var(--dsw-alias-state-business-primary)}",
+        ".cpfe-desc{min-height:40px;max-height:120px;resize:vertical}",
         ".cpfe-base-pending{color:var(--dsw-alias-state-warn-primary)}",
         ".cpfe-note{display:block;margin:8px 0 0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
-        ".cpfe-mono{display:block;margin:0;font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
+        ".cpfe-mono{display:block;margin:0;font:inherit;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         ".cpfe-pills{display:flex;flex-wrap:wrap;gap:6px;align-items:center}",
         ".cpfe-pills > *{flex:0 0 auto;white-space:nowrap}",
         ".cpfe-pills button{white-space:nowrap}",
         ".cpfe-picker{display:flex;align-items:center;gap:8px;margin:2px 0 4px}",
-        // 壳的菜单浮层靠一个独立的 backing 元素上色（实测在 0.1.7-rc.2 + headless 下那块是透明的，
-        // 文字会"压"在下面的输入框上）。用官方 token 显式补一层底色，真实浏览器与 headless 一致。
-        ".cpfe-menu{background:var(--dsw-menu-surface-fill,var(--dsw-alias-bg-layer-3));border-radius:var(--dsw-radius-lg);box-shadow:var(--dsw-elevation-soft)}",
         ".cpfe-history{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}",
         ".cpfe-history-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-history-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
@@ -784,15 +785,12 @@ try {
         ".cpfe-branch{display:flex;flex-direction:column;gap:16px;margin-top:8px;padding-left:12px;border-left:1px solid var(--dsw-alias-border-l1)}",
         ".cpfe-node{display:flex;flex-direction:column;gap:4px}",
         ".cpfe-node-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
-        ".cpfe-locked button:disabled:not([aria-pressed=true]){opacity:.4;cursor:default}",
-        ".cpfe-locked button:disabled[aria-pressed=true]{opacity:1;cursor:default}",
         ".cpfe-field{display:flex;width:100%;margin-bottom:8px}",
         ".cpfe-row-head{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
         ".cpfe-row-switch{flex:0 0 auto}",
         ".cpfe-row-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}",
         ".cpfe-row-note{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}",
-        ".cpfe-row-toggle{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}",
-        ".cpfe-row-toggle:hover{background:var(--dsw-alias-bg-layer-2)}",
+        ".cpfe-row-toggle{flex:0 0 auto}",
         ".cpfe-row-open{border-color:var(--dsw-alias-border-l2)}",
         ".cpfe-row-detail{display:flex;flex-direction:column;gap:4px;margin:0 0 12px;padding:0 0 0 16px;border:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-detail-line{display:flex;gap:8px;min-width:0}",
@@ -812,19 +810,17 @@ try {
         ".cpfe-row-meta{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}",
         ".cpfe-row-badges{display:flex;align-items:center;gap:4px;flex:0 1 auto;min-width:0}",
         ".cpfe-row{display:flex;gap:12px;align-items:center;box-sizing:border-box;min-height:74px;padding:16px 0;border:0;border-radius:0;background:none}",
-        ".cpfe-editor{box-sizing:border-box;width:100%;min-height:120px;resize:vertical;padding:12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:13px;line-height:20px}",
+        ".cpfe-editor{width:100%;min-height:120px;resize:vertical}",
         ".cpfe-bar{display:flex;align-items:center;gap:var(--g);flex-wrap:wrap;margin-top:8px}",
-        ".cpfe-disclosure{appearance:none;display:inline-flex;align-items:center;gap:6px;margin:8px 0 0;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:14px;line-height:22px;font-weight:400;cursor:pointer}",
-        ".cpfe-filter{box-sizing:border-box;width:100%;height:36px;margin:0 0 8px;padding:0 12px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:13px}",
+        ".cpfe-disclosure{align-self:flex-start;margin-top:8px}",
         ".cpfe .cpfe-danger{margin-left:auto}",
         ".cpfe-status{font-size:13px;line-height:20px}",
         ".cpfe-ok{color:var(--dsw-alias-label-secondary)}",
         ".cpfe-err{color:var(--dsw-alias-state-error-primary)}",
         ".cpfe-dirty{color:var(--dsw-alias-state-warn-primary)}",
-        ".cpfe-danger{color:var(--dsw-alias-state-error-primary)}",
         ".cpfe-meta-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px;min-width:0}",
         ".cpfe-version{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);white-space:nowrap}",
-        ".cpfe-path{font-family:var(--ds-font-family-code, ui-monospace, SFMono-Regular, Menlo, monospace);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
+        ".cpfe-path{font:inherit;color:var(--dsw-alias-label-secondary);overflow-wrap:anywhere}",
         // ── fallback-path controls (unused when the shell provides the atoms) ──
         ".cpfe-btn{appearance:none;cursor:pointer;padding:0 14px;height:36px;border-radius:var(--dsw-radius-md);border:.5px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font:inherit;font-size:14px}",
         ".cpfe-btn:disabled{opacity:.4;cursor:not-allowed}",
@@ -838,7 +834,7 @@ try {
         // 光拦状态还不够：DOM 会先显示用户敲进去的字/翻过去的开关，等下一次重渲染才被拉回来 ——
         // 那就是"我明明改了，它自己弹回去了"。`pointer-events` 让点击根本到不了控件，
         // 视觉上也给一个明确的"此刻不能动"。
-        ".cpfe-busy .cpfe-switch,.cpfe-busy .cpfe-row-switch,.cpfe-busy .cpfe-row-toggle,.cpfe-busy .cpfe-input,.cpfe-busy .cpfe-field,.cpfe-busy .cpfe-editor,.cpfe-busy .cpfe-pill,.cpfe-busy .cpfe-selector{pointer-events:none;opacity:.65}",
+        ".cpfe-busy .cpfe-switch,.cpfe-busy .cpfe-row-switch,.cpfe-busy .cpfe-row-toggle,.cpfe-busy .cpfe-input,.cpfe-busy .cpfe-field,.cpfe-busy .cpfe-pill,.cpfe-busy .cpfe-selector{pointer-events:none}",
         ".cpfe-busy .cpfe-editor{cursor:progress}",
         ".cpfe-tag{font-size:12px;line-height:18px;padding:0 5px;border-radius:4px;border:.5px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary)}",
         ".cpfe-tag-success,.cpfe-tag-info{color:var(--dsw-alias-state-success-primary)}",
@@ -846,18 +842,7 @@ try {
         ".cpfe-tag-danger{color:var(--dsw-alias-state-error-primary)}",
         ".cpfe-pill{appearance:none;cursor:pointer;height:28px;padding:0 12px;border-radius:999px;border:.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px}",
         ".cpfe-pill-on{border-color:var(--dsw-alias-label-primary);color:var(--dsw-alias-label-primary)}",
-        // ── 官方的「设置项下拉」形态 ────────────────────────────────────────────
-        // 实测（**0.1.7-rc.2 与 0.2.0-rc.2 各量一次，结论相同**）：官方的 `_selector` 是
-        //   height 36px · border-radius var(--dsw-radius-md) · background var(--dsw-alias-bg-module-platform)
-        //   · padding 0 14px · font-size 14px/line-height 22px · gap 12px，hover 换
-        //   var(--dsw-alias-interactive-bg-hover)。
-        // 壳的 Button 只有 primary / ghost / outline / toolbar 四种变体，没有"灰底选择器"这一种 ——
-        // 官方各设置页也是**各自定义** `_selector`（oY77xG / hVGvvW / _2XZxNq / T1PP_q 各一份、
-        // 度量完全一致），所以这里照同一套度量自绘，做法与官方一致。
-        // 双类选择器（`.cpfe .cpfe-selector`）用来压过壳 Button 的单类变体规则，
-        // 免得 `_ghost_` / `_sm_` 把灰底和高度覆盖掉。
-        ".cpfe .cpfe-selector{height:36px;padding:0 14px;gap:12px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font-size:14px;line-height:22px;font-weight:400}",
-        ".cpfe .cpfe-selector:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}",
+        // Menu surfaces and trigger Buttons keep the native atoms' own styles.
         // ── 告警区 ──────────────────────────────────────────────────────────────
         // 这一段此前**一条 CSS 都没有**（2026-10-02 逐表核对：样式表里 `cpfe-warn` 零规则），
         // 于是出现告警时它是一串没有排版的裸 `<p>`：没有行距、图标与文字不对齐、
@@ -1059,9 +1044,10 @@ try {
                     : null,
                 ),
                 react.createElement(
-                  "button",
+                  A.Button,
                   {
-                    type: "button",
+                    variant: "ghost",
+                    size: "sm",
                     className: "cpfe-row-toggle",
                     "aria-expanded": open,
                     "aria-label": t(open ? "aria.collapse" : "aria.expand"),
@@ -1855,14 +1841,13 @@ try {
                         // ★ portal：不把浮层渲染在我们的容器里。设置面板有裁剪与叠层，非 portal 的
                         //   菜单会被裁掉表面，只剩文字"压"在下面的输入框上（实测截图如此）。
                         portal: true,
-                        listClassName: "cpfe-menu",
                         align: "start",
                         side: "bottom",
                         selectedId: selected,
                         anchor: react.createElement(
                           A.Button,
                           {
-                            variant: "ghost",
+                            variant: "toolbar",
                             className: "cpfe-selector",
                             disabled: busy,
                             onClick: () => setAssistantOpen((open) => open !== true),
@@ -1994,6 +1979,7 @@ try {
                 react.createElement(SectionHint, { text: t("name.hint") }),
                 react.createElement(A.Input, {
                   className: "cpfe-field",
+                  disabled: busy,
                   value: draft.name,
                   placeholder: t("name.placeholder"),
                   "aria-label": t("name.heading"),
@@ -2064,8 +2050,9 @@ try {
                   : react.createElement(
                       "div",
                       null,
-                      react.createElement("input", {
-                        className: "cpfe-filter",
+                      react.createElement(A.Input, {
+                        className: "cpfe-field cpfe-filter",
+                        disabled: busy,
                         value: rowQuery,
                         placeholder: t("rows.filterPlaceholder"),
                         "aria-label": t("rows.filterPlaceholder"),
@@ -2176,14 +2163,13 @@ try {
                         ? react.createElement(A.Menu, {
                             open: historyOpen,
                             portal: true,
-                            listClassName: "cpfe-menu",
                             align: "start",
                             side: "bottom",
                             selectedId: draft.historyPick,
                             anchor: react.createElement(
                               A.Button,
                               {
-                                variant: "ghost",
+                                variant: "toolbar",
                                 className: "cpfe-selector",
                                 disabled: busy,
                                 onClick: () => setHistoryOpen((open) => open !== true),
@@ -2359,9 +2345,10 @@ try {
                 "section",
                 null,
                 react.createElement(
-                  "button",
+                  A.Button,
                   {
-                    type: "button",
+                    variant: "ghost",
+                    disabled: busy,
                     "data-cap": "toggle",
                     className: "cpfe-disclosure",
                     "aria-expanded": capOpen,

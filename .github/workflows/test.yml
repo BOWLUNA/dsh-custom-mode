@@ -16,6 +16,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 jobs:
   test:
@@ -26,9 +27,9 @@ jobs:
         os: [ubuntu-latest]
         # 20 是保守下限（只用标准库），24 是当前开发版本。
         node-version: ['20', '24']
-        # 支持策略（2026-10-03 更新）：**两条"最新的"各占一条腿，缺一不可** ——
+        # 支持策略（2026-10-09 更新）：默认通道和 alpha 通道各占一条腿。
         # ① 最新**正式**线（npm `latest` 与 `next` 都指向 0.2.0-rc.2；官方桌面端与 dsh 同版本号，
-        #    也在这一条线上）；② 最新**预览**线（npm `alpha` 指向 0.2.1-alpha.1）。
+        #    也在这一条线上）；② 最新**预览**线（npm `alpha` 指向 0.2.1-alpha.2）。
         #
         # ★ 为什么预览线必须有自己的腿 —— 本仓栽过一次，而且**看着覆盖了、其实没有**：
         #   `>=0.2.0-0 <0.3.0-0` 读起来覆盖整个 0.2.x，但按 semver 的预发布门，一个预发布版本
@@ -43,7 +44,7 @@ jobs:
         #
         # 注意 0.2.0 起 dsh 把兼容性从"告警"升级成**安装闸门**：范围不覆盖运行时就装不进去，
         # 所以声明范围本身就是"支持"这个动作（见 AGENTS.md 第 10/18 条）。
-        dsh: ['0.2.0-rc.2', '0.2.1-alpha.1']
+        dsh: ['0.2.0-rc.2', '0.2.1-alpha.2']
         include:
           # Windows 是最容易出差异的平台，而它长期没进过 CI：一次外部 Windows 实测因此
           # 发现了三处只在 Windows 显现的缺陷（install.sh 的 MSYS 路径、并发 rename 的
@@ -51,6 +52,9 @@ jobs:
           - os: windows-latest
             node-version: '24'
             dsh: '0.2.0-rc.2'
+          - os: windows-latest
+            node-version: '24'
+            dsh: '0.2.1-alpha.2'
           # 稳定腿 = 上一个正式版。npm `latest` 已于 2026-09-29 移到 0.2.0-rc.2，但现役用户
           # 大多还在 0.1.7-rc.2 上，而 peer 范围仍然接纳它 —— 别让"声明支持却没测过"重演。
           - os: ubuntu-latest
@@ -134,7 +138,7 @@ jobs:
       #
       # 夹具：探针要一份出厂基础模式（`readBaseComposition` 用它做手术）。
       # 显式指向 test/run.mjs 已经派生好的那份，而不是依赖 $HOME —— CI 里没有 $HOME/.dsh。
-      - name: 对抗性探针（79 条断言）
+      - name: 对抗性探针（当前 94 条断言）
         shell: bash
         run: |
           FIXTURE="$PWD/node_modules/@deepseek-ai/dsh-agent-presets/presets"
@@ -168,6 +172,9 @@ jobs:
       # 词条必须来自 locales.mjs；这一步在不启动浏览器的情况下挡住下一次漂移。
       - name: 渲染闸门词条跟词典走
         run: node tools/verify-browser-literals.mjs
+
+      - name: Marketplace schema and safe install contracts
+        run: node tools/market-check.mjs --self-test
 
       # 文档里的数字也是声明，所以也当检查跑：套件数/检查数/dsh 范围/支持表里的版本，
       # 全部与实际运行结果对齐（外部审阅一次就找出三处漂移，而测试看不到文档）。

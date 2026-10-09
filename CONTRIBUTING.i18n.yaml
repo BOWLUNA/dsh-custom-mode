@@ -2,4 +2,4 @@
 # 两份文档权威相同——改完任意一侧，请把另一侧也改掉，然后重新记录：
 #   node tools/verify-translation-pairing.mjs --write
 CONTRIBUTING.md: c3c72445f198b9240f15cb9f126f95ff550d0eb2
-CONTRIBUTING.zh.md: 74e261b1e2788ac6fad2be09fd98d3f69d1d2733
+CONTRIBUTING.zh.md: ea5031d8057289b0911c9afc9d80dcb9143d8b76

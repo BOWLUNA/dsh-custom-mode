@@ -18,35 +18,13 @@ whitelist), so replacing a screenshot is a push here and nothing else. One file 
 README shows, so a card and the README can never disagree. Measured 2026-09-25: 840 of the catalog's 4311
 entries ship curated screenshots, and a card without one looks unfinished next to them.
 
-## Where the ecosystem lists this plugin (measured 2026-09-30)
+## Market discovery (checked 2026-10-09)
 
-Three sites, and it is worth knowing which one is the source of truth — only one of them takes submissions:
+The curated registry now contains the root entry `BOWLUNA__dsh-custom-mode.yml`, pointing to this repository. The old statement that the root entry is still awaiting merge is superseded.
 
-| Site | What it is | How a plugin gets in |
-| --- | --- | --- |
-| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) | the **curated registry**; also the site whose README and JSON feed most other tools read | **a PR adding one YAML file**, `data/plugins/<owner>__<repo>.yml`, to [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin) — `url`, `name`, `category`, `description.en` (+ optional `zh`). Ours is the **root form**: `BOWLUNA__dsh-custom-mode.yml`, `url` = the repository root, `name` = `BOWLUNA/dsh-custom-mode`, category `identity`. The root form is legal because the repository root declares `dsh.bundle`; until 1.10.0 we used the monorepo-subpackage form (`…--editor.yml`, `name: BOWLUNA/dsh-custom-mode#editor`), and that is exactly what rendered the `#editor` suffix on the card |
+The active market candidates are dshmarket, DSH Plugin Hub, and DSH Plugin Store. Their interfaces, verified source links, and discovery limits are listed in [MARKETPLACES.md](MARKETPLACES.md). A later live check recovered the first two catalogs and found the root npm package at 2.2.2. Their real UI source-install paths accepted the 2.2.3 candidate. Store search still hides our root entry because it lacks a passed upstream install check, and provides no custom-source input. Store approval is an external distribution limitation, not a defect preventing this Web package from being published to npm.
 
-> **Current state (measured 2026-10-01, 1.11.0).** The root-form PR is **still open and unmerged**
-> (`awesome-dsh-plugin/awesome-dsh-plugin#6255`, opened 2026-09-30T15:33Z). Until it lands the registry
-> serves **only the old entry** — `BOWLUNA__dsh-custom-mode--editor.yml`, `name: "dsh-custom-mode#editor"`,
-> `url: …/tree/main/editor` (**a directory that has not existed since 1.10.0**, so the link 404s) and
-> `version: "1.9.19"`. Measured: the canonical slug `/p/BOWLUNA/dsh-custom-mode/` → **404**, the old slug
-> `/p/BOWLUNA/dsh-custom-mode--editor/` → 200, and `plugins.json` still carries the `#editor` name.
-> **We cannot merge another account's repository**, so the only lever is a polite ping on the PR. Read this
-> paragraph before repeating the paragraph above as if the card were already correct: this is the
-> distribution channel behind `dshmarket` and `dshfind`, and getting it wrong is why the card renders a
-> dead link. Installing straight from npm or from the GitHub URL is unaffected — both are verified above.
-| [**dshmarket.com**](https://dshmarket.com/) | **an in-app plugin market** — itself a dsh plugin (`dsh plugin --profile web add dshmarket`, then Settings → Plugin Market). Host-aware: it reads the `engines.dsh` / peer range each card declares, and shows author-curated shots from the plugin's own `screenshots.json` | **nothing to submit.** Its README says it plainly: "This repo is the market app, not the catalog." Listing follows the registry above |
-| [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | a Chinese learning community with its own plugin index and a mirror of the official docs | **automatic**, aggregated from the GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) — so the lever is the repository's topics, not a form. It re-probes on request (their issue #41 pattern); ours is [#44](https://github.com/hikariming/dshfind/issues/44) because its card still says "not published to npm" and shows an older version |
-
-Two consequences for this repository:
-
-1. **The registry entry is the placement.** Improving the card on any of these sites means editing that one
-   YAML file upstream (or asking for a re-probe), never changing something here — except screenshots, which
-   they read from `screenshots.json` in this repository.
-2. **The topics matter** (dshfind aggregates from them, and every list is searchable by them):
-   `dsh-plugin` must stay on the repository, alongside `dsh`, `deepseek-harness`, `agent-preset`,
-   `custom-mode`, `assistant-manager`, `multi-agent`, `roleplay`.
+Use the root manifest and existing `screenshots.json`. Keep the `dsh-plugin` topic for discovery. Do not submit a new catalog entry or send a refresh request without authorization for that external action.
 
 ## Option one: a GitHub repository (the least effort; recommended to start with)
 
