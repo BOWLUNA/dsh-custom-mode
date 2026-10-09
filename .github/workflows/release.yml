@@ -62,6 +62,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # tee must not turn a failed npm publish into a successful release.
+          set -o pipefail
           VERSION="$(node -p "require('./package.json').version")"
           if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
             echo "::error::tag ${GITHUB_REF_NAME} 与 package.json ${VERSION} 不一致"

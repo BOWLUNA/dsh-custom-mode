@@ -22,7 +22,7 @@ entries ship curated screenshots, and a card without one looks unfinished next t
 
 The curated registry now contains the root entry `BOWLUNA__dsh-custom-mode.yml`, pointing to this repository. The old statement that the root entry is still awaiting merge is superseded.
 
-The active market candidates are dshmarket, DSH Plugin Hub, and DSH Plugin Store. Their interfaces, verified source links, and discovery limits are listed in [MARKETPLACES.md](MARKETPLACES.md). The first two public catalog endpoints timed out during this check. Store still returns an obsolete `#editor` entry and an unverified root entry. This is an external catalog limitation, not evidence of a failed npm install.
+The active market candidates are dshmarket, DSH Plugin Hub, and DSH Plugin Store. Their interfaces, verified source links, and discovery limits are listed in [MARKETPLACES.md](MARKETPLACES.md). A later live check recovered the first two catalogs and found the root npm package at 2.2.2. Their real UI source-install paths accepted the 2.2.3 candidate. Store search still hides our root entry because it lacks a passed upstream install check, and provides no custom-source input. Store approval is an external distribution limitation, not a defect preventing this Web package from being published to npm.
 
 Use the root manifest and existing `screenshots.json`. Keep the `dsh-plugin` topic for discovery. Do not submit a new catalog entry or send a refresh request without authorization for that external action.
 

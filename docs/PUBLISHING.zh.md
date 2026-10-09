@@ -21,7 +21,7 @@ agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` �
 
 curated registry 已有根条目 `BOWLUNA__dsh-custom-mode.yml`，指向本仓库。过去“根条目尚未合并”的结论已过时。
 
-当前有活动的候选是 dshmarket、DSH Plugin Hub 和 DSH Plugin Store。接口、核实的源码链接和发现限制见 [MARKETPLACES.zh.md](MARKETPLACES.zh.md)。本次前两个公开目录接口超时，Store 仍返回旧 `#editor` 条目和未审核的根条目。这是外部目录限制，不代表 npm 安装失败。
+当前有活动的候选是 dshmarket、DSH Plugin Hub 和 DSH Plugin Store。接口、核实的源码链接和发现限制见 [MARKETPLACES.zh.md](MARKETPLACES.zh.md)。后续实时检查恢复了前两个目录，确认根 npm 包为 2.2.2；两者的真实 UI 来源安装入口成功接受 2.2.3 候选。Store 搜索仍因根条目未通过上游安装审核而隐藏它，也不提供自定义来源输入。Store 审核属于外部分发限制，不是阻止本 Web 包发布到 npm 的缺陷。
 
 使用根清单和现有 `screenshots.json`，保留用于发现的 `dsh-plugin` topic。向外部目录提交条目或请求刷新，必须有针对该外部操作的授权。
 
