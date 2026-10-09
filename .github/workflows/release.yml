@@ -12,6 +12,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      publish_version:
+        description: 'Exact package version to publish from main; blank checks identity only'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   # ★ contents 必须是 write：除了发 npm，这一步还要**创建 GitHub Release**。
@@ -40,8 +46,7 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
-
-      # 凭据自检：改过 npm 密码、或怀疑 token 失效时，用 workflow_dispatch 手动跑一次这条工作流，
+      # Blank dispatch checks identity; an explicit matching version publishes only from main.
       # 这一步会直接告诉你 NPM_TOKEN 还能不能用（而不是等到下次发版才发现）。
       - name: 凭据自检（NPM_TOKEN 是否仍有效）
         env:
@@ -54,19 +59,53 @@ jobs:
           echo "NPM_TOKEN 存在，验证身份："
           npm whoami
 
+      - name: Validate release target and prepare its tag
+        id: release_target
+        if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_version != '')
+        env:
+          REQUESTED_VERSION: ${{ inputs.publish_version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="$(node -p "require('./package.json').version")"
+          PACKAGE="$(node -p "require('./package.json').name")"
+          test "$PACKAGE" = 'dsh-custom-mode'
+          if [ "$GITHUB_EVENT_NAME" = 'workflow_dispatch' ] && [ -n "$REQUESTED_VERSION" ]; then
+            if [ "$GITHUB_REF" != 'refs/heads/main' ] || [ "$REQUESTED_VERSION" != "$VERSION" ]; then
+              echo '::error::Manual publication requires main and the exact package version'
+              exit 1
+            fi
+            TAG="v${VERSION}"
+            if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${TAG}" >/dev/null 2>&1; then
+              TARGET="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${TAG}" --jq .sha)"
+              if [ "$TARGET" != "$GITHUB_SHA" ]; then
+                echo '::error::Existing release tag points to a different commit; no overwrite allowed'
+                exit 1
+              fi
+            else
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                -f "ref=refs/tags/${TAG}" -f "sha=${GITHUB_SHA}" >/dev/null
+            fi
+          else
+            TAG="$GITHUB_REF_NAME"
+            test "$TAG" = "v${VERSION}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
       - name: 发布（已存在的版本直接跳过）
-        # 手动 dispatch 只做凭据自检，不从 main 把未打 tag 的版本发上 npm。
-        if: startsWith(github.ref, 'refs/tags/v')
+        # Blank dispatch checks identity; an explicit matching version publishes only from main.
+        if: steps.release_target.outputs.tag != ''
         # 混合认证：若配置了仓库 secret NPM_TOKEN（granular token，可勾 Bypass 2FA），就用它；
         # 没配置时该 env 为空，npm 会回退到 OIDC（Trusted Publishing）。两条路都不需要交互式 2FA。
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          RELEASE_TAG: ${{ steps.release_target.outputs.tag }}
         run: |
           # tee must not turn a failed npm publish into a successful release.
           set -o pipefail
           VERSION="$(node -p "require('./package.json').version")"
-          if [ "${GITHUB_REF_NAME}" != "v${VERSION}" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} 与 package.json ${VERSION} 不一致"
+          if [ "${RELEASE_TAG}" != "v${VERSION}" ]; then
+            echo "::error::tag ${RELEASE_TAG} 与 package.json ${VERSION} 不一致"
             exit 1
           fi
           if npm view "dsh-custom-mode@${VERSION}" version >/dev/null 2>&1; then
@@ -95,7 +134,7 @@ jobs:
       #   sourceDshVersion 是**本次适配的 dsh 版本**（不是插件版本），与 test.yml 的 matrix、
       #   engines.dsh 的钉子同源；换 dsh 线时一起改（见 AGENTS.md 第 10 条）。
       - name: 打包 .dshpreset（桌面端可直接导入）
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.release_target.outputs.tag != ''
         run: |
           python3 - <<'ZIP'
           import json, zipfile, datetime, os
@@ -124,11 +163,12 @@ jobs:
       #   而 README / 代码其实早就更新了 —— 一个纯粹"看不见"的缺口。
       #   正文直接从 CHANGELOG 抠出本 tag 那一节，不另写一份会漂移的文案。
       - name: 建 GitHub Release（正文取自 CHANGELOG）
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.release_target.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_target.outputs.tag }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="$RELEASE_TAG"
           VER="${TAG#v}"
           node -e '
             const fs = require("fs");
@@ -140,4 +180,4 @@ jobs:
             const next = rest.indexOf("\n## [");
             fs.writeFileSync(out, (next === -1 ? rest : rest.slice(0, next)).trimEnd() + "\n");
           ' "$VER" CHANGELOG.md /tmp/release-notes.md
-          gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md dsh-custom-mode.dshpreset
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file /tmp/release-notes.md dsh-custom-mode.dshpreset

@@ -16,6 +16,10 @@ mirrored the DSH release) and are kept as history.
 - Test the current default host `0.2.0-rc.2` and the new preview `0.2.1-alpha.2` against their own shipped declarations. Tests no longer assume removed Codex/Claude subagent rows exist.
 - Add reproducible packed-install and runtime checks, covering every base mode, rendered settings, repeated operations, uninstall/reinstall, and user-data preservation. Release now waits for both compatibility and browser workflows; the browser matrix covers both channels and redacts startup tokens.
 - Add read-only discovery adapters and checks for dshmarket, DSH Plugin Hub, and DSH Plugin Store. Stale, unreachable, and unverified directory entries remain explicit limitations; no external listing is submitted.
+- Verify candidate installation, activation and removal through the real dshmarket and Plugin Hub UI paths. Store still hides this package under its upstream install-tested-only filter and offers no custom-source input; no Store approval is claimed.
+- Make npm publish failures propagate through the release log pipeline with `pipefail`; E403, OTP, successful publication and already-published conflict outcomes were verified without registry writes.
+
+This release targets the Web profile, tested on both current channels. VMware/Electron desktop coverage remains unverified and is not claimed by this release. Store listing approval remains an external distribution limitation.
 
 Install `2.2.3` and restart the profile's DSH process. No prompt or preset migration is required.
 
