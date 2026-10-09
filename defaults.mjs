@@ -35,8 +35,12 @@ export function ensureUnsetDefaultPreset(home, presetId) {
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i]
     if (line.trim() === '' || /^\s*#/.test(line)) continue
-    if (/^agent-presets\s*:/.test(line)) {
-      if (/default\s*:/.test(line)) return { wrote: false, reason: 'inline' }
+    const key = /^(?:agent-presets|'agent-presets'|"agent-presets")\s*:\s*(.*)$/.exec(line.replace(/^\uFEFF/, ''))
+    if (key !== null) {
+      // A flow mapping, alias or scalar cannot receive an indented child.
+      // Leave unsupported YAML forms byte-identical instead of breaking boot.
+      const value = key[1].trim()
+      if (value !== '' && !value.startsWith('#')) return { wrote: false, reason: 'inline' }
       section = i
       break
     }
@@ -50,7 +54,7 @@ export function ensureUnsetDefaultPreset(home, presetId) {
     const line = lines[i]
     if (line.trim() === '' || /^\s*#/.test(line)) continue
     if (/^\S/.test(line)) break
-    if (/^\s+default\s*:/.test(line)) return { wrote: false, reason: 'present' }
+    if (/^\s+(?:default|'default'|"default")\s*:/.test(line)) return { wrote: false, reason: 'present' }
   }
   lines.splice(section + 1, 0, '  default: ' + presetId)
   const next = lines.join('\n')

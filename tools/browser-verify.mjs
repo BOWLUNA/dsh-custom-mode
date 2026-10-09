@@ -799,50 +799,49 @@ try {
       JSON.stringify({ switches: rowFacts.switches, checkboxes: rowFacts.checkboxes, rows: rowFacts.count }),
     )
 
-    // ★ 2026-10-02 新增：设置项下拉必须是**官方的形态**。
-    //   实测官方 `_selector`（0.1.7-rc.2 与 0.2.0-rc.2 一致）：高 36px、圆角 radius-md(12px)、
-    //   底色 `--dsw-alias-bg-module-platform`（暗色下 rgb(53,54,56)）、字号 14px、左右内边距 14px、
-    //   chevron 在**文字之后**。1.11.x 用的是壳 Button 的 `ghost` + `size:"sm"`
-    //   （28px / 透明底 / 12px 字 / 圆角 8px / chevron 在文字**前**）—— 那是官方从没用过的组合，
-    //   也是"与官方差别过大"的一部分，所以要有回归防线。
+    // Compare actual native atoms with a copy stripped of plugin placement classes.
+    // A token-compatible repaint is still an override; native defaults must win.
     const selectorFacts = await session.evaluate(`(() => {
-      const root = getComputedStyle(document.body);
-      // token 值写作 #353638，而 computed style 交回 rgb(53, 54, 56) —— 先归一化再比，
-      // 否则这条断言永远红：同一个颜色的两种写法，比不出差别来。
-      const probe = document.createElement('div');
-      document.body.appendChild(probe);
-      const toRgb = (value) => { probe.style.color = ''; probe.style.color = value; return getComputedStyle(probe).color; };
-      const wanted = toRgb(root.getPropertyValue('--dsw-alias-bg-module-platform').trim());
-      probe.remove();
-
       const btns = [...document.querySelectorAll('.cpfe-selector')];
-      if (btns.length === 0) return { count: 0, wanted };
+      if (btns.length === 0) return { count: 0 };
       const btn = btns[0];
       const cs = getComputedStyle(btn);
       const rect = btn.getBoundingClientRect();
       const svgs = [...btn.querySelectorAll('svg')];
       const last = svgs.length === 0 ? null : svgs[svgs.length - 1];
+      const properties = ['fontFamily','fontSize','fontWeight','lineHeight','paddingLeft','paddingRight','height','borderTopLeftRadius','borderTopWidth','borderTopColor','backgroundColor','color','gap','opacity'];
+      const controls = [...document.querySelectorAll('.cpfe-selector,.cpfe-row-toggle,.cpfe-disclosure,.cpfe-filter')];
+      const nativeParity = controls.every(el => {
+        const clone = el.cloneNode(true);
+        clone.className = [...el.classList].filter(name => !name.startsWith('cpfe-')).join(' ');
+        clone.style.position = 'absolute'; clone.style.visibility = 'hidden';
+        el.parentElement.appendChild(clone);
+        const own = getComputedStyle(el), native = getComputedStyle(clone);
+        const same = properties.every(property => own[property] === native[property]);
+        clone.remove(); return same;
+      });
+      const filter = document.querySelector('.cpfe-filter');
       return {
         count: btns.length,
         height: Math.round(rect.height),
         radius: cs.borderTopLeftRadius,
-        radiusMd: root.getPropertyValue('--dsw-radius-md').trim(),
         background: cs.backgroundColor,
-        wanted: wanted,
         fontSize: cs.fontSize,
         padLeft: cs.paddingLeft,
+        nativeParity,
+        nativeFilter: filter !== null && filter.tagName === 'SPAN' && filter.querySelector('input') !== null && [...filter.classList].some(name => !name.startsWith('cpfe-')),
+        controlCount: controls.length,
         // 几何判据，不绑 DOM 结构：chevron 的左边缘落在按钮中线右侧 ⇒ 它在文字**之后**。
         chevronAfterText: last === null ? null : last.getBoundingClientRect().left - rect.left > rect.width * 0.5,
       };
     })()`)
     check(
-      '设置项下拉用官方形态（36px / radius-md / 灰底 / 14px 字 / 内边距 14px）',
+      '下拉、过滤框和折叠按钮保留原生组件样式（不覆盖字体、圆角、背景与间距）',
       selectorFacts.count >= 1 &&
         selectorFacts.height === 36 &&
-        selectorFacts.radius === selectorFacts.radiusMd &&
-        selectorFacts.background === selectorFacts.wanted &&
         selectorFacts.fontSize === '14px' &&
-        selectorFacts.padLeft === '14px',
+        selectorFacts.padLeft === '14px' &&
+        selectorFacts.nativeParity && selectorFacts.nativeFilter && selectorFacts.controlCount >= 3,
       JSON.stringify(selectorFacts),
     )
     check(

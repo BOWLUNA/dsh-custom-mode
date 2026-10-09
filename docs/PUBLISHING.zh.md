@@ -17,33 +17,13 @@ agent preset **不是** npm 包，别指望 `npm install` 能装它——`dsh` �
 每张图只有一份，就是 README 用的那几张，所以卡片与 README 不可能对不上。
 实测 2026-09-25：目录里 4311 个条目中有 840 个带精选截图，没有截图的卡片放在旁边就像没做完。
 
-## 生态里有哪些地方收录了本插件（2026-09-30 实测）
+## 市场发现（2026-10-09 核对）
 
-一共三个站点，值得先弄清楚**哪一个才是真源** —— 只有它对投稿开门：
+curated registry 已有根条目 `BOWLUNA__dsh-custom-mode.yml`，指向本仓库。过去“根条目尚未合并”的结论已过时。
 
-| 站点 | 是什么 | 怎么进 |
-| --- | --- | --- |
-| [**awesome-dsh-plugin.com**](https://awesome-dsh-plugin.com/p/BOWLUNA/dsh-custom-mode/) | **策展注册表**；别的工具大多读它的 README 与数据 | **提一个 PR，加一个 YAML 文件** `data/plugins/<owner>__<repo>.yml`（`url` / `name` / `category` / `description.en`，`zh` 可选），仓库是 [`awesome-dsh-plugin/awesome-dsh-plugin`](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。我们那条现在是**根形态**：`BOWLUNA__dsh-custom-mode.yml`，`url` 指向仓库根，`name` 为 `BOWLUNA/dsh-custom-mode`，分类 `identity`。根形态合法，因为仓库根就声明了 `dsh.bundle`；1.10.0 之前用的是 monorepo 子包形态（`…--editor.yml`、`name: BOWLUNA/dsh-custom-mode#editor`），那张卡片上的 `#editor` 后缀正是它渲染出来的 |
+当前有活动的候选是 dshmarket、DSH Plugin Hub 和 DSH Plugin Store。接口、核实的源码链接和发现限制见 [MARKETPLACES.zh.md](MARKETPLACES.zh.md)。本次前两个公开目录接口超时，Store 仍返回旧 `#editor` 条目和未审核的根条目。这是外部目录限制，不代表 npm 安装失败。
 
-> **现状（2026-10-01 实测，1.11.0）。** 根形态那个 PR **仍然是 open、没合**
-> （`awesome-dsh-plugin/awesome-dsh-plugin#6255`，2026-09-30T15:33Z 提交）。在它合并之前，注册表里
-> **只有旧条目**：`BOWLUNA__dsh-custom-mode--editor.yml`，`name: "dsh-custom-mode#editor"`，
-> `url: …/tree/main/editor`（**这个目录从 1.10.0 起就不存在了**，所以链接是 404），
-> 而 `version` 还停在 `"1.9.19"`。
-> 实测：规范 slug `/p/BOWLUNA/dsh-custom-mode/` → **404**，旧 slug `/p/BOWLUNA/dsh-custom-mode--editor/` → 200，
-> `plugins.json` 里也仍是 `#editor` 那个名字。
-> **我们合不了别人的仓**，唯一的杠杆是在 PR 上礼貌 ping 一句。把上面那段当"已经正确"来讲之前，
-> 先读这一段的实测：这条通道正是 `dshmarket` 与 `dshfind` 的数据源，卡片上那个死链就是它造成的。
-> 直接从 npm 或 GitHub 地址安装不受影响 —— 那两条都验过。
-| [**dshmarket.com**](https://dshmarket.com/) | **应用内的插件市场** —— 它自己就是个 dsh 插件（`dsh plugin --profile web add dshmarket`，然后 设置 → 插件市场）。它会读每张卡片声明的 `engines.dsh` / peer 范围来判断与当前宿主是否匹配，并展示插件自己 `screenshots.json` 里的作者精选图 | **不用投稿**。它 README 写得很直白："This repo is the market app, not the catalog." —— 列表跟着上面的注册表走 |
-| [**dshfind.com**](https://dshfind.com/zh/plugins/BOWLUNA/dsh-custom-mode) | 中文学习社区，自带插件索引与官方文档镜像 | **自动聚合**，来源是 GitHub topic [`dsh-plugin`](https://github.com/topics/dsh-plugin) —— 所以杠杆是**仓库的 topics**，不是表单。它接受点名重探（见其 issue #41 的做法）；我们已开 [#44](https://github.com/hikariming/dshfind/issues/44)，因为它那张卡片仍写着"尚未发布到 npm"且版本偏旧 |
-
-两条对仓库的推论：
-
-1. **注册表条目就是"上架"本身。** 想改这些站上的卡片，改的是上游那一个 YAML 文件（或请对方重探），
-   不是改这里 —— 唯一的例外是截图，它们读本仓库的 `screenshots.json`。
-2. **topics 有用**（dshfind 按它聚合，各站的搜索也吃它）：`dsh-plugin` 必须留在仓库上，
-   与 `dsh`、`deepseek-harness`、`agent-preset`、`custom-mode`、`assistant-manager`、`multi-agent`、`roleplay` 一起。
+使用根清单和现有 `screenshots.json`，保留用于发现的 `dsh-plugin` topic。向外部目录提交条目或请求刷新，必须有针对该外部操作的授权。
 
 ## 方案一：GitHub 仓库（最省事，推荐先用这个）
 

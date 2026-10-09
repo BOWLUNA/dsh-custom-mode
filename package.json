@@ -1,6 +1,6 @@
 {
   "name": "dsh-custom-mode",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Edit a DeepSeek Harness (dsh) custom mode: system prompt, base mode, and plugin switches.",
   "license": "MIT",
   "type": "module",
@@ -74,7 +74,10 @@
     "union-mount-check": "node tools/union-mount-check.mjs",
     "session-trace": "node tools/session-trace.mjs",
     "browser-verify": "node tools/browser-verify.mjs",
-    "upgrade-preflight": "node tools/upgrade-preflight.mjs"
+    "upgrade-preflight": "node tools/upgrade-preflight.mjs",
+    "compat-check": "node tools/compat-check.mjs",
+    "runtime-check": "node tools/runtime-check.mjs",
+    "market-check": "node tools/market-check.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh": ">=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0"

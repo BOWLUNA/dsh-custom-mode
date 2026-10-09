@@ -50,6 +50,18 @@ export function absoluteSpecifier(specifier, presetDir) {
   return pathToFileURL(join(presetDir, specifier)).href
 }
 
+/** Preserve config expressions in the host loader's native node representation.
+ * The local parser returns __js without executing it. The host recognizes
+ * __jsExpr and evaluates it with its own baseUrl/context. Passing __js through
+ * as ordinary config broke Creator's customSkillDirs.
+ */
+function loaderConfig(value) {
+  if (value === null || typeof value !== 'object') return value
+  if (typeof value.__js === 'string') return { __jsExpr: value.__js }
+  if (Array.isArray(value)) return value.map(loaderConfig)
+  return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, loaderConfig(item)]))
+}
+
 /**
  * Turn parsed composition rows into the row objects `register()` takes.
  *
@@ -72,7 +84,7 @@ export function toPluginRows(rows, presetDir) {
       if (row.isolate !== undefined && row.isolate !== null) plugin.isolate = row.isolate
       plugin.config = toPluginRows(row.config, presetDir)
     } else if (row.config !== undefined && row.config !== null) {
-      plugin.config = row.config
+      plugin.config = loaderConfig(row.config)
     }
     if (row.disabled !== undefined) plugin.disabled = resolveDisabled(row.disabled)
     out.push(plugin)

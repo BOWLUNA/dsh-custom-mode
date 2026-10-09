@@ -6,7 +6,7 @@
 node test/run.mjs
 ```
 
-一个入口跑八个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
+一个入口跑 15 个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
 `@deepseek-ai/dsh-agent-presets`）：
 
 ```
@@ -18,7 +18,7 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 15 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **922 项**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
+合计 **934 项检查**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 并集基础模式（`all`，选择器里的第五项）在 `composition.test.mjs` 的 2d–2f 与 `editor-route.test.mjs`

@@ -19,7 +19,8 @@
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { createDeclarativeBackend } from '../preset-backend/declarative.mjs'
+import { createDeclarativeBackend, toPluginRows } from '../preset-backend/declarative.mjs'
+import { parseComposition } from '../preset-backend/parse-composition.mjs'
 
 let passed = 0
 let failed = 0
@@ -129,6 +130,20 @@ console.log('=== 6. 未知 id → unknownAssistant（带 code） ===')
 {
   const result = await deleteAssistant([], { id: 'nope' }, { remove: async () => ({ ok: true }) })
   check('未知 id 的类型化失败', result.ok === false && result.code === 'unknownAssistant', JSON.stringify(result))
+}
+
+console.log('=== 7. 配置表达式交给宿主加载器求值 ===')
+{
+  const expression = "process.getBuiltinModule('node:path').join(baseUrl, 'skills')"
+  const text = '- id: skill-filesystem\n  name: test-skill\n  config:\n    customSkillDirs:\n      - !!js ' + expression + '\n    literal: keep\n    nested:\n      enabled: !!js process.platform !== "win32"\n'
+  const parsed = parseComposition(text)
+  const before = JSON.stringify(parsed)
+  const converted = toPluginRows(parsed, base)
+  const config = converted[0].config
+  check('技能目录表达式使用宿主原生节点', config.customSkillDirs[0].__jsExpr === expression && !('__js' in config.customSkillDirs[0]), JSON.stringify(config))
+  check('嵌套对象里的表达式也保留给宿主', config.nested.enabled.__jsExpr === 'process.platform !== "win32"', JSON.stringify(config.nested))
+  check('普通配置值保持原值', config.literal === 'keep')
+  check('转换不改动解析输入，不提前执行表达式', JSON.stringify(parsed) === before && typeof config.customSkillDirs[0] === 'object')
 }
 
 rmSync(base, { recursive: true, force: true })

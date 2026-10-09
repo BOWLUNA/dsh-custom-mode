@@ -20,6 +20,9 @@ let passed = 0
 let failed = 0
 /** 把行树压平（含分组子行）—— 2d 与 2f 都要用，所以放在模块级而不是某个块里。 */
 const flatRows = (rows) => rows.flatMap((row) => [row, ...flatRows(row.children ?? [])])
+// alpha.2 removed the Codex/Claude provider rows. Test an actual disabled row
+// on each installed host; a removed row must not be resurrected by the compiler.
+const disabledStandardRow = flatRows(collectRows(readBaseComposition('standard'))).find((row) => row.disabled === true && !row.group)?.id
 const check = (label, condition, detail = '') => {
   if (condition) {
     passed += 1
@@ -183,9 +186,8 @@ console.log('=== 6. 分组：关掉分组本身，与关掉组内子行 ===')
   check('同组其它子行未受影响', offChild.get('tool-workflow') === undefined, String(offChild.get('tool-workflow')))
   check('分组本身未被关闭', offChild.get('delegation') === undefined)
 
-  const onChild = disabledMap(renderComposition('standard', new Map([['tool-subagent-codex', true]])))
-  // 出厂是字面量 `true`（对所有平台都关）：显式打开就要写死 `false`，否则撤回不了覆盖。
-  check('可显式打开出厂关闭的子行（写死 false）', onChild.get('tool-subagent-codex') === 'false')
+  const onChild = disabledMap(renderComposition('standard', new Map([[disabledStandardRow, true]])))
+  check('可显式打开本机出厂关闭的行（写死 false）', typeof disabledStandardRow === 'string' && onChild.get(disabledStandardRow) === 'false')
 }
 
 console.log()
@@ -217,7 +219,7 @@ console.log('=== 9. 开关状态可往返（保存后重读一致） ===')
     ['tool-web', false],
     ['tool-todo', false],
     ['delegation', false],
-    ['tool-subagent-codex', true],
+    [disabledStandardRow, true],
   ])
   const text = renderComposition('standard', explicit)
   const flat = []
@@ -232,7 +234,7 @@ console.log('=== 9. 开关状态可往返（保存后重读一致） ===')
   check('tool-web 关闭已保留', byId.get('tool-web')?.disabled === true)
   check('tool-todo 关闭已保留', byId.get('tool-todo')?.disabled === true)
   check('delegation 关闭已保留', byId.get('delegation')?.disabled === true)
-  check('codex 已被显式打开', byId.get('tool-subagent-codex')?.disabled === false)
+  check('本机出厂关闭行已被显式打开', typeof disabledStandardRow === 'string' && byId.get(disabledStandardRow)?.disabled === false)
   check('未触碰的行仍未关闭', byId.get('tool-fs')?.disabled === false)
   check('delegation 子行仍未关闭', byId.get('tool-workflow')?.disabled === false)
 }

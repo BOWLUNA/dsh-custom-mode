@@ -292,6 +292,23 @@ console.log('=== agent-presets.default：只填空缺 ===')
   const appended = ensureUnsetDefaultPreset(home, 'custom')
   const appendedText = readFileSync(join(home, 'settings.yaml'), 'utf8')
   check('没有该键时追加，并保留原有键', appended.wrote === true && appendedText.includes('locale: zh') && appendedText.includes('default: custom'), appendedText)
+  for (const sample of [
+    'agent-presets: {}\n',
+    'agent-presets: {default: standard}\n',
+    'agent-presets: null\n',
+    'base: &presetSettings {}\nagent-presets: *presetSettings\n',
+    '"agent-presets":\n  "default": standard\n',
+    "'agent-presets':\n  'default': standard\n",
+  ]) {
+    writeFileSync(join(home, 'settings.yaml'), sample, 'utf8')
+    const preserved = ensureUnsetDefaultPreset(home, 'custom')
+    check('已有 YAML 表达保留原字节：' + sample.split('\n')[0], preserved.wrote === false && readFileSync(join(home, 'settings.yaml'), 'utf8') === sample, JSON.stringify(preserved))
+  }
+  writeFileSync(join(home, 'settings.yaml'), '"agent-presets": # existing section\n  order: 1\nlocale: en\n', 'utf8')
+  const quoted = ensureUnsetDefaultPreset(home, 'custom')
+  const quotedText = readFileSync(join(home, 'settings.yaml'), 'utf8')
+  check('带引号的空缺区块只插入默认值，不重复根键', quoted.wrote === true && quotedText === '"agent-presets": # existing section\n  default: custom\n  order: 1\nlocale: en\n', quotedText)
+  check('重复启动不再写入', ensureUnsetDefaultPreset(home, 'custom').wrote === false && readFileSync(join(home, 'settings.yaml'), 'utf8') === quotedText)
   rmSync(home, { recursive: true, force: true })
 }
 
