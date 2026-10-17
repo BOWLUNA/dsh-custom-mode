@@ -21,6 +21,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Install CJK fonts for bilingual rendered verification
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y fonts-noto-cjk
+          fc-match --format '%{file}\n' 'Noto Sans CJK SC' | grep -F NotoSansCJK
       - name: Install exact host in an independent directory
         shell: bash
         run: |
