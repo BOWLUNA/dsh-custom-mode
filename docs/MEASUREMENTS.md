@@ -2067,3 +2067,28 @@ as the official settings row.
 - The render gate went **70 -> 74**: the official dropdown shape, the chevron after the text, **the warning
   block having rules in the stylesheet**, and the 14px/22px row title. The two false assertions were moved
   to the measured values. Run once per line: `0.2.0-rc.2` and `0.1.7-rc.2` both **74 passed / 0 failed**.
+
+
+## 37. DSH 0.2.1-rc.2 packed Web acceptance (2026-10-17)
+
+Official tag: `dsh-v0.2.1-rc.2`, commit `687f282e8625c6b8d11ff58211a90524be2e4317`. npm `next` is `0.2.1-rc.2`; `latest` remains `0.2.0-rc.2` and `alpha` remains `0.2.1-alpha.5`. The installed npm four preset declarations match the official tag byte for byte. The preset registry, Connection and native settings sources have no diff from alpha.5. Upstream adds DeepSeek Search/Fetch providers and model-label UI; this plugin does not execute those services.
+
+Commands (Node 24.21.0, isolated Linux x64 Web home):
+
+```sh
+node tools/compat-check.mjs --host-install <exact-0.2.1-rc.2-host> --out <fresh-evidence> --port 32322
+node tools/runtime-check.mjs --host-install <exact-0.2.1-rc.2-host> --out <fresh-evidence> --browser /opt/google/chrome/chrome --port 32322 --cdp-port 9252 --network-guard ./tools/loopback-test-guard.mjs
+```
+
+Observed output:
+
+```text
+15 suites / 935 checks / 0 failures
+PASS package; PASS boot (install, row, responding port, no fatal stderr)
+PASS picker-probe.mjs
+results: 74 passed, 0 failed (browser-verify.mjs)
+PASS market-row-probe.mjs (10 checks; native on/save/off/save; default off)
+22 runtime checks / 0 failures
+```
+
+Compatibility peak aggregate RSS: 530436 KiB. Runtime peak: 1883952 KiB; minimum host available memory: 2084440 KiB. No model/GPU calls or production changes. The first attempt caught two old README version pins; after fixing both languages all guards passed. A 1536 MiB test budget stopped one browser attempt; the final clean run passed within a 2048 MiB cap and left no owned process. Earlier hosts reuse v2.2.4 acceptance evidence; required release CI retains them. Windows/Electron desktop and real model/tool execution are unverified.

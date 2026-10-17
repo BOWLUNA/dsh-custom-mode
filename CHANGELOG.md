@@ -8,6 +8,15 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.2.5] — 2026-10-17
+
+- Verify the exact official DSH `0.2.1-rc.2` npm host and upstream tag. Its preset registry, authenticated routes, native settings interface and four base declarations match alpha.5; the existing compatibility range and user configuration remain valid.
+- Add `0.2.1-rc.2` to Linux/Windows unit and boot CI and the required packed-install/browser release matrix, retaining `0.2.0-rc.2` and `0.2.1-alpha.5`.
+- Correct the marketplace probe to test the inherited row on both alpha.5 and `0.2.1-rc.2`, including native on/save/off/save. Only `0.2.0-rc.2` lacks that row.
+- Check 15 suites / 935 checks, 74 rendered browser checks, the mode picker and 22 lifecycle checks on isolated Linux Web profiles. No model or GPU call is made.
+
+Install `2.2.5` and restart the process serving the Web profile. Existing prompts and presets need no migration. Windows/Electron desktop and real model/tool/GPU execution remain unverified. Release still requires the compatibility and browser gates, with plugin archive, preset-only archive and SHA-256 checksums.
+
 ## [2.2.4] — 2026-10-17
 
 - Label the official `tool-plugin-market` composition row in English and Chinese on DSH `0.2.1-alpha.5`. Its shipped default remains off; composition text and platform conditions are preserved.

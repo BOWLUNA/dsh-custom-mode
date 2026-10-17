@@ -6,7 +6,7 @@ import { connect } from './screenshots/cdp.mjs'
 const args = process.argv.slice(2)
 const option = name => args[args.indexOf('--' + name) + 1]
 const version = option('version'), url = option('url'), out = option('out')
-assert.ok(['0.2.0-rc.2', '0.2.1-alpha.5'].includes(version))
+assert.ok(['0.2.0-rc.2', '0.2.1-alpha.5', '0.2.1-rc.2'].includes(version))
 const session = await connect(), checks = []
 const check = (name, value) => { assert.ok(value, name); checks.push(name) }
 try {
@@ -31,8 +31,8 @@ try {
     return {ok:state.ok,broken:state.broken,unavailable:state.baseUnavailable,market:market?{id:market.id,disabled:market.disabled}:null,label:row?.querySelector('.cpfe-row-head')?.textContent||null,checked:row?.querySelector('[role=switch]')?.getAttribute('aria-checked')||null,panel:document.querySelector('.cpfe')!==null};
   })()`)
   check('real settings panel and healthy preset load', observed.panel && observed.ok && !observed.broken && !observed.unavailable)
-  if (version === '0.2.1-alpha.5') {
-    check('new marketplace row comes from mounted alpha.5 composition', observed.market?.id === 'tool-plugin-market')
+  if (version !== '0.2.0-rc.2') {
+    check('new marketplace row comes from mounted host composition', observed.market?.id === 'tool-plugin-market')
     check('new localized marketplace label is rendered in real DOM', /插件市场检索|Plugin marketplace search/.test(observed.label ?? ''))
     check('new marketplace row remains off by default', observed.market.disabled === true && observed.checked === 'false')
     const clickControl = async (selector) => {
@@ -49,7 +49,7 @@ try {
     const disabled = await readback()
     check('native marketplace switch saves back off', disabled.ok && !disabled.broken && disabled.overrides?.['tool-plugin-market'] !== true)
 
-  } else check('rc2 does not acquire a nonexistent marketplace row', observed.market === null && observed.label === null)
+  } else check('0.2.0-rc.2 does not acquire a nonexistent marketplace row', observed.market === null && observed.label === null)
   const targets = await session.send('Target.getTargets')
   check('one browser page only', targets.targetInfos.filter(x=>x.type==='page').length === 1)
   await session.evaluate(`(() => {const row=[...document.querySelectorAll('.cpfe-row')].find(r=>/插件市场检索|Plugin marketplace search/.test(r.innerText));row?.scrollIntoView({block:'center'});return true})()`)
