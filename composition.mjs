@@ -126,6 +126,7 @@ export const ROW_META = {
   'tool-workflow': { label: '工作流工具' },
   'tool-ralph': { label: 'Ralph 工作流', note: '默认关闭' },
   'tool-web': { label: '网页检索与抓取' },
+  'tool-plugin-market': { label: '插件市场检索', note: '发现插件；安装与启停仍由插件管理工具负责' },
   'tool-skill': { label: '技能工具' },
   'skill-filesystem': { label: '技能发现' },
   'tool-cordis': { label: 'Cordis 运行时工具', note: '可读写 harness 运行时' },

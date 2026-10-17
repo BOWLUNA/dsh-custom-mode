@@ -24,14 +24,16 @@ Edit a DeepSeek Harness (`dsh`) custom mode: system prompt, base mode, and plugi
 Pin the version. A bare name can install an older build during pnpm's release cooldown. Details: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.3
+dsh plugin --profile web add dsh-custom-mode@2.2.4
 ```
 
 Restart the process that serves the profile. The version on the settings page is the one that is running.
 
-Desktop app: install from the in-app Plugins page. The CLI cannot modify `profiles/desktop`.
+Desktop app: its in-app Plugins page is the installation entry point; the CLI cannot modify `profiles/desktop`. This release has not been verified on Windows/Electron.
 
 On Windows, `install.sh` is bash and it needs a `dsh` executable on `PATH`. Otherwise use the `dsh` shipped with DeepSeek Harness, or `node node_modules/@deepseek-ai/dsh/lib/bin.js`.
+
+The GitHub Release also provides a packed plugin (`dsh-custom-mode-2.2.4.tgz`), a preset-only import archive, and `SHA256SUMS`. Verify the checksum, then install the packed plugin with `dsh plugin --profile web add ./dsh-custom-mode-2.2.4.tgz`. The preset-only archive does not include the settings plugin.
 
 ## Use
 
@@ -59,12 +61,12 @@ The page is two branches. This assistant edits the one you have open, and all fi
 
 Declared range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-On 2026-10-09, npm `latest` and `next` still name `0.2.0-rc.2`; `alpha` names `0.2.1-alpha.2`, published that day. Upstream has not published a final stable version yet.
+On 2026-10-16, npm `latest` and `next` named `0.2.0-rc.2`; `alpha` named `0.2.1-alpha.5`. Upstream has not published a final stable version yet.
 
-| dsh | Channel | Checked for 2.2.3 |
+| dsh | Channel | Checked for 2.2.4 |
 | --- | --- | --- |
-| `0.2.0-rc.2` | npm `latest` / `next` | Exact npm host, packed plugin load, API lifecycle, settings and picker in Windows web profile |
-| `0.2.1-alpha.2` | npm `alpha` | The same isolated checks, against this host's own preset declarations |
+| `0.2.0-rc.2` | npm `latest` / `next` | Exact npm host, packed plugin load, API lifecycle, settings and picker in an isolated Linux Web profile |
+| `0.2.1-alpha.5` | npm `alpha` | The same isolated checks, against this host's own preset declarations |
 | `0.1.7-rc.2` | earlier declared line | Kept in the CI regression matrix |
 
 Release waits for the unit, boot, and browser workflows. To reproduce against an already installed exact host:
@@ -74,7 +76,7 @@ node tools/compat-check.mjs --host-install /path/to/host --out /tmp/custom-mode-
 node tools/runtime-check.mjs --host-install /path/to/host --out /tmp/custom-mode-check --browser /path/to/chrome
 ```
 
-Both tools use a generated home and ordinary mock prompts. The runtime check exercises all five base modes, repeated saves, uninstall, reinstall, data preservation, and repeated installation. No model calls are needed. VMware and native Linux desktop results are not claimed.
+Both tools use a generated home and ordinary mock prompts. The runtime check exercises all five base modes, repeated saves, uninstall, reinstall, data preservation, and repeated installation. No model calls are needed. Windows/Electron desktop and real model or GPU execution are unverified. See [the exact coverage](docs/CURRENT_COMPATIBILITY.md).
 
 ## Plugin markets
 

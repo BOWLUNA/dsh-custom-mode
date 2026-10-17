@@ -61,7 +61,8 @@ class Session {
       return
     }
     if (message.id !== undefined && this.pending.has(message.id)) {
-      const { resolve, reject } = this.pending.get(message.id)
+      const { resolve, reject, timer } = this.pending.get(message.id)
+      clearTimeout(timer)
       this.pending.delete(message.id)
       if (message.error !== undefined) reject(new Error(`${message.error.message} (${JSON.stringify(message.error.data ?? '')})`))
       else resolve(message.result)
@@ -77,11 +78,11 @@ class Session {
     const payload = { id, method, params }
     if (sessionId !== undefined) payload.sessionId = sessionId
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject })
-      this.socket.send(JSON.stringify(payload))
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         if (this.pending.delete(id)) reject(new Error(`CDP timeout: ${method}`))
       }, 60_000)
+      this.pending.set(id, { resolve, reject, timer })
+      this.socket.send(JSON.stringify(payload))
     })
   }
 
@@ -282,8 +283,8 @@ class Session {
       const all = [...document.querySelectorAll(${JSON.stringify(tag)})].filter((el) => {
         if (!isVisible(el)) return false;
         const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join('').trim();
-        if (exact) return own === wanted;
-        return own.includes(wanted);
+        const labels = [own, el.getAttribute('aria-label'), el.getAttribute('title')].filter(value => typeof value === 'string');
+        return labels.some(label => exact ? label === wanted : label.includes(wanted));
       });
       if (all.length === 0) return null;
       const target = all[${index}] ?? all[0];
@@ -294,6 +295,23 @@ class Session {
     if (point === null) throw new Error(`clickTextReal(${JSON.stringify(text)}, ${tag}) found nothing`)
     await this.clickAt(point.x, point.y)
     return point
+  }
+
+  /** Native settings entry: direct on rc2; under More / Account menu on alpha5. */
+  async openSettings() {
+    if (await this.evaluate(`document.querySelector('[class*=navCell],.cpfe') !== null`)) return true
+    const direct = async () => {
+      for (const label of ['设置', 'Settings']) {
+        try { await this.clickTextReal(label, { exact: true }); await this.sleep(500); return true } catch {}
+      }
+      return false
+    }
+    if (await direct()) return true
+    for (const label of ['Account menu', '账户菜单', '账号菜单', 'More', '更多']) {
+      try { await this.clickTextReal(label, { tag: 'button', exact: true }); await this.sleep(400); break } catch {}
+    }
+    if (await direct()) return true
+    throw new Error('Native settings entry is unavailable on the actual page')
   }
 
   /** Press Escape (dismisses a modal / dropdown). */

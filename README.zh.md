@@ -24,7 +24,7 @@
 钉版本。只写包名时，pnpm 的发布冷却期可能装到旧版。细节见 [docs/TROUBLESHOOTING.zh.md](docs/TROUBLESHOOTING.zh.md)。
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.3
+dsh plugin --profile web add dsh-custom-mode@2.2.4
 ```
 
 重启为这个 profile 提供服务的进程。设置页上的版本号才是正在运行的版本。
@@ -32,6 +32,8 @@ dsh plugin --profile web add dsh-custom-mode@2.2.3
 桌面端从应用里的插件页安装。CLI 不能改 `profiles/desktop`。
 
 在 Windows 上，`install.sh` 是 bash，而且 PATH 里要有 `dsh`。否则用 DeepSeek Harness 自带的 `dsh`，或 `node node_modules/@deepseek-ai/dsh/lib/bin.js`。
+
+GitHub Release 另附插件包 `dsh-custom-mode-2.2.4.tgz`、仅供预设导入的归档与 `SHA256SUMS`。核对校验和后，可用 `dsh plugin --profile web add ./dsh-custom-mode-2.2.4.tgz` 安装插件包。仅供预设导入的归档不包含设置插件。
 
 ## 使用
 
@@ -59,12 +61,12 @@ dsh plugin --profile web add dsh-custom-mode@2.2.3
 
 声明范围：`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-2026-10-09 实时核对 npm：`latest` 和 `next` 仍是 `0.2.0-rc.2`，`alpha` 是当天发布的 `0.2.1-alpha.2`。上游尚未发布去掉预发布后缀的正式稳定版。
+2026-10-16 核对 npm：`latest` 和 `next` 是 `0.2.0-rc.2`，`alpha` 是 `0.2.1-alpha.5`。上游尚未发布去掉预发布后缀的正式稳定版。
 
-| dsh | 通道 | 2.2.3 核对 |
+| dsh | 通道 | 2.2.4 核对 |
 | --- | --- | --- |
-| `0.2.0-rc.2` | npm `latest` / `next` | 精确 npm 宿主、打包加载、API 生命周期、Windows web profile 设置页与选择器 |
-| `0.2.1-alpha.2` | npm `alpha` | 同一套隔离检查，读取该宿主自己的预设声明 |
+| `0.2.0-rc.2` | npm `latest` / `next` | 精确 npm 宿主、打包加载、API 生命周期、隔离 Linux Web profile 设置页与选择器 |
+| `0.2.1-alpha.5` | npm `alpha` | 同一套隔离检查，读取该宿主自己的预设声明 |
 | `0.1.7-rc.2` | 先前声明支持的版本 | 保留在 CI 回归矩阵里 |
 
 发布必须等待单元、启动和浏览器工作流通过。已有精确版本的宿主安装时，可以这样复现：
@@ -74,7 +76,7 @@ node tools/compat-check.mjs --host-install /path/to/host --out /tmp/custom-mode-
 node tools/runtime-check.mjs --host-install /path/to/host --out /tmp/custom-mode-check --browser /path/to/chrome
 ```
 
-两项工具只使用新生成的 home 和普通 mock 提示词。运行检查覆盖全部五档基础模式、重复保存、卸载、重装、用户数据保留与重复安装，不需要调用模型。不宣称 VMware 或原生 Linux 桌面已通过验收。
+两项工具只使用新生成的 home 和普通 mock 提示词。运行检查覆盖全部五档基础模式、重复保存、卸载、重装、用户数据保留与重复安装，不需要调用模型。Windows/Electron 桌面端和真实模型或 GPU 执行尚未验证。详见[准确覆盖范围](docs/CURRENT_COMPATIBILITY.zh.md)。
 
 ## 插件市场
 
