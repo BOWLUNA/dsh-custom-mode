@@ -1,4 +1,4 @@
-# Both current channels must load the packed plugin and pass rendered/lifecycle checks.
+# All current channels must load the packed plugin and pass rendered/lifecycle checks.
 name: browser
 permissions:
   contents: read
@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        dsh: ['0.2.0-rc.2', '0.2.1-alpha.5']
+        dsh: ['0.2.0-rc.2', '0.2.1-alpha.5', '0.2.1-rc.2']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

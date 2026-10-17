@@ -24,22 +24,23 @@ Edit a DeepSeek Harness (`dsh`) custom mode: system prompt, base mode, and plugi
 Pin the version. A bare name can install an older build during pnpm's release cooldown. Details: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.4
+dsh plugin --profile web add dsh-custom-mode@2.2.5
 ```
 
-Restart the process that serves the profile. The version on the settings page is the one that is running.
+Restart the process that serves the profile. Success means Settings → Custom mode shows `v2.2.5`, and the session mode picker offers Custom mode without a broken-preset warning.
 
 Desktop app: its in-app Plugins page is the installation entry point; the CLI cannot modify `profiles/desktop`. This release has not been verified on Windows/Electron.
 
 On Windows, `install.sh` is bash and it needs a `dsh` executable on `PATH`. Otherwise use the `dsh` shipped with DeepSeek Harness, or `node node_modules/@deepseek-ai/dsh/lib/bin.js`.
 
-The GitHub Release also provides a packed plugin (`dsh-custom-mode-2.2.4.tgz`), a preset-only import archive, and `SHA256SUMS`. Verify the checksum, then install the packed plugin with `dsh plugin --profile web add ./dsh-custom-mode-2.2.4.tgz`. The preset-only archive does not include the settings plugin.
+The GitHub Release also provides a packed plugin (`dsh-custom-mode-2.2.5.tgz`), a preset-only import archive, and `SHA256SUMS`. Verify the checksum, then install the packed plugin with `dsh plugin --profile web add ./dsh-custom-mode-2.2.5.tgz`. The preset-only archive does not include the settings plugin.
 
 ## Use
 
 1. Open Settings → Custom mode.
 2. Edit the system prompt. Save is directly under the editor.
-3. A new session uses this assistant when `settings.yaml` has no `agent-presets.default` yet. An existing value is left as it is. Flow-style, scalar, and alias `agent-presets` values are preserved without inserting YAML into them.
+3. For example, select Writing, create an assistant, then edit its prompt; or change the current assistant’s base mode and tool switches, then save.
+4. A new session uses this assistant when `settings.yaml` has no `agent-presets.default` yet. An existing value is left as it is. Flow-style, scalar, and alias `agent-presets` values are preserved without inserting YAML into them.
 
 The prompt is `prompt.md`. The next time a model step is assembled, that file is read again. History can load an older draft into the editor; loading does not write. A save computed against an older copy is refused when the file changed underneath. The model can change the same file only through `custom_prompt`, which asks first.
 
@@ -61,12 +62,13 @@ The page is two branches. This assistant edits the one you have open, and all fi
 
 Declared range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-On 2026-10-16, npm `latest` and `next` named `0.2.0-rc.2`; `alpha` named `0.2.1-alpha.5`. Upstream has not published a final stable version yet.
+On 2026-10-17, npm `latest` names `0.2.0-rc.2`, `alpha` names `0.2.1-alpha.5`, and `next` names `0.2.1-rc.2`. Upstream has not published a final stable version yet.
 
-| dsh | Channel | Checked for 2.2.4 |
+| dsh | Channel | Checked for 2.2.5 |
 | --- | --- | --- |
-| `0.2.0-rc.2` | npm `latest` / `next` | Exact npm host, packed plugin load, API lifecycle, settings and picker in an isolated Linux Web profile |
+| `0.2.0-rc.2` | npm `latest` | Exact npm host, packed plugin load, API lifecycle, settings and picker in an isolated Linux Web profile |
 | `0.2.1-alpha.5` | npm `alpha` | The same isolated checks, against this host's own preset declarations |
+| `0.2.1-rc.2` | npm `next` | The same isolated checks, against this host's own preset declarations |
 | `0.1.7-rc.2` | earlier declared line | Kept in the CI regression matrix |
 
 Release waits for the unit, boot, and browser workflows. To reproduce against an already installed exact host:

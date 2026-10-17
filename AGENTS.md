@@ -78,9 +78,9 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
    unwritable `DSH_HOME` is reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-10. **支持策略：默认与预览两个最新通道都要实测。** 2026-10-16 核对 npm，`latest` / `next`
-    是 **`0.2.0-rc.2`**，`alpha` 是 **`0.2.1-alpha.5`**；官方尚未发布无预发布后缀的稳定版。
-    `test.yml` 和 `browser.yml` 都测这两个通道，`release.yml` 必须等待这两个可复用工作流成功。
+10. **支持策略：当前通道都要实测。** 2026-10-17 核对 npm，`latest`
+    是 **`0.2.0-rc.2`**，`alpha` 是 **`0.2.1-alpha.5`**，`next` 是 **`0.2.1-rc.2`**；官方尚未发布无预发布后缀的稳定版。
+    `test.yml` 和 `browser.yml` 都测这三个通道，`release.yml` 必须等待这两个可复用工作流成功。
     **`0.1.7-rc.2`** 仍保留单元和启动回归腿。更早的线
     （`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，
     但**不为每条历史线加 CI 腿**：成本随版本数线性增长，而机制差异只有两次

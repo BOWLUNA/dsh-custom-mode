@@ -1936,3 +1936,28 @@ GET /api/custom-mode → custom: OK        （第二个助手仍是 broken，它
 - 渲染闸门 **70 → 74**，新增四条：下拉的官方形态、chevron 在文字之后、**告警区在样式表里有规则**、
   行标题 14px/22px。两条被证伪的断言改到实测值。两条线各跑一次：
   `0.2.0-rc.2` 与 `0.1.7-rc.2` 均 **74 通过 / 0 失败**。
+
+
+## 37. DSH 0.2.1-rc.2 打包 Web 验收（2026-10-17）
+
+官方标签：`dsh-v0.2.1-rc.2`，提交 `687f282e8625c6b8d11ff58211a90524be2e4317`。npm `next` 为 `0.2.1-rc.2`；`latest` 仍为 `0.2.0-rc.2`，`alpha` 仍为 `0.2.1-alpha.5`。已安装 npm 包的四份预设声明与官方标签逐字节一致。预设注册表、Connection 与原生设置页源码相对 alpha.5 没有差异。上游新增 DeepSeek 搜索/抓取服务和模型标签界面，本插件不执行这些服务。
+
+命令（Node 24.21.0，隔离 Linux x64 Web 目录）：
+
+```sh
+node tools/compat-check.mjs --host-install <exact-0.2.1-rc.2-host> --out <fresh-evidence> --port 32322
+node tools/runtime-check.mjs --host-install <exact-0.2.1-rc.2-host> --out <fresh-evidence> --browser /opt/google/chrome/chrome --port 32322 --cdp-port 9252 --network-guard ./tools/loopback-test-guard.mjs
+```
+
+实际输出：
+
+```text
+15 suites / 935 checks / 0 failures
+PASS package; PASS boot (install, row, responding port, no fatal stderr)
+PASS picker-probe.mjs
+results: 74 passed, 0 failed (browser-verify.mjs)
+PASS market-row-probe.mjs (10 checks; native on/save/off/save; default off)
+22 runtime checks / 0 failures
+```
+
+兼容检查总 RSS 峰值 530436 KiB；运行检查峰值 1883952 KiB，宿主可用内存最低 2084440 KiB。未调用模型/GPU，未改生产实例。首轮发现两份 README 的旧版本安装示例，修正后全部守卫通过。一次浏览器测试被自设 1536 MiB 预算停止；最终从干净目录以 2048 MiB 上限通过，没有残留自有进程。旧宿主复用 v2.2.4 验收证据，发布必经 CI 仍保留。Windows/Electron 桌面端和真实模型/工具执行尚未验证。

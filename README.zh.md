@@ -24,22 +24,23 @@
 钉版本。只写包名时，pnpm 的发布冷却期可能装到旧版。细节见 [docs/TROUBLESHOOTING.zh.md](docs/TROUBLESHOOTING.zh.md)。
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.4
+dsh plugin --profile web add dsh-custom-mode@2.2.5
 ```
 
-重启为这个 profile 提供服务的进程。设置页上的版本号才是正在运行的版本。
+重启为这个 profile 提供服务的进程。成功判定：设置 → 自定义模式显示 `v2.2.5`，会话模式选择器出现自定义模式，且没有预设损坏告警。
 
-桌面端从应用里的插件页安装。CLI 不能改 `profiles/desktop`。
+桌面端从应用里的插件页安装。CLI 不能改 `profiles/desktop`。本版未实测 Windows/Electron。
 
 在 Windows 上，`install.sh` 是 bash，而且 PATH 里要有 `dsh`。否则用 DeepSeek Harness 自带的 `dsh`，或 `node node_modules/@deepseek-ai/dsh/lib/bin.js`。
 
-GitHub Release 另附插件包 `dsh-custom-mode-2.2.4.tgz`、仅供预设导入的归档与 `SHA256SUMS`。核对校验和后，可用 `dsh plugin --profile web add ./dsh-custom-mode-2.2.4.tgz` 安装插件包。仅供预设导入的归档不包含设置插件。
+GitHub Release 另附插件包 `dsh-custom-mode-2.2.5.tgz`、仅供预设导入的归档与 `SHA256SUMS`。核对校验和后，可用 `dsh plugin --profile web add ./dsh-custom-mode-2.2.5.tgz` 安装插件包。仅供预设导入的归档不包含设置插件。
 
 ## 使用
 
 1. 打开设置 → 自定义模式。
 2. 改系统提示词。保存按钮在编辑器下面。
-3. `settings.yaml` 里还没有 `agent-presets.default` 时，新会话用这个助手。已经写过的值保持原样。`agent-presets` 使用行内对象、标量或别名时也原样保留，不向里面插入 YAML。
+3. 典型用法：选写作姿态新增助手，再改提示词；或调整当前助手的基础模式和工具开关后保存。
+4. `settings.yaml` 里还没有 `agent-presets.default` 时，新会话用这个助手。已经写过的值保持原样。`agent-presets` 使用行内对象、标量或别名时也原样保留，不向里面插入 YAML。
 
 提示词是 `prompt.md`。下一步组装模型输入时会重读这个文件。历史可以把旧稿载入编辑器；载入不落盘。打开页面之后文件被改过时，这一次保存会被拒绝。模型要改同一份文件，只能走 `custom_prompt`，并且先问过你。
 
@@ -61,12 +62,13 @@ GitHub Release 另附插件包 `dsh-custom-mode-2.2.4.tgz`、仅供预设导入�
 
 声明范围：`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
 
-2026-10-16 核对 npm：`latest` 和 `next` 是 `0.2.0-rc.2`，`alpha` 是 `0.2.1-alpha.5`。上游尚未发布去掉预发布后缀的正式稳定版。
+2026-10-17 核对 npm：`latest` 是 `0.2.0-rc.2`，`alpha` 是 `0.2.1-alpha.5`，`next` 是 `0.2.1-rc.2`。上游尚未发布去掉预发布后缀的正式稳定版。
 
-| dsh | 通道 | 2.2.4 核对 |
+| dsh | 通道 | 2.2.5 核对 |
 | --- | --- | --- |
-| `0.2.0-rc.2` | npm `latest` / `next` | 精确 npm 宿主、打包加载、API 生命周期、隔离 Linux Web profile 设置页与选择器 |
+| `0.2.0-rc.2` | npm `latest` | 精确 npm 宿主、打包加载、API 生命周期、隔离 Linux Web profile 设置页与选择器 |
 | `0.2.1-alpha.5` | npm `alpha` | 同一套隔离检查，读取该宿主自己的预设声明 |
+| `0.2.1-rc.2` | npm `next` | 同一套隔离检查，读取该宿主自己的预设声明 |
 | `0.1.7-rc.2` | 先前声明支持的版本 | 保留在 CI 回归矩阵里 |
 
 发布必须等待单元、启动和浏览器工作流通过。已有精确版本的宿主安装时，可以这样复现：
