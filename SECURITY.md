@@ -20,7 +20,8 @@ longer encodes it. Development and verification cover the rows below, newest fir
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `2.2.3` (current release) | `0.2.0-rc.2`, preview `0.2.1-alpha.2`, and `0.1.7-rc.2` | **Supported** — YAML preservation fix; release waits for both channel compatibility and browser checks. Same declared range |
+| `2.2.4` (current release) | `0.2.0-rc.2`, preview `0.2.1-alpha.5`; legacy `0.1.7-rc.2` CI leg retained | **Supported** — isolated Linux Web-profile checks on the two current hosts; Windows/Electron and real model/GPU execution unverified. Same declared range |
+| `2.2.3`  | `0.2.0-rc.2`, preview `0.2.1-alpha.2`, and `0.1.7-rc.2` | Supported (superseded) — YAML preservation fix; release waits for both channel compatibility and browser checks. Same declared range |
 | `2.2.2` | `0.2.0-rc.2`, preview `0.2.1-alpha.1`, and `0.1.7-rc.2` | Supported (superseded) — settings page shows the create rule as a tree. Same declared range |
 | `2.2.1` | `0.2.0-rc.2`, preview `0.2.1-alpha.1`, and `0.1.7-rc.2` | Supported (superseded) — storefront update on top of 2.2.0. Same declared range |
 | `2.2.0` | `0.2.0-rc.2`, preview `0.2.1-alpha.1`, and `0.1.7-rc.2` | Supported (superseded) — same declared range as 2.1.0. This release writes `agent-presets.default: custom` only when that key is absent |

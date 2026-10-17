@@ -227,11 +227,7 @@ try {
     }
     await session.sleep(1200)
 
-    try {
-      await session.clickTextReal('设置', { exact: true })
-    } catch {
-      try { await session.clickTextReal('Settings', { exact: true }) } catch { /* 面板可能已经开着 */ }
-    }
+    await session.openSettings()
     await session.sleep(1600)
     const uiLanguage = await switchLanguage('中文')
     if (uiLanguage !== 'ok') {
@@ -263,7 +259,7 @@ try {
     }
     for (let attempt = 0; attempt < 3; attempt += 1) {
       if ((await panelAlreadyOpen()) === false) {
-        await clickEither(['设置', 'Settings'])
+        await session.openSettings()
         await session.sleep(1200)
       }
       await clickEither([z('nav'), e('nav')])
@@ -608,11 +604,12 @@ try {
     // ── 底子切换：改过但未保存时必须明说（审阅记成"点了没反应"）──────────────
     {
       const before = await session.evaluate(`document.querySelectorAll('.cpfe-base-pending').length`)
-      check('未改底子时没有多余提示', before === 0, String(before))
+      const originalLabel = await session.evaluate(`document.querySelector('.cpfe-pills[data-live="base"] [aria-pressed="true"]')?.textContent.trim() ?? null`)
+
+      check('未改底子时没有多余提示', before === 0 && originalLabel !== null, String(before))
       // 必须点一个**不是当前底子**的 pill：点已经是当前底子的那个，按设计不会出现提示。
       const clicked = await session.evaluate(`(() => {
-        const wanted = ${JSON.stringify([z('base.ptc.label'), z('base.minimal.label'), z('base.cordis.label'), e('base.ptc.label'), e('base.minimal.label'), e('base.cordis.label')])};
-        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] [aria-pressed]')].find(e => e.getAttribute('aria-pressed') !== 'true' && e.getBoundingClientRect().width > 20);
         if (el === undefined) return null;
         el.click();
         return (el.textContent || '').trim();
@@ -622,8 +619,8 @@ try {
       check('点了另一个底子后出现"保存后重算"的提示', typeof hint === 'string' && hint.length > 0, `${JSON.stringify(clicked)} → ${JSON.stringify(hint)}`)
       // 换回去（不保存），后面的检查仍按原底子跑。
       await session.evaluate(`(() => {
-        const wanted = ${JSON.stringify([z('base.standard.label'), e('base.standard.label')])};
-        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] *')].find((e) => wanted.includes((e.textContent || '').trim()) && e.getBoundingClientRect().width > 20);
+        const wanted = ${JSON.stringify(originalLabel)};
+        const el = [...document.querySelectorAll('.cpfe-pills[data-live="base"] [aria-pressed]')].find(e => e.textContent.trim() === wanted);
         if (el !== undefined) el.click();
         return true;
       })()`)

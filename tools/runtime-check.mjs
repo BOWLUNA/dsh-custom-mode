@@ -16,6 +16,7 @@ const output = option('out') && resolve(option('out'))
 const host = option('host-install') && resolve(option('host-install'))
 const browserPath = option('browser') ?? process.env.DSH_TEST_BROWSER
 const apiOnly = args.includes('--api-only')
+const networkGuard = option('network-guard')
 if (!output || !host || (!browserPath && !apiOnly) || !existsSync(join(output, 'report.json'))) {
   console.error('First run compat-check; then pass --host-install, --out and --browser.')
   process.exit(2)
@@ -42,6 +43,8 @@ const check = (label, ok, details = {}) => {
   writeFileSync(join(output, apiOnly ? 'runtime-api-report.json' : 'runtime-report.json'), JSON.stringify(report, null, 2) + '\n')
 }
 let server, browser, stdout = '', stderr = '', launch = 0
+let browserReady = false, browserOutput = '', browserError
+const browserLog = join(output, 'browser-startup-sanitized.log')
 async function stopServer() {
   if (!server || server.exitCode !== null) return
   const stopped = new Promise((resolve) => server.once('exit', resolve))
@@ -53,7 +56,7 @@ async function stopServer() {
 async function startServer() {
   launch += 1; stdout = ''; stderr = ''
   server = spawn(process.execPath, [bin, '--profile', 'web', '--port', String(port), '--no-open'],
-    { cwd: candidate, env, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    { cwd: candidate, env: { ...env, ...(networkGuard ? { NODE_OPTIONS: '--max-old-space-size=256 --import ' + resolve(networkGuard) } : {}) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
   server.stdout.on('data', (data) => { stdout += data })
   server.stderr.on('data', (data) => { stderr += data })
   const deadline = Date.now() + 90000
@@ -114,13 +117,25 @@ try {
   const repeated = await live.request('/api/custom-mode/state', { id, mode: 'all', overrides: {}, prompt: sample, name: 'Mock lifecycle sample', description: '' })
   check('repeated save preserves prompt bytes', repeated.data.ok && readFileSync(promptFile, 'utf8') === sample)
   if (!apiOnly) {
-  browser = spawn(browserPath, ['--headless=new', '--disable-gpu', ...(process.platform === 'linux' ? ['--no-sandbox', '--disable-dev-shm-usage'] : []),
+  browser = spawn(browserPath, ['--headless=new', '--disable-gpu', '--disable-background-networking', '--disable-extensions', '--disable-component-update', '--renderer-process-limit=1', '--js-flags=--max-old-space-size=256', ...(process.platform === 'linux' ? ['--no-sandbox', '--no-zygote', '--disable-dev-shm-usage'] : []),
     `--remote-debugging-port=${cdp}`, `--user-data-dir=${join(output, 'chrome-profile')}`, '--window-size=1440,1000', 'about:blank'],
-    { windowsHide: true, stdio: 'ignore' })
-  let ready = false
-  for (let i = 0; i < 40; i += 1) { try { ready = (await fetch(`http://127.0.0.1:${cdp}/json/version`)).ok } catch {} if (ready) break; await pause(250) }
-  if (!ready) throw new Error('Isolated headless browser did not become ready')
-  for (const [script, picture, extra] of [['picker-probe.mjs', 'picker.png', ['--expect', '自定义模式']], ['browser-verify.mjs', 'settings.png', []]]) {
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+  const recordBrowserOutput = (data) => {
+    browserOutput = (browserOutput + data).slice(-65536)
+    writeFileSync(browserLog, redact(browserOutput))
+  }
+  browser.stdout.on('data', recordBrowserOutput)
+  browser.stderr.on('data', recordBrowserOutput)
+  browser.on('error', (error) => { browserError = error })
+  const browserDeadline = Date.now() + 30000
+  while (Date.now() < browserDeadline && browser.exitCode === null && !browserError) {
+    try { browserReady = (await fetch(`http://127.0.0.1:${cdp}/json/version`, { signal: AbortSignal.timeout(1000) })).ok } catch {}
+    if (browserReady) break
+    await pause(250)
+  }
+  if (!browserReady) throw new Error(`Isolated headless browser did not become ready (exit ${browser.exitCode}, signal ${browser.signalCode ?? 'none'}): ${browserError?.message ?? browserOutput.trim().slice(-4000)}`)
+  const browserChecks = args.includes('--diagnose-ui') ? [['ui-diagnosis.mjs', 'ui-diagnosis.png', []]] : [['picker-probe.mjs', 'picker.png', ['--expect', '自定义模式', '--reuse-page']], ['browser-verify.mjs', 'settings.png', []], ['market-row-probe.mjs', 'market-row.png', ['--version', report.hostVersion]]]
+  for (const [script, picture, extra] of browserChecks) {
     const result = spawnSync(process.execPath, [join(tools, script), '--url', live.auth, '--out', join(output, picture), ...extra],
       { cwd: candidate, env, encoding: 'utf8', timeout: 180000, maxBuffer: 8 * 1024 * 1024, windowsHide: true })
     const log = redact((result.stdout ?? '') + (result.stderr ?? ''))
@@ -129,6 +144,12 @@ try {
     if (result.status !== 0) console.error(log.split('\n').filter((line) => /^FAIL|Error|failed|结果/.test(line)).slice(-12).join('\n'))
   }
   }
+  await stopServer()
+  const restartPrompt = readFileSync(promptFile, 'utf8')
+  const restartComposition = readFileSync(join(home, '.agent-presets', id, 'agent.cordis.yml'), 'utf8')
+  live = await startServer()
+  const restarted = await live.request('/api/custom-mode/state?id=' + encodeURIComponent(id))
+  check('plain restart preserves loaded assistant, prompt and composition', restarted.data.ok && !restarted.data.broken && restarted.data.prompt === restartPrompt && readFileSync(join(home, '.agent-presets', id, 'agent.cordis.yml'), 'utf8') === restartComposition)
   await stopServer()
   const promptBefore = readFileSync(promptFile, 'utf8')
   const compositionFile = join(home, '.agent-presets', id, 'agent.cordis.yml')
@@ -151,7 +172,7 @@ try {
 } catch (error) { check('runtime exception', false, { error: redact(error.message) }) }
 finally {
   if (browser) {
-    try { process.env.CDP_PORT = String(cdp); const { connect } = await import('./screenshots/cdp.mjs'); const session = await connect(); session.sessionId = undefined; await session.send('Browser.close'); session.close() } catch {}
+    try { if (!browserReady) throw new Error('Browser never became ready'); process.env.CDP_PORT = String(cdp); const { connect } = await import('./screenshots/cdp.mjs'); const session = await connect(); session.sessionId = undefined; await session.send('Browser.close'); session.close() } catch {}
     browser.kill('SIGTERM')
   }
   await stopServer()

@@ -8,6 +8,17 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.2.4] — 2026-10-17
+
+- Label the official `tool-plugin-market` composition row in English and Chinese on DSH `0.2.1-alpha.5`. Its shipped default remains off; composition text and platform conditions are preserved.
+- Update both current-channel CI pins and browser navigation for the alpha.5 More/Account → Settings menu. Reuse one browser page and clear completed protocol timers.
+- Verify isolated Linux x64 Web profiles on exact official DSH `0.2.0-rc.2` and `0.2.1-alpha.5`: 15 suites, 935 checks per host; 74 rendered browser checks; five base modes, save/restart, uninstall/reinstall, and user-data preservation. The alpha.5 row is tested through its real native switch and save path; rc.2 does not acquire that row.
+- Attach the clean npm plugin archive, preset-only import archive, and SHA-256 checksums to GitHub Releases. Existing compatibility and browser release gates remain required.
+
+DSH rc.2 and alpha.5 are prerelease hosts. Windows/Electron desktop, real model/tool execution, and real GPU execution are unverified. No model was called during these checks.
+
+Install `2.2.4` and restart the process serving the Web profile. Existing prompts and presets need no migration. The `.dshpreset` asset contains only the preset; install the `.tgz` or npm package for the settings page.
+
 ## [2.2.3]
 
 - Preserve flow-style, scalar, and alias `agent-presets` settings when choosing a default assistant. Recognize quoted section and default keys, so an existing choice is never overwritten and valid YAML is not corrupted.

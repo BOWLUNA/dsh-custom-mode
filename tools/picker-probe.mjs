@@ -39,14 +39,14 @@ const KNOWN = [
 ]
 
 const session = await connect()
-await session.newPage()
+if (!argv.includes('--reuse-page')) await session.newPage()
 await session.setViewport(1440, 1000, 1)
 await session.goto(url, { waitMs: 8000 })
 
 // Dismiss first-run overlays the same way the settings-page verifier does.
 for (let round = 0; round < 4; round += 1) {
   let clicked = false
-  for (const label of ['知道了', '我明白', '跳过', '以后再说', '稍后配置', '稍后', '关闭', '继续', '开始使用', 'Got it', 'Skip', 'Later', 'Continue']) {
+  for (const label of ['知道了', '我明白', '跳过', '以后再说', '稍后配置', '稍后', '关闭', '继续', '开始使用', 'Got it', 'Skip', 'Later', 'Close', 'Continue']) {
     try {
       await session.clickTextReal(label, { exact: false })
       clicked = true
