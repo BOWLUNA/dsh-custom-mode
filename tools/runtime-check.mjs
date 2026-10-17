@@ -43,6 +43,8 @@ const check = (label, ok, details = {}) => {
   writeFileSync(join(output, apiOnly ? 'runtime-api-report.json' : 'runtime-report.json'), JSON.stringify(report, null, 2) + '\n')
 }
 let server, browser, stdout = '', stderr = '', launch = 0
+let browserReady = false, browserOutput = '', browserError
+const browserLog = join(output, 'browser-startup-sanitized.log')
 async function stopServer() {
   if (!server || server.exitCode !== null) return
   const stopped = new Promise((resolve) => server.once('exit', resolve))
@@ -117,10 +119,21 @@ try {
   if (!apiOnly) {
   browser = spawn(browserPath, ['--headless=new', '--disable-gpu', '--disable-background-networking', '--disable-extensions', '--disable-component-update', '--renderer-process-limit=1', '--js-flags=--max-old-space-size=256', ...(process.platform === 'linux' ? ['--no-sandbox', '--no-zygote', '--disable-dev-shm-usage'] : []),
     `--remote-debugging-port=${cdp}`, `--user-data-dir=${join(output, 'chrome-profile')}`, '--window-size=1440,1000', 'about:blank'],
-    { windowsHide: true, stdio: 'ignore' })
-  let ready = false
-  for (let i = 0; i < 40; i += 1) { try { ready = (await fetch(`http://127.0.0.1:${cdp}/json/version`)).ok } catch {} if (ready) break; await pause(250) }
-  if (!ready) throw new Error('Isolated headless browser did not become ready')
+    { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
+  const recordBrowserOutput = (data) => {
+    browserOutput = (browserOutput + data).slice(-65536)
+    writeFileSync(browserLog, redact(browserOutput))
+  }
+  browser.stdout.on('data', recordBrowserOutput)
+  browser.stderr.on('data', recordBrowserOutput)
+  browser.on('error', (error) => { browserError = error })
+  const browserDeadline = Date.now() + 30000
+  while (Date.now() < browserDeadline && browser.exitCode === null && !browserError) {
+    try { browserReady = (await fetch(`http://127.0.0.1:${cdp}/json/version`, { signal: AbortSignal.timeout(1000) })).ok } catch {}
+    if (browserReady) break
+    await pause(250)
+  }
+  if (!browserReady) throw new Error(`Isolated headless browser did not become ready (exit ${browser.exitCode}, signal ${browser.signalCode ?? 'none'}): ${browserError?.message ?? browserOutput.trim().slice(-4000)}`)
   const browserChecks = args.includes('--diagnose-ui') ? [['ui-diagnosis.mjs', 'ui-diagnosis.png', []]] : [['picker-probe.mjs', 'picker.png', ['--expect', '自定义模式', '--reuse-page']], ['browser-verify.mjs', 'settings.png', []], ['market-row-probe.mjs', 'market-row.png', ['--version', report.hostVersion]]]
   for (const [script, picture, extra] of browserChecks) {
     const result = spawnSync(process.execPath, [join(tools, script), '--url', live.auth, '--out', join(output, picture), ...extra],
@@ -159,7 +172,7 @@ try {
 } catch (error) { check('runtime exception', false, { error: redact(error.message) }) }
 finally {
   if (browser) {
-    try { process.env.CDP_PORT = String(cdp); const { connect } = await import('./screenshots/cdp.mjs'); const session = await connect(); session.sessionId = undefined; await session.send('Browser.close'); session.close() } catch {}
+    try { if (!browserReady) throw new Error('Browser never became ready'); process.env.CDP_PORT = String(cdp); const { connect } = await import('./screenshots/cdp.mjs'); const session = await connect(); session.sessionId = undefined; await session.send('Browser.close'); session.close() } catch {}
     browser.kill('SIGTERM')
   }
   await stopServer()
