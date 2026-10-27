@@ -20,7 +20,8 @@ longer encodes it. Development and verification cover the rows below, newest fir
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `2.2.5` (current release) | `0.2.0-rc.2`, `0.2.1-alpha.5`, `0.2.1-rc.2`; legacy `0.1.7-rc.2` CI leg retained | **Supported** — exact host package, boot, Linux Web browser and lifecycle gates; Windows/Electron and real model/GPU execution unverified. Same declared range |
+| `2.2.6` (current package) | `0.2.1-rc.2`, `0.2.1-rc.4`, `0.2.2-alpha.2`; legacy `0.2.0-rc.2` and `0.1.7-rc.2` regression | **Supported** — the exact completed checks and remaining boundaries are recorded in CURRENT_COMPATIBILITY.md. Component/unit evidence is not desktop or real-model/GPU acceptance |
+| `2.2.5` (historical release) | `0.2.0-rc.2`, `0.2.1-alpha.5`, `0.2.1-rc.2`; legacy `0.1.7-rc.2` CI leg retained | Historical package/boot/Linux Web lifecycle checks; the later review found the cwd prompt-contract gap. Windows/Electron and real model/GPU execution were unverified |
 | `2.2.4` (superseded) | `0.2.0-rc.2`, preview `0.2.1-alpha.5`; legacy `0.1.7-rc.2` CI leg retained | **Supported** — isolated Linux Web-profile checks on the two current hosts; Windows/Electron and real model/GPU execution unverified. Same declared range |
 | `2.2.3`  | `0.2.0-rc.2`, preview `0.2.1-alpha.2`, and `0.1.7-rc.2` | Supported (superseded) — YAML preservation fix; release waits for both channel compatibility and browser checks. Same declared range |
 | `2.2.2` | `0.2.0-rc.2`, preview `0.2.1-alpha.1`, and `0.1.7-rc.2` | Supported (superseded) — settings page shows the create rule as a tree. Same declared range |

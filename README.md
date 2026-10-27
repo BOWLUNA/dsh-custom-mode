@@ -19,80 +19,78 @@ Edit a DeepSeek Harness (`dsh`) custom mode: system prompt, base mode, and plugi
 </tr>
 </table>
 
-## Install
+## Install and make the first request
 
-Pin the version. A bare name can install an older build during pnpm's release cooldown. Details: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+`2.2.6` is the current repair candidate. Publication and compatibility results are recorded in [CURRENT_COMPATIBILITY.md](docs/CURRENT_COMPATIBILITY.md); a candidate version is not available from npm until publication completes.
+
+Start with an installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and a model configured through its own interface. Check `dsh --version` against the exact hosts in the compatibility record. This package does not install the host or configure model credentials.
+
+### Web / CLI
+
+Pin the plugin version; a bare name can resolve an older build during pnpm's release cooldown:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.5
+dsh --version
+dsh plugin --profile web add dsh-custom-mode@2.2.6
 ```
 
-Restart the process that serves the profile. Success means Settings → Custom mode shows `v2.2.5`, and the session mode picker offers Custom mode without a broken-preset warning.
+Restart the process that serves this Web profile using its usual launcher. For a local CLI instance, the existing launch form is `dsh web --port 3081 --no-open`; use a free port and open the URL printed by that process. Restart only that instance. Installing a bundle does not refresh an already running host.
 
-Desktop app: its in-app Plugins page is the installation entry point; the CLI cannot modify `profiles/desktop`. This release has not been verified on Windows/Electron.
+### Desktop and Windows
 
-On Windows, `install.sh` is bash and it needs a `dsh` executable on `PATH`. Otherwise use the `dsh` shipped with DeepSeek Harness, or `node node_modules/@deepseek-ai/dsh/lib/bin.js`.
+In the desktop app, use its **Plugins** page to install `dsh-custom-mode@2.2.6`, then restart the app. This project's scripts deliberately refuse `--profile desktop`; do not modify its profile files by hand. Windows/Electron acceptance remains separate from Web acceptance; see the compatibility record.
 
-The GitHub Release also provides a packed plugin (`dsh-custom-mode-2.2.5.tgz`), a preset-only import archive, and `SHA256SUMS`. Verify the checksum, then install the packed plugin with `dsh plugin --profile web add ./dsh-custom-mode-2.2.5.tgz`. The preset-only archive does not include the settings plugin.
+On Windows, the npm installation above can use the host's `dsh` command from PowerShell. Only the optional clone installer requires Git Bash (plus Node.js and npm). If `dsh` is not on PATH, use the host's supplied launcher, or replace `dsh` with `node "<host-install>/node_modules/@deepseek-ai/dsh/lib/bin.js"`. Do not point that path at this plugin's directory unless the host is actually installed there.
 
-## Use
+### Verify the whole path
 
-1. Open Settings → Custom mode.
-2. Edit the system prompt. Save is directly under the editor.
-3. For example, select Writing, create an assistant, then edit its prompt; or change the current assistant’s base mode and tool switches, then save.
-4. A new session uses this assistant when `settings.yaml` has no `agent-presets.default` yet. An existing value is left as it is. Flow-style, scalar, and alias `agent-presets` values are preserved without inserting YAML into them.
+1. Open Settings → Custom mode and check the displayed version. A page that opens is only the first check.
+2. Create an assistant, for example with the Writing starting settings. Select that assistant for editing and give it a recognizable name.
+3. Set a temporary prompt such as `For the next readiness check, reply with exactly CUSTOM_MODE_READY.` Save and wait for the page to confirm that it was applied. If it says the file was saved but application failed, select Retry activation before continuing.
+4. Start a **new session**, open its mode/assistant selector, and explicitly choose that named assistant. Send `Readiness check.` through a model already configured in DSH.
+5. Success means the assistant is selectable without a broken-preset warning and returns the expected readiness reply without a prompt-assembly error. Restore your intended prompt after the check. If it fails, use the [current recovery steps](docs/TROUBLESHOOTING.md#current-recovery-steps).
 
-The prompt is `prompt.md`. The next time a model step is assembled, that file is read again. History can load an older draft into the editor; loading does not write. A save computed against an older copy is refused when the file changed underneath. The model can change the same file only through `custom_prompt`, which asks first.
+## What each choice means
 
-The page is two branches. This assistant edits the one you have open, and all five base modes can be chosen. New assistant writes only when you click New assistant: Coding, Writing, and Chat stay selectable, and only the official Standard mode is lit. The other four official modes are dim and cannot be chosen there.
+The assistant selected on the settings page is the **one being edited**. Selecting or creating it does not change the assistant used by a new session. On first activation, the plugin may fill a missing default with the built-in `custom` assistant; an existing default is preserved. A newly created Writing assistant still needs to be chosen in the session selector.
 
-| Posture | After create |
+Choose the creation starting settings first; a new assistant starts from Standard. After creation, its base mode and individual plugin switches can be adjusted in its editor.
+
+| Starting settings | Initial behavior |
 | --- | --- |
-| Develop | Official Standard mode, tools as shipped. |
-| Write | Official Standard mode. Terminal off, file tools on. |
-| Chat | Official Standard mode. Files and terminal off. |
+| Coding | Official Standard mode, tools as shipped. |
+| Writing | Official Standard mode; terminal off, file tools on. |
+| Chat | Official Standard mode; files and terminal off. |
 
-## Boundaries
+The prompt is stored in `prompt.md` and reread when the next model step is assembled. History and file import load a draft; saving writes it. A stale save is refused when the underlying file changed. `custom_prompt` asks for approval before it writes the same file. Turning off the Identity/persona row also turns off this prompt's injection.
 
-- It does not replace Standard, PTC, Minimal, or Creator.
-- It does not ship a role-play preset.
-- It does not run in the desktop profile from the CLI. Headless mode will not start a session that uses an agent preset.
+## Upgrade, clone development, and removal
 
-## Compatibility
+The fixed-version npm path above is the normal installation path. Release assets, once published, also include `dsh-custom-mode-2.2.6.tgz`, a preset-only import archive, and `SHA256SUMS`. Verify a downloaded archive's hash before installing it; the preset-only archive does not include the settings page.
 
-Declared range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`
+For a clone, `./install.sh --profile web` keeps the source-linked development workflow. It requires Node.js, npm, Bash and the host CLI. Before changing the profile, it prepares the new package and an archive of the **actual installed old package** with offline `npm pack --ignore-scripts`. It preserves existing prompt, metadata and composition, and refreshes managed code only after installation checks. A failed replacement reinstalls the local old archive and restores refreshed code. Files newly created by the attempt are retained at printed recovery paths when rolled back. An unverified rollback exits with an error and keeps the archive and logs at the printed transaction path. A broken old install that cannot be archived is rejected before replacement. The script is not a substitute for the desktop plugin manager.
 
-On 2026-10-17, npm `latest` names `0.2.0-rc.2`, `alpha` names `0.2.1-alpha.5`, and `next` names `0.2.1-rc.2`. Upstream has not published a final stable version yet.
+`./uninstall.sh` removes the plugin but keeps assistant data. `--purge` explicitly deletes the managed assistant directories and their prompts; keep your own backup before using it.
 
-| dsh | Channel | Checked for 2.2.5 |
-| --- | --- | --- |
-| `0.2.0-rc.2` | npm `latest` | Exact npm host, packed plugin load, API lifecycle, settings and picker in an isolated Linux Web profile |
-| `0.2.1-alpha.5` | npm `alpha` | The same isolated checks, against this host's own preset declarations |
-| `0.2.1-rc.2` | npm `next` | The same isolated checks, against this host's own preset declarations |
-| `0.1.7-rc.2` | earlier declared line | Kept in the CI regression matrix |
+## Compatibility and versioning
 
-Release waits for the unit, boot, and browser workflows. To reproduce against an already installed exact host:
+Declared host range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0 || >=0.2.2-alpha.2 <0.3.0-0`
 
-```sh
-node tools/compat-check.mjs --host-install /path/to/host --out /tmp/custom-mode-check
-node tools/runtime-check.mjs --host-install /path/to/host --out /tmp/custom-mode-check --browser /path/to/chrome
-```
+The plugin version is its own stable `x.y.z` line; it does not mirror DSH. On 2026-10-27 the public host tags were `latest=0.2.1-rc.2`, `next=0.2.1-rc.4`, and `alpha=0.2.2-alpha.2`. Tags move; a declaration or old green CI run is not fresh acceptance. This unpublished candidate tentatively admits the new alpha tuple for exact-host acceptance; retain it for publication only after the full gates pass. [Exact versions, pending checks and historical evidence](docs/CURRENT_COMPATIBILITY.md) are kept together.
 
-Both tools use a generated home and ordinary mock prompts. The runtime check exercises all five base modes, repeated saves, uninstall, reinstall, data preservation, and repeated installation. No model calls are needed. Windows/Electron desktop and real model or GPU execution are unverified. See [the exact coverage](docs/CURRENT_COMPATIBILITY.md).
+Release requires the compatibility and browser workflows. The unit runner, real prompt-component checks, packed-install checks and browser checks cover different boundaries. Windows/Electron, a real model response and GPU execution must each have their own evidence; they are not inferred from a page screenshot or unit count. Headless mode does not start an agent-preset session.
 
 ## Plugin markets
 
-`dshmarket`, DSH Plugin Hub (`dsh-plugin`), and DSH Plugin Store (`dshmarketplace-plugin`) use different catalogs but install the same profile bundle. The root npm manifest provides `dsh.bundle.patch`, the browser export, the public repository, and matching compatibility ranges; no extra runtime adapter or build script is needed.
-
-Run `node tools/market-check.mjs --out /tmp/custom-mode-markets.json` to check their public discovery data. An inaccessible catalog or an unverified/stale listing is reported explicitly. The tool never runs catalog-provided shell commands or submits a listing. [Market interfaces and limits](docs/MARKETPLACES.md).
+The documented catalogs use different discovery and approval rules. Their 2026-10-09 listing results are historical, so a package may not be searchable in every market today. The fixed-version installation above remains the direct path. [Market interfaces and limits](docs/MARKETPLACES.md) explains the read-only adapter; it never executes catalog-provided shell commands or submits a listing.
 
 ## Docs
 
-- [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) — wrong version installed, base mode unavailable, half-finished upgrade
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — where the prompt is read, and which host calls this package depends on
-- [docs/PUBLISHING.md](docs/PUBLISHING.md) — tags and release
-- [CONTRIBUTING.md](CONTRIBUTING.md) — people
-- [AGENTS.md](AGENTS.md) — agents
+- [Troubleshooting](docs/TROUBLESHOOTING.md) — current recovery first, historical incidents below.
+- [Architecture](docs/ARCHITECTURE.md) — prompt reading and host coupling points.
+- [Publishing](docs/PUBLISHING.md) — existing gated release path and read-back evidence.
+- [Contributing](CONTRIBUTING.md) — isolated development and checks.
+- [AGENTS.md](AGENTS.md) — repository instructions for agents.
 
 ## License
 

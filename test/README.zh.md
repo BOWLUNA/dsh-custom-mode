@@ -6,7 +6,7 @@
 node test/run.mjs
 ```
 
-一个入口跑 15 个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
+一个入口跑 18 个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
 `@deepseek-ai/dsh-agent-presets`）：
 
 ```
@@ -15,11 +15,21 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 ──────── composition.test.mjs ────────
 … result: N passed, 0 failed
 … one such block per suite …
-all 15 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 18 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **935 项检查**。只有 `composition.test.mjs` 需要那个出厂目录，其余十四个自带夹具、临时目录与桩，
+合计 **1117 项检查**。只有 `composition.test.mjs` 需要那个出厂目录，其余十七个自带夹具、临时目录与桩，
 可以直接单独跑。
+
+修复套件覆盖多文件中断恢复（`atomic-recovery`）、迟到UI响应（`client-async`），以及真实Bash安装器
+配合离线打包、合成包管理器与文件系统故障（`install-script`）。另有不启动服务或模型的精确宿主组件门禁：
+
+```sh
+node tools/prompt-contract-check.mjs --host-install /path/to/exact-host
+```
+
+它使用真实提示词注册表与工作目录生命周期，只有会话/文件系统投影为合成；检查旧提示词、自定义suffix
+和目录修复，同时保留用户文件字节。
 
 并集基础模式（`all`，选择器里的第五项）在 `composition.test.mjs` 的 2d–2f 与 `editor-route.test.mjs`
 的 8b 里有专门章节，断言的是**属性**而不是写死的行 id：并集必须覆盖每一个出厂行、两层都不许有重复 id、

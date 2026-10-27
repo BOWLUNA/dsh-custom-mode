@@ -2,105 +2,78 @@
 
 English | [中文](CONTRIBUTING.zh.md)
 
-Thanks for wanting to help with `dsh-custom-mode` — a **custom mode** (agent preset) for
-[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness), plus the settings-page plugin
-that edits its system prompt.
+`dsh-custom-mode` is an agent preset plus a settings-page plugin for DeepSeek Harness. The repository root is the package, `preset/` is its one preset source, and the runtime remains plain ES modules with no build step or added runtime dependencies.
 
-This project is small and deliberately has **no build step and no dependencies**: the browser half is a
-hand-written bundle and everything else is plain Node ES modules. Keeping it that way is part of the
-design, not an accident.
+## Report a reproducible failure
 
-## Before you open an issue
+Start with the [current troubleshooting steps](docs/TROUBLESHOOTING.md#current-recovery-steps). Report the exact host/plugin versions, platform, installation path and failing step. An open page, a successful save and a successful model request are different observations. Use synthetic prompts and sanitize token URLs, credentials and private history.
 
-Most failures here are silent — the mode simply does not appear, or a save does not take effect. Start
-with [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md): it covers the failures that were actually
-reproduced on a real machine, each with symptoms, cause and a way out. Then use the issue template; it
-asks for the two things that separate "installed but inert" from "not installed at all".
+## Isolated development
 
-## Ways to help that are not code
-
-- Report bugs with the reproduction steps the template asks for.
-- Tell us the DSH version you are on. This plugin is version-locked to the DSH release it was adapted
-  to, so "which DSH" is the first question for any report.
-- If you build your own DSH plugin, add the [`dsh-plugin` topic](https://github.com/topics/dsh-plugin)
-  to your repository — that is how plugins get discovered.
-
-## Development loop
-
-Prerequisites: Node.js ≥ 20, `git`, and a `dsh` matching the version in
-`package.json` (currently `0.2.0-rc.2`; if it differs, check the README's coupling-point
-table first).
+Use Node 24 for full host/integration checks, plus git, npm and Bash for the clone installer. The package's Node 20 declaration covers its code, while installed host dependencies can require a newer runtime. Choose an exact accepted host from [CURRENT_COMPATIBILITY.md](docs/CURRENT_COMPATIBILITY.md); the package and host versions do not have to match.
 
 ```sh
 git clone https://github.com/BOWLUNA/dsh-custom-mode
 cd dsh-custom-mode
-node test/run.mjs          # 15 suites; resolves the shipped presets itself (0.1.7+ derives them)
+node test/run.mjs
+node test/install-script.test.mjs
 ```
 
-To try the plugin against a real harness, install it into a **throwaway** `DSH_HOME` so your own
-installation is never touched:
+The test runner needs the exact host's shipped declarations and explains resolution failures. Tests use synthetic temporary paths. Install host dependencies in a task-specific prefix; do not change a live harness installation, an archived node_modules tree or global packages. If a source checkout's dependency link must remain untouched, test an immutable candidate snapshot with a new dependency link, and keep the source checkout as the sole editable source.
+
+For a disposable local Web home only:
 
 ```sh
-DSH_HOME=/tmp/dsh-dev ./install.sh
-DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open     # then open the URL it prints
+DSH_HOME=/tmp/dsh-dev ./install.sh --profile web
+DSH_HOME=/tmp/dsh-dev dsh web --port 3081 --no-open
 ```
 
-Editing `client.js` is picked up by client HMR in about a second — no restart, no refresh.
-Changing the host half (`index.mjs`, `composition.mjs`, `meta.mjs`, `paths.mjs`) needs a restart.
+Use a free port and only stop processes you started. The clone installer requires npm to pack/validate local archives offline, preserves user files, and keeps verified rollback evidence; it never downloads a newer rollback package. Its successful installation stays source-linked, so client edits can use host HMR. Host module changes require restarting that isolated instance. Use the desktop app's own plugin manager for its profile.
 
-Screenshots are produced, not taken: `tools/screenshots/` drives a real instance over CDP. Use it
-instead of editing images by hand.
-
-## What must not break
-
-These are the invariants the tests and the docs exist for. Each one was a real bug at some point:
-
-- **Untouched rows stay byte-identical.** The compiler rewrites a shipped composition by text surgery;
-  a row the user never touched must keep its `!!js` platform condition and its shipped `disabled`
-  state. A round-trip through a YAML parser would silently change platform behaviour.
-- **The switch is tri-state**, not a boolean: untouched / explicitly on / explicitly off.
-- **The settings route is registered on the platform's fenced channel** — `ctx.connection.fetch.register(...)`,
-  whose paths include the `/api` prefix. The carrier applies the browser-trust fence (Host/Origin + session
-  auth) **before** dispatch, so the plugin never hand-rolls a check.
-  *(History, so nobody "restores" it: until `1.0.3` this page registered on the raw `webServer` table and called
-  `ctx.connection.requestRejection` itself, which is how an unauthenticated GET could read the prompt. See
-  `SECURITY.md`; `test/editor-route.test.mjs` now asserts the source contains neither call.)*
-- **The plugin row activates everywhere.** Waiting for services belongs in a scoped `ctx.inject`, not
-  in the row's own `inject` — otherwise a profile without a web server prints the same
-  "did not activate" warning a broken installation does.
-- **The two copies of the `{{…}}` validator stay in step** (`index.mjs` and
-  `preset/prompt-tool.mjs`). They are duplicated on purpose; a drift means one write path accepts
-  something the renderer throws on, i.e. every request in that mode fails.
-- **The dictionary copy in `client.js` stays in step with `locales.mjs`.** The browser half cannot
-  import it, so a test extracts both and compares them.
-- **`preset/prompt.md` is user data.** Tests must write to temporary paths, never to the repository's
-  copy.
-
-## Translations carry equal authority
-
-`README.md` and `CONTRIBUTING.md` are English; `README.zh.md` and `CONTRIBUTING.zh.md` are Chinese.
-Both sides matter equally, so the pairing is **recorded and checked**:
+## Required evidence before release
 
 ```sh
-node tools/verify-translation-pairing.mjs           # what CI runs
-node tools/verify-translation-pairing.mjs --write   # after bringing both sides along
+node test/run.mjs
+node tools/verify-version-consistency.mjs
+node tools/verify-translation-pairing.mjs
+node tools/verify-doc-numbers.mjs
+node tools/verify-browser-literals.mjs
+npm pack --dry-run --ignore-scripts --json
 ```
 
-Edit one side and forget the other, and CI will say so. Re-record only once both sides really say the
-same thing.
+Register new suites in `test/run.mjs`; update documented counts from the real integrated run. Check actual prompt assembly against the exact supported host APIs, including old user prompts/custom suffixes. Reproduce the fixed failure paths rather than merely checking the new implementation's shape.
 
-## Version numbers
+Real UI changes need the existing browser verification against an isolated exact host and the official settings controls as the reference. Packed install, preset selection, save/application, restart, uninstall/reinstall and the first-request boundary need their own evidence. A component test is not a desktop acceptance result. Use [CURRENT_COMPATIBILITY.md](docs/CURRENT_COMPATIBILITY.md) for reproduction entry points and pending checks.
 
-The package version is its **own line** (`1.0.0`, `1.0.1`, …), not a mirror of the DSH release.
-Which DSH this plugin supports is declared in `engines.dsh` and the peer range in
-`package.json`; `tools/verify-version-consistency.mjs` asserts the DSH version CI tests falls
-inside them. Bump the version for every publish (npm refuses to republish one), and widen the ranges
-when you re-adapt to a newer DSH. See the "Versioning" section of the README.
+## Invariants
+
+- Preserve untouched composition rows byte-for-byte, including platform conditions and shipped disabled state; do not YAML-round-trip the file.
+- Preserve three-state switches: untouched, explicitly on and explicitly off.
+- Register routes through the host's authenticated shared `/api` channel, keeping the carrier's Host/Origin/authentication fence.
+- Wait for optional host services inside scoped injection; missing Web services must not stall the whole plugin row.
+- Keep the page/tool prompt validators and the browser/host dictionaries consistent.
+- Treat prompt, metadata and composition as user data. Refresh managed code separately; use temporary fixtures in tests.
+- Preserve recovery evidence and recover before assistant discovery; process-termination checks do not prove physical power-loss durability.
+- Serialize persisted changes with registry synchronization, and distinguish saved-but-not-applied from a completed operation. Retry synchronization without replaying a mutation.
+- Use the official native UI primitives and measured defaults; do not repaint their disabled states, spacing or typography to invent another control system.
+
+## Equal-authority translations
+
+Edit both language documents before updating their pairing records:
+
+```sh
+node tools/verify-translation-pairing.mjs --write
+node tools/verify-translation-pairing.mjs
+```
+
+Pair hashes catch drift, while structure and language checks catch missing sections. Re-recording a hash does not replace reviewing both texts.
+
+## Version and publication
+
+Every publish gets a new plain `x.y.z` plugin version. Host compatibility lives in `engines.dsh` and the optional peer range; exact CI pins must satisfy both. New dist-tags are information to investigate, not automatic support. Follow [PUBLISHING.md](docs/PUBLISHING.md), use the existing gated workflow, and keep independent review, remote SHA read-back and distribution verification separate. Do not change publisher permissions or merge the default branch as an incidental development step.
 
 ## Style
 
-- Plain JavaScript ES modules — no TypeScript, no bundler, no new dependencies.
-- Comments explain *why*, and measured facts beat opinions: if you write "this is how dsh behaves",
-  say how you checked. `docs/MEASUREMENTS.md` is where that kind of evidence lives.
-- Keep the tests' assertions precise. A loose regex that passes for the wrong reason is worse than no
-  test — two of the tests in this repository were written wrong first and had to be fixed.
+- Plain JavaScript ES modules; no bundler, TypeScript migration or new runtime dependencies for this repair.
+- Explain why a constraint exists. Back host-behavior claims with exact-source references and observed output.
+- Keep tests tied to user-visible behavior and failure recovery, with synthetic data and honest coverage boundaries.

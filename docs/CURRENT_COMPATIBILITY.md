@@ -2,6 +2,32 @@
 
 English | [中文](CURRENT_COMPATIBILITY.zh.md)
 
+## 2.2.6 verification scope
+
+Results are tied to exact installations and generated source snapshots. The current integrated Windows/Node `24.21.0` check on DSH `0.2.1-rc.2` passed **18 suites / 1117 checks**. The installer includes partial-write, exclusive-publication, concurrent-file, failed-rollback and recovery-before-fill cases; an independent reviewer reproduced the publication failure boundaries. These are local/component checks, not a complete desktop conversation.
+
+On 2026-10-27 the public npm host tags were `latest=0.2.1-rc.2`, `next=0.2.1-rc.4`, and `alpha=0.2.2-alpha.2`. Alpha requires Node `>=24.9`. The unpublished validation range includes its tuple so the actual install gate can be tested; it is retained for release only after the required checks pass.
+
+| Exact host | Completed 2.2.6 evidence | Remaining checks |
+| --- | --- | --- |
+| `0.1.7-rc.2` | Real prompt-registry component contract | Integrated unit/boot regression |
+| `0.2.0-rc.2` | Real prompt-registry component contract | Integrated unit/boot regression |
+| `0.2.1-rc.2` | Real prompt/working-directory component contract; integrated 18/1117 on Windows Node24 | Final packed-install, native browser and lifecycle checks |
+| `0.2.1-rc.4` | Real prompt/working-directory component contract | Final integrated package/browser/lifecycle checks |
+| `0.2.2-alpha.2` | Real prompt/working-directory component contract; executor-row metadata fixed and independently checked | Final integrated package/browser/lifecycle checks |
+
+The real component gate uses Cordis/SystemPrompt and the official WorkingDirectoryService constructor, lifecycle and ensure behavior where available. Only session/filesystem projections are synthetic. It checks old default text, custom suffixes, directory changes/repair and brace-containing paths without rewriting user files:
+
+```sh
+node tools/prompt-contract-check.mjs --host-install /path/to/exact-host
+```
+
+It does not start the complete agent loop, a model service, Electron or GPU execution. Current-channel CI uses Node24; older host regressions retain Node20 unit legs and Node24 runtime gates. Publication progress and remote run completion are separate from these measured scopes.
+
+## Historical 2.2.5 release record
+
+The following 2026-10-17 statements describe the earlier release. They are preserved as historical evidence, not fresh acceptance of 2.2.6. The later review reproduced a cwd prompt-assembly failure on the real `0.2.1-rc.2` prompt components despite the earlier page/lifecycle green checks, consistent with [issue 19](https://github.com/BOWLUNA/dsh-custom-mode/issues/19) and the [exact upstream contract](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/packages/core/system-prompt/README.md#L78). Component/unit success must not be promoted to a real-model or desktop result. The original record is available at the [reviewed source commit](https://github.com/BOWLUNA/dsh-custom-mode/blob/91720a3264825ed5a4d8ca389181c1dfd5797b1e/docs/CURRENT_COMPATIBILITY.md).
+
 The `2.2.5` release adds exact official DSH `0.2.1-rc.2` coverage on 2026-10-17 while retaining the two previous host gates. All three host versions below are prereleases; no final stable DSH release is claimed.
 
 | Exact official npm host | Package and unit checks | Rendered browser checks | Runtime checks |
@@ -29,6 +55,6 @@ node tools/compat-check.mjs --host-install /path/to/exact-host --out /path/to/ne
 node tools/runtime-check.mjs --host-install /path/to/exact-host --out /path/to/new-evidence --browser /path/to/chrome --port 32110 --cdp-port 9229 --network-guard ./tools/loopback-test-guard.mjs
 ```
 
-The tools use separate homes and synthetic prompts. Do not run them against an active user profile or copy credentials, prompts, or history into evidence. The optional loopback guard blocks external connections in the host process; dependency installation uses the normal official registry beforehand. Keep one browser page and enforce a memory budget appropriate to the machine.
+The tools use separate homes and synthetic prompts. Do not run them against an active user profile or copy credentials, prompts, or history into evidence. The optional Node loopback guard intercepts covered net/fetch paths in the test process; it is not system-level network isolation and does not constrain external programs. Dependency installation uses the official registry beforehand. Keep one browser page and enforce a memory budget appropriate to the machine.
 
 Release assets contain the allowlisted plugin package, a preset-only import archive, and `SHA256SUMS`. They contain no host installation, user state, or acceptance environment. Verify the downloaded hashes before installation. The `.dshpreset` asset is not a substitute for installing the settings-page plugin.

@@ -14,8 +14,8 @@
  *    random temporary name does not help with *that* collision, only with temp-vs-temp ones.
  */
 import { randomBytes } from 'node:crypto'
-import { existsSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { basename, dirname, join, resolve } from 'node:path'
 
 /** Synchronous backoff: these write paths are synchronous, so waiting is simpler than async plumbing. */
 function sleepSync(ms) {
@@ -63,7 +63,12 @@ export function renameWithRetry(from, to, options = {}) {
  */
 export function stageAtomic(file, text) {
   const temporary = `${file}.tmp-${String(process.pid)}-${randomBytes(4).toString('hex')}`
-  writeFileSync(temporary, text, 'utf8')
+  try {
+    writeFileSync(temporary, text, 'utf8')
+  } catch (error) {
+    try { rmSync(temporary, { force: true }) } catch { /* retain the original failure */ }
+    throw error
+  }
   return { file, temporary }
 }
 
@@ -108,6 +113,14 @@ export function discardStaged(staged) {
  * @returns {void}
  */
 export function writeAtomicPair(entries) {
+  if (entries.length === 0) return
+  const directory = dirname(resolve(entries[0][0]))
+  const names = entries.map(([file]) => basename(file))
+  if (new Set(names).size !== names.length || entries.some(([file]) => dirname(resolve(file)) !== directory || !TRANSACTION_FILES.includes(basename(file)))) {
+    throw new Error('Atomic preset transactions require distinct preset files in one directory')
+  }
+  const recovery = restoreBackups(directory)
+  if (recovery.ok !== true) throw new Error(recovery.detail)
   const stamp = `${String(process.pid)}-${randomBytes(4).toString('hex')}`
 
   // ── phase 0: refuse to touch a destination that is a directory. ──
@@ -133,54 +146,41 @@ export function writeAtomicPair(entries) {
     throw error
   }
 
-  // ── phase 2: move the current targets aside. `null` = the target did not exist. ──
-  const backups = []
-  const installed = []
+  // A prepared journal is on disk BEFORE any original moves. Recovery rolls the WHOLE transaction
+  // back, including files already installed; a committed journal keeps the whole new generation.
+  const journal = join(directory, `${TRANSACTION_PREFIX}${stamp}.json`)
+  const transaction = {
+    version: 1,
+    stamp,
+    ownerPid: process.pid,
+    phase: 'prepared',
+    entries: staged.map((one) => ({
+      name: basename(one.file),
+      temporary: basename(one.temporary),
+      backup: `${basename(one.file)}.bak-${stamp}`,
+      existed: existsSync(one.file),
+    })),
+  }
+  ACTIVE_TRANSACTIONS.add(directory)
   try {
-    for (const one of staged) {
-      if (existsSync(one.file)) {
-        const backup = `${one.file}.bak-${stamp}`
-        renameWithRetry(one.file, backup)
-        backups.push([one.file, backup])
-      } else {
-        backups.push([one.file, null])
-      }
+    writeAtomic(journal, JSON.stringify(transaction) + '\n')
+    for (const one of transaction.entries) {
+      if (one.existed) renameWithRetry(join(directory, one.name), join(directory, one.backup))
     }
-    // ── phase 3: install. ──
-    for (const one of staged) {
-      commitStaged(one)
-      installed.push(one)
-    }
+    for (const one of staged) commitStaged(one)
+    writeAtomic(journal, JSON.stringify({ ...transaction, phase: 'committed' }) + '\n')
   } catch (error) {
-    // Undo in reverse: remove what we installed, then put the backups back.
-    for (const one of installed) {
-      try {
-        rmSync(one.file, { force: true })
-      } catch {
-        /* best effort — the restore below is what matters */
-      }
-    }
-    for (const [file, backup] of backups) {
-      if (backup === null) continue
-      try {
-        renameWithRetry(backup, file)
-      } catch {
-        /* best effort; the thrown error still tells the caller nothing is consistent */
-      }
-    }
+    // If writing the journal itself failed no target moved. Otherwise leave recovery evidence until
+    // rollback has completed; a failed restore must not be hidden as "nothing changed".
+    const outcome = existsSync(journal) ? recoverTransaction(directory, journal, transaction) : { ok: true }
     for (const one of staged) discardStaged(one)
+    ACTIVE_TRANSACTIONS.delete(directory)
+    if (outcome.ok !== true) throw new Error(String(error.message ?? error) + '; recovery required: ' + outcome.detail, { cause: error })
     throw error
   }
-
-  // ── success: drop the backups ──
-  for (const [, backup] of backups) {
-    if (backup === null) continue
-    try {
-      rmSync(backup, { force: true })
-    } catch {
-      /* a leftover .bak-… is inert; failing the whole write over it would be worse */
-    }
-  }
+  // Cleanup failure is recoverable from the committed journal and cannot undo a successful write.
+  recoverTransaction(directory, journal, { ...transaction, phase: 'committed' })
+  ACTIVE_TRANSACTIONS.delete(directory)
 }
 
 /**
@@ -204,24 +204,124 @@ export function writeAtomicPair(entries) {
  * @param {string} directory - one assistant directory.
  * @returns {void}
  */
+const TRANSACTION_FILES = ['prompt.md', 'agent.cordis.yml', 'preset.yml']
+const TRANSACTION_PREFIX = '.custom-mode-transaction-'
+const ACTIVE_TRANSACTIONS = new Set()
+
+function pidFromStamp(stamp) {
+  const pid = Number(stamp.split('-')[0])
+  return Number.isSafeInteger(pid) && pid > 0 ? pid : null
+}
+
+/** A different live or uninspectable process might still be writing. Only ESRCH proves death. */
+function ownerMayBeActive(pid) {
+  // This process runs transactions synchronously and ACTIVE_TRANSACTIONS covers its live writes.
+  if (pid === process.pid) return false
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return error.code !== 'ESRCH'
+  }
+}
+
+function activeOwnerResult(pid) {
+  return { ok: false, code: 'recoveryRequired', detail: `Preset transaction owner ${pid} is active or cannot be inspected; retry after it finishes` }
+}
+
+function validTransaction(transaction, journalName) {
+  if (transaction?.version !== 1 || !/^\d+-[a-f0-9]{8}$/.test(transaction.stamp ?? '')) return false
+  if (journalName !== `${TRANSACTION_PREFIX}${transaction.stamp}.json`) return false
+  const stampedPid = pidFromStamp(transaction.stamp)
+  const ownerPid = transaction.ownerPid ?? stampedPid
+  if (stampedPid === null || !Number.isSafeInteger(ownerPid) || ownerPid <= 0) return false
+  if (transaction.legacy !== true && ownerPid !== stampedPid) return false
+  if (!['prepared', 'committed'].includes(transaction.phase) || !Array.isArray(transaction.entries) || transaction.entries.length === 0) return false
+  const names = new Set()
+  for (const one of transaction.entries) {
+    if (one === null || typeof one !== 'object') return false
+    if (!TRANSACTION_FILES.includes(one.name) || names.has(one.name) || typeof one.existed !== 'boolean') return false
+    if (one.backup !== `${one.name}.bak-${transaction.stamp}`) return false
+    if (transaction.legacy === true ? one.temporary !== null : !new RegExp(`^${one.name.replaceAll('.', '\\.')}\\.tmp-\\d+-[a-f0-9]{8}$`).test(one.temporary ?? '')) return false
+    names.add(one.name)
+  }
+  return true
+}
+
+function recoverTransaction(directory, journal, transaction) {
+  try {
+    if (transaction.phase === 'prepared') {
+      for (const one of transaction.entries) {
+        const file = join(directory, one.name)
+        const backup = join(directory, one.backup)
+        if (one.existed) {
+          if (existsSync(backup)) renameWithRetry(backup, file)
+          else if (!existsSync(file)) throw new Error(`Missing original and backup for ${one.name}`)
+        } else {
+          rmSync(file, { force: true })
+        }
+      }
+    }
+    for (const one of transaction.entries) {
+      rmSync(join(directory, one.backup), { force: true })
+      if (one.temporary !== null) rmSync(join(directory, one.temporary), { force: true })
+    }
+    rmSync(journal, { force: true })
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, code: 'recoveryRequired', detail: String(error.message ?? error) }
+  }
+}
+
+/** Recover before ownership discovery: prompt.md itself can be temporarily absent after a crash. */
 export function restoreBackups(directory) {
-  const names = ['prompt.md', 'agent.cordis.yml', 'preset.yml']
+  if (ACTIVE_TRANSACTIONS.has(resolve(directory))) return { ok: true, active: true }
   let entries
   try {
     entries = readdirSync(directory)
-  } catch {
-    return
+  } catch (error) {
+    return error.code === 'ENOENT' ? { ok: true } : { ok: false, code: 'recoveryRequired', detail: String(error.message ?? error) }
   }
-  for (const name of names) {
-    const file = join(directory, name)
-    if (existsSync(file)) continue
-    const backups = entries.filter((entry) => entry.startsWith(name + '.bak-'))
-    if (backups.length !== 1) continue
+  const journals = entries.filter((entry) => entry.startsWith(TRANSACTION_PREFIX) && entry.endsWith('.json'))
+  // Shared homes across live processes are not a supported transaction boundary. Never guess which of
+  // multiple interrupted generations owns a target, and never seed a replacement over their evidence.
+  if (journals.length > 1) return { ok: false, code: 'recoveryRequired', detail: 'Multiple preset transactions require manual recovery' }
+  for (const name of journals) {
+    let transaction
     try {
-      renameSync(join(directory, backups[0]), file)
-    } catch {
-      /* 恢复失败就留着备份，下一次读取再试 */
+      transaction = JSON.parse(readFileSync(join(directory, name), 'utf8'))
+    } catch (error) {
+      return { ok: false, code: 'recoveryRequired', detail: 'Unreadable preset transaction: ' + String(error.message ?? error) }
     }
+    if (!validTransaction(transaction, name)) return { ok: false, code: 'recoveryRequired', detail: 'Invalid preset transaction journal' }
+    const ownerPid = transaction.ownerPid ?? pidFromStamp(transaction.stamp)
+    if (ownerMayBeActive(ownerPid)) return activeOwnerResult(ownerPid)
+    const outcome = recoverTransaction(directory, join(directory, name), transaction)
+    if (outcome.ok !== true) return outcome
+  }
+  // Upgrade recovery for v2.2.5 transactions that predate the journal. Restore one whole backup group
+  // only when something is missing. Complete targets plus leftover backups denote a completed write.
+  try { entries = readdirSync(directory) } catch (error) {
+    return { ok: false, code: 'recoveryRequired', detail: String(error.message ?? error) }
+  }
+  const legacy = entries.map((entry) => ({ entry, match: /^(prompt\.md|agent\.cordis\.yml|preset\.yml)\.bak-(\d+-[a-f0-9]{8})$/.exec(entry) })).filter((one) => one.match !== null)
+  if (!legacy.some((one) => !existsSync(join(directory, one.match[1])))) return { ok: true }
+  if (new Set(legacy.map((one) => one.match[2])).size !== 1) return { ok: false, code: 'recoveryRequired', detail: 'Ambiguous legacy preset backups require manual recovery' }
+  const legacyOwner = pidFromStamp(legacy[0].match[2])
+  if (legacyOwner === null) return { ok: false, code: 'recoveryRequired', detail: 'Invalid legacy preset transaction owner' }
+  if (ownerMayBeActive(legacyOwner)) return activeOwnerResult(legacyOwner)
+  try {
+    // Recovery itself can be interrupted. Journal the whole legacy group BEFORE restoring even the
+    // first missing target; otherwise that first rename can hide the need to restore the rest.
+    const stamp = legacy[0].match[2]
+    const journal = join(directory, `${TRANSACTION_PREFIX}${stamp}.json`)
+    const transaction = { version: 1, stamp, ownerPid: process.pid, phase: 'prepared', legacy: true, entries: legacy.map((one) => ({
+      name: one.match[1], backup: one.entry, temporary: null, existed: true,
+    })) }
+    writeAtomic(journal, JSON.stringify(transaction) + '\n')
+    return recoverTransaction(directory, journal, transaction)
+  } catch (error) {
+    return { ok: false, code: 'recoveryRequired', detail: String(error.message ?? error) }
   }
 }
 

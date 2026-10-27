@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 15 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself — on dsh ≥ 0.1.7 by deriving them from the host's declaration
+node test/run.mjs                                  # 18 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself — on dsh ≥ 0.1.7 by deriving them from the host's declaration
 node tools/verify-translation-pairing.mjs          # bilingual pairing + language-purity check (what CI runs)
 node tools/verify-doc-numbers.mjs                  # documented counts vs the real run (what CI runs)
 
@@ -78,10 +78,12 @@ CDP_PORT=9222 node tools/screenshots/run-shots-en.mjs "http://127.0.0.1:3081/?to
    unwritable `DSH_HOME` is reported and the boot continues.
 9. **`preset/prompt.md` and `preset/preset.yml` are user data.** Tests must write to temporary paths
    (`DSH_CUSTOM_PROMPT_PATH`, or copy the module into a temp directory and import it from there).
-10. **支持策略：当前通道都要实测。** 2026-10-17 核对 npm，`latest`
-    是 **`0.2.0-rc.2`**，`alpha` 是 **`0.2.1-alpha.5`**，`next` 是 **`0.2.1-rc.2`**；官方尚未发布无预发布后缀的稳定版。
+10. **支持策略：当前通道都要实测。** 2026-10-27 核对 npm，`latest`
+    是 **`0.2.1-rc.2`**，`next` 是 **`0.2.1-rc.4`**，`alpha` 是 **`0.2.2-alpha.2`**，均为预发布宿主。
     `test.yml` 和 `browser.yml` 都测这三个通道，`release.yml` 必须等待这两个可复用工作流成功。
-    **`0.1.7-rc.2`** 仍保留单元和启动回归腿。更早的线
+    **`0.1.7-rc.2`** 与 **`0.2.0-rc.2`** 仍保留单元和启动回归腿。Node20只跑旧宿主单元腿；新alpha要求Node≥24.9。
+    `tools/prompt-contract-check.mjs --host-install <exact-host>` 在Node24腿运行真实提示词/工作目录组件合约，使用合成会话和文件系统，不调用模型。
+    更早的线
     （`0.1.5-rc.3`、`0.1.6-alpha.*`）共用同一套机制，peer 范围仍然接纳，
     但**不为每条历史线加 CI 腿**：成本随版本数线性增长，而机制差异只有两次
     （≤0.1.6 扫描目录 / ≥0.1.7 声明式注册表 / ≥0.2.0 同一声明式 API 但**安装期就强制校验 peer 范围**）。

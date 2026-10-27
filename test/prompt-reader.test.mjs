@@ -17,7 +17,7 @@
  * No dsh process and no model call is involved: the provider IS the contract.
  */
 
-import { mkdtempSync, writeFileSync, rmSync, renameSync, mkdirSync } from 'node:fs'
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, renameSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -38,23 +38,39 @@ const check = (label, condition, detail = '') => {
  * A stand-in for the real Cordis context: just enough surface for the module's
  * `ctx.effect` / `ctx.systemPrompt.section` calls.
  */
-function makeCtx() {
+function makeCtx({ workingDirectory } = {}) {
   const sections = []
   const effects = []
-  return {
+  const variables = new Map()
+  const listeners = []
+  const ctx = {
     sections,
     effects,
+    variables,
+    listeners,
+    on(event, callback) {
+      listeners.push({ event, callback })
+      return () => {}
+    },
+    inject(deps, callback) {
+      if (workingDirectory !== undefined) callback({ ...ctx, workingDirectory })
+    },
     effect(fn, label) {
       effects.push(label)
       return fn()
     },
     systemPrompt: {
+      variable(name, provider) {
+        variables.set(name, provider)
+        return () => variables.delete(name)
+      },
       section(options) {
         sections.push(options)
         return () => {}
       },
     },
   }
+  return ctx
 }
 
 /** Import the reader fresh (it caches per module instance, so each case needs its own). */
@@ -173,6 +189,45 @@ console.log('=== 7. 默认路径就是模块旁边的 prompt.md ===')
     typeof text === 'string' && text.includes('You are a coding agent powered by'),
     String(text).slice(0, 60),
   )
+}
+
+console.log()
+console.log('=== 8. 新宿主目录兼容：保留用户文件与自定义模板，读取真实会话目录 ===')
+{
+  const original = 'My identity\nYour working directory is {{cwd}}.\nProject: {{cwd}}.\nYour working directory is {{cwd}}. Keep this custom sentence.\n'
+  writeFileSync(promptPath, original, 'utf8')
+  let directory = '/project/first'
+  const session = {}
+  const ctx = makeCtx({ workingDirectory: { get: (wanted) => wanted === session ? directory : undefined } })
+  const reader = await loadReader('cwd-compatibility')
+  reader.apply(ctx, { path: promptPath, suffix: 'Before\nYour working directory is {{cwd}}.\nAfter {{cwd}}' })
+  const prefix = ctx.sections.find((section) => section.name === 'deployment:persona-prefix')
+  const suffix = ctx.sections.find((section) => section.name === 'deployment:persona-suffix')
+  check('新版只移除旧官方整句，不改自定义相似句', prefix.text() === 'My identity\nProject: {{cwd}}.\nYour working directory is {{cwd}}. Keep this custom sentence.\n', prefix.text())
+  check('suffix 保留旧句前后的自定义内容', suffix.text() === 'Before\nAfter {{cwd}}', suffix.text())
+  check('兼容处理不改用户磁盘内容', readFileSync(promptPath, 'utf8') === original)
+  check('cwd 从当前会话目录服务读取', ctx.variables.get('cwd')({ agent: { session } }) === '/project/first')
+  directory = '/project/changed/{{model}}'
+  check('会话目录变化立即反映，花括号留给原生单次插值', ctx.variables.get('cwd')({ agent: { session } }) === directory)
+  check('没有会话时不给出伪造进程目录', ctx.variables.get('cwd')({}) === undefined)
+  const presentation = { sections: [], contexts: [], variables: { cwd: '/before-waterfall' } }
+  const refreshed = await ctx.listeners.find((listener) => listener.event === 'system-prompt/assemble').callback(presentation, { agent: { session } }, async () => {
+    directory = '/restored-during-assembly'
+    return presentation
+  })
+  check('组装waterfall恢复目录后刷新cwd，不依赖tools字段', refreshed === presentation && refreshed.variables.cwd === '/restored-during-assembly' && !('tools' in refreshed))
+}
+{
+  const reader = await loadReader('old-cwd-contract')
+  const ctx = makeCtx()
+  reader.apply(ctx, { path: promptPath })
+  check('旧宿主保留原 cwd 插值，不注册假的兼容值', ctx.variables.size === 0 && ctx.sections.find((section) => section.name === 'deployment:persona-suffix').text() === 'Your working directory is {{cwd}}.')
+}
+{
+  const reader = await loadReader('new-default-suffix')
+  const ctx = makeCtx({ workingDirectory: { get: () => '/project' } })
+  reader.apply(ctx, { path: promptPath })
+  check('新版默认后缀让位于必需的官方运行时目录上下文', ctx.sections.find((section) => section.name === 'deployment:persona-suffix').text() === '')
 }
 
 rmSync(dir, { recursive: true, force: true })

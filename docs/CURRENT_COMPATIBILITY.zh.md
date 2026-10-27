@@ -2,6 +2,32 @@
 
 [English](CURRENT_COMPATIBILITY.md) | 中文
 
+## 2.2.6 验证范围
+
+结果绑定精确安装与生成的源码快照。当前集成检查在 Windows、Node `24.21.0`、DSH `0.2.1-rc.2` 上通过 **18套件/1117检查**。安装器覆盖部分写入、独占发布、并发文件、回滚失败与填模板前恢复，非作者复核重现了发布文件的失败边界。这些是本地/组件检查，不是完整桌面对话。
+
+2026-10-27 公开 npm 宿主标签为 `latest=0.2.1-rc.2`、`next=0.2.1-rc.4`、`alpha=0.2.2-alpha.2`。alpha要求Node `>=24.9`。未发布的验证范围先纳入该元组以运行真实安装闸门，只有必要检查通过才保留并发布。
+
+| 精确宿主 | 已完成的2.2.6证据 | 剩余检查 |
+| --- | --- | --- |
+| `0.1.7-rc.2` | 真实提示词注册表组件合约 | 集成单元/启动回归 |
+| `0.2.0-rc.2` | 真实提示词注册表组件合约 | 集成单元/启动回归 |
+| `0.2.1-rc.2` | 真实提示词/工作目录组件合约；Windows Node24集成18/1117 | 最终打包安装、原生浏览器与生命周期 |
+| `0.2.1-rc.4` | 真实提示词/工作目录组件合约 | 最终集成打包/浏览器/生命周期 |
+| `0.2.2-alpha.2` | 真实提示词/工作目录组件合约；执行器行元数据已修复并独立核对 | 最终集成打包/浏览器/生命周期 |
+
+真实组件门禁使用 Cordis/SystemPrompt，以及存在时官方 WorkingDirectoryService 的构造、生命周期与ensure行为，只有会话/文件系统投影为合成。它检查旧默认文本、自定义suffix、目录变化/修复与含花括号路径，不改写用户文件：
+
+```sh
+node tools/prompt-contract-check.mjs --host-install /path/to/exact-host
+```
+
+它不启动完整agent loop、模型服务、Electron或GPU。当前通道CI使用Node24；旧宿主保留Node20单元腿和Node24运行门禁。发布进度与远端运行完成情况和这些实测范围分别记录。
+
+## 2.2.5 历史发布记录
+
+下面2026-10-17的文字描述旧发布，保留为历史证据，不是2.2.6的新验收。后续审阅在真实 `0.2.1-rc.2` 提示词组件上复现cwd组装失败，尽管旧页面/生命周期检查曾全绿；它与 [issue 19](https://github.com/BOWLUNA/dsh-custom-mode/issues/19) 和[精确上游合约](https://github.com/deepseek-ai/deepseek-harness/blob/687f282e8625c6b8d11ff58211a90524be2e4317/packages/core/system-prompt/README.md#L78)一致。组件/单元成功不能扩大为真实模型或桌面结果。原记录见[已审源码commit](https://github.com/BOWLUNA/dsh-custom-mode/blob/91720a3264825ed5a4d8ca389181c1dfd5797b1e/docs/CURRENT_COMPATIBILITY.zh.md)。
+
 `2.2.5` 于 2026-10-17 新增精确官方 DSH `0.2.1-rc.2` 覆盖，并保留之前两个宿主门禁。下面三个宿主都是预发布版本，不宣称 DSH 已有无预发布后缀的正式稳定版。
 
 | 精确官方 npm 宿主 | 打包与单元检查 | 真实浏览器检查 | 运行检查 |
@@ -29,6 +55,6 @@ node tools/compat-check.mjs --host-install /path/to/exact-host --out /path/to/ne
 node tools/runtime-check.mjs --host-install /path/to/exact-host --out /path/to/new-evidence --browser /path/to/chrome --port 32110 --cdp-port 9229 --network-guard ./tools/loopback-test-guard.mjs
 ```
 
-工具使用独立目录与合成提示词。不要对当前用户正在使用的 profile 运行，也不要把凭据、提示词或历史复制到证据中。可选回环守卫会阻止宿主进程的外部连接；依赖预先从正常官方注册表安装。保持单个浏览器页面，并按机器资源执行内存预算。
+工具使用独立目录与合成提示词。不要对当前用户正在使用的 profile 运行，也不要把凭据、提示词或历史复制到证据中。可选Node回环守卫作用于测试进程中被覆盖的net/fetch路径，不是系统级网络隔离，也不约束外部程序。依赖预先从官方注册表安装。保持单个浏览器页面，并按机器资源执行内存预算。
 
 发布附件只包含白名单插件包、仅供预设导入的归档与 `SHA256SUMS`，不包含宿主安装、用户状态或验收环境。安装前核对下载附件的哈希。`.dshpreset` 附件不能替代设置页插件的安装。

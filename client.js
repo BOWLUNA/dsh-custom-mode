@@ -58,15 +58,32 @@ try {
        * truth, checked for key parity by test/locales.test.mjs).
        */
       const ZH = {
+        "create.nextStep": "创建后可在上方继续编辑并保存；使用时，在新会话的模式菜单选择它。",
+        "btn.retryRead": "重试读取",
+        "btn.retrySync": "重试生效",
+        "api.savedButSyncFailed": "文件已保存，但这些助手尚未生效：{ids}。请点「重试生效」，无需重复原操作。",
+        "api.syncFailed": "这些助手仍未生效：{ids}。请重试；仍失败时查看宿主日志。",
+        "api.synchronized": "配置已生效。新会话请从模式菜单选择助手。",
+        "api.recoveryRequired": "助手文件需要恢复：{path}。请保留目录中的备份，并查看宿主日志中的恢复说明。",
+        "msg.completedReadFailed": "{result} 页面刷新失败。请点「重试读取」，无需重复原操作。",
+        "msg.synchronized": "配置已生效。",
+        "msg.syncFailed": "重新应用配置失败，请重试。",
+        "msg.loaded": "已载入到编辑器。尚未保存。",
+        "status.reading": "正在读取…",
+        "status.saving": "正在保存…",
+        "status.creating": "正在创建助手…",
+        "status.deleting": "正在删除助手…",
+        "status.reordering": "正在保存顺序…",
+        "status.repairing": "正在修复…",
+        "status.importing": "正在读取导入文件…",
+        "status.synchronizing": "正在应用配置…",
         "nav": "自定义模式",
         "assistant.heading": "助手",
-        "assistant.hint": "每个助手单独保存系统提示词、基础模式和插件开关。",
-        "posture.hint": "这一支只在点「新增助手」时写入。",
+        "assistant.hint": "选择要编辑的助手。每位助手独立保存系统提示词、基础模式和插件开关。",
+        "posture.hint": "选择起步姿态并命名，再点「新增助手」。",
         "tree.posture": "起步",
-        "tree.base": "工具底",
-        "tree.baseHold": "新建时固定用官方标准模式。",
-        "tree.baseSkip": "这一支点不了。建好后到「当前助手」里改。",
-        "tree.baseLocked": "只有官方标准模式是亮的。其余四档是暗的，新建时点不了。",
+        "tree.base": "初始基础模式",
+        "tree.baseLocked": "新建助手从官方标准模式起步。建好后，可在「当前助手」调整基础模式。",
         "posture.develop.label": "开发",
         "posture.develop.note": "官方标准模式，工具按出厂。",
         "posture.write.label": "写作",
@@ -74,7 +91,7 @@ try {
         "posture.chat.label": "聊天",
         "posture.chat.note": "官方标准模式。文件和终端关闭。",
         "editor.heading": "当前助手",
-        "editor.hint": "这一支改上面选中的助手。基础模式五档都可以点。",
+        "editor.hint": "正在编辑「{name}」。这里的选择只决定编辑对象；新会话请从模式菜单选择助手。",
         "assistant.empty": "还没有助手，用下面的输入框新建一个。",
         "assistant.loadingList": "正在读取助手列表…",
         "assistant.newPlaceholder": "新助手的名字（例如：写作助手）",
@@ -95,7 +112,7 @@ try {
         "btn.resetHint": "把编辑器换回此助手新建时保存的提示词。只改草稿，保存后才写入。",
         "btn.delete": "删除",
         "btn.cancel": "取消",
-        "msg.created": "已创建。刷新后，新会话的模式菜单里会出现它。",
+        "msg.created": "已创建。可继续编辑；使用时请在新会话的模式菜单选择它。",
         "msg.duplicated": "已复制。两份配置彼此独立。",
         "msg.deleted": "已删除。",
         "msg.createFailed": "创建失败",
@@ -135,7 +152,7 @@ try {
         "api.saved": "已保存（{name}，{mode}）。下一步组装时会重读已保存的提示词。",
         "api.conflict": "磁盘上的提示词已经变了，这次没有写入。先重新读取，再决定要不要覆盖。",
         "api.savedWithExclusiveRows": "已保存（{name}，{mode}）。已关闭不能同时启用的行：{rows}。",
-        "api.created": "已创建「{name}」。刷新后，新会话的模式菜单里会出现它。",
+        "api.created": "已创建「{name}」。可继续编辑；使用时请在新会话的模式菜单选择它。",
         "api.savedPrompt": "已保存系统提示词（{name}）。下一步组装时会重读这个文件。",
         "api.duplicated": "已从「{from}」复制。两份互不影响。",
         "api.deleted": "已删除「{name}」。正在使用它的会话不受影响。",
@@ -218,7 +235,7 @@ try {
         "tag.essential": "核心",
         "tag.followPlatform": "随平台",
         "btn.save": "保存",
-        "btn.saving": "处理中…",
+        "btn.saving": "保存中…",
         "btn.reload": "重新读取",
         "btn.reloadDiscard": "放弃修改并重新读取",
         "btn.reloadConfirm": "放弃未保存的修改并重新读取？",
@@ -277,6 +294,8 @@ try {
         "row.tool-plugin-manager.label": "插件管理（安装 / 启停）",
         "row.tool-plugin-manager.note": "供模型安装或开关插件。",
         "row.tool-presentation.label": "PTC 工具呈现",
+        "row.tool-executor-ptc.label": "PTC 程序执行器",
+        "row.tool-executor-ptc.note": "通过 run_code 执行程序并调用工具，同时向模型提供工具 SDK。",
         "row.present.label": "交付文件（present）",
         "row.command-goal.label": "目标命令",
         "row.tool-goal.label": "目标",
@@ -301,15 +320,32 @@ try {
       }
 
       const EN = {
+        "create.nextStep": "After creating, edit and save above. To use the assistant, choose it in the mode menu for a new session.",
+        "btn.retryRead": "Retry refresh",
+        "btn.retrySync": "Retry activation",
+        "api.savedButSyncFailed": "Files are saved, but these assistants are not active yet: {ids}. Select Retry activation; you do not need to repeat the original action.",
+        "api.syncFailed": "These assistants are still not active: {ids}. Retry, then check the host log if the problem continues.",
+        "api.synchronized": "Configuration is active. Choose an assistant in the mode menu for a new session.",
+        "api.recoveryRequired": "Assistant files need recovery: {path}. Keep the backups in that directory and check the host log for recovery details.",
+        "msg.completedReadFailed": "{result} The page could not refresh. Select Retry refresh; do not repeat the original action.",
+        "msg.synchronized": "Configuration is active.",
+        "msg.syncFailed": "Could not apply the configuration. Please retry.",
+        "msg.loaded": "Loaded into the editor. Not saved yet.",
+        "status.reading": "Reading…",
+        "status.saving": "Saving…",
+        "status.creating": "Creating assistant…",
+        "status.deleting": "Deleting assistant…",
+        "status.reordering": "Saving order…",
+        "status.repairing": "Repairing…",
+        "status.importing": "Reading import file…",
+        "status.synchronizing": "Applying configuration…",
         "nav": "Custom mode",
         "assistant.heading": "Assistants",
-        "assistant.hint": "Each assistant keeps its own system prompt, base mode and plugin switches.",
-        "posture.hint": "This branch is written only when you click New assistant.",
+        "assistant.hint": "Choose an assistant to edit. Each keeps its own system prompt, base mode and plugin switches.",
+        "posture.hint": "Choose a starting posture and a name, then select New assistant.",
         "tree.posture": "Starter",
-        "tree.base": "Tool base",
-        "tree.baseHold": "A new assistant always starts on the official Standard mode.",
-        "tree.baseSkip": "Cannot be chosen on this branch. Change it later under This assistant.",
-        "tree.baseLocked": "Only the official Standard mode is lit. The other four are dim and cannot be chosen when creating.",
+        "tree.base": "Starting base mode",
+        "tree.baseLocked": "New assistants start on the official Standard mode. You can change the base mode under This assistant after creating one.",
         "posture.develop.label": "Coding",
         "posture.develop.note": "Official Standard mode, tools as shipped.",
         "posture.write.label": "Writing",
@@ -317,7 +353,7 @@ try {
         "posture.chat.label": "Chat",
         "posture.chat.note": "Official Standard mode. Files and terminal off.",
         "editor.heading": "This assistant",
-        "editor.hint": "This branch edits the assistant selected above. All five base modes can be chosen.",
+        "editor.hint": "Editing {name}. This selection controls what you edit here; choose an assistant in the mode menu when starting a new session.",
         "assistant.empty": "No assistants yet — create one with the field below.",
         "assistant.loadingList": "Loading assistants…",
         "assistant.newPlaceholder": "Name of the new assistant (e.g. Writing assistant)",
@@ -338,7 +374,7 @@ try {
         "btn.resetHint": "Restores the prompt saved when this assistant was created. The editor changes. Save writes it.",
         "btn.delete": "Delete",
         "btn.cancel": "Cancel",
-        "msg.created": "Created. Refresh once, then it appears in the mode menu for a new session.",
+        "msg.created": "Created. Continue editing here, then choose it in the mode menu for a new session.",
         "msg.duplicated": "Duplicated. The two are independent from here on.",
         "msg.deleted": "Deleted.",
         "msg.createFailed": "Could not create",
@@ -378,7 +414,7 @@ try {
         "api.saved": "Saved ({name}, {mode}). The next model step rereads the saved prompt.",
         "api.conflict": "The prompt on disk has changed, so this save was not written. Reload, then decide whether to overwrite.",
         "api.savedWithExclusiveRows": "Saved ({name}, {mode}). Turned off rows that cannot be on together: {rows}.",
-        "api.created": "Created {name}. Refresh once, then it appears in the mode menu for a new session.",
+        "api.created": "Created {name}. Continue editing here, then choose it in the mode menu for a new session.",
         "api.savedPrompt": "System prompt saved ({name}). The next model step rereads this file.",
         "api.duplicated": "Copied from {from}. The two are independent from now on.",
         "api.deleted": "Deleted {name}. Sessions already using it are unchanged.",
@@ -461,7 +497,7 @@ try {
         "tag.essential": "Core",
         "tag.followPlatform": "Platform",
         "btn.save": "Save",
-        "btn.saving": "Working…",
+        "btn.saving": "Saving…",
         "btn.reload": "Reload",
         "btn.reloadDiscard": "Discard edits and reload",
         "btn.reloadConfirm": "Discard unsaved edits and reload?",
@@ -520,6 +556,8 @@ try {
         "row.tool-plugin-manager.label": "Plugin manager (install / toggle)",
         "row.tool-plugin-manager.note": "Lets the model install or toggle plugins.",
         "row.tool-presentation.label": "PTC tool presentation",
+        "row.tool-executor-ptc.label": "PTC program executor",
+        "row.tool-executor-ptc.note": "Runs programs and calls tools through run_code, and provides the tool SDK to the model.",
         "row.present.label": "Deliverables (present)",
         "row.command-goal.label": "Goal command",
         "row.tool-goal.label": "Goals",
@@ -779,6 +817,11 @@ try {
         ".cpfe-pills button{white-space:nowrap}",
         ".cpfe-picker{display:flex;align-items:center;gap:8px;margin:2px 0 4px}",
         ".cpfe-history{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}",
+        // Native Menu and Button keep their appearance; only the trigger's
+        // own text shrinks so long names cannot wrap outside its fixed height.
+        ".cpfe-selector-menu,.cpfe-selector{min-width:0;max-width:100%}",
+        ".cpfe-selector-label{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}",
+        ".cpfe-selector-chevron{flex:0 0 auto}",
         ".cpfe-history-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-history-hint{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
         ".cpfe-pill-wrap{display:inline-flex;align-items:center;gap:4px}",
@@ -789,7 +832,9 @@ try {
         ".cpfe-branch{display:flex;flex-direction:column;gap:16px;margin-top:8px;padding-left:12px;border-left:1px solid var(--dsw-alias-border-l1)}",
         ".cpfe-node{display:flex;flex-direction:column;gap:4px}",
         ".cpfe-node-label{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}",
-        ".cpfe-field{display:flex;width:100%;margin-bottom:8px}",
+        // Native Input applies className to its padded wrapper span, so its
+        // outer box (not only the inner input) must fit the plugin column.
+        ".cpfe-field{display:flex;box-sizing:border-box;width:100%;min-width:0;max-width:100%;margin-bottom:8px}",
         ".cpfe-row-head{font-size:14px;line-height:22px;color:var(--dsw-alias-label-primary)}",
         ".cpfe-row-switch{flex:0 0 auto}",
         ".cpfe-row-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}",
@@ -802,7 +847,7 @@ try {
         ".cpfe-detail-value{min-width:0;overflow-wrap:anywhere}",
         ".cpfe-sec-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}",
         ".cpfe-sec-head .cpfe-actions{margin-top:0}",
-        ".cpfe-newinput{flex:1;min-width:200px}",
+        ".cpfe-newinput{box-sizing:border-box;flex:1 1 200px;min-width:0;max-width:100%}",
         // 单列、行高统一（对齐官方插件页的形态）；之前的自适应多列网格会让行高参差不齐。
         // ★ 对齐官方设置行（实测 0.1.7-rc.2 的行：padding 16px 0、无背景、无圆角，行间只有一条 1px
         //   分隔线）。原来是"圆角卡片 + 描边 + 灰底" —— 那正是廉价感最重的部分。
@@ -880,6 +925,7 @@ try {
         delete: ROUTE + "/delete",
         reorder: ROUTE + "/reorder",
         repair: ROUTE + "/repair",
+        sync: ROUTE + "/sync",
       }
 
       /** Every assistant this feature manages. */
@@ -1215,6 +1261,12 @@ try {
         const [status, setStatus] = react.useState("")
         const [failed, setFailed] = react.useState(false)
         const [busy, setBusy] = react.useState(false)
+        const [pending, setPending] = react.useState("")
+        const [syncNeeded, setSyncNeeded] = react.useState(false)
+        const [refreshNeeded, setRefreshNeeded] = react.useState(null)
+        // A ref closes the interval before React renders disabled controls. Only the
+        // owning operation may apply a response or release the busy state.
+        const operation = react.useRef({ alive: true, current: null })
         const [newName, setNewName] = react.useState("")
         const [postureChoices, setPostureChoices] = react.useState([])
         const [posture, setPosture] = react.useState("develop")
@@ -1236,12 +1288,11 @@ try {
         /** 本机这条线上有无法解析的行时，一键把它们关掉（服务端复用保存同一条排版手术）。 */
         const repairRowsNow = async () => {
           if (draft === null) return
-          setBusy(true)
-          setFailed(false)
-          try {
+          return runOperation("status.repairing", "msg.saveFailed", async (token) => {
             const result = await postJson(ROUTES.repair, { id: selected })
-            if (result !== null && result.ok === true) {
-              setStatus(apiText(result, "msg.repaired"))
+            if (!ownsOperation(token)) return
+            showResult(result, "msg.repaired", "msg.saveFailed")
+            if (result?.ok === true || result?.persisted === true) {
               // ★ 把修复折进**草稿**（issue #8）。
               //
               // 修复在磁盘上是生效的，但草稿里那几行仍然是"启用"。而 `reload()` 对脏草稿是
@@ -1255,17 +1306,9 @@ try {
                 for (const rowId of repairedIds) nextOverrides[rowId] = false
                 update({ overrides: nextOverrides }, { force: true })
               }
-              await reload()
-            } else {
-              setFailed(true)
-              setStatus(apiText(result, "msg.saveFailed"))
+              await refreshAfterWrite(result, "msg.repaired", selected, token, () => reload(selected, undefined, token))
             }
-          } catch {
-            setFailed(true)
-            setStatus(t("msg.saveFailed"))
-          } finally {
-            setBusy(false)
-          }
+          })
         }
 
         const toggleRowExpanded = (id) =>
@@ -1309,6 +1352,52 @@ try {
 
         const describeError = (error) => String((error && error.message) || error)
 
+        const ownsOperation = (token) => operation.current.alive && operation.current.current === token
+        const runOperation = async (pendingKey, failureKey, action) => {
+          if (!operation.current.alive || operation.current.current !== null) return
+          const token = {}
+          operation.current.current = token
+          setBusy(true)
+          setPending(pendingKey)
+          try {
+            await action(token)
+          } catch (error) {
+            if (ownsOperation(token)) {
+              setFailed(true)
+              if (pendingKey === "status.reading" && list === null) setListFailed(true)
+              setStatus(fillPlaceholders(t("status.detail"), { message: t(failureKey), detail: describeError(error) }))
+            }
+          } finally {
+            if (ownsOperation(token)) {
+              operation.current.current = null
+              setBusy(false)
+              setPending("")
+            }
+          }
+        }
+
+        const showResult = (result, successKey, failureKey) => {
+          setFailed(result?.ok !== true)
+          setStatus(apiText(result, result?.ok === true ? successKey : failureKey))
+          if (result?.synchronized === false) setSyncNeeded(true)
+          else if (result?.synchronized === true) setSyncNeeded(false)
+        }
+
+        // Once the host confirms a mutation, a failed follow-up GET cannot turn
+        // that fact into a failed mutation or invite the user to repeat it.
+        const refreshAfterWrite = async (result, fallbackKey, targetId, token, refresh) => {
+          try {
+            await refresh()
+            if (ownsOperation(token)) setRefreshNeeded(null)
+          } catch (error) {
+            if (!ownsOperation(token)) return
+            setRefreshNeeded({ result, fallbackKey, targetId })
+            setFailed(true)
+            const message = fillPlaceholders(t("msg.completedReadFailed"), { result: apiText(result, fallbackKey) })
+            setStatus(fillPlaceholders(t("status.detail"), { message, detail: describeError(error) }))
+          }
+        }
+
         /**
          * Fetch one assistant into `entries`, keeping any unsaved draft it already has.
          *
@@ -1316,17 +1405,17 @@ try {
          * `force` is "re-read even if this entry is already in memory". Neither is set by
          * ordinary switching: moving between assistants must never race a half-typed prompt.
          */
-        const open = async (id, options) => {
+        const open = async (id, options, token) => {
+          if (!ownsOperation(token)) return
           if (typeof id !== "string" || id === "") return
           const force = options !== null && typeof options === "object" && options.force === true
           const discard = options !== null && typeof options === "object" && options.discard === true
           const held = entries[id]
           if (force !== true && held !== undefined) return
           const result = await fetchState(id)
+          if (!ownsOperation(token)) return
           if (result === null || result === undefined || result.ok !== true) {
-            setFailed(true)
-            setStatus(apiText(result, "msg.readFailed"))
-            return
+            throw new Error(apiText(result, "msg.readFailed"))
           }
           const fresh = draftOf(result)
           setEntries((previous) => {
@@ -1334,17 +1423,16 @@ try {
             const keep = discard !== true && before !== undefined && !sameDraft(before.value, before.saved) ? before.value : fresh
             return { ...previous, [id]: { payload: result, saved: fresh, value: keep } }
           })
-          setFailed(false)
         }
 
         /** Re-read the assistant list and force-reload the one it settles on. */
-        const reload = async (preferId, options) => {
+        const reload = async (preferId, options, token) => {
+          if (!ownsOperation(token)) return
           const result = await fetchList()
+          if (!ownsOperation(token)) return
           if (result === null || result === undefined || result.ok !== true) {
-            setFailed(true)
             setListFailed(true)
-            setStatus(apiText(result, "msg.readFailed"))
-            return
+            throw new Error(apiText(result, "msg.readFailed"))
           }
           const assistants = Array.isArray(result.assistants) ? result.assistants : []
           const choices = Array.isArray(result.postures) ? result.postures.filter((item) => item !== null && typeof item === "object" && typeof item.id === "string") : []
@@ -1365,7 +1453,7 @@ try {
             setEntries({})
             return
           }
-          await open(wanted, { force: true, discard: options !== null && typeof options === "object" && options.discard === true })
+          await open(wanted, { force: true, discard: options !== null && typeof options === "object" && options.discard === true }, token)
         }
 
         /**
@@ -1374,11 +1462,12 @@ try {
          * A save can rename an assistant but never changes ids, so the list needs a new
          * fetch while the selection, the payloads and every draft stay exactly as they are.
          */
-        const refreshNames = async () => {
+        const refreshNames = async (token) => {
           const result = await fetchList()
+          if (!ownsOperation(token)) return
           if (result !== null && result !== undefined && result.ok === true) {
             setList(Array.isArray(result.assistants) ? result.assistants : [])
-          }
+          } else throw new Error(apiText(result, "msg.readFailed"))
         }
 
         /**
@@ -1397,22 +1486,11 @@ try {
         }, [])
 
         react.useEffect(() => {
-          let alive = true
-          ;(async () => {
-            setBusy(true)
-            try {
-              await reload("")
-            } catch (error) {
-              if (alive) {
-                setFailed(true)
-                setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.readFailed"), detail: describeError(error) }))
-              }
-            } finally {
-              if (alive) setBusy(false)
-            }
-          })()
+          operation.current.alive = true
+          runOperation("status.reading", "msg.readFailed", (token) => reload("", undefined, token))
           return () => {
-            alive = false
+            operation.current.alive = false
+            operation.current.current = null
           }
         }, [])
 
@@ -1430,7 +1508,7 @@ try {
           //
           // `{ force: true }` 是给**内部**调用用的（例如「按本线修复」把结果折进草稿）：
           // 那不是用户输入，不受这条守护约束。
-          if (busy === true && options?.force !== true) return
+          if (operation.current.current !== null && options?.force !== true) return
           setEntries((previous) => {
             const current = previous[selected]
             if (current === undefined) return previous
@@ -1440,36 +1518,25 @@ try {
         }
 
         const pick = async (id) => {
-          if (id === selected) {
-            setBusy(true)
-            try {
-              await open(id, { force: true })
-            } catch (error) {
-              setFailed(true)
-              setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.readFailed"), detail: describeError(error) }))
-            } finally {
-              setBusy(false)
-            }
-            return
-          }
-          setSelected(id)
-          setDeleteOpen(false)
-          setAcknowledged(false)
-          setStatus("")
-          setBusy(true)
-          try {
-            await open(id)
-          } catch (error) {
-            setFailed(true)
-            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.readFailed"), detail: describeError(error) }))
-          } finally {
-            setBusy(false)
-          }
+          return runOperation("status.reading", "msg.readFailed", async (token) => {
+            setSelected(id)
+            setDeleteOpen(false)
+            setAcknowledged(false)
+            setStatus("")
+            setFailed(false)
+            await open(id, { force: id === selected }, token)
+          })
         }
+
+        const reread = (discard = false) => runOperation("status.reading", "msg.readFailed", async (token) => {
+          setStatus("")
+          setFailed(false)
+          await reload(selected, { discard }, token)
+        })
 
         /** Create a new assistant, or duplicate the selected one. */
         const create = async (options) => {
-          if (busy === true) return
+          if (operation.current.current !== null) return
           const from = options !== null && typeof options === "object" ? options.from : undefined
           const name =
             options !== null && typeof options === "object" && typeof options.name === "string"
@@ -1480,27 +1547,18 @@ try {
             setStatus(t("msg.nameRequired"))
             return
           }
-          setBusy(true)
-          try {
+          return runOperation("status.creating", "msg.createFailed", async (token) => {
             const body = { name, locale: activeLanguage(localeRef) }
             if (from !== undefined) body.from = from
             else if (postureChoices.some((item) => item.id === posture)) body.posture = posture
             const result = await postJson(ROUTES.create, body)
-            if (result !== null && result !== undefined && result.ok === true) {
+            if (!ownsOperation(token)) return
+            showResult(result, from === undefined ? "msg.created" : "msg.duplicated", "msg.createFailed")
+            if (result?.ok === true || result?.persisted === true) {
               setNewName("")
-              setFailed(false)
-              setStatus(apiText(result, from === undefined ? "msg.created" : "msg.duplicated"))
-              await reload(result.id)
-            } else {
-              setFailed(true)
-              setStatus(apiText(result, "msg.createFailed"))
+              await refreshAfterWrite(result, from === undefined ? "msg.created" : "msg.duplicated", result.id, token, () => reload(result.id, undefined, token))
             }
-          } catch (error) {
-            setFailed(true)
-            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.createFailed"), detail: describeError(error) }))
-          } finally {
-            setBusy(false)
-          }
+          })
         }
 
         const duplicate = () => create({ from: draft.id, name: copyName(t("assistant.copyName"), draft.name || draft.id) })
@@ -1512,23 +1570,14 @@ try {
          * (the default) and only the roster order changes.
          */
         const move = async (direction) => {
-          setBusy(true)
-          try {
+          return runOperation("status.reordering", "msg.reorderFailed", async (token) => {
             const result = await postJson(ROUTES.reorder, { id: draft.id, direction })
-            if (result !== null && result !== undefined && result.ok === true) {
-              setFailed(false)
-              setStatus(apiText(result, "msg.reordered"))
-              await reload(draft.id)
-            } else {
-              setFailed(true)
-              setStatus(apiText(result, "msg.reorderFailed"))
+            if (!ownsOperation(token)) return
+            showResult(result, "msg.reordered", "msg.reorderFailed")
+            if (result?.ok === true || result?.persisted === true) {
+              await refreshAfterWrite(result, "msg.reordered", draft.id, token, () => reload(draft.id, undefined, token))
             }
-          } catch (error) {
-            setFailed(true)
-            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.reorderFailed"), detail: describe(error) }))
-          } finally {
-            setBusy(false)
-          }
+          })
         }
 
         /** Download the prompt being edited (client-side only — the host is not involved). */
@@ -1548,18 +1597,20 @@ try {
         const loadVersion = async () => {
           const picked = typeof draft.historyPick === "string" ? draft.historyPick : ""
           if (picked === "" || draft.id === undefined) return
-          try {
+          return runOperation("status.reading", "msg.loadFailed", async (token) => {
             // 版本键是序号（时间戳会在同一毫秒内撞车 —— 单测就是那样抓到它的）。
             const response = await fetch(ROUTES.history + "?id=" + encodeURIComponent(draft.id) + "&n=" + encodeURIComponent(picked))
             const payload = await asJson(response)
+            if (!ownsOperation(token)) return
             if (payload === null || payload.ok !== true) {
+              setFailed(true)
               setStatus(t("msg.loadFailed"))
               return
             }
-            update({ prompt: payload.text })
-          } catch (error) {
-            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.loadFailed"), detail: describeError(error) }))
-          }
+            update({ prompt: payload.text }, { force: true })
+            setFailed(false)
+            setStatus(t("msg.loaded"))
+          })
         }
 
         const exportPrompt = () => {
@@ -1588,61 +1639,54 @@ try {
          * path (and the same `{{…}}` validation) as anything typed by hand — an import can
          * never silently publish a prompt the renderer would refuse.
          */
-        const importPrompt = (event) => {
+        const importPrompt = async (event) => {
           const input = event !== null && event !== undefined ? event.target : undefined
           const file = input !== null && input !== undefined && input.files !== undefined ? input.files[0] : undefined
           // Reset so picking the same file twice in a row fires `change` again.
           if (input !== null && input !== undefined) input.value = ""
+          if (operation.current.current !== null) return
           if (file === undefined || file === null) return
           if (file.size > 1_000_000) {
             setFailed(true)
             setStatus(t("msg.importTooLarge"))
             return
           }
-          const reader = new FileReader()
-          reader.onload = () => {
-            const text = typeof reader.result === "string" ? reader.result : ""
+          return runOperation("status.importing", "msg.importFailed", async (token) => {
+            const text = await new Promise((resolve, reject) => {
+              const reader = new FileReader()
+              reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "")
+              reader.onerror = () => reject(reader.error || new Error(t("msg.importFailed")))
+              reader.onabort = () => reject(new Error(t("msg.importFailed")))
+              reader.readAsText(file, "utf-8")
+            })
+            if (!ownsOperation(token)) return
             if (text.trim() === "") {
               setFailed(true)
               setStatus(t("msg.importEmpty"))
               return
             }
-            update({ prompt: text })
+            update({ prompt: text }, { force: true })
             setFailed(false)
             setStatus(t("msg.imported"))
-          }
-          reader.onerror = () => {
-            setFailed(true)
-            setStatus(t("msg.importFailed"))
-          }
-          reader.readAsText(file, "utf-8")
+          })
         }
 
         const remove = async (id) => {
-          setBusy(true)
-          try {
+          return runOperation("status.deleting", "msg.deleteFailed", async (token) => {
             const result = await postJson(ROUTES.delete, { id })
-            if (result !== null && result !== undefined && result.ok === true) {
+            if (!ownsOperation(token)) return
+            showResult(result, "msg.deleted", "msg.deleteFailed")
+            if (result?.ok === true || result?.persisted === true) {
               setDeleteOpen(false)
               setAcknowledged(false)
-              setFailed(false)
-              setStatus(apiText(result, "msg.deleted"))
               setEntries((previous) => {
                 const next = { ...previous }
                 delete next[id]
                 return next
               })
-              await reload("")
-            } else {
-              setFailed(true)
-              setStatus(apiText(result, "msg.deleteFailed"))
+              await refreshAfterWrite(result, "msg.deleted", "", token, () => reload("", undefined, token))
             }
-          } catch (error) {
-            setFailed(true)
-            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.deleteFailed"), detail: describeError(error) }))
-          } finally {
-            setBusy(false)
-          }
+          })
         }
 
         /**
@@ -1669,9 +1713,10 @@ try {
         }
 
         const save = async () => {
-          setBusy(true)
-          try {
-            const newest = Array.isArray(draft.history) && draft.history.length > 0 ? draft.history[0].n : undefined
+          if (draft === null) return
+          return runOperation("status.saving", "msg.saveFailed", async (token) => {
+            const savedHistory = entry?.saved?.history
+            const newest = Array.isArray(savedHistory) && savedHistory.length > 0 ? savedHistory[0].n : undefined
             const result = await postJson(ROUTES.state, {
               id: draft.id,
               mode: draft.mode,
@@ -1681,6 +1726,9 @@ try {
               description: draft.description,
               ...(typeof newest === "number" ? { baseN: newest } : {}),
             })
+            if (!ownsOperation(token)) return
+            if (result?.synchronized === false) setSyncNeeded(true)
+            else if (result?.synchronized === true) setSyncNeeded(false)
             if (result !== null && result !== undefined && result.ok === true) {
               setFailed(false)
               const compositionChanged =
@@ -1693,42 +1741,66 @@ try {
               // The server normalises what it stores (trimmed name, recomputed overrides),
               // so the just-saved draft is replaced by what it actually wrote. Without this
               // the page would show 「已保存」 and 「未保存」 at the same time.
-              const fresh = await fetchState(draft.id)
-              if (fresh !== null && fresh !== undefined && fresh.ok === true) {
+              await refreshAfterWrite(spoken, "msg.saved", draft.id, token, async () => {
+                const fresh = await fetchState(draft.id)
+                if (!ownsOperation(token)) return
+                if (fresh?.ok !== true) throw new Error(apiText(fresh, "msg.readFailed"))
                 const normalized = draftOf(fresh)
                 setEntries((previous) => ({
                   ...previous,
                   [draft.id]: { payload: fresh, saved: normalized, value: normalized },
                 }))
-                await refreshNames()
-              } else {
-                await reload(draft.id, { discard: true })
-              }
+                await refreshNames(token)
+              })
             } else {
               setFailed(true)
               setStatus(apiText(result, "msg.saveFailed"))
             }
-          } catch (error) {
-            setFailed(true)
-            setStatus(fillPlaceholders(t("status.detail"), { message: t("msg.saveFailed"), detail: describeError(error) }))
-          } finally {
-            setBusy(false)
+          })
+        }
+
+        const retrySync = () => runOperation("status.synchronizing", "msg.syncFailed", async (token) => {
+          const result = await postJson(ROUTES.sync, {})
+          if (!ownsOperation(token)) return
+          showResult(result, "msg.synchronized", "msg.syncFailed")
+          if (result?.ok === true) {
+            await refreshAfterWrite(result, "msg.synchronized", selected, token, () => reload(selected, undefined, token))
           }
+        })
+
+        const retryRead = () => {
+          if (refreshNeeded === null) return
+          const { result, fallbackKey, targetId } = refreshNeeded
+          return runOperation("status.reading", "msg.readFailed", (token) =>
+            refreshAfterWrite(result, fallbackKey, targetId, token, async () => {
+              await reload(targetId, undefined, token)
+              if (ownsOperation(token)) showResult(result, fallbackKey, fallbackKey)
+            }),
+          )
         }
 
         const assistants = list === null ? [] : list
         const position = assistants.findIndex((item) => item.id === selected)
-        const statusClass = failed
+        const statusClass = busy
+          ? "cpfe-status"
+          : failed
           ? "cpfe-status cpfe-err"
           : dirty
             ? "cpfe-status cpfe-dirty"
             : "cpfe-status cpfe-ok"
-        const shown = dirty && status === "" ? t("msg.unsaved") : status
-
-        const lockedModes =
-          payload !== null && Array.isArray(payload.modes) && payload.modes.length > 0
-            ? payload.modes
-            : [{ id: "standard" }, { id: "ptc" }, { id: "minimal" }, { id: "cordis" }, { id: "all" }]
+        const shown = pending !== "" ? t(pending) : dirty && status === "" ? t("msg.unsaved") : status
+        const feedback = [
+          refreshNeeded !== null
+            ? react.createElement(A.Button, { variant: "outline", disabled: busy, onClick: retryRead }, t("btn.retryRead"))
+            : null,
+          refreshNeeded === null && !editorReady && failed && list !== null && selected !== ""
+            ? react.createElement(A.Button, { variant: "outline", disabled: busy, onClick: () => reread() }, t("btn.reload"))
+            : null,
+          syncNeeded
+            ? react.createElement(A.Button, { variant: "outline", disabled: busy, onClick: retrySync }, t("btn.retrySync"))
+            : null,
+          react.createElement("span", { className: statusClass, role: "status", "aria-live": "polite", "aria-atomic": true }, shown),
+        ]
         const createGroup = react.createElement(
           "section",
           { className: "cpfe-create" },
@@ -1766,24 +1838,6 @@ try {
               "div",
               { className: "cpfe-node" },
               react.createElement("span", { className: "cpfe-node-label" }, t("tree.base")),
-              react.createElement(
-                "div",
-                { className: "cpfe-pills cpfe-locked", role: "radiogroup", "aria-disabled": "true", "aria-label": t("tree.base") },
-                lockedModes.map((mode) =>
-                  react.createElement(
-                    A.Pill,
-                    {
-                      key: mode.id,
-                      active: mode.id === "standard",
-                      disabled: true,
-                      "aria-pressed": mode.id === "standard",
-                      title: mode.id === "standard" ? t("tree.baseHold") : t("tree.baseSkip"),
-                      onClick: () => {},
-                    },
-                    t("base." + mode.id + ".label", mode.label),
-                  ),
-                ),
-              ),
               react.createElement("p", { className: "cpfe-note" }, t("tree.baseLocked")),
             ),
             react.createElement(
@@ -1792,6 +1846,7 @@ try {
             react.createElement(A.Input, {
               className: "cpfe-newinput",
               value: newName,
+              disabled: busy,
               placeholder: t("assistant.newPlaceholder"),
               "aria-label": t("assistant.newPlaceholder"),
               onKeyDown: (event) => {
@@ -1810,13 +1865,19 @@ try {
                 disabled: busy,
                 onClick: () => create(),
               },
-              busy ? t("btn.creating") : t("btn.create"),
+              pending === "status.creating" ? t("btn.creating") : t("btn.create"),
             ),
             ),
+            react.createElement("p", { className: "cpfe-note" }, t("create.nextStep")),
           ),
         )
 
         // ── assistant list ────────────────────────────────────────────────────
+        const selectedAssistantLabel = (assistants.find((item) => item.id === selected) || {}).name || selected || t("assistant.heading")
+        const pickedHistoryEntry = draft === null || draft.historyPick === "" ? undefined : draft.history.find((item) => String(item.n) === draft.historyPick)
+        const historySelectionLabel = pickedHistoryEntry === undefined
+          ? t("history.pick")
+          : formatWhen(pickedHistoryEntry.at) + " · " + t("history.by." + pickedHistoryEntry.by)
         const assistantList = react.createElement(
           "section",
           null,
@@ -1828,7 +1889,7 @@ try {
                 null,
                 react.createElement("p", { className: "cpfe-sub" }, listFailed ? t("msg.readFailed") : t("assistant.loadingList")),
                 listFailed
-                  ? react.createElement(A.Button, { disabled: busy, onClick: () => reload("") }, t("btn.reload"))
+                  ? react.createElement(A.Button, { disabled: busy, onClick: () => reread() }, t("btn.reload"))
                   : null,
               )
             : assistants.length === 0
@@ -1842,6 +1903,7 @@ try {
                   renderable(A.Menu)
                     ? react.createElement(A.Menu, {
                         open: assistantOpen,
+                        className: "cpfe-selector-menu",
                         // ★ portal：不把浮层渲染在我们的容器里。设置面板有裁剪与叠层，非 portal 的
                         //   菜单会被裁掉表面，只剩文字"压"在下面的输入框上（实测截图如此）。
                         portal: true,
@@ -1853,15 +1915,16 @@ try {
                           {
                             variant: "toolbar",
                             className: "cpfe-selector",
+                            title: selectedAssistantLabel,
                             disabled: busy,
                             onClick: () => setAssistantOpen((open) => open !== true),
                           },
-                          (assistants.find((item) => item.id === selected) || {}).name || selected || t("assistant.heading"),
+                          react.createElement("span", { className: "cpfe-selector-label" }, selectedAssistantLabel),
                           // 官方设置项的下拉是「文字在左、chevron 在右」（实测「通用设置」页的
                           // 「工作区内修改 / 中文 / 详细」都是这个形态）⇒ 图标放在 children 末尾，
                           // 不走 `icon` prop —— 那个会渲染到文字**前面**，成为页面上唯一一个反向的下拉。
                           renderable(A.IconChevronDownOutline14)
-                            ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
+                            ? react.createElement(A.IconChevronDownOutline14, { size: 14, className: "cpfe-selector-chevron", "aria-hidden": true })
                             : null,
                         ),
                         items: assistants.map((item) => ({
@@ -2166,6 +2229,7 @@ try {
                       renderable(A.Menu)
                         ? react.createElement(A.Menu, {
                             open: historyOpen,
+                            className: "cpfe-selector-menu",
                             portal: true,
                             align: "start",
                             side: "bottom",
@@ -2175,19 +2239,13 @@ try {
                               {
                                 variant: "toolbar",
                                 className: "cpfe-selector",
+                                title: historySelectionLabel,
                                 disabled: busy,
                                 onClick: () => setHistoryOpen((open) => open !== true),
                               },
-                              draft.historyPick === ""
-                                ? t("history.pick")
-                                : (() => {
-                                    const entry = draft.history.find((item) => String(item.n) === draft.historyPick)
-                                    return entry === undefined
-                                      ? t("history.pick")
-                                      : formatWhen(entry.at) + " · " + t("history.by." + entry.by)
-                                  })(),
+                              react.createElement("span", { className: "cpfe-selector-label" }, historySelectionLabel),
                               renderable(A.IconChevronDownOutline14)
-                                ? react.createElement(A.IconChevronDownOutline14, { size: 14 })
+                                ? react.createElement(A.IconChevronDownOutline14, { size: 14, className: "cpfe-selector-chevron", "aria-hidden": true })
                                 : null,
                             ),
                             items: draft.history.map((entry) => ({
@@ -2236,9 +2294,9 @@ try {
           "div",
           // `cpfe-busy` 是 issue #6 的兜底：面板里**所有**会改草稿的控件在忙碌期间一律不可交互。
           // 逐个控件加 `disabled` 会漏（本轮就漏了行开关与描述框），一个根类 + 一条 CSS 反而漏不掉。
-          { className: busy === true ? "cpfe cpfe-busy" : "cpfe" },
+          { className: busy === true ? "cpfe cpfe-busy" : "cpfe", "aria-busy": busy === true },
           assistantList,
-          null,
+          editorReady ? null : react.createElement("div", { className: "cpfe-bar" }, ...feedback),
           // 配了却不生效的项：主动点名，而不是让用户对着"我明明写了"发呆。
           // `draft` 在没选中任何助手时是 null（列表还没加载完 / 一个都没有）—— 这里必须先守卫，
           // 否则整块设置页崩掉（实测：浏览器验收当场报 Cannot read properties of null）。
@@ -2296,7 +2354,7 @@ try {
                 "section",
                 null,
                 react.createElement("h2", { className: "cpfe-h" }, t("editor.heading")),
-                react.createElement(SectionHint, { text: t("editor.hint") }),
+                react.createElement(SectionHint, { text: fillPlaceholders(t("editor.hint"), { name: draft.name || draft.id }) }),
                 react.createElement(
                   "div",
                   { className: "cpfe-branch" },
@@ -2309,10 +2367,10 @@ try {
               {
                 variant: "primary",
                 icon: A.IconCheckOutline14 === undefined ? null : react.createElement(A.IconCheckOutline14),
-                disabled: busy || editorReady === false || dirty === false,
+                disabled: busy || syncNeeded || editorReady === false || dirty === false,
                 onClick: save,
               },
-              busy ? t("btn.saving") : t("btn.save"),
+              pending === "status.saving" ? t("btn.saving") : t("btn.save"),
             ),
             react.createElement(
               A.Button,
@@ -2325,12 +2383,12 @@ try {
                 // one place that does.
                 onClick: () => {
                   if (dirty && typeof window !== "undefined" && window.confirm(t("btn.reloadConfirm")) !== true) return
-                  reload(selected, { discard: true })
+                  reread(true)
                 },
               },
               dirty ? t("btn.reloadDiscard") : t("btn.reload"),
             ),
-            react.createElement("span", { className: statusClass }, shown),
+            ...feedback,
           ),
           ...(editorReady ? editorSections.filter((section) => section.key === "name") : []),
           editorReady

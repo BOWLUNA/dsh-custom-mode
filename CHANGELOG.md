@@ -8,6 +8,16 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.2.6] — 2026-10-27
+
+- Adapt the prompt reader to the scoped working-directory service while preserving old hosts and custom cwd templates. Retire only the exact legacy directory sentence at runtime; user prompt/suffix files are not rewritten.
+- Guard asynchronous assistant edits, reloads, history and imports against late responses. Expose separate activation and refresh retries without replaying a completed mutation.
+- Recover interrupted multi-file saves before assistant discovery. Preserve ambiguous old backups and report recovery-required state instead of seeding over user data.
+- Serialize disk changes with preset synchronization and expose a synchronization-only retry after saved-but-not-applied failures.
+- Preserve clone-install metadata, prepare offline archives of the actual old package, and verify package/code rollback. Publish missing user files exclusively after complete staging; retain recovery copies and preserve concurrent user files on failures.
+- Keep native UI primitives, replace disabled creation-mode buttons with a Standard-start explanation, and label the alpha host's program/tool executor row without changing shipped composition defaults.
+- Clarify first-request setup, editing versus session selection, current recovery and the existing gated publisher flow. Keep historical incidents separate from current instructions. Exact completed checks and platform limits are recorded in CURRENT_COMPATIBILITY.md.
+
 ## [2.2.5] — 2026-10-17
 
 - Verify the exact official DSH `0.2.1-rc.2` npm host and upstream tag. Its preset registry, authenticated routes, native settings interface and four base declarations match alpha.5; the existing compatibility range and user configuration remain valid.

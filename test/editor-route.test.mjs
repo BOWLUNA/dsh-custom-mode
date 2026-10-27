@@ -170,8 +170,8 @@ function rosterRows() {
   return [...rows, ...user]
 }
 
-function makeCtx({ connectionAvailable = true } = {}) {
-  const agentPresets = {
+function makeCtx({ connectionAvailable = true, registryState = null } = {}) {
+  const agentPresets = registryState === null ? {
     async list() {
       return rosterRows()
     },
@@ -180,6 +180,20 @@ function makeCtx({ connectionAvailable = true } = {}) {
       if (row === undefined) throw new Error(`agent-presets: no configured root supplies ${id}`)
       if (row.trust !== 'user') throw new Error(`agent-presets: ${id} ships with the deployment`)
       rmSync(dirname(row.path), { recursive: true, force: true })
+    },
+  } : {
+    async list() { return [...registryState.definitions.values()].map(({ id, name, description }) => ({ id, name, description })) },
+    async compositionInventory() { return [] },
+    async readDocument(id) { return { content: readFileSync(join(shippedDir, id, 'agent.cordis.yml'), 'utf8') } },
+    async register(definition) {
+      if (registryState.fail) throw new Error('fixture registry unavailable')
+      if (registryState.definitions.has(definition.id)) throw new Error('Duplicate agent preset: ' + definition.id)
+      registryState.definitions.set(definition.id, definition)
+      if (definition.name === registryState.blockName) {
+        registryState.started()
+        await registryState.wait
+      }
+      return async () => { registryState.definitions.delete(definition.id) }
     },
   }
   const scope = {
@@ -313,15 +327,16 @@ console.log('=== 1. 结构：注册在平台带围栏的频道上，且源码里
     '/api/custom-mode/reorder',
     '/api/custom-mode/repair',
     '/api/custom-mode/state',
+    '/api/custom-mode/sync',
   ]
 
-  check('注册了 7 条精确路径', mounted.length === 7, String(mounted.length))
+  check('注册了 8 条精确路径', mounted.length === 8, String(mounted.length))
   check('路径集合正确（全部在 /api 之下）', JSON.stringify(paths) === JSON.stringify(expected), JSON.stringify(paths))
   check('每条都声明了 requestBody: buffered', mounted.every((entry) => entry.requestBody === 'buffered'))
   check('每条都有一个 fetch 函数', mounted.every((entry) => typeof entry.fetch === 'function'))
   check(
     'create / delete / reorder 只声明 POST（预取的 GET 不可能触发它们）',
-    ['/api/custom-mode/create', '/api/custom-mode/delete', '/api/custom-mode/reorder']
+    ['/api/custom-mode/create', '/api/custom-mode/delete', '/api/custom-mode/reorder', '/api/custom-mode/sync']
       .every((path) => JSON.stringify(mounted.find((entry) => entry.path === path)?.methods) === JSON.stringify(['POST'])),
   )
   check(
@@ -1180,6 +1195,43 @@ console.log('=== 5.7 降级保存使用同一条冲突规则 ===')
   check('降级保存不带 baseN 仍写入', plain.ok === true && plain.code === 'savedPromptOnly', JSON.stringify(plain))
   check('降级不带 baseN 后磁盘是页面文本', readFileSync(join(degraded, 'prompt.md'), 'utf8') === 'STALE-DEGRADED\n')
   check('降级不带 baseN 后历史仍能看到外部文本', journal.listHistory(degraded).some((entry) => entry.preview === 'EXTERNAL-DEGRADED'))
+}
+
+console.log()
+console.log('=== 5.8 保存与声明式同步同锁；失败诚实返回且可只重试生效 ===')
+{
+  const registryState = { definitions: new Map(), fail: false }
+  mount({ registryState })
+  // GET awaits initial mounting so the following barrier controls only Save A's remount.
+  await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))
+  let release
+  let began
+  const started = new Promise((resolve) => { began = resolve })
+  registryState.blockName = 'Route Save A'
+  registryState.started = began
+  registryState.wait = new Promise((resolve) => { release = resolve })
+  const first = call(post('/custom-mode/state', { id: 'custom', mode: 'standard', name: 'Route Save A', prompt: 'SAME ROUTE PROMPT' }))
+  await started
+  const second = call(post('/custom-mode/state', { id: 'custom', mode: 'standard', name: 'Route Save B', prompt: 'SAME ROUTE PROMPT' }))
+  await new Promise(setImmediate)
+  check('A 同步未完成时，B 尚未写磁盘', readPresetMeta(presetDir).name === 'Route Save A', JSON.stringify(readPresetMeta(presetDir)))
+  release()
+  const both = await Promise.all([first, second])
+  check('并发保存都完成，磁盘与注册表最终均为 B', both.every((response) => response.statusCode === 200) && readPresetMeta(presetDir).name === 'Route Save B' && registryState.definitions.get('custom')?.name === 'Route Save B', JSON.stringify(both.map((response) => response.statusCode)))
+
+  registryState.fail = true
+  const failed = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', name: 'Persisted Pending Sync', prompt: 'PERSISTED ROUTE PROMPT' }))
+  const outcome = JSON.parse(failed.body)
+  check('同步失败以 503 和单独类型码返回，不谎报全部成功', failed.statusCode === 503 && outcome.ok === false && outcome.code === 'savedButSyncFailed' && outcome.persisted === true && outcome.synchronized === false, failed.body)
+  check('响应如实反映磁盘已写成新内容', readPresetMeta(presetDir).name === 'Persisted Pending Sync' && readFileSync(promptPath, 'utf8') === 'PERSISTED ROUTE PROMPT')
+  const snapshot = [compositionPath, promptPath, presetMetaPath].map((file) => readFileSync(file, 'utf8'))
+  const retryFailed = await call(post('/custom-mode/sync', {}))
+  check('只重试同步的失败不声称发生磁盘写入', retryFailed.statusCode === 503 && JSON.parse(retryFailed.body).code === 'syncFailed' && JSON.parse(retryFailed.body).persisted === false, retryFailed.body)
+  registryState.fail = false
+  registryState.blockName = ''
+  const retry = await call(post('/custom-mode/sync', {}))
+  check('只重试同步成功挂载已保存版本', retry.statusCode === 200 && JSON.parse(retry.body).code === 'synchronized' && registryState.definitions.get('custom')?.name === 'Persisted Pending Sync', retry.body)
+  check('重试没有重写组成/提示词/元数据', [compositionPath, promptPath, presetMetaPath].every((file, index) => readFileSync(file, 'utf8') === snapshot[index]))
 }
 
 rmSync(dir, { recursive: true, force: true })
