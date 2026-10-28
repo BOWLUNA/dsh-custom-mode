@@ -4,44 +4,39 @@ English | [中文](SECURITY.zh.md)
 
 ## Reporting a Problem
 
-Submit through GitHub's **private vulnerability reporting** (repository → Security → Report a
-vulnerability), not a public issue. If that entry point is unavailable, an issue may be opened
-that says only "there is a security problem, please provide a private channel", carrying no
-details.
+Do not post vulnerability details in a public bug report. GitHub private vulnerability reporting was
+disabled at the repository check on 2026-10-27. If **Security → Report a vulnerability** is actually
+available, use that private route. Otherwise, use the [private-channel request form](https://github.com/BOWLUNA/dsh-custom-mode/issues/new?template=security_contact.yml)
+only to ask the maintainer for a private reporting channel. That request is public: include no
+vulnerability details, exploit code, credentials or user data. No private email address is published here.
 
-Once a report is confirmed, the aim is to provide, where possible: impact scope, reproduction
-conditions, and the fixed version, and to publish details only after the fix is released.
+After a private channel is available, share the affected version, impact and a synthetic reproduction.
+Remove token URLs, API keys, cookies and private prompts/history. Once confirmed, the aim is to explain
+the impact and fixed version where possible, and disclose details after a fix. No response or fix deadline
+is promised.
 
-## Support Scope
+## Current Validation Scope
 
-Which DSH versions this plugin supports is declared in `engines.dsh` and the `@deepseek-ai/dsh` peer
-range in `package.json` (see README, "Versioning"); the package version is its own line and no
-longer encodes it. Development and verification cover the rows below, newest first:
+Installation compatibility is declared in `engines.dsh` and the `@deepseek-ai/dsh` peer range in
+[package.json](package.json). The plugin has its own version line. Exact completed checks and their
+platform limits are maintained in [CURRENT_COMPATIBILITY.md](docs/CURRENT_COMPATIBILITY.md).
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `2.2.6` (current package) | `0.2.1-rc.2`, `0.2.1-rc.4`, `0.2.2-alpha.2`; legacy `0.2.0-rc.2` and `0.1.7-rc.2` regression | **Supported** — the exact completed checks and remaining boundaries are recorded in CURRENT_COMPATIBILITY.md. Component/unit evidence is not desktop or real-model/GPU acceptance |
-| `2.2.5` (historical release) | `0.2.0-rc.2`, `0.2.1-alpha.5`, `0.2.1-rc.2`; legacy `0.1.7-rc.2` CI leg retained | Historical package/boot/Linux Web lifecycle checks; the later review found the cwd prompt-contract gap. Windows/Electron and real model/GPU execution were unverified |
-| `2.2.4` (superseded) | `0.2.0-rc.2`, preview `0.2.1-alpha.5`; legacy `0.1.7-rc.2` CI leg retained | **Supported** — isolated Linux Web-profile checks on the two current hosts; Windows/Electron and real model/GPU execution unverified. Same declared range |
-| `2.2.3`  | `0.2.0-rc.2`, preview `0.2.1-alpha.2`, and `0.1.7-rc.2` | Supported (superseded) — YAML preservation fix; release waits for both channel compatibility and browser checks. Same declared range |
-| `2.2.2` | `0.2.0-rc.2`, preview `0.2.1-alpha.1`, and `0.1.7-rc.2` | Supported (superseded) — settings page shows the create rule as a tree. Same declared range |
-| `2.2.1` | `0.2.0-rc.2`, preview `0.2.1-alpha.1`, and `0.1.7-rc.2` | Supported (superseded) — storefront update on top of 2.2.0. Same declared range |
-| `2.2.0` | `0.2.0-rc.2`, preview `0.2.1-alpha.1`, and `0.1.7-rc.2` | Supported (superseded) — same declared range as 2.1.0. This release writes `agent-presets.default: custom` only when that key is absent |
-| `2.1.0` | `0.2.0-rc.2` (npm `latest` **and** `next`), the newest preview `0.2.1-alpha.1` (npm `alpha`) **and** the previous stable `0.1.7-rc.2` | Supported (superseded) — the declared range is `>=0.1.5-rc.2 <0.2.0-0 \|\| >=0.1.6-alpha.1 <0.2.0-0 \|\| >=0.1.7-alpha.1 <0.2.0-0 \|\| >=0.2.0-0 <0.3.0-0 \|\| >=0.2.1-alpha.1 <0.3.0-0`, and CI installs each of the three lines and runs the whole suite against it (the render gate runs on `0.2.0-rc.2`). The official desktop app is covered: it is version-locked to dsh and currently ships `0.2.0-rc.2`. Since dsh 0.2.0 an out-of-range plugin is **refused at install time**, so this range is enforcement rather than a warning |
-| `1.9.19` | the same range | Supported (superseded) |
-| `1.9.17` | the same | Supported (superseded) |
-| `1.9.16` | the same | Supported (superseded) |
-| `1.9.15` | the same | Supported (superseded) |
-| `1.9.14` | the same | Supported (superseded) |
-| `1.9.13` | the same | Supported (superseded) |
-| `1.9.12` | the same | Supported (superseded) |
-| `1.9.11` | the same | Supported (superseded) |
-| `1.0.0`–`1.0.4` | `0.1.6-alpha.2` | Supported (superseded) |
-| `1.1.0`–`1.8.0` | `0.1.6-alpha.2` (and `0.1.5-rc.2` from `1.4.0`) | Supported (superseded) |
-| `0.1.6-alpha.1` (including commits after this repository's `review/2026-09-fixes` branch) | `0.1.6-alpha.1` | Supported (previous) |
-| `0.1.6-alpha.1` earlier than the above branch (i.e. the initial commit) | `0.1.6-alpha.1` | **Affected by the problem described below; upgrading is recommended** |
+| `2.3.0` (candidate) | Declared range unchanged; current exact-host targets are `0.2.1-rc.2`, `0.2.1-rc.4`, `0.2.2-alpha.2`, with legacy regressions | **Supported host range declared; verification pending** — new-release integration and native update-flow acceptance are not inherited from 2.2.6. See CURRENT_COMPATIBILITY.md for completed evidence and limits |
+
+This records the current package's compatibility and verification scope. It does not define a security
+support expiry date or a backport schedule.
+
+## Historical Records
+
+The [2.2.6 verification record](docs/CURRENT_COMPATIBILITY.md#226-verification-scope) retains its exact-host results and acceptance limits. The earlier 2.2.5 record includes the cwd prompt-contract gap found after page/lifecycle checks had passed. Neither is fresh acceptance of 2.3.0.
+
+Older release declarations remain in the [changelog](CHANGELOG.md), compatibility history and Git history. They do not promise current support, a backport schedule or fresh desktop acceptance. Initial `0.1.6-alpha.1` builds before `review/2026-09-fixes` were affected by the route issue below; upgrading is recommended.
 
 ## Known Problems and Fixes
+
+The following incident describes the old implementation, not the current route registration.
 
 ### The settings-page private route had no authentication (fixed; shipped in `1.0.1`)
 
@@ -77,10 +72,15 @@ For the full measurements before and after the fix (including the 401/403 compar
   The plugin performs no authentication check of its own — that is the point: the fence is structural
   rather than a rule to remember. (Before this, the route lived on the raw `webServer` table and had to
   call `ctx.connection.requestRejection` itself; the version that forgot is documented above.)
-- This plugin **introduces no** outbound network requests and reads no credentials.
-- The settings page can write only the two files in the preset directory (`prompt.md`,
-  `agent.cordis.yml`) and `preset.yml`; before writing it validates the prompt's interpolation
-  variables, avoiding the promotion of a typo into "every request in that mode fails".
+- Prompt/composition editing does not proactively query a package registry. If you explicitly request an
+  update check or continue an update in the official Plugins interface, the host handles requests through
+  its configured registry and package-management channels. The plugin does not read credentials, change
+  authorization or replace the host's confirmation and update flow.
+- Data changes include managed assistant prompts, metadata, composition, prompt history and
+  transaction/recovery files. `prompt-history.jsonl` contains full historical prompt text; treat history
+  and recovery copies as prompt data when sharing files. Assistant creation/deletion manages its
+  directory, and activation maintains seed markers and managed code. Prompt writes validate
+  interpolation variables before saving to avoid breaking later requests with a typo.
 - `composition.mjs` evaluates the `!!js` platform expressions in the factory composition
   (`new Function`). What it evaluates is the **composition file already installed on this
   machine** — DSH would execute that file as a Cordis plugin anyway, so this introduces no new

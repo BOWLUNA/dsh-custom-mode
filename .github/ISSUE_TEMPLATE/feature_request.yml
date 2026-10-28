@@ -1,34 +1,34 @@
-name: Feature request
-description: Something this mode should do, or should stop doing
+name: Feature request / 功能建议
+description: Describe a task, limitation or expected outcome / 描述使用场景、当前限制或预期结果
 title: '[feature] '
 labels: ['enhancement']
 body:
   - type: markdown
     attributes:
       value: |
-        This plugin leans on dsh-internal APIs (the README has a coupling-point table), so it helps to
-        say whether the request is doable with the **existing APIs** — that saves a round of
-        feasibility back-and-forth.
+        Tell us what you are trying to do and the outcome you need. Maintainers will assess host API support and feasibility;
+        you do not need to design the implementation. Use synthetic examples rather than private prompts or session content.
+        请说明你想完成的任务和预期结果。宿主 API 支持与可行性由维护者评估，无需先设计实现；请使用合成示例，不提供私人提示词或会话内容。
 
   - type: textarea
     id: need
     attributes:
-      label: What you want
-      description: Describe the outcome in a sentence or two; no need to design the implementation.
+      label: Task and expected outcome / 使用场景与预期结果
+      description: 'Who needs this, in what situation, and what should happen? / 谁在什么场景下需要它，希望得到什么结果？'
     validations:
       required: true
 
   - type: textarea
     id: why
     attributes:
-      label: Why it is not possible today
-      description: How do you work around it now, and where does the workaround break down?
+      label: Current workflow and limitation / 当前做法与限制
+      description: 'How do you handle this now, and where does it fall short? / 现在如何处理，哪一步无法满足需求？'
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives you considered or tried
+      label: Alternatives considered or tried (optional) / 考虑或尝试过的替代方法（可选）
     validations:
       required: false

@@ -103,6 +103,8 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
   /** presetId → { dispose, dir } —— 当前挂在注册表里的东西，注销的唯一凭据。 */
   const mounted = new Map()
   let mutations = Promise.resolve()
+  let stopped = false
+  const stoppedResult = () => ({ ok: false, code: 'backendStopped', error: 'backend stopped' })
   const serialize = (work) => {
     const next = mutations.then(work, work)
     mutations = next.then(() => undefined, () => undefined)
@@ -135,6 +137,7 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
    * registry refuses a duplicate id outright.
    */
   async function mountOne(assistant) {
+    if (stopped) return stoppedResult()
     let definition
     try {
       definition = buildDefinition(assistant)
@@ -142,26 +145,40 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
       // 解析失败是**用户可见**的问题（手改坏了 composition），要显式说，不能静默跳过。
       warn(`custom-mode: 预设 "${assistant.id}" 的 composition 解析失败 —— ${describe(error)}。该助手不会出现在选择器里。`)
       await unmount(assistant.id)
-      return { ok: false, error: describe(error) }
+      return { ok: false, code: 'compositionParseFailed', error: describe(error) }
     }
     if (definition === null) {
       await unmount(assistant.id)
-      return { ok: false, error: 'no composition' }
+      return { ok: false, code: 'noComposition', error: 'no composition' }
     }
+    let registering = false
     try {
       await unmount(assistant.id)
+      if (stopped) return stoppedResult()
+      registering = true
       const dispose = await scope.agentPresets.register(definition)
+      registering = false
       mounted.set(assistant.id, { dispose, dir: assistant.dir })
+      // register() can finish after the scope starts stopping. Keep its disposer until
+      // it succeeds, and release only this generation's own registration.
+      if (stopped) {
+        await unmount(assistant.id)
+        return stoppedResult()
+      }
       return { ok: true }
     } catch (error) {
       // register 会抛（Duplicate / id 空 / 已存在）：说清是哪个助手、哪条错误。
       warn(`custom-mode: 注册预设 "${assistant.id}" 失败 —— ${describe(error)}`)
-      return { ok: false, error: describe(error) }
+      const code = registering
+        ? describe(error) === 'Duplicate agent preset: ' + assistant.id ? 'registrationConflict' : 'registrationFailed'
+        : 'registrationCleanupFailed'
+      return { ok: false, code, error: describe(error) }
     }
   }
 
   /** Bring the registry in line with the given assistant list: mount all, drop the rest. */
   async function sync(assistants) {
+    if (stopped) return assistants.map(({ id }) => ({ id, ...stoppedResult() }))
     const results = []
     for (const assistant of assistants) results.push({ id: assistant.id, ...(await mountOne(assistant)) })
     const wanted = new Set(assistants.map((a) => a.id))
@@ -175,7 +192,11 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
   }
 
   async function disposeAll() {
-    for (const id of [...mounted.keys()]) await unmount(id)
+    const errors = []
+    for (const id of [...mounted.keys()]) {
+      try { await unmount(id) } catch (error) { errors.push(error) }
+    }
+    if (errors.length > 0) throw new AggregateError(errors, 'preset registration cleanup failed')
   }
 
   /**
@@ -262,8 +283,13 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
     sync: (assistants) => serialize(() => sync(assistants)),
     mountOne: (assistant) => serialize(() => mountOne(assistant)),
     unmount: (id) => serialize(() => unmount(id)),
-    remove: (id, dir) => serialize(() => remove(id, dir)),
-    disposeAll: () => serialize(disposeAll),
+    remove: (id, dir) => serialize(() => stopped ? stoppedResult() : remove(id, dir)),
+    disposeAll: () => {
+      // Close admission immediately, before awaiting queued/in-flight mutations. A
+      // startup sync still reading host metadata must not resurrect this backend.
+      stopped = true
+      return serialize(disposeAll)
+    },
     fetchBaseCompositions,
     mountedIds: () => [...mounted.keys()],
   }

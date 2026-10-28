@@ -58,11 +58,49 @@ try {
        * truth, checked for key parity by test/locales.test.mjs).
        */
       const ZH = {
+        "update.heading": "插件更新",
+        "update.orphanHint": "以下助手已不在当前列表，但本页仍保留其未保存草稿，因此暂不能离页。",
+        "update.orphanName": "{name}（ID：{id}）",
+        "update.orphanView": "查看并保留草稿",
+        "update.orphanHide": "收起草稿",
+        "update.orphanCopy": "下方包含完整提示词、名称、描述、模式和覆盖项，可选中复制到本地文件保留。放弃仅移除本页内存草稿，不修改磁盘文件。",
+        "update.orphanDiscard": "放弃此草稿…",
+        "update.orphanConfirm": "确认放弃“{name}”（ID：{id}）的未保存草稿？请先复制保留需要的内容。放弃后无法从本页恢复；磁盘文件不会改动。",
+        "update.orphanAcknowledge": "我已保留需要的内容，确认放弃后无法从本页恢复。",
+        "update.orphanChanged": "草稿或助手列表已变化，未放弃任何内容。请重新查看并确认。",
+        "update.orphanDiscarded": "已放弃所确认的本页草稿；磁盘文件未改动。",
+        "update.running": "运行中的插件版本：{version}",
+        "update.unknown": "未知",
+        "update.check": "检查更新",
+        "update.checking": "正在检查…",
+        "update.inPlugins": "在插件管理中更新",
+        "update.details": "打开插件详情",
+        "update.guide": "更新指引",
+        "update.idle": "仅在点击检查时查询宿主配置的包仓库；不会自动安装。",
+        "update.unavailable": "当前连接未提供原生版本检查能力。可打开插件详情或查看更新指引。",
+        "update.permission": "此操作缺少宿主授权，或权限服务暂不可用。",
+        "update.updatePermission": "可以查看版本，但当前连接没有更新权限。",
+        "update.available": "可用更新：{version}。安装由官方插件管理处理。",
+        "update.current": "此次检查未返回更高版本。",
+        "update.filtered": "发现较新版本，但没有符合官方默认条件的稳定兼容版本。",
+        "update.partial": "结果未覆盖全部新版本，暂未找到可推荐的更新。",
+        "update.omitted": "另有 {count} 个较新版本未列出。",
+        "update.disk": "磁盘安装版本：{version}；它可能尚未在运行中加载。",
+        "update.managed": "此安装无法使用原生包仓库更新，请通过原来源或插件详情管理；不会自动切换来源。",
+        "update.notFound": "宿主插件列表中没有找到此插件，无法确认更新。",
+        "update.network": "宿主查询包仓库失败，请稍后重试；尚不能确认更新状态。",
+        "update.refused": "宿主未提供可用的版本列表，尚不能确认更新状态。",
+        "update.failed": "未能完成更新检查，请重试或打开插件详情查看。",
+        "update.finishOperation": "请等待当前操作完成后再离开此页。",
+        "update.finishRecovery": "请先完成重试读取或重试生效，再离开此页。",
+        "update.saveDrafts": "请先保存或主动放弃所有助手草稿及未提交的新建输入，再离开此页。",
+        "update.navigationFailed": "未能打开插件详情；草稿已保留，可稍后重试。",
         "create.nextStep": "创建后可在上方继续编辑并保存；使用时，在新会话的模式菜单选择它。",
         "btn.retryRead": "重试读取",
         "btn.retrySync": "重试生效",
         "api.savedButSyncFailed": "文件已保存，但这些助手尚未生效：{ids}。请点「重试生效」，无需重复原操作。",
         "api.syncFailed": "这些助手仍未生效：{ids}。请重试；仍失败时查看宿主日志。",
+        "api.presetRegistrationSyncFailed": "尚未确认已保存的助手配置在宿主注册表中生效，请处理已有告警或查看宿主日志。",
         "api.synchronized": "配置已生效。新会话请从模式菜单选择助手。",
         "api.recoveryRequired": "助手文件需要恢复：{path}。请保留目录中的备份，并查看宿主日志中的恢复说明。",
         "msg.completedReadFailed": "{result} 页面刷新失败。请点「重试读取」，无需重复原操作。",
@@ -188,6 +226,8 @@ try {
         "warn.approvalGateMissing": "当前版本没有审批事件。会话内改写提示词不会请求确认。",
         "warn.unresolvableRows": "有的行在本机无法启动，此模式不会出现在新会话菜单里。点「按本线修复」只关闭那些行。",
         "warn.presetBroken": "此模式无法启动，不会出现在新会话菜单里。点「按本线修复」。原因见下一行。",
+        "warn.presetRegistrationSyncFailed": "尚未确认这位助手已保存的配置在宿主注册表中生效。请先处理已有告警或查看宿主日志；无需重复保存。",
+        "warn.presetRegistrationRestartSuggested": "尚未确认这位助手已保存的配置在宿主注册表中生效。如刚更新或恢复插件，建议重启 DeepSeek Harness 后重新检查；无需重复保存。",
         "warn.badPromptVariable": "提示词里有不可用的变量。改掉后再保存，否则此模式的请求会失败。",
         "warn.duplicateRowIds": "组成文件里有重复的行 id。开关只作用于第一处。",
         "warn.predicateFailed": "有一行的平台条件无法计算，已按关闭处理。",
@@ -320,11 +360,49 @@ try {
       }
 
       const EN = {
+        "update.heading": "Plugin updates",
+        "update.orphanHint": "These assistants left the current list, but this page still holds their unsaved drafts. Resolve them before leaving.",
+        "update.orphanName": "{name} (ID: {id})",
+        "update.orphanView": "View and keep draft",
+        "update.orphanHide": "Hide draft",
+        "update.orphanCopy": "The text below includes the full prompt, name, description, mode and overrides. Select and copy it to a local file to keep it. Discarding only removes this page's in-memory draft; files on disk are unchanged.",
+        "update.orphanDiscard": "Discard this draft…",
+        "update.orphanConfirm": "Discard the unsaved draft for \"{name}\" (ID: {id})? First copy any content you need to keep. This page cannot recover it after discarding; files on disk will remain unchanged.",
+        "update.orphanAcknowledge": "I have kept the content I need and understand this page cannot recover the discarded draft.",
+        "update.orphanChanged": "The draft or assistant list changed. Nothing was discarded. Review it again before confirming.",
+        "update.orphanDiscarded": "The confirmed draft was discarded from this page; files on disk are unchanged.",
+        "update.running": "Running plugin version: {version}",
+        "update.unknown": "unknown",
+        "update.check": "Check for updates",
+        "update.checking": "Checking…",
+        "update.inPlugins": "Update in Plugins",
+        "update.details": "Open plugin details",
+        "update.guide": "Update guide",
+        "update.idle": "Only a click checks the registries configured by the host; installation is never automatic.",
+        "update.unavailable": "This connection does not offer native version checks. Open plugin details or the update guide.",
+        "update.permission": "Host permission is missing for this action, or the access service is unavailable.",
+        "update.updatePermission": "You can view versions, but this connection does not have update permission.",
+        "update.available": "Update available: {version}. Official plugin management handles installation.",
+        "update.current": "This check returned no newer releases.",
+        "update.filtered": "Newer releases exist, but none meet the official default conditions for a stable compatible version.",
+        "update.partial": "The result omits some newer releases; no recommended update was found.",
+        "update.omitted": "{count} additional newer releases were omitted.",
+        "update.disk": "Installed on disk: {version}; this version may not be loaded in the running host yet.",
+        "update.managed": "Manage this installation through its original source or plugin details; it cannot use this native registry update path. The source will not be changed automatically.",
+        "update.notFound": "The host did not list this plugin, so its update status could not be determined.",
+        "update.network": "The host could not query the registry. Try again later; update status is unknown.",
+        "update.refused": "The host did not provide a usable version list; update status is unknown.",
+        "update.failed": "The update check could not finish. Retry or open plugin details.",
+        "update.finishOperation": "Wait for the current operation to finish before leaving this page.",
+        "update.finishRecovery": "Complete Retry refresh or Retry activation before leaving this page.",
+        "update.saveDrafts": "Save or explicitly discard all assistant drafts and unsubmitted new-assistant input before leaving this page.",
+        "update.navigationFailed": "Plugin details could not open. Your drafts are preserved; try again later.",
         "create.nextStep": "After creating, edit and save above. To use the assistant, choose it in the mode menu for a new session.",
         "btn.retryRead": "Retry refresh",
         "btn.retrySync": "Retry activation",
         "api.savedButSyncFailed": "Files are saved, but these assistants are not active yet: {ids}. Select Retry activation; you do not need to repeat the original action.",
         "api.syncFailed": "These assistants are still not active: {ids}. Retry, then check the host log if the problem continues.",
+        "api.presetRegistrationSyncFailed": "The saved assistant configuration has not been confirmed in the host registry. Address existing warnings or check the host log.",
         "api.synchronized": "Configuration is active. Choose an assistant in the mode menu for a new session.",
         "api.recoveryRequired": "Assistant files need recovery: {path}. Keep the backups in that directory and check the host log for recovery details.",
         "msg.completedReadFailed": "{result} The page could not refresh. Select Retry refresh; do not repeat the original action.",
@@ -453,6 +531,8 @@ try {
         "warn.approvalGateMissing": "This version has no approval event. In-session prompt edits are not confirmed.",
         "warn.unresolvableRows": "Some rows cannot start here, so this mode is absent from the new-session menu. Fix for this line turns off only those rows.",
         "warn.presetBroken": "This mode cannot start, so it will not appear for a new session. Use Fix for this line. The reason is on the next line.",
+        "warn.presetRegistrationSyncFailed": "This assistant's saved configuration has not been confirmed in the host registry. Address existing warnings or check the host log; you do not need to save again.",
+        "warn.presetRegistrationRestartSuggested": "This assistant's saved configuration has not been confirmed in the host registry. If the plugin was just updated or restored, consider restarting DeepSeek Harness, then check again; you do not need to save again.",
         "warn.badPromptVariable": "The prompt uses a variable that is not available. Fix it before saving.",
         "warn.duplicateRowIds": "A row id is repeated. A switch applies only to the first one.",
         "warn.predicateFailed": "A platform condition could not be evaluated. That row is treated as off.",
@@ -643,6 +723,47 @@ try {
        * calls outside any component, and it must read the CURRENT language each time.
        */
       let localeRef
+
+      const UPDATE_PACKAGE = "dsh-custom-mode"
+      let updateServices = { manager: null, navigation: null, list: false, versions: false, update: false, accessKnown: false, revision: 0 }
+      const updateListeners = new Set()
+      const publishUpdateServices = (patch) => {
+        updateServices = { ...updateServices, ...patch, revision: updateServices.revision + 1 }
+        for (const listener of updateListeners) listener()
+      }
+
+      /** Optional Cordis scopes own these reads; old hosts never block the editor. */
+      function mountUpdateServices(ctx) {
+        if (typeof ctx.inject !== "function") return
+        ctx.inject(["remote", "remote.pluginManager"], (scope) => {
+          const manager = scope.remote.pluginManager
+          if (manager === null || manager === undefined) return
+          publishUpdateServices({ manager, list: false, versions: false, update: false, accessKnown: false })
+          scope.effect(() => () => {
+            if (updateServices.manager === manager) publishUpdateServices({ manager: null, list: false, versions: false, update: false, accessKnown: false })
+          })
+          scope.inject(["remoteAccess"], (accessScope) => {
+            if (typeof accessScope.remoteAccess.whenAccess !== "function") return
+            if (updateServices.manager === manager) publishUpdateServices({ accessKnown: true })
+            for (const [key, action] of [["list", "listBundles"], ["versions", "listVersions"], ["update", "updateBundle"]]) {
+              if (typeof manager[action] !== "function") continue
+              accessScope.effect(() => accessScope.remoteAccess.whenAccess("pluginManager/" + action, () => {
+                if (updateServices.manager === manager) publishUpdateServices({ [key]: true })
+                return () => {
+                  if (updateServices.manager === manager) publishUpdateServices({ [key]: false })
+                }
+              }))
+            }
+          })
+        })
+        ctx.inject(["pluginNavigation"], (scope) => {
+          const navigation = scope.get("pluginNavigation")
+          publishUpdateServices({ navigation })
+          scope.effect(() => () => {
+            if (updateServices.navigation === navigation) publishUpdateServices({ navigation: null })
+          })
+        })
+      }
 
       /**
        * Plain-element stand-ins for the shell's atoms.
@@ -847,6 +968,14 @@ try {
         ".cpfe-detail-value{min-width:0;overflow-wrap:anywhere}",
         ".cpfe-sec-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}",
         ".cpfe-sec-head .cpfe-actions{margin-top:0}",
+        ".cpfe-update{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 0;border-bottom:1px solid var(--dsw-alias-border-l1);margin-bottom:16px}",
+        ".cpfe-update-meta{flex:1 1 220px;min-width:0}",
+        ".cpfe-update-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;max-width:100%}",
+        // The shared atoms expose no Link or anchor-shaped Button. Keep a real anchor;
+        // use official settings UI typography/link tokens, not Markdown prose styles.
+        ".cpfe-update-guide{max-width:100%;overflow-wrap:anywhere;font:var(--dsw-font-s-strong-14);color:var(--dsw-alias-link);text-decoration:none}",
+        "@media (hover:hover){.cpfe-update-guide:hover{text-decoration:underline}}",
+        ".cpfe-update-note{overflow-wrap:anywhere}",
         ".cpfe-newinput{box-sizing:border-box;flex:1 1 200px;min-width:0;max-width:100%}",
         // 单列、行高统一（对齐官方插件页的形态）；之前的自适应多列网格会让行高参差不齐。
         // ★ 对齐官方设置行（实测 0.1.7-rc.2 的行：padding 16px 0、无背景、无圆角，行间只有一条 1px
@@ -902,11 +1031,15 @@ try {
         ".cpfe-warn svg{flex:0 0 auto;margin-top:2px}",
       ].join("")
 
-      /** Apply the page stylesheet once, keyed so a re-mount never duplicates it. */
+      /** Keep one stylesheet, replacing stale content when an HMR bundle arrives. */
       function ensureStyles() {
         if (typeof document === "undefined") return
         const tagId = "dsh-custom-mode/system-prompt"
-        if (document.querySelector('style[data-plugin-css="' + tagId + '"]') !== null) return
+        const existing = document.querySelector('style[data-plugin-css="' + tagId + '"]')
+        if (existing !== null) {
+          if (existing.textContent !== CSS) existing.textContent = CSS
+          return
+        }
         const tag = document.createElement("style")
         tag.dataset.plugin = "dsh-custom-mode"
         tag.dataset.pluginCss = tagId
@@ -1254,20 +1387,42 @@ try {
           return t(fallbackKey)
         }
 
-        const [list, setList] = react.useState(null)
+        const [list, setListState] = react.useState(null)
+        const heldRoster = react.useRef(list)
+        const setList = (value) => { heldRoster.current = value; setListState(value) }
         const [selected, setSelected] = react.useState("")
         /** id → { payload, saved, value }: loaded state, baseline and live draft. */
-        const [entries, setEntries] = react.useState({})
+        const [entries, setEntriesState] = react.useState({})
+        const heldEntries = react.useRef(entries)
+        const setEntries = (next) => {
+          heldEntries.current = typeof next === "function" ? next(heldEntries.current) : next
+          setEntriesState(heldEntries.current)
+        }
         const [status, setStatus] = react.useState("")
         const [failed, setFailed] = react.useState(false)
         const [busy, setBusy] = react.useState(false)
         const [pending, setPending] = react.useState("")
-        const [syncNeeded, setSyncNeeded] = react.useState(false)
-        const [refreshNeeded, setRefreshNeeded] = react.useState(null)
+        const [syncNeeded, setSyncNeededState] = react.useState(false)
+        const [refreshNeeded, setRefreshNeededState] = react.useState(null)
+        const navigationState = react.useRef({ syncNeeded: false, refreshNeeded: null, newName: "" })
+        const setSyncNeeded = (value) => { navigationState.current.syncNeeded = value; setSyncNeededState(value) }
+        const setRefreshNeeded = (value) => { navigationState.current.refreshNeeded = value; setRefreshNeededState(value) }
         // A ref closes the interval before React renders disabled controls. Only the
         // owning operation may apply a response or release the busy state.
         const operation = react.useRef({ alive: true, current: null })
-        const [newName, setNewName] = react.useState("")
+        const [newName, setNewNameState] = react.useState("")
+        const setNewName = (value) => { navigationState.current.newName = value; setNewNameState(value) }
+        const [runtimeVersion, setRuntimeVersion] = react.useState("")
+        const [updateResult, setUpdateResult] = react.useState(null)
+        const [updateNotice, setUpdateNotice] = react.useState("")
+        const [updateChecking, setUpdateChecking] = react.useState(false)
+        const [, setUpdateRevision] = react.useState(0)
+        const updateOperation = react.useRef({ alive: true, current: null })
+        const [orphanView, setOrphanView] = react.useState("")
+        const [orphanDialog, setOrphanDialog] = react.useState(null)
+        const [orphanAcknowledged, setOrphanAcknowledged] = react.useState(false)
+        const orphanConfirmation = react.useRef(null)
+        const orphanAcknowledgement = react.useRef(false)
         const [postureChoices, setPostureChoices] = react.useState([])
         const [posture, setPosture] = react.useState("develop")
         const [deleteOpen, setDeleteOpen] = react.useState(false)
@@ -1437,6 +1592,7 @@ try {
           const assistants = Array.isArray(result.assistants) ? result.assistants : []
           const choices = Array.isArray(result.postures) ? result.postures.filter((item) => item !== null && typeof item === "object" && typeof item.id === "string") : []
           setListFailed(false)
+          if (typeof result.version === "string" && result.version !== "") setRuntimeVersion(result.version)
           setList(assistants)
           setPostureChoices(choices)
           setPosture((current) => (choices.some((item) => item.id === current) ? current : choices.length > 0 ? choices[0].id : "develop"))
@@ -1450,7 +1606,8 @@ try {
                   : ""
           setSelected(wanted)
           if (wanted === "") {
-            setEntries({})
+            // An empty remote roster does not discard the only in-memory copy of another draft.
+            setEntries((previous) => Object.fromEntries(Object.entries(previous).filter(([, held]) => !sameDraft(held.value, held.saved))))
             return
           }
           await open(wanted, { force: true, discard: options !== null && typeof options === "object" && options.discard === true }, token)
@@ -1466,6 +1623,7 @@ try {
           const result = await fetchList()
           if (!ownsOperation(token)) return
           if (result !== null && result !== undefined && result.ok === true) {
+            if (typeof result.version === "string" && result.version !== "") setRuntimeVersion(result.version)
             setList(Array.isArray(result.assistants) ? result.assistants : [])
           } else throw new Error(apiText(result, "msg.readFailed"))
         }
@@ -1493,6 +1651,149 @@ try {
             operation.current.current = null
           }
         }, [])
+
+        react.useEffect(() => {
+          updateOperation.current.alive = true
+          const changed = () => {
+            updateOperation.current.current = null
+            setUpdateChecking(false)
+            setUpdateResult(null)
+            setUpdateNotice("")
+            setUpdateRevision((value) => value + 1)
+          }
+          updateListeners.add(changed)
+          return () => {
+            updateListeners.delete(changed)
+            updateOperation.current.alive = false
+            updateOperation.current.current = null
+          }
+        }, [])
+
+        const hasNativeUpdates = (services) => typeof services.manager?.listBundles === "function" &&
+          typeof services.manager?.listVersions === "function" && typeof services.manager?.updateBundle === "function"
+        const ownsUpdateCheck = (token, services) => updateOperation.current.alive &&
+          updateOperation.current.current === token && updateServices.revision === services.revision
+        const checkUpdates = async () => {
+          if (!updateOperation.current.alive || operation.current.current !== null || updateOperation.current.current !== null) return
+          const services = updateServices
+          if (!hasNativeUpdates(services) || !services.list || !services.versions) return
+          const token = {}
+          updateOperation.current.current = token
+          setUpdateChecking(true)
+          setUpdateResult(null)
+          setUpdateNotice("")
+          const show = (key, details) => setUpdateResult({ key, ...details, revision: services.revision })
+          try {
+            const inventory = await services.manager.listBundles()
+            if (!ownsUpdateCheck(token, services)) return
+            if (inventory?.ok !== true || !Array.isArray(inventory.value)) throw new Error("inventory")
+            const bundle = inventory.value.find((item) => item?.name === UPDATE_PACKAGE)
+            if (bundle === undefined) { show("update.notFound"); return }
+            if (bundle.updatable !== true || bundle.installed !== true || bundle.availability !== "profile" ||
+                bundle.official !== false || bundle.readOnlyReason !== undefined || typeof bundle.source !== "string" ||
+                typeof bundle.version !== "string" || bundle.version === "") {
+              show("update.managed", { installed: bundle.version }); return
+            }
+            const answer = await services.manager.listVersions(UPDATE_PACKAGE, {})
+            if (!ownsUpdateCheck(token, services)) return
+            if (answer?.ok !== true || answer.value === null || typeof answer.value !== "object") throw new Error("versions")
+            const listing = answer.value
+            if (listing.status === "refused") {
+              show(listing.problem === "network" ? "update.network" : listing.problem === "not-updatable" ? "update.managed" : "update.refused")
+              return
+            }
+            if (listing.status !== "listed" || typeof listing.installed !== "string" || listing.installed !== bundle.version ||
+                !(listing.registry === null || typeof listing.registry === "string") || !Array.isArray(listing.attempts) ||
+                !Number.isInteger(listing.omitted) || listing.omitted < 0 || !Array.isArray(listing.versions) ||
+                !listing.versions.every((item) => item !== null && typeof item === "object" && typeof item.version === "string" &&
+                  item.version !== "" && typeof item.bundle === "boolean" && typeof item.prerelease === "boolean" && Array.isArray(item.tags))) {
+              throw new Error("incomplete listing")
+            }
+            // Match the official default candidate and trust the Host's semver ordering.
+            const candidate = listing.versions.find((item) => item.bundle && item.incompatible === undefined && item.deprecated === undefined && !item.prerelease)
+            show(candidate ? "update.available" : listing.omitted > 0 ? "update.partial" : listing.versions.length > 0 ? "update.filtered" : "update.current", {
+              candidate: candidate?.version, installed: listing.installed, omitted: listing.omitted,
+            })
+          } catch {
+            if (ownsUpdateCheck(token, services)) show("update.failed")
+          } finally {
+            if (ownsUpdateCheck(token, services)) {
+              updateOperation.current.current = null
+              setUpdateChecking(false)
+            }
+          }
+        }
+
+        /** Latest refs also guard a click before React commits the last keystroke. */
+        const updateNavigationBlock = () => {
+          if (operation.current.current !== null || busy || updateOperation.current.current !== null) return "update.finishOperation"
+          if (navigationState.current.syncNeeded || navigationState.current.refreshNeeded !== null) return "update.finishRecovery"
+          if (navigationState.current.newName !== "" || Object.values(heldEntries.current).some((held) => !sameDraft(held.value, held.saved))) return "update.saveDrafts"
+          return ""
+        }
+        const guardUpdateNavigation = () => {
+          if (!updateOperation.current.alive) return false
+          const block = updateNavigationBlock()
+          if (block !== "") { setUpdateNotice(block); return false }
+          return true
+        }
+        const openPluginDetails = () => {
+          if (!guardUpdateNavigation()) return
+          const services = updateServices
+          if (((hasNativeUpdates(services) || services.accessKnown) && !services.list) || typeof services.navigation?.openBundle !== "function" ||
+              (updateResult?.candidate && (updateResult.revision !== services.revision || !services.update))) {
+            setUpdateNotice("update.permission"); return
+          }
+          try { services.navigation.openBundle(UPDATE_PACKAGE) }
+          catch { setUpdateNotice("update.navigationFailed") }
+        }
+
+        const orphanDrafts = () => {
+          if (!Array.isArray(heldRoster.current)) return []
+          const visible = new Set(heldRoster.current.map((item) => item.id))
+          return Object.entries(heldEntries.current).filter(([id, held]) => !visible.has(id) && !sameDraft(held.value, held.saved))
+        }
+        const closeOrphanConfirmation = () => {
+          orphanConfirmation.current = null
+          orphanAcknowledgement.current = false
+          setOrphanAcknowledged(false)
+          setOrphanDialog(null)
+        }
+        const orphanActionBlock = () => operation.current.current !== null || busy || updateOperation.current.current !== null
+          ? "update.finishOperation"
+          : navigationState.current.syncNeeded || navigationState.current.refreshNeeded !== null ? "update.finishRecovery" : ""
+        const orphanSnapshotCurrent = (snapshot) => heldEntries.current === snapshot.entries && heldRoster.current === snapshot.roster &&
+          navigationState.current.newName === snapshot.newName && orphanDrafts().some(([id]) => id === snapshot.id)
+        const discardOrphan = (snapshot) => {
+          if (!updateOperation.current.alive || orphanConfirmation.current !== snapshot || !orphanAcknowledgement.current) return
+          const blocked = orphanActionBlock()
+          if (blocked || !orphanSnapshotCurrent(snapshot)) {
+            closeOrphanConfirmation()
+            setUpdateNotice(blocked || "update.orphanChanged")
+            return
+          }
+          setEntries((previous) => { const next = { ...previous }; delete next[snapshot.id]; return next })
+          closeOrphanConfirmation()
+          setOrphanView("")
+          setUpdateNotice("update.orphanDiscarded")
+        }
+        const askDiscardOrphan = (id, shown) => {
+          if (!updateOperation.current.alive) return
+          const snapshot = { ...shown, id }
+          const blocked = orphanActionBlock()
+          if (blocked || !orphanSnapshotCurrent(snapshot)) { setUpdateNotice(blocked || "update.orphanChanged"); return }
+          const value = snapshot.entries[id].value
+          snapshot.name = value.name || id
+          orphanConfirmation.current = snapshot
+          orphanAcknowledgement.current = false
+          setOrphanAcknowledged(false)
+          if (renderable(A.RiskConfirmation)) setOrphanDialog(snapshot)
+          else if (typeof window !== "undefined" && typeof window.confirm === "function" &&
+              window.confirm(fillPlaceholders(t("update.orphanConfirm"), { name: snapshot.name, id }))) {
+            orphanAcknowledgement.current = true
+            discardOrphan(snapshot)
+          } else closeOrphanConfirmation()
+        }
 
         /** Change one field of the selected assistant's draft. */
         const update = (patch, options) => {
@@ -1873,6 +2174,65 @@ try {
         )
 
         // ── assistant list ────────────────────────────────────────────────────
+        const nativeUpdates = hasNativeUpdates(updateServices)
+        const updateAllowed = nativeUpdates && updateServices.list && updateServices.versions
+        const checkedUpdate = updateResult?.revision === updateServices.revision ? updateResult : null
+        const navigationBlock = updateNavigationBlock()
+        const updateText = updateChecking ? t("update.checking") : checkedUpdate
+          ? fillPlaceholders(t(checkedUpdate.key), { version: checkedUpdate.candidate })
+          : !nativeUpdates ? t("update.unavailable") : !updateAllowed ? t("update.permission") : t("update.idle")
+        const shownOrphans = orphanDrafts()
+        const orphanSnapshot = { entries: heldEntries.current, roster: heldRoster.current, newName: navigationState.current.newName }
+        const updateSection = react.createElement(
+          "section", { className: "cpfe-update", "aria-label": t("update.heading"), "aria-busy": updateChecking },
+          react.createElement("div", { className: "cpfe-update-meta" },
+            react.createElement("h2", { className: "cpfe-h" }, t("update.heading")),
+            react.createElement("p", { className: "cpfe-version" }, fillPlaceholders(t("update.running"), { version: runtimeVersion || t("update.unknown") })),
+            react.createElement("p", { id: "cpfe-update-status", className: "cpfe-sub cpfe-update-note", role: "status", "aria-live": "polite", "aria-atomic": true }, updateText),
+            checkedUpdate?.installed && checkedUpdate.installed !== runtimeVersion
+              ? react.createElement("p", { className: "cpfe-sub cpfe-update-note" }, fillPlaceholders(t("update.disk"), { version: checkedUpdate.installed })) : null,
+            checkedUpdate?.omitted > 0
+              ? react.createElement("p", { className: "cpfe-sub" }, fillPlaceholders(t("update.omitted"), { count: checkedUpdate.omitted })) : null,
+            checkedUpdate?.candidate && !updateServices.update ? react.createElement("p", { className: "cpfe-sub" }, t("update.updatePermission")) : null,
+            updateNotice || navigationBlock ? react.createElement("p", { className: "cpfe-sub", role: "status" }, t(updateNotice || navigationBlock)) : null,
+            shownOrphans.length > 0 ? react.createElement("div", { className: "cpfe-warns cpfe-update-note" },
+              react.createElement("p", { className: "cpfe-sub" }, t("update.orphanHint")),
+              ...shownOrphans.map(([id, held]) => react.createElement("div", { key: id, className: "cpfe-node" },
+                react.createElement("span", { className: "cpfe-row-head" }, fillPlaceholders(t("update.orphanName"), { name: held.value.name || id, id })),
+                react.createElement(A.Button, { variant: "ghost", className: "cpfe-disclosure", "aria-expanded": orphanView === id,
+                  onClick: () => setOrphanView(orphanView === id ? "" : id) }, t(orphanView === id ? "update.orphanHide" : "update.orphanView")),
+                orphanView === id ? react.createElement("div", { className: "cpfe-node" },
+                  react.createElement("p", { className: "cpfe-sub" }, t("update.orphanCopy")),
+                  react.createElement("textarea", { className: "cpfe-editor cpfe-orphan-editor", readOnly: true, spellCheck: false,
+                    "aria-label": fillPlaceholders(t("update.orphanName"), { name: held.value.name || id, id }),
+                    value: JSON.stringify({ id, name: held.value.name, description: held.value.description, mode: held.value.mode, overrides: held.value.overrides, prompt: held.value.prompt }, null, 2) }),
+                  react.createElement(A.Button, { variant: "outline", className: "cpfe-disclosure", disabled: orphanActionBlock() !== "",
+                    onClick: () => askDiscardOrphan(id, orphanSnapshot) }, t("update.orphanDiscard")),
+                ) : null,
+              )),
+            ) : null,
+          ),
+          react.createElement("div", { className: "cpfe-update-actions" },
+            react.createElement(A.Button, {
+              variant: "outline", disabled: busy || updateChecking || !updateAllowed,
+              "aria-describedby": "cpfe-update-status", onClick: checkUpdates,
+            }, t(updateChecking ? "update.checking" : "update.check")),
+            react.createElement(A.Button, {
+              variant: "outline",
+              disabled: navigationBlock !== "" || ((nativeUpdates || updateServices.accessKnown) && !updateServices.list) || typeof updateServices.navigation?.openBundle !== "function" ||
+                (!!checkedUpdate?.candidate && !updateServices.update),
+              title: navigationBlock ? t(navigationBlock) : undefined,
+              onClick: openPluginDetails,
+            }, t(checkedUpdate?.candidate ? "update.inPlugins" : "update.details")),
+            react.createElement("a", {
+              className: "cpfe-update-guide",
+              href: "https://github.com/BOWLUNA/dsh-custom-mode/blob/main/README" + (activeLanguage(localeRef) === "zh" ? ".zh" : "") + ".md#plugin-updates",
+              target: "_blank", rel: "noopener noreferrer", "aria-disabled": navigationBlock !== "",
+              onClick: (event) => { if (!guardUpdateNavigation()) event.preventDefault() },
+            }, t("update.guide")),
+          ),
+        )
+
         const selectedAssistantLabel = (assistants.find((item) => item.id === selected) || {}).name || selected || t("assistant.heading")
         const pickedHistoryEntry = draft === null || draft.historyPick === "" ? undefined : draft.history.find((item) => String(item.n) === draft.historyPick)
         const historySelectionLabel = pickedHistoryEntry === undefined
@@ -2295,6 +2655,7 @@ try {
           // `cpfe-busy` 是 issue #6 的兜底：面板里**所有**会改草稿的控件在忙碌期间一律不可交互。
           // 逐个控件加 `disabled` 会漏（本轮就漏了行开关与描述框），一个根类 + 一条 CSS 反而漏不掉。
           { className: busy === true ? "cpfe cpfe-busy" : "cpfe", "aria-busy": busy === true },
+          updateSection,
           assistantList,
           editorReady ? null : react.createElement("div", { className: "cpfe-bar" }, ...feedback),
           // 配了却不生效的项：主动点名，而不是让用户对着"我明明写了"发呆。
@@ -2391,16 +2752,6 @@ try {
             ...feedback,
           ),
           ...(editorReady ? editorSections.filter((section) => section.key === "name") : []),
-          editorReady
-            ? react.createElement(
-                "p",
-                {
-                  className: "cpfe-version",
-                  title: String(payload.compositionPath ?? "") + "\n" + t("meta.versionHint"),
-                },
-                "v" + String(payload.version ?? "?"),
-              )
-            : null,
           ...(editorReady ? editorSections.filter((section) => section.key === "mode") : []),
           editorReady
             ? react.createElement(
@@ -2440,6 +2791,21 @@ try {
           createGroup,
           // The confirmation is a portal: rendering it here keeps every piece of this page's
           // state in one component.
+          renderable(A.RiskConfirmation) && orphanDialog !== null
+            ? react.createElement(A.RiskConfirmation, {
+                open: true, title: t("update.orphanDiscard"),
+                description: fillPlaceholders(t("update.orphanConfirm"), { name: orphanDialog.name, id: orphanDialog.id }),
+                acknowledgeLabel: t("update.orphanAcknowledge"), acknowledged: orphanAcknowledged,
+                onAcknowledgedChange: (value) => {
+                  if (!updateOperation.current.alive || orphanConfirmation.current !== orphanDialog) return
+                  orphanAcknowledgement.current = value === true
+                  setOrphanAcknowledged(value === true)
+                },
+                cancelLabel: t("btn.cancel"), closeLabel: t("btn.cancel"), confirmLabel: t("update.orphanDiscard"),
+                disabled: orphanActionBlock() !== "", onCancel: () => { if (updateOperation.current.alive && orphanConfirmation.current === orphanDialog) closeOrphanConfirmation() },
+                onConfirm: () => discardOrphan(orphanDialog),
+              })
+            : null,
           renderable(A.RiskConfirmation) && editorReady
             ? react.createElement(A.RiskConfirmation, {
                 open: deleteOpen,
@@ -2497,6 +2863,8 @@ try {
             console.warn("dsh-custom-mode: slots service unavailable; settings page not registered")
             return
           }
+          try { mountUpdateServices(ctx) }
+          catch { console.warn("dsh-custom-mode: optional native update services unavailable") }
           slots.inject("settings.section", () => {
             // `locale: NS` is the shipped contract: the shell then hands the
             // component a bound `t` in props.

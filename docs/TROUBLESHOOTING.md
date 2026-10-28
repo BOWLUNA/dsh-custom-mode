@@ -4,7 +4,7 @@ English | [中文](TROUBLESHOOTING.zh.md)
 
 ## Current recovery steps
 
-This section applies to version `2.2.6`. Check the [exact-host results and acceptance limits](CURRENT_COMPATIBILITY.md) before updating. The numbered incident archive below preserves old observations and commands in their historical context, not a current setup recipe.
+This section describes version `2.3.0`. Check release availability and the [exact-host results and acceptance limits](CURRENT_COMPATIBILITY.md) before updating. The numbered incident archive below preserves old observations and commands in their historical context, not a current setup recipe.
 
 1. Record the host version (`dsh --version`), installed plugin version shown in Settings → Custom mode, platform, and the failing step: installation, page opening, save/application, assistant selection, or first request. Desktop uses its in-app Plugins page; these CLI steps target the Web profile.
 2. Run `dsh --profile web --dump-config`. A `dsh-custom-mode` row only proves that the composed configuration contains the plugin. It does **not** prove activation, page rendering, preset health, or a model request. No matching row calls for checking the selected profile and installed package; a restart alone does not install a missing package.
@@ -14,17 +14,32 @@ This section applies to version `2.2.6`. Check the [exact-host results and accep
 | Symptom | Recovery and success check |
 | --- | --- |
 | Wrong plugin version installed | Use the exact published version below and verify the version in the page after restart. A bare name or successful package-manager exit is insufficient. |
+| Update check unavailable | If an older host lacks the native query API, open plugin details or the [update guide](../README.md#plugin-updates). On a capable host, check the reported permission/network state. Do not remove a working installation merely to query its version. |
+| Update status unknown, no recommended version, or permission refused | A query result is not an installation result. Keep the actual error/filtered/partial status; query and update permissions are separate on capable alpha hosts. Continue only through the official Plugins controls available to your connection. |
+| Installed version differs from running version | Read both labels. A package on disk may await host restart/application; follow the official result and verify the running version afterward. Do not repeatedly reinstall based only on the displayed disk version. |
+| Update navigation is blocked | Save or deliberately discard every assistant draft and unsubmitted new-assistant input, then finish any pending operation, Retry activation or Retry refresh. If an assistant left the current list, use View and keep draft to copy its complete held content before selecting Discard this draft… and confirming. That discard removes only this page's memory copy; it does not change disk files and cannot be undone in the page. Navigation does not silently save or discard drafts. |
 | `unknown prompt variable "{{cwd}}"` | Keep the complete section name and exact host version. Upgrade to the accepted repair release and restart so the managed reader is refreshed. Do not delete unrelated prompt/suffix text. If an unknown variable remains, preserve your text and inspect that exact section; the current code's compatibility behavior is recorded with its tests. |
-| File saved but application failed | Keep any current unsaved draft. Select Retry activation for the already saved configuration, and confirm the warning clears before starting a new session. Retry does not save a different draft. |
+| File saved but application failed | Keep any current unsaved draft. Retry activation only reapplies the saved configuration. If this follows a native update/restoration involving 2.2.6, use the [one-host-restart recovery path](#native-226-recovery) below instead of repeatedly saving. Confirm the warning clears before starting a new session. |
+| Plugins restored 2.2.6 but a later save is not active | A restored package does not prove the assistants have registered again. Keep the saved data and follow the [one-host-restart recovery path](#native-226-recovery); do not delete assistant data or repeat the save. |
 | Operation succeeded but page refresh failed | Select Retry refresh. Do not repeat create/delete/save, which already completed; the retry only reads the current state. |
 | Assistant missing after an interrupted save | Stop further edits and preserve the assistant directory, backups and recovery records. The repair release attempts recovery before discovery. If it still fails, retain the evidence for diagnosis; do not delete backups or assume permanent data loss. |
 | Clone installer reports failure | Read the printed transaction directory. A verified rollback reinstalls the local old package and restores managed code. Exit 5 means recovery is incomplete: keep the old archive/logs and reinstall that actual archive through the host's plugin manager before restarting. Copying only package.json does not restore an installation. |
 | `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | Check the profile's pnpm policy and the requested exact version. If you choose a package-specific exception, keep one `minimumReleaseAgeExclude` entry (`- dsh-custom-mode`), not accumulating version entries. Do not disable the release-age policy for every package. The script does not edit this policy for you. |
 
-For a published `2.2.6` package accepted on your exact host, the Web update command is:
+<a id="native-226-recovery"></a>
+
+### After native recovery restores 2.2.6
+
+If Plugins reports **Update failed; restored 2.2.6**, then Custom mode says **Files are saved, but these assistants are not active yet** after an edit, first copy any unsaved drafts to a safe place before restarting. The save already wrote your data; deleting an assistant, repeating the save or reinstalling on that message is not the recovery step.
+
+Restart only the corresponding Web host once through its normal launcher. Reopen Custom mode, check the running version, select the assistant in the new-session menu and read back its saved text. A deliberate test edit should save without the not-active warning. Desktop users must use their app's own restart path rather than Web profile commands.
+
+This path was observed on isolated DSH Web `0.2.2-alpha.2` with the real published `2.2.6`: a target-tar download failure restored the old package and preserved the saved files, but subsequent saves did not activate. One host restart restored registration of both test assistants (2/2), selection and a subsequent save. The package recovery and later intentional edits were checked separately; no model request was made. This evidence does not establish a seamless hot migration or desktop/model/GPU acceptance.
+
+For a published `2.3.0` package accepted on your exact host, the manual Web update command is:
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.2.6
+dsh plugin --profile web add dsh-custom-mode@2.3.0
 ```
 
 Restart and repeat the first-request check. Existing prompt, preset metadata and composition are user data. Clone installation requires Bash, Node.js and npm; it prepares local packages with offline `npm pack --ignore-scripts` and never downloads a newer rollback version. A missing or unarchivable old installation stops replacement before mutation. First-install failure has no old package to restore: the script removes the partial plugin and verifies the profile state, or reports incomplete cleanup.

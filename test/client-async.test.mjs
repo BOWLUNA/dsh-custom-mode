@@ -7,38 +7,45 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
+import { resolve } from 'node:path'
 import { runInNewContext } from 'node:vm'
 import { en } from '../locales.mjs'
 
 const option = (name) => process.argv.find((arg) => arg.startsWith('--' + name + '='))?.split('=').slice(1).join('=')
 const source = readFileSync(option('bundle') || fileURLToPath(new URL('../client.js', import.meta.url)), 'utf8')
-const deferred = () => {
+export const deferred = () => {
   let resolve, reject
   const promise = new Promise((yes, no) => { resolve = yes; reject = no })
   return { promise, resolve, reject }
 }
-const fixture = (id = 'a', prompt = 'OLD ' + id, n = 1) => ({
+export const fixture = (id = 'a', prompt = 'OLD ' + id, n = 1) => ({
   ok: true, id, name: id.toUpperCase(), description: '', prompt, mode: 'standard', overrides: {},
   modes: [{ id: 'standard' }, { id: 'minimal' }], rows: [], warnings: [],
   history: [{ n, at: '2026-10-27T00:00:00.000Z', bytes: 5, by: 'settings' }],
 })
-const roster = (ids = ['a', 'b']) => ({
-  ok: true, assistants: ids.map((id) => ({ id, name: id.toUpperCase() })),
+export const roster = (ids = ['a', 'b']) => ({
+  ok: true, version: '2.2.6', assistants: ids.map((id) => ({ id, name: id.toUpperCase() })),
   postures: [{ id: 'develop' }, { id: 'write' }, { id: 'chat' }],
 })
-const text = (node) => node == null ? '' : typeof node !== 'object' ? String(node)
+export const text = (node) => node == null ? '' : typeof node !== 'object' ? String(node)
   : (node.props?.text || '') + (node.props?.children || []).map(text).join('')
 
-function harness() {
-  const hooks = [], pendingEffects = [], requests = [], files = []
+export function harness(options = {}) {
+  const hooks = [], pendingEffects = [], requests = [], files = [], queuedStates = [], moduleDisposers = []
   let cursor = 0, writes = 0, component, tree
   const atoms = Object.fromEntries(['Button', 'Input', 'Switch', 'Tag', 'Pill', 'Menu', 'IconChevronDownOutlineRegular'].map((name) => [name, function Atom() {}]))
+  if (options.nativeRisk) atoms.RiskConfirmation = function RiskConfirmation() {}
   const react = {
     createElement(type, props, ...children) { return { type, key: props?.key, props: { ...props, children: children.flat(Infinity) } } },
     useState(initial) {
       const at = cursor++
       hooks[at] ??= { value: typeof initial === 'function' ? initial() : initial }
-      return [hooks[at].value, (next) => { writes++; hooks[at].value = typeof next === 'function' ? next(hooks[at].value) : next }]
+      return [hooks[at].value, (next) => {
+        writes++
+        const apply = () => { hooks[at].value = typeof next === 'function' ? next(hooks[at].value) : next }
+        if (options.deferState) queuedStates.push(apply)
+        else apply()
+      }]
     },
     useRef(initial) { const at = cursor++; hooks[at] ??= { value: { current: initial } }; return hooks[at].value },
     useEffect(effect, deps) {
@@ -52,7 +59,7 @@ function harness() {
   let registration
   const sandbox = {
     console, setTimeout, clearTimeout, URL,
-    window: { confirm: () => true, __ModuleLoader__: { load: (entry) => { registration = entry } } },
+    window: { confirm: (message) => options.confirm ? options.confirm(message) : true, __ModuleLoader__: { load: (entry) => { registration = entry } } },
     fetch(url, options = {}) {
       const result = deferred()
       requests.push({ url, options, result })
@@ -63,17 +70,52 @@ function harness() {
       readAsText() {}
     },
   }
-  runInNewContext(source, sandbox)
+  if (options.document) sandbox.document = options.document
+  runInNewContext(options.bundleSource || source, sandbox)
   const bundle = registration.factory((name) => name === 'react' ? react : atoms)
   const locale = { bind: () => (key) => en[key] || key, getLocale: () => ({ active: 'en' }), register: () => () => {} }
-  bundle.apply({ effect: (fn) => fn(), get: (name) => name === 'locale' ? locale : {
+  const slots = {
     inject: (_name, callback) => callback(), register: (_options, fn) => { component = fn },
-  } })
+  }
+  const permissionObservers = new Map()
+  const permissions = { ...options.permissions }
+  const access = {
+    whenAccess(action, callback) {
+      const observers = permissionObservers.get(action) || new Set()
+      permissionObservers.set(action, observers)
+      const observer = { callback, cleanup: permissions[action] ? callback() : null }
+      observers.add(observer)
+      return () => { observer.cleanup?.(); observers.delete(observer) }
+    },
+  }
+  const services = { slots, locale, remote: {}, 'remote.pluginManager': options.manager,
+    remoteAccess: options.noAccess ? undefined : options.sourceOnlyAccess ? { source() { throw new Error('old resource source is not a global access API') } } : access,
+    pluginNavigation: options.navigation }
+  const scopedContext = (dependencies) => ({
+    effect(fn) { const cleanup = fn(); if (typeof cleanup === 'function') moduleDisposers.push(cleanup); return cleanup },
+    get(name) { assert.ok(dependencies.includes(name), 'service reads must belong to an injected scope: ' + name); return services[name] },
+    get remote() { assert.ok(dependencies.includes('remote') && dependencies.includes('remote.pluginManager')); return { pluginManager: services['remote.pluginManager'] } },
+    get remoteAccess() { assert.ok(dependencies.includes('remoteAccess')); return services.remoteAccess },
+    inject(names, callback) {
+      if (names.every((name) => services[name] !== undefined)) callback(scopedContext([...dependencies, ...names]))
+    },
+  })
+  const rootContext = scopedContext(['slots', 'locale'])
+  bundle.apply(rootContext)
   const api = {
     requests, files, atoms,
-    render() { cursor = 0; tree = component({ t: (key) => en[key] || key }); return tree },
+    render() { for (const apply of queuedStates.splice(0)) apply(); cursor = 0; tree = component({ t: (key) => en[key] || key }); return tree },
+    permission(action, allowed) {
+      permissions[action] = allowed
+      for (const observer of permissionObservers.get(action) || []) {
+        observer.cleanup?.()
+        observer.cleanup = allowed ? observer.callback() : null
+      }
+    },
     effects() { for (const at of pendingEffects.splice(0)) { hooks[at].cleanup?.(); hooks[at].cleanup = hooks[at].effect() } },
     cleanup() { for (const hook of hooks) hook.cleanup?.() },
+    applyAgain() { bundle.apply(rootContext) },
+    disposeModule() { for (const dispose of moduleDisposers.splice(0).reverse()) dispose() },
     replay() { for (const hook of hooks) if (hook.effect) hook.cleanup = hook.effect() },
     get writes() { return writes },
     all(predicate) {
@@ -325,12 +367,14 @@ const cases = {
   },
 }
 
-let passed = 0, failed = 0
-for (const [name, run] of Object.entries(cases)) {
-  if (option('case') && option('case') !== name) continue
-  try { await run(); passed++; console.log('PASS  ' + name) }
-  catch (error) { failed++; console.error('FAIL  ' + name + '\n' + error.stack) }
+if (resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
+  let passed = 0, failed = 0
+  for (const [name, run] of Object.entries(cases)) {
+    if (option('case') && option('case') !== name) continue
+    try { await run(); passed++; console.log('PASS  ' + name) }
+    catch (error) { failed++; console.error('FAIL  ' + name + '\n' + error.stack) }
+  }
+  if (passed + failed === 0) { failed++; console.error('FAIL  no selected case exists') }
+  console.log(`结果: ${passed} 通过, ${failed} 失败（组件处理函数/模拟 hooks 与 I/O；未验证浏览器渲染）`)
+  process.exit(failed ? 1 : 0)
 }
-if (passed + failed === 0) { failed++; console.error('FAIL  no selected case exists') }
-console.log(`结果: ${passed} 通过, ${failed} 失败（组件处理函数/模拟 hooks 与 I/O；未验证浏览器渲染）`)
-process.exit(failed ? 1 : 0)

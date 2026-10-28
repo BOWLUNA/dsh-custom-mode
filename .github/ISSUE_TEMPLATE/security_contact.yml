@@ -1,0 +1,23 @@
+name: Request a private security reporting channel / 请求私密安全报告渠道
+description: Request private contact only; do not include vulnerability details / 仅请求私下联系渠道，不提供漏洞细节
+title: '[security contact] Request a private reporting channel / 请求私密报告渠道'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This issue is public.** Use it only to ask a maintainer for a private security reporting channel
+        when the private reporting option is unavailable. It does not submit a private vulnerability report.
+        Do not put vulnerability details, credentials, exploit code or user data in the title, body, attachments or comments.
+        Read the [security policy](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/SECURITY.md) first.
+
+        **此 issue 公开可见。** 仅在私密报告入口不可用时，请求维护者提供私下安全报告渠道；这不是私密漏洞报告。
+        不要在标题、正文、附件或评论中提供漏洞细节、凭据、利用代码或用户数据。
+        请先阅读[安全政策](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/SECURITY.zh.md)。
+
+  - type: checkboxes
+    id: no-sensitive-details
+    attributes:
+      label: Request a private channel / 请求私下渠道
+      options:
+        - label: I am only requesting a private reporting channel and have included no vulnerability details, credentials, exploit code or user data. / 我仅请求私密报告渠道，未附漏洞细节、凭据、利用代码或用户数据。
+          required: true
