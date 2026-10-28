@@ -51,6 +51,18 @@ const viewOrphan = (s) => {
 }
 const orphanDialog = (s) => s.app.find((node) => node.type === s.app.atoms.RiskConfirmation && node.props.open === true)
 const tests = {
+  async registrationFailureWarningUsesExistingSurface() {
+    const app = harness()
+    app.render(); app.effects()
+    app.request('').result.resolve(roster(['a'])); await app.flush()
+    app.request('/state?id=a').result.resolve({ ...fixture('a'), warnings: ['presetRegistrationRestartSuggested'], registrationSync: { ok: false, code: 'presetRegistrationSyncFailed', ids: ['a'], restartSuggested: true } })
+    await app.flush()
+    const warnings = app.find((node) => node.props?.className === 'cpfe-warns')
+    assert.ok(text(warnings).includes(en['warn.presetRegistrationRestartSuggested']))
+    assert.ok(text(warnings).includes('consider restarting DeepSeek Harness'))
+    assert.equal(app.all((node) => node.type === app.atoms.Button && text(node) === en['btn.repair']).length, 0, 'registration failures cannot be repaired by changing composition rows')
+    assert.equal(app.prompt().props.value, 'OLD a')
+  },
   async manualEmptyRoster() {
     const s = await setup({ ids: [] })
     assert.equal(s.inventory.length, 0, 'mount never polls the registry or manager')

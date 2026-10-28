@@ -18,11 +18,11 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 19 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **1164 项检查**（没有 zstd 的 Node < 22.15 会跳过 session-trace 的压缩帧检查；`tools/verify-doc-numbers.mjs` 会说明跳过，而非误报失败）。只有 `composition.test.mjs` 需要那个出厂目录，其余十八个自带夹具、临时目录与桩，
+合计 **1187 项检查**（没有 zstd 的 Node < 22.15 会跳过 session-trace 的压缩帧检查；`tools/verify-doc-numbers.mjs` 会说明跳过，而非误报失败）。只有 `composition.test.mjs` 需要那个出厂目录，其余十八个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 修复套件覆盖多文件中断恢复（`atomic-recovery`）、迟到UI响应（`client-async`），以及真实Bash安装器
-配合离线打包、合成包管理器与文件系统故障（`install-script`）。`client-update`覆盖原生能力/结果处理、草稿保护导航、孤立草稿恢复和已有样式标签刷新，不执行真实包更新。另有不启动服务或模型的精确宿主组件门禁：
+配合离线打包、合成包管理器与文件系统故障（`install-script`）。声明式后端与路由用例覆盖本代注册凭据清理、停止后的队列、迟到注册、清理失败与按助手隔离的同步告警。`client-update`覆盖原生能力/结果处理、草稿保护导航、孤立草稿恢复和已有样式标签刷新，不执行真实包更新。另有不启动服务或模型的精确宿主组件门禁：
 
 ```sh
 node tools/prompt-contract-check.mjs --host-install /path/to/exact-host

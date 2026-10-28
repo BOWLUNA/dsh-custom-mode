@@ -80,6 +80,8 @@ The page header shows the **running plugin version**. With DSH `0.2.2-alpha.2`'s
 
 On `0.2.1-rc.2`, `0.2.1-rc.4`, `0.2.0-rc.2` and `0.1.7-rc.2`, the native version-query API is absent: use **Open plugin details** or **Update guide** and the manual fixed-version path below. File, tarball and source-linked installations remain managed by their original source; checking does not silently convert them to npm. Permission denial, network failure, filtered versions or a partial result do not mean the plugin is current. A separate **Installed on disk** version does not prove that the running code has changed.
 
+When you update from 2.2.6 through a Web host's native Plugins page, or a failed update restores 2.2.6, restart that host once, then check the running version and assistant availability. Hot-stopping the old version can leave assistant registrations behind.
+
 For a manual registry upgrade, use the fixed-version npm command above with a published version, then restart the host and verify the running version. [GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases) also provides the plugin `.tgz`, a preset-only import archive and `SHA256SUMS`. Verify downloaded hashes; the preset-only archive does not include the settings page.
 
 That command targets Web/CLI only. Desktop users must use an update path actually offered by their app. If it has none, do not substitute the Web CLI command or edit the desktop profile files.

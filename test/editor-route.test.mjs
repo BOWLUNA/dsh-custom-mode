@@ -171,7 +171,7 @@ function rosterRows() {
   return [...rows, ...user]
 }
 
-function makeCtx({ connectionAvailable = true, registryState = null, listedRows = null } = {}) {
+function makeCtx({ connectionAvailable = true, registryState = null, listedRows = null, cleanups = null } = {}) {
   const agentPresets = registryState === null ? {
     async list() {
       return listedRows ?? rosterRows()
@@ -184,10 +184,16 @@ function makeCtx({ connectionAvailable = true, registryState = null, listedRows 
     },
   } : {
     async list() { return [...registryState.definitions.values()].map(({ id, name, description }) => ({ id, name, description })) },
-    async compositionInventory() { return [] },
+    async compositionInventory() {
+      if (registryState.inventoryGate !== undefined) {
+        registryState.inventoryStarted()
+        await registryState.inventoryGate
+      }
+      return []
+    },
     async readDocument(id) { return { content: readFileSync(join(shippedDir, id, 'agent.cordis.yml'), 'utf8') } },
     async register(definition) {
-      if (registryState.fail) throw new Error('fixture registry unavailable')
+      if (registryState.fail || registryState.failIds?.has(definition.id)) throw new Error(registryState.failureMessage ?? 'fixture registry unavailable')
       if (registryState.definitions.has(definition.id)) throw new Error('Duplicate agent preset: ' + definition.id)
       registryState.definitions.set(definition.id, definition)
       if (definition.name === registryState.blockName) {
@@ -199,7 +205,11 @@ function makeCtx({ connectionAvailable = true, registryState = null, listedRows 
   }
   const scope = {
     // Cordis 的作用域上也有 effect：注册路由时用它，disposer 交给宿主。
-    effect: (fn) => fn(),
+    effect: (fn) => {
+      const cleanup = fn()
+      if (cleanups !== null) cleanups.push(cleanup)
+      return cleanup
+    },
     agentPresets,
     connection: {
       fetch: {
@@ -1241,6 +1251,80 @@ console.log('=== 5.8 保存与声明式同步同锁；失败诚实返回且可�
   const retry = await call(post('/custom-mode/sync', {}))
   check('只重试同步成功挂载已保存版本', retry.statusCode === 200 && JSON.parse(retry.body).code === 'synchronized' && registryState.definitions.get('custom')?.name === 'Persisted Pending Sync', retry.body)
   check('重试没有重写组成/提示词/元数据', [compositionPath, promptPath, presetMetaPath].every((file, index) => readFileSync(file, 'utf8') === snapshot[index]))
+}
+
+console.log()
+console.log('=== 5.9 scope 停机释放声明式注册；下一代不会 Duplicate ===')
+{
+  const registryState = { definitions: new Map(), fail: false }
+  const cleanups = []
+  mount({ registryState, cleanups })
+  await call(makeReq('GET', { url: '/custom-mode' }))
+  check('前一代已注册 custom', registryState.definitions.has('custom'))
+  for (const cleanup of [...cleanups].reverse()) if (typeof cleanup === 'function') await cleanup()
+  check('scope cleanup 释放所有本代 preset 凭据', registryState.definitions.size === 0)
+  mount({ registryState })
+  const next = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('下一代启动同步成功且无注册告警', next.registrationSync?.ok === true && !next.warnings.includes('presetRegistrationSyncFailed'))
+  for (const cleanup of [...cleanups].reverse()) if (typeof cleanup === 'function') await cleanup()
+  check('旧 scope 重复 cleanup 不移除下一代注册', registryState.definitions.has('custom'))
+}
+
+console.log()
+console.log('=== 5.10 启动同步失败在只读 API 可见，安全字段不泄漏原始错误 ===')
+{
+  const registryState = { definitions: new Map(), fail: true, failureMessage: 'SYNTHETIC_PRIVATE_PATH/CREDENTIAL?secret=do-not-expose' }
+  mount({ registryState })
+  const list = JSON.parse((await call(makeReq('GET', { url: '/custom-mode' }))).body)
+  const state = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('list/state 都报告 typed 同步失败，普通失败不强称必须重启', list.registrationSync?.code === 'presetRegistrationSyncFailed' && state.registrationSync?.ok === false && state.registrationSync?.restartSuggested === false && state.registrationSync?.restartRequired === undefined)
+  check('state 使用专用告警而不冒充 presetBroken', state.warnings.includes('presetRegistrationSyncFailed') && state.broken === null)
+  check('同步证据只有有限安全字段，不带错误/堆栈/路径', JSON.stringify(Object.keys(state.registrationSync).sort()) === JSON.stringify(['code', 'ids', 'ok', 'restartSuggested']) && !JSON.stringify(state.registrationSync).includes('SYNTHETIC_PRIVATE_PATH') && state.registrationSync.ids.every((id) => /^[A-Za-z0-9_.-]{1,128}$/.test(id)))
+  registryState.fail = false
+  await call(post('/custom-mode/sync', {}))
+  const recovered = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('同步成功后清除该状态和告警', recovered.registrationSync?.ok === true && !recovered.warnings.includes('presetRegistrationSyncFailed'))
+}
+
+console.log()
+console.log('=== 5.11 启动读元数据跨过停机时，迟到同步不能注册 ===')
+{
+  let entered
+  let release
+  const started = new Promise((resolve) => { entered = resolve })
+  const registryState = { definitions: new Map(), fail: false, inventoryStarted: entered, inventoryGate: new Promise((resolve) => { release = resolve }) }
+  const cleanups = []
+  mount({ registryState, cleanups })
+  await started
+  for (const cleanup of [...cleanups].reverse()) if (typeof cleanup === 'function') await cleanup()
+  release()
+  const stopped = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  check('scope 已停止后迟到 doSync 不复活 preset', registryState.definitions.size === 0 && stopped.registrationSync?.ok === false)
+}
+
+console.log()
+console.log('=== 5.12 同步告警按助手隔离，冲突与组成问题不混淆 ===')
+{
+  const isolated = join(userRoot, 'isolated-failure')
+  mkdirSync(isolated, { recursive: true })
+  writeFileSync(join(isolated, 'prompt.md'), 'ISOLATED SYNTHETIC PROMPT')
+  writeFileSync(join(isolated, 'prompt-reader.mjs'), 'export default {}\n')
+  writeFileSync(join(isolated, 'agent.cordis.yml'), readFileSync(compositionPath, 'utf8'))
+  const registryState = { definitions: new Map(), fail: false, failIds: new Set(['isolated-failure']) }
+  mount({ registryState })
+  const list = JSON.parse((await call(makeReq('GET', { url: '/custom-mode' }))).body)
+  const healthy = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  const failedState = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=isolated-failure' }))).body)
+  check('list 保留整体失败，健康助手没有别人的注册告警', list.registrationSync.ok === false && healthy.registrationSync.ok === true && !healthy.warnings.some((code) => code.startsWith('presetRegistration')))
+  check('普通注册失败只给该助手通用提示', failedState.registrationSync.restartSuggested === false && failedState.warnings.includes('presetRegistrationSyncFailed'))
+  registryState.failureMessage = 'Duplicate agent preset: isolated-failure'
+  await call(post('/custom-mode/sync', {}))
+  const conflict = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=isolated-failure' }))).body)
+  check('精确注册冲突只建议重启、不强称必须且不冒充 broken', conflict.registrationSync.restartSuggested === true && conflict.registrationSync.restartRequired === undefined && conflict.warnings.includes('presetRegistrationRestartSuggested') && conflict.broken === null)
+  writeFileSync(join(isolated, 'agent.cordis.yml'), '')
+  await call(post('/custom-mode/sync', {}))
+  const noComposition = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=isolated-failure' }))).body)
+  check('缺失组成不能被误导为重启即可修复', noComposition.registrationSync.restartSuggested === false && !noComposition.warnings.includes('presetRegistrationRestartSuggested'))
 }
 
 rmSync(dir, { recursive: true, force: true })

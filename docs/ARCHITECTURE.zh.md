@@ -10,6 +10,8 @@
 - loop提供model/provider；存在workingDirectory的宿主由reader从真实会话目录提供作用域cwd兼容变量，并在宿主组装/ensure之后刷新。旧宿主保留原生cwd。只在渲染时归一精确旧目录独立句，不落盘修改用户提示词/suffix（第7节）。
 - 对已知reader所属目录，在发现阶段要求prompt.md前恢复。prepared事务整组回旧，committed事务整组保新；唯一旧备份组也必须先恢复，再允许填补缺失用户文件，clone安装器调用同一个restoreBackups实现。活跃/无法判断的owner、多代歧义或无效journal都关闭写入并留证；这不等于跨进程写协调或物理断电耐久性保证。
 - 磁盘修改与注册表同步共用队列，读请求等待同步。HTTP503 savedButSyncFailed表示persisted:true、synchronized:false，并保留已完成操作码，只重试同步。sync-only失败中的persisted:false描述本次重试，不是撤销上次保存。后端自身也串行mount/unmount/sync，失败状态保留待重试。
+- 声明式注册的disposer归声明插件作用域持有。清理立即关闭新操作入口，等待在途修改，用自身disposer释放迟到注册，并尝试全部本代清理、保留失败凭据。Cordis会等待清理，但拒绝结果会被记入日志，不能保证阻止下一代启动；原生更新成功不能替代清理日志与注册健康检查。新一代不会按相同preset id强夺另一代的所有权。
+- 列表响应提供整体`registrationSync`，state响应只反映该助手或未知/全局失败，字段仅为类型码和有限id。告警不把健康助手说成损坏；精确注册冲突/清理失败可建议重启，组成错误或缺失不会被说成必须重启。已发布2.2.6无法被追补旧清理，首迁移保留明确的重启边界。
 - 页首从既有列表响应读取运行版本。手动检查更新复用宿主可选的原生插件管理服务，已核 `0.2.2-alpha.2` 提供此能力；已核的旧宿主降级到公开插件详情导航与指引。宿主提供相应权限服务时，查询/更新权限分别检查；安装、确认、进度与自身更新生命周期由官方Plugins详情承接，导航前保护全部持有草稿与待恢复状态。不新增更新路由、shell更新器或凭据处理；file/link/tarball来源不自动转注册表安装。
 
 当前组件与平台证据见 [CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md)。下方历史API例子用于理解设计，当前行为以上述契约为准。

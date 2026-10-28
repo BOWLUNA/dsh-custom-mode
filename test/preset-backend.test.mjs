@@ -187,6 +187,72 @@ console.log('=== 9. 注销失败不谎报已删除，目录和注销凭据保留
   check('目录被移回，注销凭据未丢失', existsSync(dir) && backend.mountedIds().includes('dispose-fails'))
 }
 
+console.log('=== 10. 停机立即关闸：迟到 register 与排队同步不能复活旧后端 ===')
+{
+  const { dir } = makeAssistant('late-registration')
+  const live = new Map([['foreign', { token: 'foreign' }]])
+  let entered
+  let release
+  let calls = 0
+  const started = new Promise((resolve) => { entered = resolve })
+  const gate = new Promise((resolve) => { release = resolve })
+  const backend = createDeclarativeBackend({
+    scope: { agentPresets: { async register(definition) {
+      calls += 1
+      const token = {}
+      live.set(definition.id, { token })
+      entered()
+      await gate
+      return async () => { if (live.get(definition.id)?.token === token) live.delete(definition.id) }
+    } } },
+    warn: () => {},
+  })
+  const active = backend.sync([{ id: 'late-registration', dir }])
+  await started
+  let stopped = false
+  const stopping = backend.disposeAll().then(() => { stopped = true })
+  const queued = backend.sync([{ id: 'late-registration', dir }])
+  await new Promise(setImmediate)
+  check('停机等待正在返回的 register disposer', stopped === false)
+  release()
+  const [activeResult, , queuedResult] = await Promise.all([active, stopping, queued])
+  check('晚回注册被释放，活动同步不假报成功', activeResult[0].ok === false && !live.has('late-registration'))
+  check('排队同步没有再次调用 register', queuedResult[0].code === 'backendStopped' && calls === 1)
+  const late = await backend.mountOne({ id: 'late-registration', dir })
+  const removal = await backend.remove('late-registration', dir)
+  check('停机后 mount/remove 被拒绝且不删除用户目录', late.code === 'backendStopped' && removal.code === 'backendStopped' && existsSync(dir))
+  check('从未触碰其他 owner 的注册', live.get('foreign')?.token === 'foreign' && backend.mountedIds().length === 0)
+}
+
+console.log('=== 11. cleanup 失败仍处理其他 owner 凭据，保留失败项并允许重试 ===')
+{
+  const one = makeAssistant('cleanup-fails')
+  const two = makeAssistant('cleanup-succeeds')
+  const live = new Map()
+  let fail = true
+  const backend = createDeclarativeBackend({
+    scope: { agentPresets: { async register(definition) {
+      live.set(definition.id, definition)
+      return async () => {
+        if (definition.id === 'cleanup-fails' && fail) throw new Error('synthetic cleanup failure')
+        live.delete(definition.id)
+      }
+    } } }, warn: () => {},
+  })
+  await backend.sync([{ id: 'cleanup-fails', dir: one.dir }, { id: 'cleanup-succeeds', dir: two.dir }])
+  let error
+  try { await backend.disposeAll() } catch (caught) { error = caught }
+  check('cleanup 失败向调用方明确抛出', error instanceof AggregateError && error.errors.length === 1)
+  check('失败凭据保留，其他注册仍被清理', backend.mountedIds().join(',') === 'cleanup-fails' && live.has('cleanup-fails') && !live.has('cleanup-succeeds'))
+  fail = false
+  await backend.disposeAll()
+  check('失败队列不阻塞再次 cleanup', backend.mountedIds().length === 0 && live.size === 0)
+  const replacement = { id: 'cleanup-fails', token: 'new-owner' }
+  live.set('cleanup-fails', replacement)
+  await backend.disposeAll()
+  check('旧 owner 重复 cleanup 不移除新 owner', live.get('cleanup-fails') === replacement)
+}
+
 rmSync(base, { recursive: true, force: true })
 
 console.log()

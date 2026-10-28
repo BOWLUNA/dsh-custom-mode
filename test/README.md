@@ -22,12 +22,12 @@ Per-suite counts are deliberately **not** listed here: they change with every te
 caught this section still showing eight suites and a 333 total. The one number the docs do state — the
 total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
 
-**1164 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other eighteen bring
+**1187 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other eighteen bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
 
 The repair suites cover interrupted multi-file recovery (`atomic-recovery`), delayed UI responses
 (`client-async`), and the real Bash installer with offline packing plus synthetic package-manager and
-filesystem faults (`install-script`). `client-update` covers native capability/result handling, draft-protected navigation, orphan-draft recovery and refreshing an existing style tag; it does not perform a real package update. A separate exact-host component gate runs without a server or model:
+filesystem faults (`install-script`). Declarative-backend and route cases cover owner-held registration cleanup, stopped queues, late registration, cleanup failures and per-assistant synchronization warnings. `client-update` covers native capability/result handling, draft-protected navigation, orphan-draft recovery and refreshing an existing style tag; it does not perform a real package update. A separate exact-host component gate runs without a server or model:
 
 ```sh
 node tools/prompt-contract-check.mjs --host-install /path/to/exact-host

@@ -1222,6 +1222,9 @@ export function apply(ctx) {
       backendVerdict.id === BACKEND_DECLARATIVE
         ? createDeclarativeBackend({ scope, log: console.log, warn: console.error })
         : null
+    if (declarative !== null) {
+      scope.effect(() => () => declarative.disposeAll(), 'custom-mode.presets')
+    }
 
     /**
      * 删除入口，按后端选。新线上服务**没有** `remove()`（唯一手段是 `register()` 的 disposer），
@@ -1363,6 +1366,26 @@ export function apply(ctx) {
      * 写操作之后的重同步由 `resyncPresets` 负责，不该让每个请求都等一遍。
      */
     let startupSync = null
+    let latestSync = { ok: true, failures: [] }
+    const synchronize = async () => {
+      const outcome = await doSync()
+      latestSync = outcome
+      return outcome
+    }
+    // Public synchronization evidence contains only bounded preset identifiers and
+    // typed codes. Raw registration errors stay in host logs.
+    const registrationSync = (assistantId) => {
+      const failures = assistantId === undefined ? latestSync.failures
+        : latestSync.failures.filter(({ id }) => typeof id !== 'string' || id === '' || id === assistantId)
+      if (latestSync.ok === true || failures.length === 0) return { ok: true, code: 'synchronized', ids: [] }
+      return {
+        ok: false,
+        code: 'presetRegistrationSyncFailed',
+        ids: [...new Set(failures.map(({ id }) => id)
+          .filter((id) => typeof id === 'string' && /^[A-Za-z0-9_.-]{1,128}$/.test(id)))].slice(0, 32),
+        restartSuggested: failures.some(({ code }) => code === 'registrationConflict' || code === 'registrationCleanupFailed'),
+      }
+    }
     const roster = async () => {
       if (startupSync !== null) await startupSync
       return rawRoster()
@@ -1370,12 +1393,12 @@ export function apply(ctx) {
 
     /** Called inside the write queue; readers also await the current synchronization. */
     const resyncPresets = () => {
-      startupSync = doSync()
+      startupSync = synchronize()
       return startupSync
     }
 
     // 启动即同步：新线不是"写盘即生效"，第一次进来必须先注册。
-    startupSync = doSync()
+    startupSync = synchronize()
 
     /**
      * One Fetch-shaped handler for the whole surface.
@@ -1404,11 +1427,20 @@ export function apply(ctx) {
         const url = new URL(request.url)
         if (request.method === 'GET' && pathname === ROUTE_PATH) {
           await ensureShipped()
-          return json(readList(await roster()))
+          const rows = await roster()
+          return json({ ...readList(rows), registrationSync: registrationSync() })
         }
         if (request.method === 'GET' && pathname === STATE_PATH) {
           await ensureShipped()
-          return json(readState(await roster(), url.searchParams.get('id') ?? '', { factoryPrompt: packagedPrompt() }))
+          const state = readState(await roster(), url.searchParams.get('id') ?? '', { factoryPrompt: packagedPrompt() })
+          const synchronization = registrationSync(state.id)
+          return json({
+            ...state,
+            registrationSync: synchronization,
+            ...(state.ok === true && synchronization.ok === false
+              ? { warnings: [...state.warnings, synchronization.restartSuggested ? 'presetRegistrationRestartSuggested' : 'presetRegistrationSyncFailed'] }
+              : {}),
+          })
         }
 
         if (request.method === 'GET' && pathname === HISTORY_PATH) {
