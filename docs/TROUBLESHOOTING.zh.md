@@ -4,7 +4,7 @@
 
 ## 当前自救步骤
 
-本节针对 `2.2.6` 修复候选。先核对[发布状态和精确宿主验收](CURRENT_COMPATIBILITY.zh.md)；候选尚未发布时不要尝试从 npm 安装。后面的编号故障档案保留旧观察及其历史命令，不是当前安装教程。
+本节适用于版本 `2.2.6`。更新前先核对[精确宿主结果与验收边界](CURRENT_COMPATIBILITY.zh.md)。后面的编号故障档案保留旧观察及其历史命令，不是当前安装教程。
 
 1. 记录宿主版本（`dsh --version`）、设置 → 自定义模式中显示的插件版本、平台和失败步骤：安装、打开页面、保存/应用、选择助手，还是首次请求。桌面端使用应用内 Plugins 页；本节 CLI 步骤针对 Web profile。
 2. 执行 `dsh --profile web --dump-config`。出现 `dsh-custom-mode` 行只证明组合配置包含插件，**不能**证明已激活、页面正常、预设健康或模型请求成功。没有匹配行时，检查所选 profile 与已安装的包；单纯重启不会安装缺失的包。
@@ -21,7 +21,7 @@
 | clone 安装脚本失败 | 查看打印的事务目录。已验证回滚会重新安装本地旧包并恢复受管代码。退出5表示恢复不完整：保留旧归档/日志，在重启前用宿主插件管理器重新安装那个实际旧归档。只复制 package.json 不能恢复安装。 |
 | `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | 检查 profile 的 pnpm 策略与请求的精确版本。如选择包级例外，`minimumReleaseAgeExclude` 只留一条（`- dsh-custom-mode`），不要不断叠加不同版本项。不要关闭所有包的发布冷却策略；脚本不会替你修改该策略。 |
 
-`2.2.6` 发布并在你的精确宿主上验收后，Web 更新命令为：
+对于已发布且在你的精确宿主上验收的 `2.2.6` 包，Web 更新命令为：
 
 ```sh
 dsh plugin --profile web add dsh-custom-mode@2.2.6
@@ -205,7 +205,7 @@ $EDITOR ~/.dsh/.agent-presets/custom/prompt.md
 
 ### 7. 版本不匹配
 
-本插件有**自己的稳定版本线**（`x.y.z`，当前修复候选为 `2.2.6`）；它*支持哪些* dsh 由 `engines.dsh` 与 peer 范围声明
+本插件有**自己的稳定版本线**（`x.y.z`，本说明适用于 `2.2.6`）；它*支持哪些* dsh 由 `engines.dsh` 与 peer 范围声明
 （`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`）。（`1.0.0` 之前版本号是镜像 dsh 的 —— 那套做法已于 2026-09-18 取消，
 因为有些目录只对裸 `x.y.z` 自动安装。）升级 dsh 之后如果设置页空白或启动时报
 「当前 DSH 版本缺少所需 API」，就是耦合点断了：见 [ARCHITECTURE.zh.md](ARCHITECTURE.zh.md) 与 [CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md)，按精确宿主核对。

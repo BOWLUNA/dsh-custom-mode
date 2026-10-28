@@ -7,14 +7,14 @@
  * had two, and nothing in the repository could show that without opening a browser. The pieces that can break
  * silently are exactly the ones tested here:
  *
- *   - **multi-frame decoding**: a session log is one Zstandard frame per record, and Node's one-shot decoder
- *     returns only the first frame *without an error* — the failure mode is "a session that looks empty";
+ *   - **multi-frame decoding**: a session log is one Zstandard frame per record. Node versions differ in
+ *     whether a single call decodes one frame or all frames; neither may lose or duplicate records;
  *   - **false frame magics**: the four magic bytes can appear inside compressed data; the reader must skip
  *     those candidates without duplicating or losing records;
  *   - **the summary**: calls paired with results, denials classified, tool+action counted;
  *   - **loud failure**: undecodable input yields an empty string (so the CLI exits 2) instead of "".
  */
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
@@ -75,15 +75,16 @@ if (hasZstd !== true) {
   process.exit(failed === 0 ? 0 : 1)
 }
 
-console.log('=== 1. 多帧解码：一次解压只给第一帧，逐帧扫描才能拿全 ===')
+console.log('=== 1. 多帧解码：不依赖原生解码器只读一帧还是读全部 ===')
 const multiFrame = Buffer.concat(records.map(frameOf))
 {
   const naive = zstdDecompressSync(multiFrame).toString('utf8')
-  check('对照：一次性解码确实只拿到第一帧（这正是会"看起来像空会话"的原因）', naive.includes('session-test-0000') && naive.includes('custom_prompt') === false, naive.slice(0, 60))
+  console.log(`原生解码对照（${process.version}）：${String(parseRecords(naive).length)} 条；读取器必须始终输出 ${String(records.length)} 条`)
+  check('单帧仍原样解码', decodeSessionLog(frameOf(records[0])) === JSON.stringify(records[0]) + '\n')
   const decoded = decodeSessionLog(multiFrame)
   const parsed = parseRecords(decoded)
   check('逐帧扫描解出全部记录', parsed.length === records.length, `${String(parsed.length)} vs ${String(records.length)}`)
-  check('记录顺序不变', parsed[0]?.type === 'session' && parsed[parsed.length - 1]?.seq === 6, JSON.stringify(parsed.map((r) => r.seq)))
+  check('全部记录内容与顺序不变', JSON.stringify(parsed) === JSON.stringify(records), JSON.stringify(parsed.map((r) => r.seq)))
 }
 
 console.log()
@@ -141,6 +142,55 @@ console.log('=== 3. 假魔数：压缩数据里出现 28 B5 2F FD 时不能重�
   const parsed = parseRecords(decodeSessionLog(withStray))
   check('两条真实记录都在', parsed.length === 2, JSON.stringify(parsed.map((r) => r.type)))
   check('没有因为假魔数而重复', parsed.filter((r) => r.type === 'tool/call').length === 1, JSON.stringify(parsed.map((r) => r.type)))
+}
+
+console.log()
+console.log('=== 3.1 消费边界：内部魔数、skippable、坏尾与真实重复调用 ===')
+{
+  const magic = Buffer.from([0x28, 0xb5, 0x2f, 0xfd])
+  // RFC 8878 §3.1.1: one single-segment frame with a one-byte content size and one raw block.
+  // A raw payload gives us actual frame-magic bytes INSIDE a valid frame, not merely between frames.
+  const payload = Buffer.concat([Buffer.from('{"type":"note","text":"'), magic, Buffer.from('"}\n')])
+  const blockHeader = Buffer.alloc(3)
+  blockHeader.writeUIntLE((payload.length << 3) | 1, 0, 3)
+  const raw = Buffer.concat([magic, Buffer.from([0x20, payload.length]), blockHeader, payload])
+  const embedded = Buffer.concat([raw, frameOf(records[1])])
+  check('有效帧内部的魔数不截断或重复解码', decodeSessionLog(embedded) === payload.toString('utf8') + JSON.stringify(records[1]) + '\n')
+  check('内部魔数之后的真实调用恰好一次', summarize(parseRecords(decodeSessionLog(embedded))).callCount === 1)
+
+  const nested = frameOf({ type: 'tool/call', seq: 99, data: { name: 'nested-must-not-count' } })
+  const size = Buffer.alloc(4)
+  size.writeUInt32LE(nested.length)
+  const skipped = Buffer.concat([Buffer.from([0x5f, 0x2a, 0x4d, 0x18]), size, nested])
+  check('skippable内完整嵌套帧不得计为调用', JSON.stringify(parseRecords(decodeSessionLog(Buffer.concat([skipped, multiFrame])))) === JSON.stringify(records))
+  check('只有skippable帧时不把payload当明文', decodeSessionLog(skipped) === '')
+  for (const marker of [0x50, 0x57, 0x5f]) {
+    const tornHeader = Buffer.alloc(8)
+    tornHeader.set([marker, 0x2a, 0x4d, 0x18])
+    tornHeader.writeUInt32LE(nested.length + 20, 4)
+    const tornSkip = Buffer.concat([tornHeader, nested])
+    check(`截断skippable ${String(marker)}不泄漏嵌套调用且保留完整前缀`, JSON.stringify(parseRecords(decodeSessionLog(Buffer.concat([multiFrame, tornSkip])))) === JSON.stringify(records))
+    check(`仅截断skippable ${String(marker)}时不把嵌套帧当日志`, decodeSessionLog(tornSkip) === '')
+  }
+  const rawSkipPayload = Buffer.concat([Buffer.from('raw payload: '), skipped])
+  const rawSkipBlock = Buffer.alloc(3)
+  rawSkipBlock.writeUIntLE((rawSkipPayload.length << 3) | 1, 0, 3)
+  const rawSkip = Buffer.concat([magic, Buffer.from([0x20, rawSkipPayload.length]), rawSkipBlock, rawSkipPayload])
+  check('普通帧内的skip头不能吞掉其后真实帧', decodeSessionLog(Buffer.concat([rawSkip, frameOf(records[1])])) === rawSkipPayload.toString('utf8') + JSON.stringify(records[1]) + '\n')
+
+  const duplicate = summarize(parseRecords(decodeSessionLog(Buffer.concat([frameOf(records[1]), frameOf(records[1])]))))
+  check('真实重复事件即使seq和内容相同仍计两次', duplicate.callCount === 2 && duplicate.totals[0]?.count === 2)
+
+  const tail = frameOf({ type: 'tool/call', seq: 100, data: { name: 'torn-must-not-count' } })
+  const truncated = Buffer.concat([multiFrame, tail.subarray(0, tail.length - 1)])
+  check('截断末帧保留此前全部完整记录', JSON.stringify(parseRecords(decodeSessionLog(truncated))) === JSON.stringify(records))
+  check('只有截断帧时不接受宽松解码的部分输出', decodeSessionLog(tail.subarray(0, tail.length - 1)) === '')
+  check('仅写出下一帧部分魔数时保留完整前缀', JSON.stringify(parseRecords(decodeSessionLog(Buffer.concat([multiFrame, magic.subarray(0, 2)])))) === JSON.stringify(records))
+  check('非帧垃圾尾仍保留完整前缀', JSON.stringify(parseRecords(decodeSessionLog(Buffer.concat([multiFrame, Buffer.from('BAD')])))) === JSON.stringify(records))
+
+  const damaged = zlib.zstdCompressSync(Buffer.from('{"type":"tool/call","data":{"name":"corrupt-must-not-count"}}\n'), { params: { [zlib.constants.ZSTD_c_checksumFlag]: 1 } })
+  damaged[damaged.length - 1] ^= 1
+  check('checksum损坏末帧不影响此前完整记录', JSON.stringify(parseRecords(decodeSessionLog(Buffer.concat([multiFrame, damaged])))) === JSON.stringify(records))
 }
 
 console.log()
@@ -234,6 +284,44 @@ console.log('=== 6. 把"模型只调了一次"变成检查：--expect / --compar
   check('--compare 的来源读不到 → 退出码 2（不是静默成功）', broken.status === 2, String(broken.status))
   rmSync(homeA, { recursive: true, force: true })
   rmSync(homeB, { recursive: true, force: true })
+}
+
+console.log()
+console.log('=== 6.1 --compare 来源是home或日志文件，不从目录名猜会话 ===')
+{
+  const root = mkdtempSync(join(tmpdir(), 'dsh-trace-sources-'))
+  try {
+    const parentHome = join(root, 'session-parent', 'home')
+    const namedHome = join(root, 'session-old')
+    const writeSession = (home, id, count, modifiedSeconds) => {
+      const dir = join(home, 'sessions', '--synthetic--', id)
+      mkdirSync(dir, { recursive: true })
+      const file = join(dir, 'session.v4.jsonl.zstd')
+      const list = [{ type: 'session', id }, ...Array.from({ length: count }, (_, index) => ({ type: 'tool/call', seq: index + 1, data: { name: 'custom_prompt', arguments: { action: 'read' } } }))]
+      writeFileSync(file, Buffer.concat(list.map(frameOf)))
+      utimesSync(file, modifiedSeconds, modifiedSeconds)
+      return file
+    }
+    const oldFile = writeSession(namedHome, 'session-old', 1, 100)
+    const newFile = writeSession(namedHome, 'session-new', 2, 200)
+    writeSession(parentHome, 'session-old', 1, 100)
+    writeSession(parentHome, 'session-new', 2, 200)
+    const json = (args) => JSON.parse(execFileSync(process.execPath, ['tools/session-trace.mjs', ...args, '--json'], { encoding: 'utf8' }))
+
+    const parent = json(['--compare', parentHome, parentHome])
+    check('父目录含session-不影响home选择最新日志', parent.a.callCount === 2 && parent.b.callCount === 2)
+    const forwardHome = namedHome.replaceAll('\\', '/')
+    const named = json(['--compare', forwardHome, forwardHome])
+    check('home名恰为session-old也不能静默选旧会话', named.a.callCount === 2 && named.b.callCount === 2)
+    const files = json(['--compare', oldFile, newFile])
+    check('--compare显式文件来源仍按各自文件读取', files.a.callCount === 1 && files.b.callCount === 2)
+    check('--home默认仍选最新日志', json(['--home', namedHome]).callCount === 2)
+    const selected = json(['--home', namedHome, '--session', 'session-o'])
+    check('显式--session前缀筛选仍可选择旧会话', selected.callCount === 1 && selected.sessionId === 'session-old')
+  } finally {
+    if (!root.startsWith(join(tmpdir(), 'dsh-trace-sources-'))) throw new Error('Refusing cleanup outside the synthetic source fixture')
+    rmSync(root, { recursive: true, force: true })
+  }
 }
 
 console.log()

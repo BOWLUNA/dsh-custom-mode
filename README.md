@@ -21,7 +21,7 @@ Edit a DeepSeek Harness (`dsh`) custom mode: system prompt, base mode, and plugi
 
 ## Install and make the first request
 
-`2.2.6` is the current repair candidate. Publication and compatibility results are recorded in [CURRENT_COMPATIBILITY.md](docs/CURRENT_COMPATIBILITY.md); a candidate version is not available from npm until publication completes.
+These instructions are for version `2.2.6`. Check the [exact-host results and acceptance limits](docs/CURRENT_COMPATIBILITY.md) before installing or updating.
 
 Start with an installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and a model configured through its own interface. Check `dsh --version` against the exact hosts in the compatibility record. This package does not install the host or configure model credentials.
 
@@ -45,7 +45,7 @@ On Windows, the npm installation above can use the host's `dsh` command from Pow
 ### Verify the whole path
 
 1. Open Settings → Custom mode and check the displayed version. A page that opens is only the first check.
-2. Create an assistant, for example with the Writing starting settings. Select that assistant for editing and give it a recognizable name.
+2. Scroll to **New assistant at the bottom of the page**. When the built-in `custom` assistant already exists, this section follows its editor. Choose a starting setting such as Writing, enter a recognizable name, and select New assistant. The created assistant becomes the editing target.
 3. Set a temporary prompt such as `For the next readiness check, reply with exactly CUSTOM_MODE_READY.` Save and wait for the page to confirm that it was applied. If it says the file was saved but application failed, select Retry activation before continuing.
 4. Start a **new session**, open its mode/assistant selector, and explicitly choose that named assistant. Send `Readiness check.` through a model already configured in DSH.
 5. Success means the assistant is selectable without a broken-preset warning and returns the expected readiness reply without a prompt-assembly error. Restore your intended prompt after the check. If it fails, use the [current recovery steps](docs/TROUBLESHOOTING.md#current-recovery-steps).
@@ -76,7 +76,7 @@ For a clone, `./install.sh --profile web` keeps the source-linked development wo
 
 Declared host range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0 || >=0.2.2-alpha.2 <0.3.0-0`
 
-The plugin version is its own stable `x.y.z` line; it does not mirror DSH. On 2026-10-27 the public host tags were `latest=0.2.1-rc.2`, `next=0.2.1-rc.4`, and `alpha=0.2.2-alpha.2`. Tags move; a declaration or old green CI run is not fresh acceptance. This unpublished candidate tentatively admits the new alpha tuple for exact-host acceptance; retain it for publication only after the full gates pass. [Exact versions, pending checks and historical evidence](docs/CURRENT_COMPATIBILITY.md) are kept together.
+The plugin version is its own stable `x.y.z` line; it does not mirror DSH. On 2026-10-27 the public host tags were `latest=0.2.1-rc.2`, `next=0.2.1-rc.4`, and `alpha=0.2.2-alpha.2`. Tags move; the declared range and completed checks are separate facts. See [exact versions, acceptance limits and historical evidence](docs/CURRENT_COMPATIBILITY.md) for the tested scope.
 
 Release requires the compatibility and browser workflows. The unit runner, real prompt-component checks, packed-install checks and browser checks cover different boundaries. Windows/Electron, a real model response and GPU execution must each have their own evidence; they are not inferred from a page screenshot or unit count. Headless mode does not start an agent-preset session.
 

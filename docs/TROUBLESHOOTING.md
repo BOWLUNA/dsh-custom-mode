@@ -4,7 +4,7 @@ English | [中文](TROUBLESHOOTING.zh.md)
 
 ## Current recovery steps
 
-This section applies to the `2.2.6` repair candidate. Check [publication and exact-host acceptance](CURRENT_COMPATIBILITY.md) first; do not try to install a candidate from npm before it is published. The numbered incident archive below preserves old observations and commands in their historical context, not a current setup recipe.
+This section applies to version `2.2.6`. Check the [exact-host results and acceptance limits](CURRENT_COMPATIBILITY.md) before updating. The numbered incident archive below preserves old observations and commands in their historical context, not a current setup recipe.
 
 1. Record the host version (`dsh --version`), installed plugin version shown in Settings → Custom mode, platform, and the failing step: installation, page opening, save/application, assistant selection, or first request. Desktop uses its in-app Plugins page; these CLI steps target the Web profile.
 2. Run `dsh --profile web --dump-config`. A `dsh-custom-mode` row only proves that the composed configuration contains the plugin. It does **not** prove activation, page rendering, preset health, or a model request. No matching row calls for checking the selected profile and installed package; a restart alone does not install a missing package.
@@ -21,7 +21,7 @@ This section applies to the `2.2.6` repair candidate. Check [publication and exa
 | Clone installer reports failure | Read the printed transaction directory. A verified rollback reinstalls the local old package and restores managed code. Exit 5 means recovery is incomplete: keep the old archive/logs and reinstall that actual archive through the host's plugin manager before restarting. Copying only package.json does not restore an installation. |
 | `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | Check the profile's pnpm policy and the requested exact version. If you choose a package-specific exception, keep one `minimumReleaseAgeExclude` entry (`- dsh-custom-mode`), not accumulating version entries. Do not disable the release-age policy for every package. The script does not edit this policy for you. |
 
-Once `2.2.6` is published and accepted on your exact host, the Web update command is:
+For a published `2.2.6` package accepted on your exact host, the Web update command is:
 
 ```sh
 dsh plugin --profile web add dsh-custom-mode@2.2.6
@@ -204,7 +204,7 @@ Or temporarily clear the entire prompt down to a single line of plain text, then
 
 ### 7. Version mismatch
 
-This plugin has **its own stable version line** (`x.y.z`; the current repair candidate is `2.2.6`); *which* dsh releases it supports is declared in
+This plugin has **its own stable version line** (`x.y.z`; this guide covers `2.2.6`); *which* dsh releases it supports is declared in
 `engines.dsh` + the peer range (`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`). (Until `1.0.0` the version mirrored dsh's — that
 was retired on 2026-09-18, because some directories only auto-install a plain `x.y.z`.) After upgrading dsh, if the settings page is blank or startup reports
 "the current DSH version is missing a required API", then a coupling point has broken: check [ARCHITECTURE.md](ARCHITECTURE.md) and [CURRENT_COMPATIBILITY.md](CURRENT_COMPATIBILITY.md) against the exact host.
@@ -326,7 +326,7 @@ dsh: warning: 1 entry did not activate
 custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
 ```
 
-It is **exactly the same** as the "dsh turns into a brick after installing" error in [§1](#1-严重装完之后-dsh-起不来了只剩一行-pending),
+It is **exactly the same** as the "dsh turns into a brick after installing" error in [§1](#1-critical-after-installing-dsh-no-longer-starts-and-only-a-single-pending-line-remains),
 which makes it highly misleading — a normal installation into the wrong profile looks no different from catastrophic corruption.
 The plugin now uses **scoped service waiting** (`ctx.inject`), so it no longer leaves the whole row stuck in `pending`, and `install.sh` also
 states on the spot, right after installing, that no settings page is available in this profile.

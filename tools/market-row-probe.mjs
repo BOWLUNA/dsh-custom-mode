@@ -6,7 +6,7 @@ import { connect } from './screenshots/cdp.mjs'
 const args = process.argv.slice(2)
 const option = name => args[args.indexOf('--' + name) + 1]
 const version = option('version'), url = option('url'), out = option('out')
-assert.ok(['0.2.0-rc.2', '0.2.1-alpha.5', '0.2.1-rc.2'].includes(version))
+assert.ok(['0.2.0-rc.2', '0.2.1-alpha.5', '0.2.1-rc.2', '0.2.1-rc.4', '0.2.2-alpha.2'].includes(version))
 const session = await connect(), checks = []
 const check = (name, value) => { assert.ok(value, name); checks.push(name) }
 try {

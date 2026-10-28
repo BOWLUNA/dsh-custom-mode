@@ -16,6 +16,7 @@ mirrored the DSH release) and are kept as history.
 - Serialize disk changes with preset synchronization and expose a synchronization-only retry after saved-but-not-applied failures.
 - Preserve clone-install metadata, prepare offline archives of the actual old package, and verify package/code rollback. Publish missing user files exclusively after complete staging; retain recovery copies and preserve concurrent user files on failures.
 - Keep native UI primitives, replace disabled creation-mode buttons with a Standard-start explanation, and label the alpha host's program/tool executor row without changing shipped composition defaults.
+- Fix session-trace double counting with newer Node's concatenated Zstandard decoder, reject embedded frames in truncated skippable payloads, and choose the latest session by home/file type rather than directory-name guesses. Keep exact rc.2/rc.4/alpha.2 gates and real marketplace checks; test-tool failures remain release blockers.
 - Clarify first-request setup, editing versus session selection, current recovery and the existing gated publisher flow. Keep historical incidents separate from current instructions. Exact completed checks and platform limits are recorded in CURRENT_COMPATIBILITY.md.
 
 ## [2.2.5] — 2026-10-17

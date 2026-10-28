@@ -10,11 +10,10 @@
  *
  * **How a session log is stored**: `$DSH_HOME/sessions/<project>/<session-id>/session.v4.jsonl.zstd`
  * (dsh 0.2) or `session.v3.jsonl.zstd` (older). Either file is **multi-frame** Zstandard (one frame per
- * appended record). Node's one-shot decoder returns the *first* frame and silently ignores the rest, which
- * is why a naive read shows a single record; dsh's own reader sidesteps this with a private stream trick
- * plus a frame index, which is fragile across Node releases. This tool stays on public API: scan for the
- * frame magic and decode from every candidate offset. Real frames decode individually, false magics inside
- * compressed bytes fail to decode and are skipped.
+ * appended record). Older Node decoders stop at the first frame; newer ones continue across concatenated
+ * frames. This tool uses the public decoder's consumed-byte count so either behavior reads each frame once.
+ * Candidate boundaries allow best-effort recovery before a damaged tail; bytes inside an already consumed
+ * frame (including skippable payloads) are never decoded a second time.
  *
  * Usage:
  *   node tools/session-trace.mjs                        # latest session in $DSH_HOME
@@ -51,7 +50,7 @@ const FRAME_MAGIC = Buffer.from([0x28, 0xb5, 0x2f, 0xfd])
 const ARG_LIMIT = 160
 
 /**
- * Decode a session log, frame by frame.
+ * Decode a session log without assuming whether Node reads one frame or several.
  *
  * A buffer without any frame magic is returned as UTF-8 text (the plaintext `.jsonl` variant), and a buffer
  * whose frames all fail to decode returns an empty string — callers must treat that as failure rather than as
@@ -66,19 +65,59 @@ export function decodeSessionLog(buffer) {
   if (typeof zlib.zstdDecompressSync !== 'function') {
     throw new Error(`这个 Node 没有 zstd 支持（${process.version}）：需要 Node ≥ 22.15。`)
   }
+  const isSkippable = (index) => (buffer[index] & 0xf0) === 0x50 && buffer[index + 1] === 0x2a && buffer[index + 2] === 0x4d && buffer[index + 3] === 0x18
   const starts = []
   for (let index = 0; index + FRAME_MAGIC.length <= buffer.length; index += 1) {
-    if (buffer.compare(FRAME_MAGIC, 0, FRAME_MAGIC.length, index, index + FRAME_MAGIC.length) === 0) starts.push(index)
+    // RFC 8878 §3.1.2: native zstd also consumes skippable frames. Include their boundaries so an
+    // embedded normal frame inside a skipped payload cannot be mistaken for another session record.
+    if (isSkippable(index) || buffer.compare(FRAME_MAGIC, 0, FRAME_MAGIC.length, index, index + FRAME_MAGIC.length) === 0) starts.push(index)
   }
   if (starts.length === 0) return buffer.toString('utf8')
-  let text = ''
-  for (const start of starts) {
+  const decodeSpan = (start, end) => {
     try {
-      // Node stops at the frame boundary, so no end offset is needed; a false magic throws and is skipped.
-      text += zlib.zstdDecompressSync(buffer.subarray(start)).toString('utf8')
+      const decoded = zlib.zstdDecompressSync(buffer.subarray(start, end), { info: true })
+      const consumed = decoded.engine.bytesWritten
+      if (!Number.isInteger(consumed) || consumed <= 0 || consumed > end - start) return null
+      return { text: decoded.buffer.toString('utf8'), end: start + consumed }
     } catch {
+      return null
+    }
+  }
+  let text = ''
+  let consumedUntil = 0
+  for (let index = 0; index < starts.length; index += 1) {
+    const start = starts[index]
+    if (start < consumedUntil) continue
+    if (isSkippable(start) && start + 8 <= buffer.length) {
+      // RFC 8878 §3.1.2: the complete header owns its declared payload, even when EOF tears it.
+      // Apply this only at an unconsumed candidate: an apparent skip header inside a valid normal
+      // frame must not hide later real frames. Never salvage nested records from skip metadata.
+      consumedUntil = Math.min(buffer.length, start + 8 + buffer.readUInt32LE(start + 4))
       continue
     }
+    let decoded = decodeSpan(start, buffer.length)
+    if (decoded === null) {
+      try {
+        // A flush can locate the boundary before trailing garbage, or consume a partial next magic.
+        // Its output is NEVER accepted: strictly re-decode each hinted prefix, backing off at most
+        // the three bytes of an incomplete magic. Truncated frame bodies still fail this validation.
+        const hint = zlib.zstdDecompressSync(buffer.subarray(start), { info: true, finishFlush: zlib.constants.ZSTD_e_flush }).engine.bytesWritten
+        if (Number.isInteger(hint) && hint > 0 && hint <= buffer.length - start) {
+          for (let tail = 0; tail < FRAME_MAGIC.length && start + hint - tail > start; tail += 1) {
+            decoded = decodeSpan(start, start + hint - tail)
+            if (decoded !== null) break
+          }
+        }
+      } catch {
+        // A corrupt frame may not yield a hint. Try complete candidate-delimited prefixes below.
+      }
+      for (let endIndex = starts.length - 1; decoded === null && endIndex > index; endIndex -= 1) {
+        decoded = decodeSpan(start, starts[endIndex])
+      }
+    }
+    if (decoded === null) continue
+    text += decoded.text
+    consumedUntil = decoded.end
   }
   return text
 }
@@ -271,11 +310,9 @@ function resolveSource(spec) {
   } catch {
     /* not a plain path; try it as a home below */
   }
-  const wanted = spec.includes('session-') ? spec.split('/').pop() : undefined
   const logs = findLogs(spec)
   if (logs.length === 0) return { ok: false, reason: `${spec} 下没有会话日志` }
-  const chosen = wanted === undefined ? logs[0] : logs.find((entry) => entry.session.includes(wanted))
-  if (chosen === undefined) return { ok: false, reason: `${spec} 下没有匹配 ${String(wanted)} 的会话` }
+  const chosen = logs[0]
   return { ok: true, log: chosen.log, label: `${spec}（${chosen.session}）` }
 }
 

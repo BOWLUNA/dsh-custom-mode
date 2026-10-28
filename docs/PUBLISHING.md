@@ -6,7 +6,7 @@ English | [中文](PUBLISHING.zh.md)
 
 The repository root is the npm package. Its bundled `preset/` is the only packaged preset source; activation seeds missing user files and refreshes managed code. A preset-only `.dshpreset` archive does not install the settings page. Do not revive the old `editor/` subpackage or tell npm users to clone a second preset copy.
 
-`2.2.6` is a repair candidate until the exact candidate passes its gates and publication is read back. Keep source, local checks, independent review, remote CI, npm publication and GitHub Release results separate.
+Version `2.2.6` follows the gated release path below. Keep source, local checks, independent review, remote CI, npm publication and GitHub Release results separate; verify publication through read-back evidence.
 
 1. Fix the candidate version in `package.json`, update both language documents and their pairing records, and record the complete candidate commit. Changing the package version does not require mirroring a host version: update host pins/ranges only after those exact hosts are adapted and checked.
 2. Run the registered suites, real prompt-component contracts, translation and documentation guards, syntax checks and the real npm packlist. Use isolated homes for packed install, restart, preset selection, browser interaction, uninstall and reinstall. Test interrupted saves and installer rollback with synthetic data. The release check list must name any unverified desktop/model/GPU boundary.

@@ -18,7 +18,7 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 all 18 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **1117 项检查**。只有 `composition.test.mjs` 需要那个出厂目录，其余十七个自带夹具、临时目录与桩，
+合计 **1139 项检查**（没有 zstd 的 Node < 22.15 会跳过 session-trace 的压缩帧检查；`tools/verify-doc-numbers.mjs` 会说明跳过，而非误报失败）。只有 `composition.test.mjs` 需要那个出厂目录，其余十七个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 修复套件覆盖多文件中断恢复（`atomic-recovery`）、迟到UI响应（`client-async`），以及真实Bash安装器

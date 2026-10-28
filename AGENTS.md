@@ -314,9 +314,10 @@ Never replace `engines.dsh` with `^0.2.0`. Never `npm install -g @deepseek-ai/ds
   real run. It exists because a review found three drifts in one pass that no test could see.
 - **A real session's tool calls**: `node tools/session-trace.mjs [--home …] [--session …] [--summary]` reads
   `session.v4.jsonl.zstd` or `session.v3.jsonl.zstd` and prints the call sequence plus a per-tool tally. Session logs are
-  **multi-frame** Zstandard and Node's one-shot decoder returns only the first frame *without an error*, so the
-  reader scans frame magics and decodes each one (dsh's own reader uses a private stream handle; this stays on
-  public API). Run it before writing any "the model did X once / twice" sentence — it has already caught one
+  **multi-frame** Zstandard. Node versions differ: some one-shot decoders stop at the first frame, while newer
+  ones consume concatenated frames. The reader uses the public decoder's consumed-byte count to avoid reading
+  a frame twice and preserves complete records before a damaged tail; it does not use private stream handles.
+  Run it before writing any "the model did X once / twice" sentence — it has already caught one
   wrong claim of exactly that shape. It reads session *content*: prefer `--summary` (counts only) when the log
   is not yours. `--expect 'custom_prompt(read)=1'` turns such a sentence into a **check** (exit 1 on mismatch),
   and `--compare <homeA> <homeB>` answers "did this change make the agent take more or fewer steps?".
