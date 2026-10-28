@@ -8,12 +8,14 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
-## [2.3.0] — Unreleased
+## [2.3.0] — 2026-10-28
+
+Published on [GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0) and [npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0). The completed release gates and downloaded asset checksums are recorded in [current compatibility](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md).
 
 - Add a page-header running-version display and a user-initiated update check through the host's native plugin manager. On capable alpha hosts, recommended updates open official Plugins details for confirmation and installation; older hosts receive a details/guide fallback. Keep original file/link/tarball sources, separate query/update permissions and guard all pending drafts before navigation.
-- Release owned assistant registrations when the plugin scope stops, fence queued and late synchronization after shutdown, and retain failed cleanup handles for diagnosis/retry. Show bounded, typed synchronization status and per-assistant warnings without treating another assistant's failure as local damage or offering an ineffective composition repair. Document the one-host-restart recovery path for native updates/restores from 2.2.6; see [current compatibility](docs/CURRENT_COMPATIBILITY.md) for the candidate's native results and limits.
+- Release owned assistant registrations when the plugin scope stops, fence queued and late synchronization after shutdown, and retain failed cleanup handles for diagnosis/retry. Show bounded, typed synchronization status and per-assistant warnings without treating another assistant's failure as local damage or offering an ineffective composition repair. Document the one-host-restart recovery path for native updates/restores from 2.2.6; see [current compatibility](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md) for the local/native results and limits.
 - Put installation and the first successful request before screenshots, add direct maintenance/release navigation, and document isolated exact-host preparation. Refresh issue/PR forms and provide a public, no-details request for a private security reporting channel without claiming private reporting is enabled.
-- Keep the new release's pending verification separate from 2.2.6's completed evidence. No new updater backend, shell installation mechanism or credential handling is introduced.
+- Record 2.3.0 verification and publication separately from 2.2.6's historical evidence. No new updater backend, shell installation mechanism or credential handling is introduced.
 
 ## [2.2.6] — 2026-10-27
 
