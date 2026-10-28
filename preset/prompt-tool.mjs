@@ -61,6 +61,7 @@ const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
  * step; the duplication is deliberate so neither side depends on the other's
  * install location.
  */
+// cwd is supplied by the old loop, or by prompt-reader's scoped workingDirectory compatibility provider.
 const KNOWN_VARIABLES = ['model', 'cwd', 'provider']
 
 /**

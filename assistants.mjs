@@ -32,7 +32,7 @@ import { dshHome, PRESET_DIR } from './paths.mjs'
 // ReferenceError 被 try/catch 吞掉，回滚循环 continue 掉每一条 —— 用户看到的"已回滚"从未发生，
 // 磁盘上留下改了一半的 order。少一个导入就能让一整段安全网变成死代码（外部评审复现）。
 import { readPresetMeta, writePresetMeta, presetMetaPath } from './meta.mjs'
-import { writeAtomic } from './atomic.mjs'
+import { restoreBackups, writeAtomic } from './atomic.mjs'
 import { unresolvableRows } from './composition.mjs'
 import { seedPreset, seedPresetWithLog, dropShippedDescription } from './seed.mjs'
 
@@ -100,8 +100,13 @@ export function markSeeded(root) {
 /** Whether `dir` is a directory this feature owns (see the module comment). */
 export function isManagedDir(dir) {
   if (typeof dir !== 'string' || dir === '') return false
+  // A crashed save can move prompt.md away. Recover before requiring that very file as proof.
+  // Keep a known reader-owned directory visible on an unresolved recovery; readState explains it and
+  // seedPreset refuses to fill missing user data with template content.
+  const readerPresent = existsSync(join(dir, 'prompt-reader.mjs'))
+  if (readerPresent && restoreBackups(dir).ok !== true) return true
   if (!existsSync(join(dir, 'prompt.md'))) return false
-  if (existsSync(join(dir, 'prompt-reader.mjs'))) return true
+  if (readerPresent) return true
   // The reader is gone but the composition still injects it: still ours, and the
   // repair pass below can put the module back.
   try {
@@ -333,6 +338,7 @@ export function seedOnActivation({ root, templateDir, composition, log = console
   //   之后描述仍是旧的）。放在这个循环里，每次激活都会检查，且 `dropShippedDescription` 只认**逐字**
   //   等于我们自己写过的那些串，用户自己写的描述一个字都不会动。
   for (const dir of existing) {
+    if (restoreBackups(dir).ok !== true) continue
     try {
       if (dropShippedDescription(dir).migrated === true) {
         info(`custom-mode: 已清空 ${dir} 的描述 —— 它还是我们早年播种的那条中英拼接，壳无法按界面语言本地化产品数据`)

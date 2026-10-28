@@ -2,7 +2,16 @@
 
 English | [中文](ARCHITECTURE.zh.md)
 
-This document records **measured conclusions**, not design preferences. Each entry corresponds to one runtime verification; they are written down because they determine why this project looks the way it does.
+This document combines the current source contract with measured historical incidents. Older numbered sections name the hosts investigated at the time; they are not fresh acceptance of every current host.
+
+## Current contract in 2.2.6
+
+- The preset owns prompt content; the root profile bundle owns the editor. The eight exact paths in §5 stay on the carrier's authenticated shared `/api` channel. `POST /api/custom-mode/sync` retries only registration, never a save/create/delete/reorder operation.
+- The loop supplies model/provider. On hosts with workingDirectory, the reader provides a scoped cwd compatibility variable from the real session directory and refreshes it after host assembly/ensure. Older hosts retain their native cwd. Only the exact old standalone directory sentence is normalized at render time; no user prompt/suffix file is rewritten (§7).
+- Known reader-owned directories recover before discovery requires prompt.md. A prepared transaction restores one whole old generation; a committed one keeps the whole new generation. Unique legacy backup groups recover before missing user files may be filled, including in the clone installer through the same restoreBackups implementation. A live/uninspectable owner, ambiguous generations or invalid journal fails closed and preserves evidence. This is not cross-process writer coordination or a physical power-loss durability guarantee.
+- Disk mutation and registry synchronization share a queue; readers wait for synchronization. HTTP503 savedButSyncFailed means persisted:true, synchronized:false, with the completed operation code. Retry only synchronization. The sync-only failure's persisted:false describes that retry, not an undo of an earlier save. The backend also serializes mount/unmount/sync and retains failures for retry.
+
+The current component and platform evidence is recorded in [CURRENT_COMPATIBILITY.md](CURRENT_COMPATIBILITY.md). Historical API examples below remain useful for understanding the design, with these current contracts taking precedence.
 
 ## 1. Why the settings page must be split into a standalone plugin and cannot be written as one row of a preset
 
@@ -110,7 +119,18 @@ The whole `load()` call is wrapped in `try/catch`, so this package cannot crash 
 
 The browser half has no `host.call` (that is the channel reserved for dynamic Cordis packages); a statically loaded plugin goes through `ctx.remote.<namespace>` — which requires the host to register a Remote namespace and a typed contract, and is heavy and error-prone.
 
-This project instead uses **five exact routes on the platform's shared `/api` channel**:
+This project instead uses **eight exact routes on the platform's shared `/api` channel**:
+
+| Path | Methods | Purpose |
+| --- | --- | --- |
+| `/api/custom-mode` | GET | Assistant list |
+| `/api/custom-mode/state` | GET, POST | Read/save an assistant |
+| `/api/custom-mode/history` | GET | Read versions |
+| `/api/custom-mode/create` | POST | Create |
+| `/api/custom-mode/delete` | POST | Delete |
+| `/api/custom-mode/reorder` | POST | Reorder |
+| `/api/custom-mode/repair` | POST | Repair unavailable/broken rows |
+| `/api/custom-mode/sync` | POST | Retry registration without rewriting files |
 
 - host half: `ctx.connection.fetch.register({ path: "/api/custom-mode/state", methods: ["GET", "POST"], requestBody: "buffered", fetch })` — one registration per path
 - browser half: `fetch("/api/custom-mode/state?id=…", { method: "GET" | "POST" })`
@@ -215,7 +235,9 @@ const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
 // an unclosed single {{ : treated as a literal
 ```
 
-The consequence of throwing is not "this sentence has no effect" but **every request in that mode fails**. So both write paths validate before writing to disk, and only let through `model` / `cwd` / `provider` (the three registered by `dsh-agent-loop`).
+The consequence of throwing is not "this sentence has no effect" but **every request in that mode fails**. Both write paths validate model/cwd/provider, but registration is host-dependent: old loops provided cwd, while current loops provide model/provider and the reader obtains cwd from the official scoped workingDirectory service. A valid variable name alone is not proof it is available for rendering.
+
+The reader removes only the exact legacy standalone sentence `Your working directory is {{cwd}}.` when the new service is available, at runtime. Custom surrounding text and custom cwd references remain; the session's real directory is used, including changes made by the host's ensure lifecycle. Directory values are interpolated once, so braces inside a path are not treated as another template. No session/directory means an unavailable value, not process.cwd() guessed as the user's directory. The original prompt/suffix bytes remain untouched.
 
 The validation logic exists as **one copy each** in `preset/prompt-tool.mjs` and `index.mjs`, and the duplication is intentional: this way the preset does not have to depend on the package's install location, and the editor's path stays configurable.
 
@@ -339,16 +361,11 @@ The managed list must be **presets this tool created**, not "every preset under 
 - a save **regenerates the composition from a base mode** (that is how the per-row switches work);
 - doing that to a hand-written `agent.cordis.yml` destroys it.
 
-The test: the directory carries `prompt.md`, and it either carries `prompt-reader.mjs` or its
-composition still references `'./prompt-reader.mjs'`. The second branch is what keeps an assistant
-repairable after its reader module is deleted by accident. Deciding on `prompt.md` alone would misclaim
-somebody else's hand-authored preset — and that mistake is destructive, so the test errs narrow.
+Recovery now precedes the prompt.md requirement for a directory that still carries prompt-reader.mjs. If recovery is unresolved, that known managed directory stays visible and readState reports recoveryRequired; seed refuses to fill missing user data with templates. After successful recovery, normal ownership requires prompt.md plus the reader file or its composition reference. The latter still permits repairing an accidentally deleted reader when the prompt remains. Prompt.md alone never claims somebody else's hand-authored preset.
 
-### 13.2 Creation and deletion both go through the platform's own authoring seam
+### 13.2 Historical authoring seams and current backend selection
 
-- **Deletion** uses `agentPresets.remove(id)`: the platform itself refuses `trust: 'system'` and
-  re-checks that the directory really lives under the writable root (`preset.path.startsWith(dir)` in
-  `deleteComposition`). Safer than the plugin running its own `rm -rf`.
+- **Deletion** selects the backend: the legacy service exposes agentPresets.remove(id); the declarative service instead returns a disposer from register(). That backend unregisters before removing the managed directory and preserves its handle/directory on failure. System presets and paths outside the writable root remain excluded; the historical remove API is not assumed to exist on new hosts.
 - **Creation** seeds the packaged template (`seedPreset` → `createAssistantDir`) rather than calling
   `agentPresets.copy()`: a copy inherits the source assistant's prompt, switch states and extra files,
   and — decisive — creation would break the moment the user deleted every source. Seeding also makes

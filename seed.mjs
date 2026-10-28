@@ -24,7 +24,7 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { renderComposition } from './composition.mjs'
 import { readPresetMeta, writePresetMeta } from './meta.mjs'
-import { writeAtomic } from './atomic.mjs'
+import { restoreBackups, writeAtomic } from './atomic.mjs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -115,6 +115,10 @@ export function seedPreset(presetDir, sourceDir = packagedPresetDir(), options =
 
   if (typeof presetDir !== 'string' || presetDir === '') {
     return { created, kept, errors: ['没有可用的 preset 目录路径'] }
+  }
+  const recovery = restoreBackups(presetDir)
+  if (recovery.ok !== true) {
+    return { created, refreshed, kept, errors: ['Preset recovery required: ' + recovery.detail] }
   }
   if (!existsSync(sourceDir)) {
     return { created, kept, errors: [`包内预设目录不存在: ${sourceDir}`] }

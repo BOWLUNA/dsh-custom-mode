@@ -2,7 +2,16 @@
 
 [English](ARCHITECTURE.md) | 中文
 
-这份文档记录的是**实测结论**，不是设计偏好。每条都对应一次运行时验证，写下来是因为它们决定了这个项目为什么长成现在这样。
+本页同时记录当前源码契约与历史实测故障。旧编号章节会说明当时调查的宿主，不代表每个当前宿主都已重新验收。
+
+## 2.2.6 当前契约
+
+- 预设管理提示词内容，根profile bundle管理编辑页。第5节的八条精确路径继续走载体受鉴权的共享 `/api` 通道；`POST /api/custom-mode/sync`只重试注册，不重放保存/新建/删除/排序。
+- loop提供model/provider；存在workingDirectory的宿主由reader从真实会话目录提供作用域cwd兼容变量，并在宿主组装/ensure之后刷新。旧宿主保留原生cwd。只在渲染时归一精确旧目录独立句，不落盘修改用户提示词/suffix（第7节）。
+- 对已知reader所属目录，在发现阶段要求prompt.md前恢复。prepared事务整组回旧，committed事务整组保新；唯一旧备份组也必须先恢复，再允许填补缺失用户文件，clone安装器调用同一个restoreBackups实现。活跃/无法判断的owner、多代歧义或无效journal都关闭写入并留证；这不等于跨进程写协调或物理断电耐久性保证。
+- 磁盘修改与注册表同步共用队列，读请求等待同步。HTTP503 savedButSyncFailed表示persisted:true、synchronized:false，并保留已完成操作码，只重试同步。sync-only失败中的persisted:false描述本次重试，不是撤销上次保存。后端自身也串行mount/unmount/sync，失败状态保留待重试。
+
+当前组件与平台证据见 [CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md)。下方历史API例子用于理解设计，当前行为以上述契约为准。
 
 ## 1. 为什么设置页必须拆成独立插件，不能写成 preset 的一行
 
@@ -110,7 +119,18 @@ react, react/jsx-runtime, react-dom, react-dom/client,
 
 浏览器半边没有 `host.call`（那是动态 Cordis 包的专用通道），静态加载的插件走的是 `ctx.remote.<namespace>`——那需要宿主注册 Remote 命名空间和类型化契约，重且易错。
 
-本项目改用**平台共享 `/api` 频道上的五条精确路由**：
+本项目改用**平台共享 `/api` 频道上的八条精确路由**：
+
+| 路径 | 方法 | 用途 |
+| --- | --- | --- |
+| `/api/custom-mode` | GET | 助手列表 |
+| `/api/custom-mode/state` | GET、POST | 读取/保存助手 |
+| `/api/custom-mode/history` | GET | 读取版本 |
+| `/api/custom-mode/create` | POST | 新建 |
+| `/api/custom-mode/delete` | POST | 删除 |
+| `/api/custom-mode/reorder` | POST | 排序 |
+| `/api/custom-mode/repair` | POST | 修复不可用/损坏行 |
+| `/api/custom-mode/sync` | POST | 重试注册，不重写文件 |
 
 - 宿主半 `ctx.connection.fetch.register({ path: "/api/custom-mode/state", methods: ["GET", "POST"], requestBody: "buffered", fetch })` —— 一条路径一次注册
 - 浏览器半 `fetch("/api/custom-mode/state?id=…", { method: "GET" | "POST" })`
@@ -217,7 +237,9 @@ const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
 // 不闭合的单个 {{ ：视为字面量
 ```
 
-抛错的后果不是「这句不生效」，而是**该模式每个请求都失败**。所以两条写入路径都在落盘前校验，只放行 `model` / `cwd` / `provider`（`dsh-agent-loop` 注册的三个）。
+抛错的后果不是「这句不生效」，而是**该模式每个请求都失败**。两条写入路径校验model/cwd/provider，但注册方式取决于宿主：旧loop提供cwd，当前loop提供model/provider，reader从官方作用域workingDirectory服务取得cwd。变量名合法不等于渲染时已有值。
+
+新服务可用时，reader仅在运行期移除精确旧目录独立句 `Your working directory is {{cwd}}.`，保留其余自定义文本和cwd引用。值来自真实会话目录，包括宿主ensure生命周期的修改；目录只插值一次，路径中的花括号不会再解释成模板。缺会话/目录时返回不可用值，不拿process.cwd()臆造用户目录。用户提示词/suffix原始字节不动。
 
 校验逻辑在 `preset/prompt-tool.mjs` 与 `index.mjs` 里**各有一份**，是有意重复：这样 preset 不必依赖编辑器的安装位置，编辑器的路径也可配置。
 
@@ -338,14 +360,11 @@ export function apply(ctx) {
 - 保存会**按基础模式重新生成组成文件**（逐行开关就是这么实现的）；
 - 对一份手写的 `agent.cordis.yml` 做这件事 = 毁掉它。
 
-判据：目录里有 `prompt.md`，且（有 `prompt-reader.mjs`，或组成文件里引用 `'./prompt-reader.mjs'`）。
-第二个分支让「reader 被误删」也还能被补回来。只凭 `prompt.md` 判断会把别人手写的模式误认成
-本工具的产物 —— 这个错误的代价是破坏性的，所以宁可判窄。
+目录仍有prompt-reader.mjs时，先恢复，再要求prompt.md存在。恢复未解决的已知受管目录继续可见，readState报告recoveryRequired，seed拒绝用模板补缺失用户数据。恢复成功后，普通身份判定仍要求prompt.md和reader文件或组成引用；提示词仍在时，后者允许修补被误删的reader。只凭prompt.md不能把别人的手写预设认成本工具产物。
 
-### 13.2 新增与删除都走平台自己的 authoring 通道
+### 13.2 历史authoring接口与当前后端选择
 
-- **删除**用 `agentPresets.remove(id)`：平台自己拒绝 `trust: 'system'`，并再确认目录确实在可写根目录下
-  （`deleteComposition` 里的 `preset.path.startsWith(dir)`）。比本插件自己 `rm -rf` 安全。
+- **删除**按后端选择：旧服务提供agentPresets.remove(id)，声明式服务则由register()返回disposer，后端先注销再删除受管目录，失败时保留句柄/目录。仍排除system预设与可写根之外的路径，不假定新宿主存在旧remove API。
 - **新增**用包内模板播种（`seedPreset` → `createAssistantDir`），**不用** `agentPresets.copy()`：
   copy 会把源助手的提示词、开关状态和附带文件一起继承过去；更关键的是，源助手被删光时就建不出新的。
   播种的另一个好处是「新建」就是全新的。

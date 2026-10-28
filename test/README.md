@@ -6,7 +6,7 @@ English | [中文](README.zh.md)
 node test/run.mjs
 ```
 
-One entry point runs all fifteen suites and resolves the "shipped presets directory" itself (it is not
+One entry point runs all eighteen suites and resolves the "shipped presets directory" itself (it is not
 in this repository; it comes from the installed `@deepseek-ai/dsh-agent-presets`):
 
 ```
@@ -15,15 +15,26 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 ──────── composition.test.mjs ────────
 … result: N passed, 0 failed
 … one such block per suite …
-all 15 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 18 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
 Per-suite counts are deliberately **not** listed here: they change with every test edit, and a review
 caught this section still showing eight suites and a 333 total. The one number the docs do state — the
 total — is asserted against a real run by `tools/verify-doc-numbers.mjs` in CI.
 
-**935 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other fourteen bring
+**1139 checks** in total (on a runtime without zstd — Node < 22.15 — the session-trace suite skips its frame-based checks; `tools/verify-doc-numbers.mjs` says so instead of failing). Only `composition.test.mjs` needs that shipped directory; the other seventeen bring
 their own fixtures, temporary directories and stubs, and can be run on their own directly.
+
+The repair suites cover interrupted multi-file recovery (`atomic-recovery`), delayed UI responses
+(`client-async`), and the real Bash installer with offline packing plus synthetic package-manager and
+filesystem faults (`install-script`). A separate exact-host component gate runs without a server or model:
+
+```sh
+node tools/prompt-contract-check.mjs --host-install /path/to/exact-host
+```
+
+It uses the real prompt registry and working-directory lifecycle with synthetic session/filesystem
+projections. It checks old prompts, custom suffixes and directory repair, while preserving user-file bytes.
 
 The union base mode (`all`, the fifth entry in the picker) has its own sections in `composition.test.mjs`
 (2d–2f) and `editor-route.test.mjs` (8b). They assert **properties**, never literal row ids: the union must

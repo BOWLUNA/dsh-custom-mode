@@ -16,7 +16,7 @@
  * choice between the two lines' removers.
  */
 
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createDeclarativeBackend, toPluginRows } from '../preset-backend/declarative.mjs'
@@ -144,6 +144,47 @@ console.log('=== 7. 配置表达式交给宿主加载器求值 ===')
   check('嵌套对象里的表达式也保留给宿主', config.nested.enabled.__jsExpr === 'process.platform !== "win32"', JSON.stringify(config.nested))
   check('普通配置值保持原值', config.literal === 'keep')
   check('转换不改动解析输入，不提前执行表达式', JSON.stringify(parsed) === before && typeof config.customSkillDirs[0] === 'object')
+}
+
+console.log('=== 8. 并发同步按顺序读取最新磁盘，不留下旧注册 ===')
+{
+  const { dir } = makeAssistant('concurrent')
+  const live = new Map()
+  const backend = createDeclarativeBackend({
+    scope: { agentPresets: {
+      async register(definition) {
+        if (live.has(definition.id)) throw new Error('Duplicate agent preset: ' + definition.id)
+        live.set(definition.id, definition)
+        await Promise.resolve()
+        return async () => { live.delete(definition.id) }
+      },
+    } },
+    warn: () => {},
+  })
+  const file = join(dir, 'agent.cordis.yml')
+  const composition = (value) => '- id: persona\n  name: ./prompt-reader.mjs\n  config:\n    marker: ' + value + '\n'
+  const assistants = [{ id: 'concurrent', dir }]
+  writeFileSync(file, composition('A'))
+  const a = backend.sync(assistants)
+  writeFileSync(file, composition('B'))
+  const b = backend.sync(assistants)
+  const results = await Promise.all([a, b])
+  check('两个同步都完成，不发生重复注册', results.every((result) => result[0].ok === true), JSON.stringify(results))
+  check('最后注册与最新磁盘均为 B', live.get('concurrent').plugins[0].config.marker === 'B' && readFileSync(file, 'utf8') === composition('B'))
+}
+
+console.log('=== 9. 注销失败不谎报已删除，目录和注销凭据保留 ===')
+{
+  const { dir } = makeAssistant('dispose-fails')
+  const backend = createDeclarativeBackend({
+    scope: { agentPresets: { register: async () => async () => { throw new Error('fixture dispose failure') } } },
+    warn: () => {},
+  })
+  await backend.mountOne({ id: 'dispose-fails', dir })
+  let error
+  try { await backend.remove('dispose-fails', dir) } catch (caught) { error = caught }
+  check('删除失败明确抛出', error?.message === 'fixture dispose failure', String(error))
+  check('目录被移回，注销凭据未丢失', existsSync(dir) && backend.mountedIds().includes('dispose-fails'))
 }
 
 rmSync(base, { recursive: true, force: true })

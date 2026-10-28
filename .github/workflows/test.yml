@@ -4,7 +4,7 @@
 # 出厂文本本身不在本仓库里。装了 dsh 才能拿到那份文本，测出来的才是真结论 ——
 # 否则 CI 只能跑一个自己构造的假 fixture，等于什么都没测。
 #
-# 版本与根 `package.json` 的 version 保持一致；升 dsh 时这里也要改。
+# 宿主钉定须落在根 package.json 的 peer/engines 范围内；插件自身版本独立。
 name: test
 
 # 最小权限：这个 workflow 只读代码、跑测试，不需要写任何东西。
@@ -25,43 +25,33 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        # 20 是保守下限（只用标准库），24 是当前开发版本。
-        node-version: ['20', '24']
-        # 支持策略（2026-10-17 更新）：latest、alpha、next 各占一条腿。
-        # npm latest = 0.2.0-rc.2；alpha = 0.2.1-alpha.5；next = 0.2.1-rc.2。
-        # 三者都是预发布宿主；0.2.1-rc.2 不能缩写成旧的 0.2.0-rc.2。
-        #
-        # ★ 为什么预览线必须有自己的腿 —— 本仓栽过一次，而且**看着覆盖了、其实没有**：
-        #   `>=0.2.0-0 <0.3.0-0` 读起来覆盖整个 0.2.x，但按 semver 的预发布门，一个预发布版本
-        #   只有在**某个比较符点名了同 tuple** 时才被放行，而那个比较符的 tuple 是 0.2.0 ⇒
-        #   `0.2.1-alpha.1` 被拒。所以"声明看着宽"不等于"预览线被覆盖"，更不等于"跑过"。
-        #   两条都进矩阵，才有资格说"同时支持最新正式版与最新预览版"。
-        #
-        # 上一个正式版（0.1.7-rc.2）仍在 `engines.dsh` / peer 范围内，现役安装大多在它上面，
-        # 单独占一条腿 —— 别让"声明支持却没测过"重演。更早的线（0.1.5-rc.3、0.1.6-alpha.*）
-        # 与它们共用同一套机制，peer 范围仍然接纳，但**不再各占一条 CI 腿**：跟着每条历史线跑，
-        # 成本线性增长而收益递减。
-        #
-        # 注意 0.2.0 起 dsh 把兼容性从"告警"升级成**安装闸门**：范围不覆盖运行时就装不进去，
-        # 所以声明范围本身就是"支持"这个动作（见 AGENTS.md 第 10/18 条）。
-        dsh: ['0.2.0-rc.2', '0.2.1-alpha.5', '0.2.1-rc.2']
+        # 2026-10-27 current latest / next / alpha. Alpha requires Node >=24.9.
+        # A new prerelease tuple needs an explicit range branch and its own real-host gate.
+        node-version: ['24']
+        dsh: ['0.2.1-rc.2', '0.2.1-rc.4', '0.2.2-alpha.2']
         include:
-          # Windows 是最容易出差异的平台，而它长期没进过 CI：一次外部 Windows 实测因此
-          # 发现了三处只在 Windows 显现的缺陷（install.sh 的 MSYS 路径、并发 rename 的
-          # EPERM、平台表达式行的求值方向导致 4 条断言假失败）。只在 node 24 上跑，控时长。
-          - os: windows-latest
-            node-version: '24'
-            dsh: '0.2.0-rc.2'
-          - os: windows-latest
-            node-version: '24'
-            dsh: '0.2.1-alpha.5'
           - os: windows-latest
             node-version: '24'
             dsh: '0.2.1-rc.2'
-          # 稳定腿 = 上一个正式版。npm `latest` 已于 2026-09-29 移到 0.2.0-rc.2，但现役用户
-          # 大多还在 0.1.7-rc.2 上，而 peer 范围仍然接纳它 —— 别让"声明支持却没测过"重演。
+          - os: windows-latest
+            node-version: '24'
+            dsh: '0.2.1-rc.4'
+          - os: windows-latest
+            node-version: '24'
+            dsh: '0.2.2-alpha.2'
+          # Older declared hosts retain real Node24 boot and prompt-contract regression.
           - os: ubuntu-latest
             node-version: '24'
+            dsh: '0.2.0-rc.2'
+          - os: ubuntu-latest
+            node-version: '24'
+            dsh: '0.1.7-rc.2'
+          # Node20 checks the package's lower bound only on older hosts; no alpha runtime.
+          - os: ubuntu-latest
+            node-version: '20'
+            dsh: '0.2.0-rc.2'
+          - os: ubuntu-latest
+            node-version: '20'
             dsh: '0.1.7-rc.2'
     steps:
       - uses: actions/checkout@v7
@@ -126,10 +116,14 @@ jobs:
             node --check "$f"
           done
 
-      # 两个套件：组成文件编译器 63 项 + 词典 65 项。
+      # 全部已登记套件，包括中断恢复、前端异步状态与安装脚本回滚。
       # run.mjs 自己解析出厂 preset 目录，解析不到会以退出码 2 明确报错。
       - name: 测试
         run: node test/run.mjs
+
+      - name: Exact-host prompt registry and working-directory contract
+        if: matrix.node-version != '20'
+        run: node tools/prompt-contract-check.mjs --host-install .
 
       # ★★ 对抗性探针 —— 79 条断言，写的是**期望行为**，所以在有缺陷的代码上会红。
       #

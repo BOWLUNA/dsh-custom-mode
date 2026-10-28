@@ -86,11 +86,44 @@ export const name = 'custom-prompt-file'
 /** The prompt registry is a hard dependency: without it there is no identity. */
 export const inject = ['systemPrompt']
 
+/** Remove only our old standalone directory sentence; never rewrite the user's file. */
+function withoutLegacyDirectoryLine(text) {
+  return text.replace(/^Your working directory is \{\{cwd\}\}\.(?:\r?\n|$)/gm, '')
+}
+
 export function apply(ctx, config = {}) {
   const path = config.path ?? fileURLToPath(new URL('./prompt.md', import.meta.url))
   const suffix = config.suffix ?? DEFAULT_SUFFIX
   const fallback = config.fallback ?? DEFAULT_FALLBACK
   const file = new PromptFile(path, fallback)
+  let ownsWorkingDirectory = false
+
+  // New hosts moved cwd out of the loop's variables and into this service's required runtime context.
+  // Keep older hosts on their own cwd variable. This optional child does not hold the persona pending.
+  // A scoped compatibility variable also preserves custom {{cwd}} references without string-substituting
+  // paths before interpolation (a directory containing braces must not itself become a template).
+  if (typeof ctx.inject === 'function') {
+    ctx.inject(['systemPrompt', 'workingDirectory'], (scope) => {
+      const directory = scope.workingDirectory
+      if (typeof directory?.get !== 'function') return
+      const currentDirectory = (context) => {
+        const session = context.agent?.session
+        if (session === undefined) return undefined
+        return directory.get(session)
+      }
+      scope.effect(() => scope.systemPrompt.variable('cwd', currentDirectory), 'custom-prompt.cwd-compatibility')
+      // The host can recover a missing directory during this waterfall, after variable providers were
+      // snapshotted. Refresh only our compatibility value after downstream assembly has settled.
+      scope.effect(() => scope.on('system-prompt/assemble', async (_assembly, context, next) => {
+        const presentation = await next()
+        presentation.variables.cwd = currentDirectory(context)
+        return presentation
+      }), 'custom-prompt.cwd-after-assembly')
+      ownsWorkingDirectory = true
+      scope.effect(() => () => { ownsWorkingDirectory = false }, 'custom-prompt.cwd-lifecycle')
+    })
+  }
+  const compatibleText = (text) => ownsWorkingDirectory ? withoutLegacyDirectoryLine(text) : text
 
   ctx.effect(
     () =>
@@ -98,7 +131,7 @@ export function apply(ctx, config = {}) {
         name: PERSONA_PREFIX_SECTION,
         order: PERSONA_PREFIX_ORDER,
         // A provider, not a string: evaluated at every assembly.
-        text: () => file.read(),
+        text: () => compatibleText(file.read()),
         complete: config.complete === true,
       }),
     'custom-prompt.prefix',
@@ -112,7 +145,7 @@ export function apply(ctx, config = {}) {
         ctx.systemPrompt.section({
           name: PERSONA_SUFFIX_SECTION,
           order: PERSONA_SUFFIX_ORDER,
-          text: suffix,
+          text: () => compatibleText(suffix),
         }),
       'custom-prompt.suffix',
     )

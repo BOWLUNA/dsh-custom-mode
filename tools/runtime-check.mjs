@@ -8,7 +8,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import net from 'node:net'
 import { dirname, join, resolve, delimiter } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const args = process.argv.slice(2)
 const option = (name) => { const i = args.indexOf('--' + name); return i < 0 ? undefined : args[i + 1] }
@@ -56,7 +56,7 @@ async function stopServer() {
 async function startServer() {
   launch += 1; stdout = ''; stderr = ''
   server = spawn(process.execPath, [bin, '--profile', 'web', '--port', String(port), '--no-open'],
-    { cwd: candidate, env: { ...env, ...(networkGuard ? { NODE_OPTIONS: '--max-old-space-size=256 --import ' + resolve(networkGuard) } : {}) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    { cwd: candidate, env: { ...env, ...(networkGuard ? { NODE_OPTIONS: '--max-old-space-size=256 --import ' + pathToFileURL(resolve(networkGuard)).href } : {}) }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
   server.stdout.on('data', (data) => { stdout += data })
   server.stderr.on('data', (data) => { stderr += data })
   const deadline = Date.now() + 90000

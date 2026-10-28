@@ -102,16 +102,18 @@ export function toPluginRows(rows, presetDir) {
 export function createDeclarativeBackend({ scope, log = console.log, warn = console.error }) {
   /** presetId → { dispose, dir } —— 当前挂在注册表里的东西，注销的唯一凭据。 */
   const mounted = new Map()
+  let mutations = Promise.resolve()
+  const serialize = (work) => {
+    const next = mutations.then(work, work)
+    mutations = next.then(() => undefined, () => undefined)
+    return next
+  }
 
   async function unmount(id) {
     const entry = mounted.get(id)
     if (entry === undefined) return
+    await entry.dispose()
     mounted.delete(id)
-    try {
-      await entry.dispose()
-    } catch (error) {
-      warn(`custom-mode: 注销 preset "${id}" 时出错（已忽略）: ${describe(error)}`)
-    }
   }
 
   /** Build the definition for one assistant directory, or null when it has no composition. */
@@ -146,8 +148,8 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
       await unmount(assistant.id)
       return { ok: false, error: 'no composition' }
     }
-    await unmount(assistant.id)
     try {
+      await unmount(assistant.id)
       const dispose = await scope.agentPresets.register(definition)
       mounted.set(assistant.id, { dispose, dir: assistant.dir })
       return { ok: true }
@@ -257,11 +259,11 @@ export function createDeclarativeBackend({ scope, log = console.log, warn = cons
     id: BACKEND_ID,
     /** 新线不把 preset 落到磁盘，注册表就是唯一真相。 */
     writesPresetFiles: false,
-    sync,
-    mountOne,
-    unmount,
-    remove,
-    disposeAll,
+    sync: (assistants) => serialize(() => sync(assistants)),
+    mountOne: (assistant) => serialize(() => mountOne(assistant)),
+    unmount: (id) => serialize(() => unmount(id)),
+    remove: (id, dir) => serialize(() => remove(id, dir)),
+    disposeAll: () => serialize(disposeAll),
     fetchBaseCompositions,
     mountedIds: () => [...mounted.keys()],
   }

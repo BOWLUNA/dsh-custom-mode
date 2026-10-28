@@ -2,22 +2,40 @@
 
 English | [中文](TROUBLESHOOTING.zh.md)
 
-Everything in this document is a **failure that was reproduced by actual testing**, and each entry has symptoms, cause, and a self-recovery procedure. Every command can be copied and run directly.
+## Current recovery steps
 
-First, remember one general self-check command — it distinguishes "not installed at all" from "installed but not taking effect":
+This section applies to version `2.2.6`. Check the [exact-host results and acceptance limits](CURRENT_COMPATIBILITY.md) before updating. The numbered incident archive below preserves old observations and commands in their historical context, not a current setup recipe.
+
+1. Record the host version (`dsh --version`), installed plugin version shown in Settings → Custom mode, platform, and the failing step: installation, page opening, save/application, assistant selection, or first request. Desktop uses its in-app Plugins page; these CLI steps target the Web profile.
+2. Run `dsh --profile web --dump-config`. A `dsh-custom-mode` row only proves that the composed configuration contains the plugin. It does **not** prove activation, page rendering, preset health, or a model request. No matching row calls for checking the selected profile and installed package; a restart alone does not install a missing package.
+3. Restart only the process serving that profile through its normal launcher. Read its activation errors and the page's typed warning. Follow [the README first-request check](../README.md#verify-the-whole-path); do not stop at an open settings page.
+4. Keep synthetic reproduction steps and a sanitized error/version report. Remove token URLs, credentials and private prompts/history before sharing. Do not copy a live user home into a test environment.
+
+| Symptom | Recovery and success check |
+| --- | --- |
+| Wrong plugin version installed | Use the exact published version below and verify the version in the page after restart. A bare name or successful package-manager exit is insufficient. |
+| `unknown prompt variable "{{cwd}}"` | Keep the complete section name and exact host version. Upgrade to the accepted repair release and restart so the managed reader is refreshed. Do not delete unrelated prompt/suffix text. If an unknown variable remains, preserve your text and inspect that exact section; the current code's compatibility behavior is recorded with its tests. |
+| File saved but application failed | Keep any current unsaved draft. Select Retry activation for the already saved configuration, and confirm the warning clears before starting a new session. Retry does not save a different draft. |
+| Operation succeeded but page refresh failed | Select Retry refresh. Do not repeat create/delete/save, which already completed; the retry only reads the current state. |
+| Assistant missing after an interrupted save | Stop further edits and preserve the assistant directory, backups and recovery records. The repair release attempts recovery before discovery. If it still fails, retain the evidence for diagnosis; do not delete backups or assume permanent data loss. |
+| Clone installer reports failure | Read the printed transaction directory. A verified rollback reinstalls the local old package and restores managed code. Exit 5 means recovery is incomplete: keep the old archive/logs and reinstall that actual archive through the host's plugin manager before restarting. Copying only package.json does not restore an installation. |
+| `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | Check the profile's pnpm policy and the requested exact version. If you choose a package-specific exception, keep one `minimumReleaseAgeExclude` entry (`- dsh-custom-mode`), not accumulating version entries. Do not disable the release-age policy for every package. The script does not edit this policy for you. |
+
+For a published `2.2.6` package accepted on your exact host, the Web update command is:
 
 ```sh
-dsh --profile web --dump-config | grep -n custom-mode
+dsh plugin --profile web add dsh-custom-mode@2.2.6
 ```
 
-Output present = the plugin row has entered the composition tree (any remaining problem is on the browser side).
-**No output** = it was not installed into the profile, or dsh was not restarted after installing.
+Restart and repeat the first-request check. Existing prompt, preset metadata and composition are user data. Clone installation requires Bash, Node.js and npm; it prepares local packages with offline `npm pack --ignore-scripts` and never downloads a newer rollback version. A missing or unarchivable old installation stops replacement before mutation. First-install failure has no old package to restore: the script removes the partial plugin and verifies the profile state, or reports incomplete cleanup.
 
----
+## Historical incident archive
 
-## 1. [Critical] After installing, dsh no longer starts and only a single `pending` line remains
+The following numbered entries record the versions and hosts investigated at the time. A fix's minimum historical version is not today's installation recommendation. Old logs, API assumptions and environment-variable workarounds are evidence, not current guarantees. In particular, current multi-assistant discovery does not require the old section 8 prompt-path override. For present behavior use the section above, [architecture](ARCHITECTURE.md) and [compatibility](CURRENT_COMPATIBILITY.md).
 
-### Symptoms
+### 1. [Critical] After installing, dsh no longer starts and only a single `pending` line remains
+
+#### Symptoms
 
 `./install.sh` prints "installation complete" and exits with 0. Then dsh is restarted:
 
@@ -35,7 +53,7 @@ The output of `dsh --profile web --dump-config` is suspiciously short:
   name: dsh-custom-mode
 ```
 
-### Cause (already fixed, but machines that were already installed on need self-recovery)
+#### Cause (already fixed, but machines that were already installed on need self-recovery)
 
 `install.sh` used to contain a piece of logic that "cleans up ghost entries that cannot be resolved"; it probed every bundle through two hardcoded paths:
 
@@ -54,7 +72,7 @@ dsh's own `reconcilePlugins` explicitly states that in-box bundles "are never to
 **add only, never delete**. The current `install.sh` does exactly that, and adds a post-install self-check:
 if the composition tree is shorter than 20 lines it errors out immediately, instead of letting you discover the problem on the next restart.
 
-### Self-recovery (for machines already broken by an old version)
+#### Self-recovery (for machines already broken by an old version)
 
 Just add the missing names back to the profile manifest; nothing needs to be reinstalled:
 
@@ -83,9 +101,9 @@ After restarting dsh, normal operation should be restored.
 
 ---
 
-## 2. On WSL, `dsh plugin add` fails: pnpm's Rust panic
+### 2. On WSL, `dsh plugin add` fails: pnpm's Rust panic
 
-### Symptoms
+#### Symptoms
 
 ```
 ==> 2/2 安装设置页插件 "dsh-custom-mode" 到 profile "web"
@@ -95,13 +113,13 @@ Error:   × Main thread panicked.
 dsh: pnpm failed in profile directory /home/<user>/.dsh/profiles/web
 ```
 
-### Cause
+#### Cause
 
 `dsh plugin` **forwards to the `pnpm` on the PATH** (`spawnSync("pnpm", …)`, cwd = the profile directory).
 WSL's PATH includes Windows directories by default, so it very easily picks up the `Windows` version of
 `pnpm.cmd`/`pnpm.exe` first. It interprets the cwd `/home/...` in the Windows way, and therefore panics.
 
-### Fix
+#### Fix
 
 Make the pnpm on the PATH the **Linux version**:
 
@@ -116,7 +134,7 @@ The current `install.sh` points this situation out at step 0, instead of waiting
 
 ---
 
-## 3. `client.js` was changed, but the page does not change
+### 3. `client.js` was changed, but the page does not change
 
 First work out which half was changed — the two halves have completely different reload mechanisms:
 
@@ -133,7 +151,7 @@ and **the page is still open** — if the SSE connection drops there will be no 
 
 ---
 
-## 4. There is no "Custom mode" item in the settings panel
+### 4. There is no "Custom mode" item in the settings panel
 
 Check in order:
 
@@ -148,7 +166,7 @@ Check in order:
 
 ---
 
-## 5. There is no "Custom mode" in the mode selector
+### 5. There is no "Custom mode" in the mode selector
 
 A preset is a **file**, and the usual reason dsh cannot see it is that the file itself is broken:
 
@@ -160,7 +178,7 @@ A preset is a **file**, and the usual reason dsh cannot see it is that the file 
 
 ---
 
-## 6. Saving the prompt is rejected
+### 6. Saving the prompt is rejected
 
 The renderer performs **strict interpolation**: a complete `{{...}}` group must be a registered variable, otherwise rendering **throws**,
 and the consequence is not "this section does not take effect" but **every model request in that mode fails**. So both write paths validate first:
@@ -184,18 +202,18 @@ Or temporarily clear the entire prompt down to a single line of plain text, then
 
 ---
 
-## 7. Version mismatch
+### 7. Version mismatch
 
-This plugin has **its own stable version line** (`1.y.z` — currently `1.9.x`); *which* dsh releases it supports is declared in
+This plugin has **its own stable version line** (`x.y.z`; this guide covers `2.2.6`); *which* dsh releases it supports is declared in
 `engines.dsh` + the peer range (`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`). (Until `1.0.0` the version mirrored dsh's — that
 was retired on 2026-09-18, because some directories only auto-install a plain `x.y.z`.) After upgrading dsh, if the settings page is blank or startup reports
-"the current DSH version is missing a required API", then a coupling point has broken: see the "coupling point checklist" in the README and verify them one by one.
+"the current DSH version is missing a required API", then a coupling point has broken: check [ARCHITECTURE.md](ARCHITECTURE.md) and [CURRENT_COMPATIBILITY.md](CURRENT_COMPATIBILITY.md) against the exact host.
 
 Step 0 of `install.sh` prints `dsh --version` together with the adaptation version declared by the plugin, and warns when they do not match.
 
 ---
 
-## 8. A non-default preset directory name was used, and the settings page cannot read the prompt
+### 8. A non-default preset directory name was used, and the settings page cannot read the prompt
 
 The editor only recognizes `$DSH_HOME/.agent-presets/custom/prompt.md` by default. If it was installed with `--preset-id mine`,
 the **dsh process** must carry the environment variable (`export` in your own shell does not count — dsh has to be started from an
@@ -209,9 +227,9 @@ For a systemd service, write it into the unit's `Environment=` instead.
 
 ---
 
-## 9. Security: the settings page's private route must pass the platform's authentication
+### 9. Security: the settings page's private route must pass the platform's authentication
 
-### Symptoms (measured on 0.1.6-alpha.1; this repository has already fixed it at the source level)
+#### Symptoms (measured on 0.1.6-alpha.1; this repository has already fixed it at the source level)
 
 Before the fix, `/custom-mode` was **readable and writable without authorization**:
 
@@ -230,7 +248,7 @@ The `text/plain` detail is crucial: **ordinary form-style cross-site requests do
 this port. The response cannot be read, but the write has already happened — for an agent holding shell and file tools,
 this is remotely triggerable prompt injection.
 
-### Current behavior
+#### Current behavior
 
 The route asks the platform before handling any request:
 
@@ -263,7 +281,7 @@ there is no unfenced fallback route to fall back to, and the scoped `inject` sim
 
 ---
 
-## 9.5 The plugin's dependency is installed but the bundle entry is gone
+### 9.5 The plugin's dependency is installed but the bundle entry is gone
 
 Measured: when `node_modules` still holds the package but `profiles/web/package.json` no longer lists
 `dsh-custom-mode` in `dsh.profile.bundles`, **`dsh plugin --profile web add dsh-custom-mode` short-circuits**
@@ -275,7 +293,7 @@ while the command looks successful. Self-rescue, in order:
 3. `./install.sh` does exactly this bookkeeping for you (it snapshots the bundle list before installing and
    asserts nothing was lost), which is why it is the fallback when the one-liner does not take.
 
-## 9.6 `0.1.6-alpha.1` cannot boot at all — that is the host, not this plugin
+### 9.6 `0.1.6-alpha.1` cannot boot at all — that is the host, not this plugin
 
 Measured (and the reason the `alpha` dist-tag moved to `alpha.2`):
 
@@ -287,7 +305,7 @@ The process exits during `profile-boot`, **before any plugin is loaded**. Nothin
 involved; if you are on `0.1.6-alpha.1`, move to the preview line `0.1.7-rc.2` (or the stable line `0.1.5-rc.3`, which is
 also supported — see the README's Versioning section).
 
-## 10. Installing into a profile such as tui / headless: less works than expected
+### 10. Installing into a profile such as tui / headless: less works than expected
 
 Both `./install.sh --help` and the two READMEs mention `--profile tui`, but **measurement** shows that one thing must be understood first:
 
@@ -308,7 +326,7 @@ dsh: warning: 1 entry did not activate
 custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPresets)
 ```
 
-It is **exactly the same** as the "dsh turns into a brick after installing" error in [§1](#1-严重装完之后-dsh-起不来了只剩一行-pending),
+It is **exactly the same** as the "dsh turns into a brick after installing" error in [§1](#1-critical-after-installing-dsh-no-longer-starts-and-only-a-single-pending-line-remains),
 which makes it highly misleading — a normal installation into the wrong profile looks no different from catastrophic corruption.
 The plugin now uses **scoped service waiting** (`ctx.inject`), so it no longer leaves the whole row stuck in `pending`, and `install.sh` also
 states on the spot, right after installing, that no settings page is available in this profile.
@@ -317,7 +335,7 @@ states on the spot, right after installing, that no settings page is available i
 
 ---
 
-## 11. The settings page says it cannot find the composition file
+### 11. The settings page says it cannot find the composition file
 
 Installed from npm (`dsh plugin --profile web add dsh-custom-mode`) and the page reports
 
@@ -342,7 +360,7 @@ Seeding runs once per activation and only fills in what is missing — it never 
 you wrote or an `agent.cordis.yml` the settings page generated. So a missing file that keeps coming
 back means something is deleting it between activations.
 
-## 12. One-shot verification checklist (run through it after making changes)
+### 12. One-shot verification checklist (run through it after making changes)
 
 ```sh
 # 1. The two test suites (63 of those items are the composition-file compiler)
@@ -370,9 +388,9 @@ curl -s "http://127.0.0.1:3080/custom-mode" \
 > The cookie name and the way to obtain the token in item 5 may differ between dsh versions; when opening the settings page in a browser, look at the
 > `/custom-mode` request in the Network panel — that is the least effort.
 
-## 13. Several assistants: the list, creation and deletion
+### 13. Several assistants: the list, creation and deletion
 
-### 13.1 A mode does not show up in the assistant list
+#### 13.1 A mode does not show up in the assistant list
 
 The settings page manages **only presets this tool created**. The test: the directory carries
 `prompt.md`, and it either carries `prompt-reader.mjs` or its `agent.cordis.yml` references
@@ -389,7 +407,7 @@ switches work), and doing that to a hand-written composition would destroy it. T
 have its composition inject identity through `./prompt-reader.mjs` and provide a `prompt.md`, or create
 an assistant on the page and paste the prompt into it.
 
-### 13.2 A deleted assistant comes back after a restart
+#### 13.2 A deleted assistant comes back after a restart
 
 Only old versions did that: `apply()` used to seed `custom` unconditionally on every activation. The
 rule now is that `custom` is created only when there is no `.custom-mode.json` marker under the root
@@ -398,7 +416,7 @@ rule now is that `custom` is created only when there is no `.custom-mode.json` m
 If it does happen, check whether `$DSH_HOME/.agent-presets/.custom-mode.json` exists; if not, create it
 (any `{"seededAt":"…"}` body) and restart.
 
-### 13.3 Creating an assistant fails
+#### 13.3 Creating an assistant fails
 
 The page shows the backend's reason verbatim. Three common ones:
 
@@ -410,7 +428,7 @@ The page shows the backend's reason verbatim. Three common ones:
 - **copying the mode template failed** — the packaged `preset/` is missing files, or the target
   directory is not writable.
 
-### 13.4 An assistant was renamed, but `custom_prompt`'s description in its sessions still shows the old name
+#### 13.4 An assistant was renamed, but `custom_prompt`'s description in its sessions still shows the old name
 
 The tool description comes from the composition row's `config.modeName`, while the **module file**
 (`prompt-tool.mjs`) lives in the user's directory and is not overwritten at activation (the user may
@@ -419,7 +437,7 @@ have edited it). An assistant installed by an older version has a module that do
 Running `./install.sh` refreshes the module files (it keeps `prompt.md`). This only affects the
 description text; the tool's read and write behaviour was always correct.
 
-## 14. The page opens, but its controls look plainer than the official settings pages
+### 14. The page opens, but its controls look plainer than the official settings pages
 
 That is not a bug — the **degradation path** is active. This page's buttons, inputs, switches, tags,
 confirmation dialog and icons come from the shell's shared atom library
@@ -439,7 +457,7 @@ To restore the unified look, move dsh to a version that registers that package i
 extra declaration: `dsh.client.external` is for bundles that are themselves boot records, whereas this
 package is a seed word that any bundle may `require` (see `docs/ARCHITECTURE.md` §14).
 
-## 15. The page renders raw keys such as `assistant.heading` / `btn.create`
+### 15. The page renders raw keys such as `assistant.heading` / `btn.create`
 
 **This should no longer happen from 0.1.6-alpha.2 on.** It was caused by the `settings.section`
 contract change (the `locale:` option was removed); the page now carries its own zh/en dictionaries as a
@@ -458,7 +476,7 @@ what happened on the host side. If the copy really is raw keys, first confirm `c
 current (`grep -c assistant.heading client.js` should be > 0, and the same key must exist in
 `locales.mjs`), then restart dsh and refresh the page.
 
-## 16. The picker order did not change after reordering
+### 16. The picker order did not change after reordering
 
 The order lives in each assistant's `preset.yml` (`order: 1..N`). If it did not take effect, look at the
 files first:
@@ -473,7 +491,7 @@ grep -n '^order:' "$DSH_HOME"/.agent-presets/*/preset.yml
 - **the files are right but the picker did not change**: the picker reads the roster when a **new session**
   starts; sessions already open are unaffected.
 
-## 17. A freshly published version does not install — `dsh plugin add <name>` takes the previous one
+### 17. A freshly published version does not install — `dsh plugin add <name>` takes the previous one
 
 You published (or read about) `0.1.6-alpha.2`, but the bare name installs the older version, and the new
 behaviour is missing. With this plugin that is visible: a version that predates seeding leaves
@@ -490,13 +508,13 @@ Measured twice, with different results depending on how the version is resolved:
 (official pipeline, pnpm 12), while the same install in a different profile/cache resolved the new version
 directly. Treat the cooldown as version- and config-dependent, and **verify what actually landed**
 (`npm ls dsh-custom-mode` inside the profile, or `cat profiles/web/package.json`) instead of trusting the
-command's exit code. Explicitly pinning the version is what always works. `minimumReleaseAge` defaults to
+command's exit code. An exact pin selects the intended version; compatibility and profile policy may still reject it. `minimumReleaseAge` defaults to
 `1440` minutes (one day), so a version published less than a day ago is not eligible for a bare-name
 resolution and pnpm falls back to the newest version that is. Measured: alpha.2 was 13 hours old and was
 skipped; alpha.1, 24.3 hours old, was installed. The registry was correct the whole time — `latest` and
 both packuments pointed at alpha.2, and `npm install dsh-custom-mode@latest` resolved to it.
 
-Fix — install the exact version. pnpm records that pin as an exception in the profile's
+Fix — choose the exact accepted version; see the current recovery steps. pnpm records that pin as an exception in the profile's
 `pnpm-workspace.yaml`. Keep **one** exception for this package. pnpm 11.7.0 reads only the first
 `minimumReleaseAgeExclude` entry that matches the package name ([pnpm#12463](https://github.com/pnpm/pnpm/issues/12463)),
 so a growing list of `dsh-custom-mode@1.11.0`, `@1.12.2`, … does not exempt the later versions. The
@@ -518,7 +536,7 @@ line, run the install again. The version on the settings page is the one that is
 and only after you restart dsh.
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.1.0
+dsh plugin --profile web add dsh-custom-mode@2.2.6
 ```
 
 and check what actually landed instead of what you typed:
@@ -528,9 +546,9 @@ node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
 ```
 ---
 
-## 18. The page says "Unexpected host error: 无法定位出厂基础模式", or the base mode and the switches are greyed out
+### 18. The page says "Unexpected host error: 无法定位出厂基础模式", or the base mode and the switches are greyed out
 
-### Symptoms
+#### Symptoms
 
 The settings page opens and the assistant list is there, but:
 
@@ -542,7 +560,7 @@ The settings page opens and the assistant list is there, but:
 
 Either way the mode itself is fine: it is in the new-session picker and a session started with it works.
 
-### Cause
+#### Cause
 
 The plugin composes a mode by editing the *shipped* composition of its base mode, and it could not find that
 text. There are two ways a dsh line publishes it: the file-based `@deepseek-ai/dsh-agent-presets` package
@@ -554,10 +572,10 @@ From 1.9.13 the failure is a typed `baseCompositionUnavailable` instead of a 500
 prompt saves on its own, and a save that carries row switches is refused with a message rather than silently
 dropped.
 
-### What to do
+#### What to do
 
-1. **Upgrade to 1.9.13 or newer** — that is the whole fix:
-   `dsh plugin --profile web add dsh-custom-mode@1.9.13`, then restart dsh.
+1. **The historical minimum fix was 1.9.13; choose the current accepted release** — that is the whole fix:
+   `dsh plugin --profile web add dsh-custom-mode@2.2.6`, then restart dsh.
 2. **Read the host log for the list of routes that were tried.** The plugin names every attempt:
    `custom-mode: 取不到这些基础模式的出厂组成 —— standard: …`. If `agentPresets.readDocument() 不可用` appears,
    the host is older than the declarative registry and you are on a line this plugin does not claim to support.

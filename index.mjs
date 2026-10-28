@@ -1,7 +1,7 @@
 /**
  * Host half: the 「自定义模式」 settings page — an ASSISTANT MANAGER.
  *
- * It registers seven exact routes on the platform's shared `/api` channel; the browser half calls
+ * It registers eight exact routes on the platform's shared `/api` channel; the browser half calls
  * them with `fetch`:
  *
  *   GET  /api/custom-mode              — every assistant this feature manages.
@@ -20,6 +20,7 @@
  *   POST /api/custom-mode/reorder      — { id, direction }: move one assistant up/down in the
  *                                        picker order by writing `order` into each `preset.yml`.
  *   POST /api/custom-mode/repair       — { id }: turn off the rows this dsh line cannot resolve.
+ *   POST /api/custom-mode/sync         — {}: retry registry synchronization without repeating a write.
  *
  * **Why `/api` and not the raw `webServer` table**: the carrier that owns the `/api` channel applies the
  * platform's trust and authentication policy — loopback/`trustedHosts` Host check, `Sec-Fetch-Site`,
@@ -31,7 +32,7 @@
  * route answered 401; a plain form post needs no preflight, so CORS would not have helped either). The
  * registered paths are absolute *including* `/api`, which is what the platform's own packages pass.
  *
- * **Why exact routes rather than one prefix**: the Fetch registry matches exact paths. Seven registrations
+ * **Why exact routes rather than one prefix**: the Fetch registry matches exact paths. Eight registrations
  * cost nothing and each declares the methods it owns, so the method table doubles as the guarantee that a
  * prefetched `GET …/create` cannot create anything — that method is simply not registered for that path.
  *
@@ -101,6 +102,7 @@ const DELETE_PATH = ROUTE_PATH + '/delete'
 const REORDER_PATH = ROUTE_PATH + '/reorder'
 const REPAIR_PATH = ROUTE_PATH + '/repair'
 const HISTORY_PATH = ROUTE_PATH + '/history'
+const SYNC_PATH = ROUTE_PATH + '/sync'
 
 /** Which verbs each endpoint answers. `undefined` for a path means 404. */
 const METHODS = {
@@ -111,6 +113,7 @@ const METHODS = {
   [DELETE_PATH]: ['POST'],
   [REORDER_PATH]: ['POST'],
   [REPAIR_PATH]: ['POST'],
+  [SYNC_PATH]: ['POST'],
 }
 
 /** 只告警一次：避免每个请求都刷同一行日志。 */
@@ -154,6 +157,7 @@ const VARIABLE_NAME = /^[a-z][a-z0-9_]*$/
  * Mirrors `checkPromptText` in the preset's `prompt-tool.mjs`; the duplication is
  * deliberate so neither side depends on the other's install location.
  */
+// cwd is supplied by the old loop, or by prompt-reader's scoped workingDirectory compatibility provider.
 const KNOWN_VARIABLES = ['model', 'cwd', 'provider']
 
 /**
@@ -372,7 +376,8 @@ export function brokenRowIds(message) {
 export function readState(rows, id, options = {}) {
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
-  restoreBackups(directory)
+  const recovery = restoreBackups(directory)
+  if (recovery.ok !== true) return { ok: false, code: 'recoveryRequired', params: { path: directory, detail: recovery.detail }, error: '助手文件需要恢复：' + recovery.detail }
   const composition = compositionFile(directory)
   if (!existsSync(composition)) return { ok: false, code: 'compositionMissing', params: { path: composition }, error: '找不到组成文件：' + composition }
   const text = readFileSync(composition, 'utf8')
@@ -1299,7 +1304,7 @@ export function apply(ctx) {
           console.error('custom-mode: 取回出厂组成时出错（已忽略）: ' + describe(error))
         }
       }
-      if (declarative === null) return
+      if (declarative === null) return { ok: true, failures: [] }
       try {
         const rows = await rawRoster()
         const targets = []
@@ -1343,8 +1348,10 @@ export function apply(ctx) {
         if (failed.length > 0) {
           console.error(`custom-mode: ${failed.length} 个助手的 preset 未能挂载 —— 见上面的具体原因。`)
         }
+        return { ok: failed.length === 0, failures: failed }
       } catch (error) {
-        console.error('custom-mode: 同步 preset 到注册表失败（已忽略）: ' + describe(error))
+        console.error('custom-mode: 同步 preset 到注册表失败: ' + describe(error))
+        return { ok: false, code: 'syncFailed', failures: [{ id: '', error: describe(error) }] }
       }
     }
 
@@ -1357,18 +1364,14 @@ export function apply(ctx) {
      */
     let startupSync = null
     const roster = async () => {
-      if (startupSync !== null) {
-        const pending = startupSync
-        startupSync = null
-        await pending
-      }
+      if (startupSync !== null) await startupSync
       return rawRoster()
     }
 
-    /** 写操作之后调用：重新对齐注册表。失败已在内部记录，不抛出。 */
-    const resyncPresets = async () => {
-      startupSync = null
-      await doSync()
+    /** Called inside the write queue; readers also await the current synchronization. */
+    const resyncPresets = () => {
+      startupSync = doSync()
+      return startupSync
     }
 
     // 启动即同步：新线不是"写盘即生效"，第一次进来必须先注册。
@@ -1390,6 +1393,11 @@ export function apply(ctx) {
      */
     const json = (value, status = 200) =>
       Response.json(value, { status, headers: { 'cache-control': 'no-store' } })
+
+    const syncFailureParams = (outcome) => ({
+      ids: outcome.failures.map((failure) => failure.id).filter(Boolean).join(', '),
+      detail: outcome.failures.map((failure) => failure.error ?? failure.code ?? 'unknown').join('; '),
+    })
 
     const handle = async (request, pathname) => {
       try {
@@ -1436,26 +1444,32 @@ export function apply(ctx) {
           return json({ ok: false, code: 'badJson', error: '请求体不是合法 JSON' }, 400)
         }
         await ensureShipped()
-        const targetId = parsed !== null && typeof parsed === 'object' && typeof parsed.id === 'string' ? parsed.id : ''
-        // 一把锁覆盖同一棵预设树。分钥匙会让「删除」和「保存」交错，把刚删的目录再写成半成品。
-        if (pathname === STATE_PATH) {
-          const result = await serializedWrite('preset-write', async () => saveState(await roster(), parsed))
-          return json(result, result.ok === true ? 200 : 400)
-        }
-        if (pathname === CREATE_PATH) {
-          const result = await serializedWrite('preset-write', async () => createAssistant(await roster(), parsed))
-          return json(result, result.ok === true ? 200 : 400)
-        }
-        if (pathname === REPAIR_PATH) {
-          const result = await serializedWrite('preset-write', async () => repairComposition(await roster(), parsed))
-          return json(result, result.ok === true ? 200 : 400)
-        }
-        if (pathname === REORDER_PATH) {
-          const result = await serializedWrite('preset-write', async () => reorderAssistant(await roster(), parsed))
-          return json(result, result.ok === true ? 200 : 400)
-        }
-        const result = await serializedWrite('preset-write', async () => deleteAssistant(await roster(), parsed, presetRemover()))
-        return json(result, result.ok === true ? 200 : 400)
+        // One queue owns the entire mutation, INCLUDING its registry projection. Releasing this lock
+        // before sync allowed a later save to race an older registration and leave disk B / runtime A.
+        return await serializedWrite('preset-write', async () => {
+          const rows = await roster()
+          if (pathname === SYNC_PATH) {
+            const synced = await resyncPresets()
+            if (synced.ok === true) return json({ ok: true, code: 'synchronized', synchronized: true })
+            return json({ ok: false, code: 'syncFailed', persisted: false, synchronized: false, params: syncFailureParams(synced) }, 503)
+          }
+          const result = pathname === STATE_PATH ? saveState(rows, parsed)
+            : pathname === CREATE_PATH ? createAssistant(rows, parsed)
+              : pathname === REPAIR_PATH ? repairComposition(rows, parsed)
+                : pathname === REORDER_PATH ? reorderAssistant(rows, parsed)
+                  : await deleteAssistant(rows, parsed, presetRemover())
+          if (result.ok !== true) return json(result, 400)
+          const synced = await resyncPresets()
+          if (synced.ok !== true) {
+            return json({
+              ...result, ok: false, code: 'savedButSyncFailed', operationCode: result.code,
+              persisted: true, synchronized: false, params: { ...result.params, ...syncFailureParams(synced) },
+              error: '文件已写入，但预设同步失败；请只重试生效，不要重复原操作。',
+              note: '文件已写入，但预设同步失败；请只重试生效，不要重复原操作。',
+            }, 503)
+          }
+          return json({ ...result, persisted: true, synchronized: true })
+        })
       } catch (error) {
         // 兜底也要带 code：这是**意料之外**的异常，页面拿到的是 Node 的原始错误串，方向反着也一样糟
         // ——中文界面里会蹦出一句英文。带 code 后页面用自己的词典渲染，原始串只作为 `detail` 参数。
@@ -1472,14 +1486,7 @@ export function apply(ctx) {
           path: API_PREFIX + pathname,
           methods: [...methods],
           requestBody: 'buffered',
-          fetch: async (request) => {
-            const response = await handle(request, pathname)
-            // 写成功之后，把注册表同步到磁盘的新状态。
-            // 旧线上 `declarative` 是 null，这里恒为空操作；新线上没有它，用户在设置页
-            // 新建/改名/删除的助手就不会出现在选择器里 —— 是本插件最容易被漏掉的一步。
-            if (declarative !== null && request.method !== 'GET' && response.ok) await resyncPresets()
-            return response
-          },
+          fetch: (request) => handle(request, pathname),
         }),
         'custom-mode.route' + pathname,
       )

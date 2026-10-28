@@ -132,9 +132,10 @@ export const ROW_META = {
   'tool-cordis': { label: 'Cordis 运行时工具', note: '可读写 harness 运行时' },
   'tool-plugin-manager': {
     label: '插件管理（安装 / 启停）',
-    note: '模型侧可安装/启停插件；标准与 PTC 模式里出厂即关闭（只有创造模式默认开），本模式可以显式打开它',
+    note: '供模型安装或启停插件；出厂状态由当前宿主的基础模式声明决定',
   },
   'tool-presentation': { label: 'PTC 工具呈现' },
+  'tool-executor-ptc': { label: 'PTC 程序执行器', note: '通过 run_code 执行程序并调用工具，同时向模型提供工具 SDK' },
   present: { label: '交付文件（present）' },
   'custom-prompt-tool': { label: 'custom_prompt 工具', note: '关掉后无法用对话改提示词（设置页仍可用）' },
   'persistent-shell': { label: '持久 Shell' },
@@ -241,9 +242,9 @@ export function readBaseComposition(modeId) {
  * First writer, in `BASE_MODE_IDS` order (`standard` → `ptc` → `minimal` → `cordis`). The order is not
  * cosmetic: `standard` is the mode this product's own preset is derived from, so a row declared in more
  * than one mode keeps **standard's text and standard's shipped default**. The visible consequence is
- * deliberate — `tool-plugin-manager` ships disabled in `standard` and enabled in `cordis`, and the union
- * keeps it disabled (the user turns it on per assistant if they want it). The alternative rule, "enabled
- * if any mode enables it", would silently arm the model's plugin manager in a mode the user never chose.
+ * deliberate: the union follows this host's `standard` declaration, including any condition on
+ * `tool-plugin-manager`. Its shipped state varies by host version; do not hard-code it as disabled.
+ * Enabling a row merely because another mode does so would change the selected baseline.
  *
  * ## Nothing is cached
  *

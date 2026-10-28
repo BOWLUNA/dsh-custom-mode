@@ -2,22 +2,40 @@
 
 [English](TROUBLESHOOTING.md) | 中文
 
-这份文档记的都是**实测复现过的失败**，每条都有症状、原因、自救办法。命令都可以直接复制。
+## 当前自救步骤
 
-先记住一条总的自查命令——它能区分「装没装上」和「装上了但没生效」：
+本节适用于版本 `2.2.6`。更新前先核对[精确宿主结果与验收边界](CURRENT_COMPATIBILITY.zh.md)。后面的编号故障档案保留旧观察及其历史命令，不是当前安装教程。
+
+1. 记录宿主版本（`dsh --version`）、设置 → 自定义模式中显示的插件版本、平台和失败步骤：安装、打开页面、保存/应用、选择助手，还是首次请求。桌面端使用应用内 Plugins 页；本节 CLI 步骤针对 Web profile。
+2. 执行 `dsh --profile web --dump-config`。出现 `dsh-custom-mode` 行只证明组合配置包含插件，**不能**证明已激活、页面正常、预设健康或模型请求成功。没有匹配行时，检查所选 profile 与已安装的包；单纯重启不会安装缺失的包。
+3. 只用原有启动器重启该 profile 的服务进程，查看激活错误和页面的类型化告警。按 [README 首次请求检查](../README.zh.md#验证完整路径) 走完整流程，不停在页面能打开这一步。
+4. 保留合成复现步骤及脱敏的错误/版本报告。分享前移除 token 地址、凭据、私人提示词和历史；不要把真实用户 home 复制进测试环境。
+
+| 症状 | 自救与成功判定 |
+| --- | --- |
+| 装到错误插件版本 | 用下方精确已发布版本安装，重启后核对页面版本。只写包名或包管理器成功退出都不足以判定。 |
+| `unknown prompt variable "{{cwd}}"` | 保留完整 section 名及精确宿主版本。升级到已验收的修复版并重启，让受管 reader 刷新；不要删除无关的提示词/suffix 文本。若仍有未知变量，保留原文并检查报错的具体 section；当前代码的兼容行为与测试一起记录。 |
+| 文件已保存，但应用失败 | 保留当前未保存草稿。点「重试生效」同步已保存配置，确认告警消失后再新建会话。重试不会保存另一份草稿。 |
+| 操作成功，但页面读取失败 | 点「重试读取」，不要重复已经完成的新建/删除/保存；重试只读取当前状态。 |
+| 中断保存后助手消失 | 停止继续编辑，保留助手目录、备份与恢复记录。修复版在发现助手前尝试恢复；仍失败时留存证据排查，不要删除备份或认定永久丢失。 |
+| clone 安装脚本失败 | 查看打印的事务目录。已验证回滚会重新安装本地旧包并恢复受管代码。退出5表示恢复不完整：保留旧归档/日志，在重启前用宿主插件管理器重新安装那个实际旧归档。只复制 package.json 不能恢复安装。 |
+| `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | 检查 profile 的 pnpm 策略与请求的精确版本。如选择包级例外，`minimumReleaseAgeExclude` 只留一条（`- dsh-custom-mode`），不要不断叠加不同版本项。不要关闭所有包的发布冷却策略；脚本不会替你修改该策略。 |
+
+对于已发布且在你的精确宿主上验收的 `2.2.6` 包，Web 更新命令为：
 
 ```sh
-dsh --profile web --dump-config | grep -n custom-mode
+dsh plugin --profile web add dsh-custom-mode@2.2.6
 ```
 
-有输出 = 插件行已经进了组合树（剩下的问题都在浏览器侧）。
-**没有输出** = profile 里没装上，或者装完没有重启 dsh。
+重启并重复首次请求检查。已有提示词、预设元数据与组成是用户数据。clone 安装需要 Bash、Node.js 和 npm，通过离线 `npm pack --ignore-scripts` 准备本地包，不下载更新的版本充当回滚包。旧安装缺失或无法归档时，替换前就中止。首次安装失败没有旧包可恢复，脚本会移除部分插件并校验 profile 状态，否则明确报告清理未完成。
 
----
+## 历史故障档案
 
-## 1. 【严重】装完之后 dsh 起不来了，只剩一行 `pending`
+下面编号条目记录的是当时调查的版本与宿主。某个修法的历史最低版本不是今天的安装建议。旧日志、API 假设和环境变量绕过方案属于证据，不是当前保证；特别是当前多助手发现不需要旧第8节的提示词路径覆盖。当前行为以本页前半、[架构](ARCHITECTURE.zh.md)和[兼容记录](CURRENT_COMPATIBILITY.zh.md)为准。
 
-### 症状
+### 1. 【严重】装完之后 dsh 起不来了，只剩一行 `pending`
+
+#### 症状
 
 `./install.sh` 打印「安装完成」并以 0 退出。之后重启 dsh：
 
@@ -35,7 +53,7 @@ custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPr
   name: dsh-custom-mode
 ```
 
-### 原因（已修复，但已经装过的机器需要自救）
+#### 原因（已修复，但已经装过的机器需要自救）
 
 `install.sh` 曾经有一段「清理解析不到的幽灵条目」逻辑，它按两个硬编码路径探测每个 bundle：
 
@@ -55,7 +73,7 @@ dsh 自己的 `reconcilePlugins` 明确写着 in-box bundle「are never touched�
 **只增不删**。现在的 `install.sh` 就是这么做的，并且加了一道安装后自检：
 组合树少于 20 行就直接报错退出，而不是让你到下次重启才发现。
 
-### 自救（已经被旧版装坏的机器）
+#### 自救（已经被旧版装坏的机器）
 
 把缺的名字加回 profile 清单即可，不需要重装任何东西：
 
@@ -84,9 +102,9 @@ dsh --profile web --dump-config | wc -l
 
 ---
 
-## 2. WSL 下 `dsh plugin add` 失败：pnpm 的 Rust panic
+### 2. WSL 下 `dsh plugin add` 失败：pnpm 的 Rust panic
 
-### 症状
+#### 症状
 
 ```
 ==> 2/2 安装设置页插件 "dsh-custom-mode" 到 profile "web"
@@ -96,13 +114,13 @@ Error:   × Main thread panicked.
 dsh: pnpm failed in profile directory /home/<user>/.dsh/profiles/web
 ```
 
-### 原因
+#### 原因
 
 `dsh plugin` 是**转发给 PATH 上的 `pnpm`** 的（`spawnSync("pnpm", …)`，cwd = profile 目录）。
 WSL 的 PATH 默认包含 Windows 的目录，所以很容易先命中 `Windows` 版的
 `pnpm.cmd`/`pnpm.exe`。它以 Windows 的方式理解 `/home/...` 这个 cwd，于是 panic。
 
-### 修复
+#### 修复
 
 让 PATH 上的 pnpm 是 **Linux 版**：
 
@@ -117,7 +135,7 @@ which pnpm               # 必须是 /home/... 或 /usr/...，不能是 /mnt/c/.
 
 ---
 
-## 3. 改了 `client.js`，页面没变化
+### 3. 改了 `client.js`，页面没变化
 
 先分清改的是哪一半 —— 两半的重载机制完全不同：
 
@@ -134,7 +152,7 @@ HMR 的前提：profile 的组合里 `dsh-client-hmr` 处于启用状态（`dsh 
 
 ---
 
-## 4. 设置面板里没有「自定义模式 / Custom mode」这一项
+### 4. 设置面板里没有「自定义模式 / Custom mode」这一项
 
 按顺序查：
 
@@ -149,7 +167,7 @@ HMR 的前提：profile 的组合里 `dsh-client-hmr` 处于启用状态（`dsh 
 
 ---
 
-## 5. 模式选择器里没有「自定义模式」
+### 5. 模式选择器里没有「自定义模式」
 
 preset 是**文件**，让 dsh 看不见它的原因通常是文件本身坏了：
 
@@ -161,7 +179,7 @@ preset 是**文件**，让 dsh 看不见它的原因通常是文件本身坏了�
 
 ---
 
-## 6. 保存提示词被拒绝
+### 6. 保存提示词被拒绝
 
 渲染器做**严格插值**：一个完整的 `{{...}}` 组必须是已注册的变量，否则渲染**抛错**，
 后果不是「这段不生效」，而是**该模式每个模型请求都失败**。所以两条写入路径都会先校验：
@@ -185,18 +203,18 @@ $EDITOR ~/.dsh/.agent-presets/custom/prompt.md
 
 ---
 
-## 7. 版本不匹配
+### 7. 版本不匹配
 
-本插件有**自己的稳定版本线**（`1.y.z` —— 目前是 `1.9.x`）；它*支持哪些* dsh 由 `engines.dsh` 与 peer 范围声明
+本插件有**自己的稳定版本线**（`x.y.z`，本说明适用于 `2.2.6`）；它*支持哪些* dsh 由 `engines.dsh` 与 peer 范围声明
 （`>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0`）。（`1.0.0` 之前版本号是镜像 dsh 的 —— 那套做法已于 2026-09-18 取消，
 因为有些目录只对裸 `x.y.z` 自动安装。）升级 dsh 之后如果设置页空白或启动时报
-「当前 DSH 版本缺少所需 API」，就是耦合点断了：见 README 的「耦合点清单」，逐条核对。
+「当前 DSH 版本缺少所需 API」，就是耦合点断了：见 [ARCHITECTURE.zh.md](ARCHITECTURE.zh.md) 与 [CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md)，按精确宿主核对。
 
 `install.sh` 第 0 步会把 `dsh --version` 与插件声明的适配版本放在一起打印，不一致时给警告。
 
 ---
 
-## 8. 用了非默认 preset 目录名，设置页读不到提示词
+### 8. 用了非默认 preset 目录名，设置页读不到提示词
 
 编辑器默认只认 `$DSH_HOME/.agent-presets/custom/prompt.md`。用 `--preset-id mine` 装的话，
 必须让 **dsh 进程**带上环境变量（`export` 在你自己的 shell 里不算 —— dsh 得是从带这个变量的
@@ -210,9 +228,9 @@ systemd 服务里则写进 unit 的 `Environment=`。
 
 ---
 
-## 9. 安全：设置页的私有路由必须过平台的鉴权
+### 9. 安全：设置页的私有路由必须过平台的鉴权
 
-### 症状（0.1.6-alpha.1 上实测过，本仓库已在源码层修复）
+#### 症状（0.1.6-alpha.1 上实测过，本仓库已在源码层修复）
 
 修复前的 `/custom-mode` 是**未授权可读写**的：
 
@@ -231,7 +249,7 @@ curl -X POST http://127.0.0.1:3080/custom-mode \
 这个端口 POST。响应虽然读不到，但写入已经发生 —— 对持有 Shell 与文件工具的 agent 而言，
 这是可以远程触发的提示词注入。
 
-### 现在的行为
+#### 现在的行为
 
 路由在处理任何请求之前先问平台：
 
@@ -263,7 +281,7 @@ ctx.connection.fetch.register({ path, methods, requestBody, fetch })
 
 ---
 
-## 9.5 依赖装上了，但 bundle 条目丢了
+### 9.5 依赖装上了，但 bundle 条目丢了
 
 实测：当 `node_modules` 里还有这个包、而 `profiles/web/package.json` 的 `dsh.profile.bundles` 里已经没有
 `dsh-custom-mode` 时，**`dsh plugin --profile web add dsh-custom-mode` 会短路**（pnpm 报 "resolution skipped"），
@@ -273,7 +291,7 @@ ctx.connection.fetch.register({ path, methods, requestBody, fetch })
 2. 或直接编辑 `profiles/web/package.json`，把 `"dsh-custom-mode"` 放回 `dsh.profile.bundles`；
 3. `./install.sh` 本来就在做这套记账（安装前快照 bundle 列表、装完断言"一个都没少"），所以一条命令没生效时它是兜底。
 
-## 9.6 `0.1.6-alpha.1` 根本起不来 —— 那是宿主的问题，不是本插件
+### 9.6 `0.1.6-alpha.1` 根本起不来 —— 那是宿主的问题，不是本插件
 
 实测（也是 `alpha` dist-tag 被移到 `alpha.2` 的原因）：
 
@@ -284,7 +302,7 @@ SyntaxError: The requested module '@deepseek-ai/dsh-app-boot' does not provide a
 进程在 `profile-boot` 阶段就退出，**发生在任何插件被加载之前**。与本插件无关；如果你在 `0.1.6-alpha.1` 上，
 请换到最新预览版 `0.1.7-rc.2`（或同样受支持的正式版 `0.1.5-rc.3`，见 README 的 Versioning 一节）。
 
-## 10. 装进 tui / headless 之类的 profile：能用的比预期少
+### 10. 装进 tui / headless 之类的 profile：能用的比预期少
 
 `./install.sh --help` 与两份 README 都写了 `--profile tui`，但**实测**要先看清一件事：
 
@@ -314,7 +332,7 @@ custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPr
 
 ---
 
-## 11. 设置页说找不到组成文件
+### 11. 设置页说找不到组成文件
 
 从 npm 装（`dsh plugin --profile web add dsh-custom-mode`）之后，页面报
 
@@ -337,7 +355,7 @@ custom-mode (dsh-custom-mode): pending (waiting for services: webServer, agentPr
 播种每次激活只跑一次，而且只补缺失的文件 —— 它不会覆盖你写的 `prompt.md`，也不会覆盖设置页生成过的
 `agent.cordis.yml`。所以如果某个文件补了又没，说明有别的什么东西在两次激活之间删掉了它。
 
-## 12. 一次性验证清单（改完之后照着跑）
+### 12. 一次性验证清单（改完之后照着跑）
 
 ```sh
 # 1. 两个测试套件（其中 63 项是组成文件编译器）
@@ -365,9 +383,9 @@ curl -s "http://127.0.0.1:3080/custom-mode/state?id=custom" -H 'cookie: dsh-toke
 > 第 5 条的 cookie 名与 token 取法随 dsh 版本可能不同；用浏览器打开设置页时看 Network 面板
 > 里那条 `/custom-mode` 请求最省事。
 
-## 13. 多助手：列表、新增、删除相关
+### 13. 多助手：列表、新增、删除相关
 
-### 13.1 某个模式没有出现在助手列表里
+#### 13.1 某个模式没有出现在助手列表里
 
 设置页**只管理本工具创建的模式**，判据是：目录里有 `prompt.md`，且（目录里有 `prompt-reader.mjs`，
 或 `agent.cordis.yml` 里引用了 `'./prompt-reader.mjs'`）。
@@ -381,7 +399,7 @@ curl -s "http://127.0.0.1:3080/custom-mode/state?id=custom" -H 'cookie: dsh-toke
 等于毁掉它。想把它变成受管助手：让它的组成文件用 `./prompt-reader.mjs` 注入身份、并放一份
 `prompt.md`，或者干脆在设置页新建一个助手再把提示词贴过去。
 
-### 13.2 删掉的助手重启后又回来了
+#### 13.2 删掉的助手重启后又回来了
 
 只有旧版本会这样：那时 `apply()` 每次激活都无条件播种 `custom`。现在的规则是——根目录下没有
 `.custom-mode.json` 标记、且**一个受管助手都没有**时，才会创建 `custom`；否则只是补上标记。
@@ -389,7 +407,7 @@ curl -s "http://127.0.0.1:3080/custom-mode/state?id=custom" -H 'cookie: dsh-toke
 如果确实遇到复活，检查 `$DSH_HOME/.agent-presets/.custom-mode.json` 是否存在；不存在就手工建一个
 （内容 `{"seededAt":"…"}` 即可），再重启。
 
-### 13.3 新增助手失败
+#### 13.3 新增助手失败
 
 页面会把后端给的原因原样显示，常见三种：
 
@@ -398,7 +416,7 @@ curl -s "http://127.0.0.1:3080/custom-mode/state?id=custom" -H 'cookie: dsh-toke
   `agent.cordis.yml`）。换个名字，或者先处理掉那个目录。
 - **复制模式模板失败** —— 包内的 `preset/` 少了文件，或目标目录不可写。
 
-### 13.4 助手改名了，但旧助手会话里的 `custom_prompt` 描述还是旧名字
+#### 13.4 助手改名了，但旧助手会话里的 `custom_prompt` 描述还是旧名字
 
 工具描述来自组成文件里的 `config.modeName`，而**模块文件**（`prompt-tool.mjs`）在用户目录里、
 激活时不会被覆盖（用户可能改过它）。旧版本装出来的助手，其模块不认识这个键。
@@ -406,7 +424,7 @@ curl -s "http://127.0.0.1:3080/custom-mode/state?id=custom" -H 'cookie: dsh-toke
 跑一次 `./install.sh` 会刷新模块文件（它保留 `prompt.md`）。这只影响描述文案，工具的读写行为一直是
 正确的。
 
-## 14. 页面能开，但控件很朴素、和官方设置页不一样
+### 14. 页面能开，但控件很朴素、和官方设置页不一样
 
 这不是 bug，是**降级路径生效**了：本页的按钮、输入框、开关、标签、确认弹窗与图标都来自壳的
 共享原子组件库 `@deepseek-ai/dsh-client-ui-primitives`，它必须由**壳**在启动时注册成种子词
@@ -424,7 +442,7 @@ dsh-custom-mode: 当前壳没有在种子表里提供 @deepseek-ai/dsh-client-ui
 是给「自己就是一条启动记录的 bundle」用的，而这个包是种子词，直接 `require` 即可（见
 `docs/ARCHITECTURE.md` §14）。
 
-## 15. 页面显示成 `assistant.heading`、`btn.create` 这类原始键
+### 15. 页面显示成 `assistant.heading`、`btn.create` 这类原始键
 
 **0.1.6-alpha.2 起不应该再出现**：这是 `settings.section` 契约变化（`locale:` 选项被移除）造成的，
 现在页面自带中英词典兜底（见 `docs/ARCHITECTURE.md` §15）。若仍看到键名，说明你用的是旧版编辑器包。
@@ -441,7 +459,7 @@ dsh-custom-mode: 词典注册后宿主仍查不到 …，页面已改用内置�
 若文案**确实**是键名，先确认 `client.js` 是最新的（`grep -c assistant.heading client.js`
 应当大于 0，且同一条在 `locales.mjs` 里存在），再重启 dsh 并刷新页面。
 
-## 16. 调整顺序后选择器里的顺序没变
+### 16. 调整顺序后选择器里的顺序没变
 
 顺序写在每个助手目录的 `preset.yml` 里（`order: 1..N`）。若没生效，先看文件：
 
@@ -454,7 +472,7 @@ grep -n '^order:' "$DSH_HOME"/.agent-presets/*/preset.yml
   会给**所有**受管助手补齐 1..N。
 - **文件对了但选择器没变**：选择器只在**新建会话**时读取 roster；已经打开的会话不受影响。
 
-## 17. 刚发布的新版本装不上 —— `dsh plugin add <名字>` 装到的是上一版
+### 17. 刚发布的新版本装不上 —— `dsh plugin add <名字>` 装到的是上一版
 
 你刚发布了（或看到别人发布了）`0.1.6-alpha.2`，但按包名安装装到的是旧版本，新行为不在。对本插件来说
 这一点是看得见的：没有播种能力的那个版本会让 `$DSH_HOME/.agent-presets/` 保持为空，于是设置页报"找不到
@@ -469,7 +487,7 @@ $ dsh plugin --profile web add dsh-custom-mode
 如何被解析：`dsh plugin --profile web add dsh-custom-mode` 在 1.3.0 发布 **38 分钟后仍装上了 1.0.3**
 （官方管线、pnpm 12），而同一条命令在另一个 profile/缓存下直接装到了新版。请把冷却期视为与版本和配置相关，
 并且**核对实际装到了什么**（在 profile 里 `npm ls dsh-custom-mode`，或看 `profiles/web/package.json`），
-而不是只看命令的退出码。永远可行的是**显式钉版本**。原始声明如下（在 pnpm 11 上实测）：
+而不是只看命令的退出码。**显式钉版本**用于选择目标版本，但兼容性和 profile 策略仍可能拒绝安装。原始声明如下（在 pnpm 11 上实测）：
 `pnpm config get minimumReleaseAge` 为 undefined，发布仅 24 分钟的版本按裸名就装上了，2026-09-18 于 Windows
 实测，所以请把该延迟视为与版本/配置相关，并照下面"钉精确版本"的建议做）。`minimumReleaseAge` 默认 `1440` 分钟（一天），
 因此发布不满一天的版本不会参与"按名字解析"，pnpm 会回退到最新的、已经过了一天的那个版本。实测：alpha.2
@@ -489,7 +507,7 @@ minimumReleaseAgeExclude:
 失败的安装可能是半完成的：`node_modules` 里已经是新版本，`package.json` 和 `pnpm-lock.yaml` 仍是旧版本。把豁免收成一条之后，再跑一次安装。设置页上的版本号是正在运行的版本，而且要重启 dsh 之后才变。
 
 ```sh
-dsh plugin --profile web add dsh-custom-mode@2.1.0
+dsh plugin --profile web add dsh-custom-mode@2.2.6
 ```
 
 另外，别只看你敲了什么，要看真的装上了什么：
@@ -499,9 +517,9 @@ node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
 ```
 ---
 
-## 18. 页面报「宿主内部错误：无法定位出厂基础模式」，或基础模式与插件开关变灰
+### 18. 页面报「宿主内部错误：无法定位出厂基础模式」，或基础模式与插件开关变灰
 
-### 症状
+#### 症状
 
 设置页能打开、助手列表也在，但是：
 
@@ -512,7 +530,7 @@ node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
 
 两种情况里模式本身都是好的：它在新会话选择器里，用它起的会话也正常。
 
-### 原因
+#### 原因
 
 插件是靠在基础模式的**出厂组成**上做手术来合成模式的，而它找不到那份文本。dsh 有两条线发布这份声明：
 基于文件的 `@deepseek-ai/dsh-agent-presets` 包（0.1.2 … 0.1.6），以及宿主自己交出的
@@ -522,10 +540,10 @@ node -p "require('$DSH_HOME/profiles/web/package.json').dependencies"
 1.9.13 起失败变成类型化的 `baseCompositionUnavailable` 而不是 500，并且页面降级：提示词可单独保存，
 带着行开关的保存会被明确拒绝并给出提示，而不是悄悄丢掉。
 
-### 怎么办
+#### 怎么办
 
-1. **升级到 1.9.13 或更新** —— 这就是全部修法：
-   `dsh plugin --profile web add dsh-custom-mode@1.9.13`，然后重启 dsh。
+1. **历史最低修复版是1.9.13；当前选择已验收的版本**：
+   `dsh plugin --profile web add dsh-custom-mode@2.2.6`，然后重启 dsh。
 2. **去宿主日志里看它试过哪些路。** 插件会把每一次尝试都点名：
    `custom-mode: 取不到这些基础模式的出厂组成 —— standard: …`。如果出现
    `agentPresets.readDocument() 不可用`，说明宿主早于声明式注册表，你所在的线不在本插件声明支持的范围内。

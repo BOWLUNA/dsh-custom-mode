@@ -52,6 +52,12 @@ PROMPT_PATH="$PRESET_DIR/prompt.md"
 PROFILE_MANIFEST="$DSH_HOME/profiles/$PROFILE/package.json"
 
 command -v dsh >/dev/null 2>&1 || { echo "找不到 dsh CLI，请先安装 DeepSeek Harness。" >&2; exit 1; }
+command -v node >/dev/null 2>&1 || { echo "找不到 Node.js。" >&2; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "找不到 npm；安装脚本需要它离线准备与校验本地包。" >&2; exit 1; }
+if ! printf '%s' "$PRESET_ID" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+  echo "助手 id 不合法: $PRESET_ID（只能用 a-z、0-9 与连字符，且不能是路径）" >&2
+  exit 2
+fi
 
 # ── 0/3 前置自检 ─────────────────────────────────────────────────────────────
 # 只警告不中止：这些都是「能装但会以奇怪方式失败」的环境问题，提前说出来比事后
@@ -87,7 +93,7 @@ if node "$ROOT/tools/verify-version-consistency.mjs" --dsh "$DSH_VERSION" >/dev/
   echo "    dsh 版本 $DSH_VERSION 在声明的兼容范围内（$DECLARED）"
 else
   echo "    警告: dsh 版本是 $DSH_VERSION，不在本插件声明的兼容范围内（$DECLARED）。"
-  echo "          本项目深度依赖 DSH 内部 API，请先核对 README 的「耦合点清单」。"
+  echo "          请先核对 docs/CURRENT_COMPATIBILITY.md 与 docs/ARCHITECTURE.md。"
 fi
 
 # `dsh plugin` 是把参数转发给 PATH 上的 pnpm 的（spawnSync("pnpm", ...)）。WSL 里
@@ -107,27 +113,40 @@ else
   esac
 fi
 
-# ── 1/3 安装 agent preset ───────────────────────────────────────────────────
-echo "==> 1/3 安装 agent preset 到 $PRESET_DIR"
-if [ -e "$PRESET_DIR/prompt.md" ]; then
-  # 已装过：只更新模式定义，保留用户已经写好的提示词。
-  echo "    检测到已存在的 prompt.md，保留它（只更新模式文件）"
-  mkdir -p "$PRESET_DIR"
-  # 组成文件**故意不复制**：包内那份是按某一条 dsh 线渲染的，另一条线可能没有它的某些行 →
-# 平台会把整个预设判为 broken 并从选择器里静默丢弃。改由插件在激活时按**本机这条线**派生。
-  cp "$ROOT/preset/preset.yml" \
-     "$ROOT/preset/prompt-reader.mjs" "$ROOT/preset/prompt-tool.mjs" "$PRESET_DIR/"
-else
-  mkdir -p "$PRESET_DIR"
-  cp "$ROOT/preset/preset.yml" "$ROOT/preset/prompt.md" \
-     "$ROOT/preset/prompt-reader.mjs" "$ROOT/preset/prompt-tool.mjs" "$PRESET_DIR/"
-fi
-chmod 644 "$PRESET_DIR"/* 2>/dev/null || true
-echo "    提示词文件: $PROMPT_PATH"
-
 # 包名一律从根 package.json 读取，绝不硬编码。
 PKG_NAME="$(cd "$ROOT" && node tools/package-facts.mjs name 2>/dev/null || true)"
 [ -n "$PKG_NAME" ] || { echo "无法从 package.json 读取包名" >&2; exit 1; }
+
+# ── 1/3 准备本地包与可用的回滚快照，不先卸载旧插件 ─────────────────────────
+echo "==> 1/3 离线准备安装包与回滚快照"
+TRANSACTION="$(mktemp -d "${TMPDIR:-/tmp}/dsh-custom-install.XXXXXX")"
+TRANSACTION_TOOL="$ROOT/tools/install-transaction.mjs"
+DUMP_FILE=''
+finish_install() {
+  status=$?
+  trap - EXIT
+  [ -z "$DUMP_FILE" ] || rm -f "$DUMP_FILE"
+  if [ "$status" -ne 0 ] && [ -f "$TRANSACTION/state.json" ]; then
+    set +e
+    if node "$TRANSACTION_TOOL" needs-rollback "$TRANSACTION"; then
+      previous="$(node "$TRANSACTION_TOOL" rollback-spec "$TRANSACTION")"
+      if [ -n "$previous" ]; then
+        dsh plugin --profile "$PROFILE" add "$previous" >"$TRANSACTION/rollback-package.log" 2>&1
+      else
+        dsh plugin --profile "$PROFILE" remove "$PKG_NAME" >"$TRANSACTION/cleanup-first-install.log" 2>&1
+      fi
+      rollback_status=$?
+      if ! node "$TRANSACTION_TOOL" rollback "$TRANSACTION" "$rollback_status"; then
+        echo "回滚未验证。保留 $TRANSACTION；不要把部分安装当作成功，见其中日志与旧包。" >&2
+        exit 5
+      fi
+    fi
+    echo "安装未完成；事务证据保留在 $TRANSACTION。" >&2
+  fi
+  exit "$status"
+}
+trap finish_install EXIT
+node "$TRANSACTION_TOOL" prepare "$TRANSACTION" "$ROOT" "$DSH_HOME" "$PROFILE" "$PRESET_ID"
 
 # 记录安装前的 bundle 列表：装完要断言「一个都没少」。
 # 这一条是回归护栏 —— 曾经这里有一段「清理解析不到的幽灵条目」，它按两个硬编码
@@ -146,8 +165,8 @@ echo "    安装前 bundles: $BUNDLES_BEFORE"
 
 # ── 2/3 安装设置页插件 ──────────────────────────────────────────────────────
 echo "==> 2/3 安装设置页插件 \"$PKG_NAME\" 到 profile \"$PROFILE\""
-# 先移除旧 link，避免链接指向已移动的目录（从别处再次 clone 后运行会踩到）。
-dsh plugin --profile "$PROFILE" remove "$PKG_NAME" >/dev/null 2>&1 || true
+# 直接替换依赖，保留 clone 的链接开发语义。失败通过已归档的实际旧包重新安装。
+node "$TRANSACTION_TOOL" attempt "$TRANSACTION"
 ADD_LOG="$(mktemp)"
 if ! dsh plugin --profile "$PROFILE" add "$ROOT" >"$ADD_LOG" 2>&1; then
   cat "$ADD_LOG" >&2
@@ -156,7 +175,7 @@ if ! dsh plugin --profile "$PROFILE" add "$ROOT" >"$ADD_LOG" 2>&1; then
     echo "profile 的 pnpm-workspace.yaml 里，dsh-custom-mode 只能有一条 minimumReleaseAgeExclude。" >&2
     echo "推荐写成：  - dsh-custom-mode" >&2
     echo "不要由本脚本改这个文件。收成一条后重新运行安装。node_modules 里的版本不能当作已经升级成功。" >&2
-    echo "见 docs/TROUBLESHOOTING.md 第 17 节。" >&2
+    echo "见 docs/TROUBLESHOOTING.md 的当前自救步骤。" >&2
     rm -f "$ADD_LOG"
     exit 3
   fi
@@ -202,7 +221,6 @@ NODE
 # 下次重启 dsh 才发现整个 harness 没了。
 echo "==> 3/3 安装后自检（组合 profile）"
 DUMP_FILE="$(mktemp)"
-trap 'rm -f "$DUMP_FILE"' EXIT
 if ! dsh --profile "$PROFILE" --dump-config >"$DUMP_FILE" 2>/dev/null; then
   echo "    自检失败: dsh --profile $PROFILE --dump-config 无法执行。" >&2
   echo "    请把上面的完整输出发给作者。" >&2
@@ -265,6 +283,14 @@ if (!hasWebServer || !hasAgentPresets) {
 }
 NODE
 
+# 只有新包与组合自检通过才刷新预设代码；用户数据始终只补缺失。
+# 不复制包内 agent.cordis.yml，由激活后的插件按当前宿主生成。
+node "$TRANSACTION_TOOL" verify "$TRANSACTION"
+node "$TRANSACTION_TOOL" seed "$TRANSACTION"
+node "$TRANSACTION_TOOL" commit "$TRANSACTION"
+echo "    提示词文件: $PROMPT_PATH"
+echo "    安装事务记录: $TRANSACTION/state.json"
+
 # 收尾的三行说明也要随 profile 变，否则会出现「上一段说模式选不到、下一段说去选模式」。
 if grep -qE '@deepseek-ai/dsh-agent-presets|@deepseek-ai/dsh-agent-preset-registry' "$DUMP_FILE" 2>/dev/null \
   && grep -q '@deepseek-ai/dsh-host-webserver' "$DUMP_FILE" 2>/dev/null; then
@@ -273,7 +299,7 @@ if grep -qE '@deepseek-ai/dsh-agent-presets|@deepseek-ai/dsh-agent-preset-regist
     下方编辑当前助手的系统提示词与插件开关，保存后新建会话即生效。"
 else
   NEXT_STEPS="  - 本 profile 里没有 agent-presets / 设置页，见上方「只有一部分能生效」那段；
-  - 可用的通道是 custom_prompt 工具（会话里直接说「把系统提示词改成……」）。"
+  - 要使用助手与 custom_prompt，请装入带有预设机制的 web profile。"
 fi
 
 cat <<EOF
@@ -282,12 +308,12 @@ cat <<EOF
 
 $NEXT_STEPS
 
-设置页管理的是预设根目录下所有「本工具创建的」模式（判据：目录里有 prompt.md，
-且组成文件用 prompt-reader.mjs 注入身份）。以前只有一个 custom 时用的是同一个根目录，
+设置页先恢复中断保存，再发现由 prompt-reader.mjs 管理的助手；恢复未完成的目录保留并明确告警。
+不会先用模板填补缺失的用户提示词或元数据。以前只有一个 custom 时用的是同一个根目录，
 所以升级不需要迁移：它会作为第一个助手出现在列表里。
 
-关于 --preset-id：编辑器现在按 roster 认目录（判据是目录里有 prompt.md、且组成文件引用
-prompt-reader.mjs），所以换了目录名照样会被列出与编辑，不需要再设任何环境变量。
+关于 --preset-id：编辑器按恢复后的受管助手目录认身份，换了目录名照样可以列出与编辑，
+不需要再设任何环境变量。
 （DSH_CUSTOM_PROMPT_PATH 现在只用于测试时重定向"首次播种"的根。）
 
 故障排查见 docs/TROUBLESHOOTING.md。
