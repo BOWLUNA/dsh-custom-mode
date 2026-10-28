@@ -2,9 +2,17 @@
 
 [English](CURRENT_COMPATIBILITY.md) | 中文
 
-## 2.3.0 最终候选验收
+## 2.3.0 发布与验收
 
-版本`2.3.0`仍未发布。下述本地/原生结果绑定32文件原始候选包，SHA256 `c7e05adac7e00a43dfad333cb6ce7bde1a786c8f72170df64365a3073a8862a7`，客户端SHA256 `e922be58056f5b7a75fb7048b9d0756b16e7b87982779468011b103040d1bffb`。代码/组件、文档与包证据均经非作者审阅。最终发布commit仍须通过既有兼容性/测试与浏览器/生命周期工作流，以[PR 21](https://github.com/BOWLUNA/dsh-custom-mode/pull/21)的精确head结果为准，不能沿用较早绿色检查点。最终commit/CI回执由PR与交接记录绑定，本文不嵌入会随自身修改而变化的commit哈希。
+版本`2.3.0`已于2026-10-28发布：[GitHub Release](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0)。发布标签`v2.3.0`与npm `gitHead`均指向`2f76c206e156a9950f00f4cefc50ad85d22bdfd6`。[发布工作流](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/40681712038)在该源码commit上完成全部10项兼容性/测试任务、3项浏览器/生命周期任务及发布，均成功。npm读回的版本与`latest`均为`2.3.0`。
+
+下述本地/原生结果绑定32文件原始候选包，SHA256 `c7e05adac7e00a43dfad333cb6ce7bde1a786c8f72170df64365a3073a8862a7`，客户端SHA256 `e922be58056f5b7a75fb7048b9d0756b16e7b87982779468011b103040d1bffb`。代码/组件、文档与包证据均经非作者审阅；[PR 21](https://github.com/BOWLUNA/dsh-custom-mode/pull/21)保留合并前精确head的CI记录。下载的npm与GitHub插件包同该原始包逐字节一致，32项包文件均吻合发布Git blob；下载的`SHA256SUMS`与两项载荷资产散列一致。这些分发检查保留下述本地/原生验收边界。
+
+| 下载资产 | 字节数 | SHA256 |
+| --- | --- | --- |
+| npm / GitHub `dsh-custom-mode-2.3.0.tgz` | 179035 | `c7e05adac7e00a43dfad333cb6ce7bde1a786c8f72170df64365a3073a8862a7` |
+| GitHub `dsh-custom-mode.dshpreset` | 16672 | `6852641b26246bfa918f35139394d4f0a5a002c3b83fbb523c04392c273cdbd2` |
+| GitHub `SHA256SUMS` | 184 | `388c14c0e854010e4c71ec61282417256f1fcdd15249a3986367efe7c4638913` |
 
 在隔离Windows/Node `24.21.0`和精确DSH `0.2.1-rc.2`上，新源码快照与任务私有物理依赖副本通过 **19套件/1187项检查**。最终守卫核对计数、双语配对、版本一致性与浏览器文案；随后仅README措辞修改完成配对并重打包，运行代码/测试未变。32项包输入已逐文件比对冻结源码，后续非打包文档增量不改变这些字节。这不把早前的三宿主或浏览器结果扩大为本候选的新完整矩阵。
 
@@ -18,7 +26,7 @@
 
 最终style唯一，8120字符，SHA256 `2ae646455b806c9c79f09f941281b95dd85f56cec97ad8fe108e1099d2122ee7`，B中旧合成标记消失。工具无法取得独立的前端Document身份，因此**严格同Document替换未证实**。同宿主PID/启动时间、官方新版本运行结果与健康注册/保存支持本测宿主HMR行为；同tab或CSS正确本身不证明Document身份。任务标签与进程身份均已关闭/读回；Windows强制结束不记为优雅退出。
 
-已核旧宿主`0.2.1-rc.2`/`rc.4`缺少alpha原生版本查询/更新API，保留官方详情/指引降级。早前picker/74项及明暗/窄窗结果绑定其记录的旧客户端，不是最后e922客户端的新结果。现有CI保留精确当前宿主矩阵及旧`0.1.7-rc.2`/`0.2.0-rc.2`回归腿，最终精确head结果仍是发布门禁。能力与查询/更新独立权限从实际服务检测，file/link/tarball原来源保持；不新增独立更新器或凭据访问。
+已核旧宿主`0.2.1-rc.2`/`rc.4`缺少alpha原生版本查询/更新API，保留官方详情/指引降级。早前picker/74项及明暗/窄窗结果绑定其记录的旧客户端，不是最后e922客户端的新结果。现有CI保留精确当前宿主矩阵及旧`0.1.7-rc.2`/`0.2.0-rc.2`回归腿，上述发布工作流已在发布源码上通过该矩阵。能力与查询/更新独立权限从实际服务检测，file/link/tarball原来源保持；不新增独立更新器或凭据访问。
 
 本轮三次运行未执行真实模型请求、GPU、Electron桌面验收或生产部署。hover与完整整页适配不在本轮新增浏览器范围内。本地测试、原生更新、最终远端CI与发布是不同结果。下方2.2.6章节原样保留为历史证据。
 

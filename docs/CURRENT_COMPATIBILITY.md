@@ -2,9 +2,17 @@
 
 English | [中文](CURRENT_COMPATIBILITY.zh.md)
 
-## 2.3.0 final candidate verification
+## 2.3.0 release and verification
 
-Version `2.3.0` remains unreleased. The local/native results below bind to the original 32-file candidate package, SHA256 `c7e05adac7e00a43dfad333cb6ce7bde1a786c8f72170df64365a3073a8862a7`, with client SHA256 `e922be58056f5b7a75fb7048b9d0756b16e7b87982779468011b103040d1bffb`. Code/component, documentation and package evidence were independently reviewed. The existing compatibility/test and browser/lifecycle workflows must pass on the final release commit; use the exact-head results in [PR 21](https://github.com/BOWLUNA/dsh-custom-mode/pull/21), rather than an earlier green checkpoint. The final commit/CI receipts are tracked with the PR and handoff, without embedding a self-referencing commit hash here.
+Version `2.3.0` was published on 2026-10-28: [GitHub Release](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0) and [npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0). Release tag `v2.3.0` and npm `gitHead` both resolve to `2f76c206e156a9950f00f4cefc50ad85d22bdfd6`. The [release workflow](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/40681712038) completed all 10 compatibility/test jobs, all 3 browser/lifecycle jobs and publication successfully at that source commit. The npm read-back reported both version and `latest` as `2.3.0`.
+
+The local/native results below bind to the original 32-file candidate package, SHA256 `c7e05adac7e00a43dfad333cb6ce7bde1a786c8f72170df64365a3073a8862a7`, with client SHA256 `e922be58056f5b7a75fb7048b9d0756b16e7b87982779468011b103040d1bffb`. Code/component, documentation and package evidence were independently reviewed; [PR 21](https://github.com/BOWLUNA/dsh-custom-mode/pull/21) retains the pre-merge exact-head CI record. Downloaded npm and GitHub plugin archives were byte-identical to that original package, and all 32 packaged files matched the released Git blobs. Downloaded `SHA256SUMS` matched both payload assets. These distribution checks preserve the local/native acceptance boundaries below.
+
+| Downloaded asset | Bytes | SHA256 |
+| --- | --- | --- |
+| npm / GitHub `dsh-custom-mode-2.3.0.tgz` | 179035 | `c7e05adac7e00a43dfad333cb6ce7bde1a786c8f72170df64365a3073a8862a7` |
+| GitHub `dsh-custom-mode.dshpreset` | 16672 | `6852641b26246bfa918f35139394d4f0a5a002c3b83fbb523c04392c273cdbd2` |
+| GitHub `SHA256SUMS` | 184 | `388c14c0e854010e4c71ec61282417256f1fcdd15249a3986367efe7c4638913` |
 
 On isolated Windows/Node `24.21.0`, exact DSH `0.2.1-rc.2` passed **19 suites / 1187 checks**, using a new source snapshot and privately copied task dependencies. The final guards checked the count, translation pairing, version consistency and browser literals. A later README-only wording correction was paired and repacked; the runtime/tests were unchanged. All 32 package inputs were compared with the frozen source, and later non-package documentation changes preserve those bytes. This does not turn the earlier three-host or browser results into a new full matrix for this candidate.
 
@@ -18,7 +26,7 @@ Three isolated DSH Web `0.2.2-alpha.2` runs used the official Plugins confirmati
 
 The final style had one 8120-character tag, SHA256 `2ae646455b806c9c79f09f941281b95dd85f56cec97ad8fe108e1099d2122ee7`, and the synthetic old marker disappeared in B. The tool could not obtain an independent frontend Document identity, so **strict same-Document replacement is unverified**. The same host PID/start time, official running-version result and working registration/save path establish the tested host HMR behavior; same tab or correct CSS alone does not prove Document identity. Task tabs and process identities were closed/read back. Forced Windows process exits are not reported as graceful shutdowns.
 
-The older checked `0.2.1-rc.2`/`rc.4` hosts lack alpha's native version-query/update APIs and retain official-details/guide fallbacks. Earlier picker/74-check and light/dark/narrow-window results bind to their recorded earlier clients, not this final client. Existing CI keeps the exact current-host matrix and older `0.1.7-rc.2`/`0.2.0-rc.2` regression legs; the final exact-head results remain the release gate. Capability and separate query/update permissions are checked from actual services; file/link/tarball sources remain unchanged. No standalone updater or new credential access is introduced.
+The older checked `0.2.1-rc.2`/`rc.4` hosts lack alpha's native version-query/update APIs and retain official-details/guide fallbacks. Earlier picker/74-check and light/dark/narrow-window results bind to their recorded earlier clients, not this final client. Existing CI keeps the exact current-host matrix and older `0.1.7-rc.2`/`0.2.0-rc.2` regression legs; the release workflow above passed that matrix for the released source. Capability and separate query/update permissions are checked from actual services; file/link/tarball sources remain unchanged. No standalone updater or new credential access is introduced.
 
 No real model request, GPU execution, Electron desktop acceptance or production deployment was performed in these runs. Hover and complete whole-page adaptation remain outside the new browser scope. Local tests, native update behavior, final remote CI and publication are separate outcomes. The 2.2.6 section below is preserved as historical evidence.
 

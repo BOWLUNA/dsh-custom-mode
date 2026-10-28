@@ -6,12 +6,12 @@
 
 仓库根就是 npm 包。它携带的 `preset/` 是唯一打包预设真源；激活时只补缺失用户文件，并刷新受管代码。仅供预设导入的 `.dshpreset` 归档不会安装设置页。不要恢复旧 `editor/` 子包，也不要再让 npm 用户 clone 第二份预设。
 
-版本 `2.3.0` 沿用下列发布门禁；新版本门禁在留证前仍为待验。源码、本地检查、独立审阅、远端 CI、npm 发布和 GitHub Release 的结果分别记录；发布结果以读回证据为准。
+版本`2.3.0`已于2026-10-28在[发布工作流](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/40681712038)通过必需门禁后发布至[GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0)。发布标签、npm `gitHead`与下载资产散列见[当前兼容记录](CURRENT_COMPATIBILITY.zh.md)。源码、本地检查、独立审阅、远端CI、npm发布和GitHub Release的结果分别记录；下列路径仍用于后续发布。
 
 1. 在 `package.json` 固定候选版本，同步两种语言文档及配对记录，记录完整候选 commit。插件版本不镜像宿主版本；只有精确宿主完成适配验证后才改宿主钉定与范围。
 2. 跑已登记套件、真实提示词组件合约、翻译与文档守卫、语法检查和真实 npm packlist。打包安装、重启、预设选择、浏览器交互、卸载重装使用隔离 home。中断保存与安装回滚用合成数据验证；发布检查表明确未覆盖的桌面/模型/GPU 边界。
 3. 由非作者检查最终 diff 与对应证据。push 已检查分支后读回远端完整 SHA，可用 draft PR 承载审阅；合并默认/生产分支属于另行授权的动作。
-4. 沿用 `.github/workflows/release.yml`。与包版本匹配的 `v<package version>` 标签先触发可复用兼容性、浏览器工作流，再发布。指定精确版本的手动 dispatch 仅从 `main` 发布；空参数 dispatch 只检查身份，不发布。不要把既有发布标签挪到另一个 commit，也不要绕过失败门禁。
+4. 沿用 `.github/workflows/release.yml`。与包版本匹配的 `v<package version>` 标签先触发可复用兼容性、浏览器工作流，再发布。指定精确版本的手动 dispatch 仅从 `main` 发布；空参数 dispatch 只检查身份，不发布。不要把既有发布标签挪到另一个 commit，也不要绕过失败门禁。该版本CHANGELOG条目使用可直接访问的绝对文档链接，保证摘取后的Release正文指向目标文件。
 5. 沿用既有 NPM_TOKEN 或 Trusted Publishing/OIDC 配置。当前工作流先检查并传入已有 NPM_TOKEN；未配置 token 时，npm 可使用既有 OIDC 发布者连接。不读取或改写秘密、发布权限、审批或全局发布策略。凭据/审批不可用时走正常所有者流程。
 6. 读回标签 commit、必经运行结果、精确 npm 版本及 dist 元数据、GitHub Release 资产，核对下载散列。命令已启动、npm 处于暂存发布、本地测试成功，都不代表分发完成。
 
