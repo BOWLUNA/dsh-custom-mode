@@ -6,7 +6,7 @@
 node test/run.mjs
 ```
 
-一个入口跑 18 个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
+一个入口跑 19 个套件，并自己解析「出厂 preset 目录」（本仓库里没有它，它来自已安装的
 `@deepseek-ai/dsh-agent-presets`）：
 
 ```
@@ -15,14 +15,14 @@ Shipped presets directory: /…/dsh-agent-presets/presets
 ──────── composition.test.mjs ────────
 … result: N passed, 0 failed
 … one such block per suite …
-all 18 suites passed (presets source: $DSH_HOME/profiles/node_modules)
+all 19 suites passed (presets source: $DSH_HOME/profiles/node_modules)
 ```
 
-合计 **1139 项检查**（没有 zstd 的 Node < 22.15 会跳过 session-trace 的压缩帧检查；`tools/verify-doc-numbers.mjs` 会说明跳过，而非误报失败）。只有 `composition.test.mjs` 需要那个出厂目录，其余十七个自带夹具、临时目录与桩，
+合计 **1164 项检查**（没有 zstd 的 Node < 22.15 会跳过 session-trace 的压缩帧检查；`tools/verify-doc-numbers.mjs` 会说明跳过，而非误报失败）。只有 `composition.test.mjs` 需要那个出厂目录，其余十八个自带夹具、临时目录与桩，
 可以直接单独跑。
 
 修复套件覆盖多文件中断恢复（`atomic-recovery`）、迟到UI响应（`client-async`），以及真实Bash安装器
-配合离线打包、合成包管理器与文件系统故障（`install-script`）。另有不启动服务或模型的精确宿主组件门禁：
+配合离线打包、合成包管理器与文件系统故障（`install-script`）。`client-update`覆盖原生能力/结果处理、草稿保护导航、孤立草稿恢复和已有样式标签刷新，不执行真实包更新。另有不启动服务或模型的精确宿主组件门禁：
 
 ```sh
 node tools/prompt-contract-check.mjs --host-install /path/to/exact-host

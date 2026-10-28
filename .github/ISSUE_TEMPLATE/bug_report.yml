@@ -1,98 +1,118 @@
-name: Bug report
-description: Something is wrong after installing (dsh will not start, the page never appears, the mode is missing, a switch does nothing…)
+name: Bug report / 问题反馈
+description: Report an installation, settings, assistant selection or request problem / 反馈安装、设置、助手选择或请求问题
 title: '[bug] '
 labels: ['bug']
 body:
   - type: markdown
     attributes:
       value: |
-        Spend a minute on [`docs/TROUBLESHOOTING.md`](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md)
-        first: it documents the failures that were actually reproduced — a dsh that will not start after
-        installing, a settings page that never appears, a mode missing from the picker, a rejected save —
-        each with a cause and a way out.
+        Check the [troubleshooting guide](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md)
+        / [故障排查](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.zh.md) first.
 
-        Most failures here are **silent** (no error, the change just does not take effect), so the
-        details below are what decides whether the report can be diagnosed at all.
+        This report is public. Use synthetic examples; remove token URLs, API keys, cookies, private prompts,
+        session history and identifying local paths. Do not attach credentials or full configuration files.
+        此反馈公开可见。请使用合成示例，删去带 token 的链接、API 密钥、Cookie、私人提示词、会话历史及可识别身份的本地路径；不要附上凭据或完整配置。
+        For suspected vulnerabilities, read the [security policy](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/SECURITY.md)
+        / [安全政策](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/SECURITY.zh.md) before sharing details.
 
   - type: input
     id: dsh-version
     attributes:
-      label: DSH version
-      description: 'the output of `dsh --version`'
-      placeholder: 0.1.7-rc.2（或正式版 0.1.5-rc.3）
+      label: DSH version / 宿主版本
+      description: 'Desktop: About; CLI/Web: dsh --version if available. Keep prerelease suffixes; write unknown if unavailable. / 桌面端查看关于；CLI/Web 可用时查 dsh --version。保留预发布后缀，无法取得可写 unknown。'
+      placeholder: Exact host version or unknown / 完整宿主版本或 unknown
     validations:
       required: true
 
   - type: input
     id: plugin-version
     attributes:
-      label: Plugin version / commit
-      description: 'the `version` in `package.json`, or `git rev-parse --short HEAD`'
-      placeholder: 1.0.0 / ec34aa6
+      label: Plugin version or commit / 插件版本或提交
+      description: 'Installed package version, or git rev-parse HEAD for a clone; unknown if unavailable. / 已安装的包版本，clone 可用 git rev-parse HEAD 取完整提交；无法取得可写 unknown。'
+      placeholder: Installed version, full commit SHA, or unknown / 安装版本、完整 SHA 或 unknown
     validations:
       required: true
 
   - type: dropdown
-    id: profile
+    id: interface
     attributes:
-      label: Which profile
+      label: Where does it happen? / 问题发生在哪个入口？
       options:
-        - web
-        - tui
-        - other (explain under "What happens")
+        - Web / 网页
+        - Desktop / 桌面
+        - CLI / 命令行
+        - Other / 其他
+    validations:
+      required: true
+
+  - type: input
+    id: installation
+    attributes:
+      label: Installation source and method / 安装来源与方式
+      description: 'Package registry, plugin market, clone, release archive or other; name the profile if known. / 包仓库、插件市场、clone、发布压缩包或其他；如果知道 profile，请一并写明。'
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Failing step / 出错阶段
+      options:
+        - Installation / 安装
+        - Opening settings / 打开设置页
+        - Saving or activation / 保存或生效
+        - Assistant selection / 选择助手
+        - First request / 首次请求
+        - Other / 其他
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system / 操作系统
+      placeholder: OS name and version; WSL/container if relevant / 系统名称和版本；按需说明 WSL/容器
     validations:
       required: true
 
   - type: textarea
     id: symptom
     attributes:
-      label: What happens
-      description: What you see, and what you expected. Paste error text verbatim if there is any.
+      label: Expected and actual behavior / 预期与实际结果
+      description: 'Describe both. Include relevant error text after removing private information. / 请分别描述；如有相关错误文字，请脱敏后提供。'
     validations:
       required: true
 
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
+      label: Steps to reproduce / 复现步骤
+      description: 'Use the smallest synthetic example; screenshots are optional. / 请用最小合成示例；截图可选。'
       placeholder: |
-        1. ./install.sh
-        2. restart dsh
-        3. open Settings → 自定义模式
-        4. …
+        1. Setup / 准备条件
+        2. Action / 操作
+        3. Result / 结果
     validations:
       required: true
 
-  - type: textarea
-    id: dump-config
+  - type: input
+    id: runtime
     attributes:
-      label: Composition self-check
-      description: |
-        This is what separates "installed but inert" from "not installed at all", and it is the direct
-        evidence for whether the base bundles are still present. Expect **hundreds** of lines.
-      render: shell
-      value: |
-        $ dsh --profile web --dump-config | wc -l
-        $ dsh --profile web --dump-config | grep -n custom-mode
+      label: Browser or Node version, if relevant / 相关时填写浏览器或 Node 版本
+      description: 'Optional; leave blank if it is not applicable or unavailable. / 可选；不适用或无法获取时可留空。'
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: logs
     attributes:
-      label: Startup log / browser console
+      label: Relevant diagnostics (optional) / 相关诊断（可选）
       description: |
-        Host-half diagnostics all start with `custom-mode:`; browser-side errors do too. This page's
-        failure policy is "rather not appear at all than take the page down", so it only speaks to the
-        console.
-      render: shell
+        Share only related, sanitized excerpts: application logs for Desktop, or startup/browser logs for Web.
+        If a configuration check is needed, use guidance for your actual profile; Web CLI output is not required for every report.
+        Remove token URLs, credentials, identifying paths, private prompts and session history. Do not attach full configuration files.
+        仅提供相关的脱敏片段：Desktop 可提供应用日志，Web 可提供启动/浏览器日志。
+        需要配置检查时，请按实际 profile 查阅指引；不要为所有反馈强行执行 Web CLI 命令。
+        删去带 token 的链接、凭据、可识别身份的路径、私人提示词及会话历史；不要附完整配置。
     validations:
       required: false
-
-  - type: input
-    id: os
-    attributes:
-      label: Operating system
-      placeholder: Ubuntu 24.04 / WSL2 / macOS 15 / Windows 11
-    validations:
-      required: true

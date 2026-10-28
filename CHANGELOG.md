@@ -8,6 +8,12 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.3.0] — Unreleased
+
+- Add a page-header running-version display and a user-initiated update check through the host's native plugin manager. On capable alpha hosts, recommended updates open official Plugins details for confirmation and installation; older hosts receive a details/guide fallback. Keep original file/link/tarball sources, separate query/update permissions and guard all pending drafts before navigation.
+- Put installation and the first successful request before screenshots, add direct maintenance/release navigation, and document isolated exact-host preparation. Refresh issue/PR forms and provide a public, no-details request for a private security reporting channel without claiming private reporting is enabled.
+- Keep the new release's pending verification separate from 2.2.6's completed evidence. No new updater backend, shell installation mechanism or credential handling is introduced.
+
 ## [2.2.6] — 2026-10-27
 
 - Adapt the prompt reader to the scoped working-directory service while preserving old hosts and custom cwd templates. Retire only the exact legacy directory sentence at runtime; user prompt/suffix files are not rewritten.

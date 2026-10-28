@@ -4,12 +4,13 @@
 
 本页同时记录当前源码契约与历史实测故障。旧编号章节会说明当时调查的宿主，不代表每个当前宿主都已重新验收。
 
-## 2.2.6 当前契约
+## 2.3.0 当前契约
 
 - 预设管理提示词内容，根profile bundle管理编辑页。第5节的八条精确路径继续走载体受鉴权的共享 `/api` 通道；`POST /api/custom-mode/sync`只重试注册，不重放保存/新建/删除/排序。
 - loop提供model/provider；存在workingDirectory的宿主由reader从真实会话目录提供作用域cwd兼容变量，并在宿主组装/ensure之后刷新。旧宿主保留原生cwd。只在渲染时归一精确旧目录独立句，不落盘修改用户提示词/suffix（第7节）。
 - 对已知reader所属目录，在发现阶段要求prompt.md前恢复。prepared事务整组回旧，committed事务整组保新；唯一旧备份组也必须先恢复，再允许填补缺失用户文件，clone安装器调用同一个restoreBackups实现。活跃/无法判断的owner、多代歧义或无效journal都关闭写入并留证；这不等于跨进程写协调或物理断电耐久性保证。
 - 磁盘修改与注册表同步共用队列，读请求等待同步。HTTP503 savedButSyncFailed表示persisted:true、synchronized:false，并保留已完成操作码，只重试同步。sync-only失败中的persisted:false描述本次重试，不是撤销上次保存。后端自身也串行mount/unmount/sync，失败状态保留待重试。
+- 页首从既有列表响应读取运行版本。手动检查更新复用宿主可选的原生插件管理服务，已核 `0.2.2-alpha.2` 提供此能力；已核的旧宿主降级到公开插件详情导航与指引。宿主提供相应权限服务时，查询/更新权限分别检查；安装、确认、进度与自身更新生命周期由官方Plugins详情承接，导航前保护全部持有草稿与待恢复状态。不新增更新路由、shell更新器或凭据处理；file/link/tarball来源不自动转注册表安装。
 
 当前组件与平台证据见 [CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md)。下方历史API例子用于理解设计，当前行为以上述契约为准。
 

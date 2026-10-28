@@ -4,12 +4,13 @@ English | [中文](ARCHITECTURE.zh.md)
 
 This document combines the current source contract with measured historical incidents. Older numbered sections name the hosts investigated at the time; they are not fresh acceptance of every current host.
 
-## Current contract in 2.2.6
+## Current contract in 2.3.0
 
 - The preset owns prompt content; the root profile bundle owns the editor. The eight exact paths in §5 stay on the carrier's authenticated shared `/api` channel. `POST /api/custom-mode/sync` retries only registration, never a save/create/delete/reorder operation.
 - The loop supplies model/provider. On hosts with workingDirectory, the reader provides a scoped cwd compatibility variable from the real session directory and refreshes it after host assembly/ensure. Older hosts retain their native cwd. Only the exact old standalone directory sentence is normalized at render time; no user prompt/suffix file is rewritten (§7).
 - Known reader-owned directories recover before discovery requires prompt.md. A prepared transaction restores one whole old generation; a committed one keeps the whole new generation. Unique legacy backup groups recover before missing user files may be filled, including in the clone installer through the same restoreBackups implementation. A live/uninspectable owner, ambiguous generations or invalid journal fails closed and preserves evidence. This is not cross-process writer coordination or a physical power-loss durability guarantee.
 - Disk mutation and registry synchronization share a queue; readers wait for synchronization. HTTP503 savedButSyncFailed means persisted:true, synchronized:false, with the completed operation code. Retry only synchronization. The sync-only failure's persisted:false describes that retry, not an undo of an earlier save. The backend also serializes mount/unmount/sync and retains failures for retry.
+- The page header reads the running version from the existing list response. Manual update checks use the host's optional native plugin-manager service, confirmed in `0.2.2-alpha.2`; the older checked hosts fall back to public plugin-details navigation and a guide. Query/update permissions are separate where the host exposes them. Installation, confirmation, progress and self-update lifecycle belong to the official Plugins details, with all held drafts and pending recovery guarded before navigation. No new update route, shell updater or credential handling is added; file/link/tarball sources are not converted to registry installs.
 
 The current component and platform evidence is recorded in [CURRENT_COMPATIBILITY.md](CURRENT_COMPATIBILITY.md). Historical API examples below remain useful for understanding the design, with these current contracts taking precedence.
 

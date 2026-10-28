@@ -17,7 +17,7 @@ deliberately **two artifacts**, because they are mounted on different planes (se
 ## Commands
 
 ```sh
-node test/run.mjs                                  # 18 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself — on dsh ≥ 0.1.7 by deriving them from the host's declaration
+node test/run.mjs                                  # 19 suites (the count is asserted by tools/verify-doc-numbers.mjs); resolves the shipped presets itself — on dsh ≥ 0.1.7 by deriving them from the host's declaration
 node tools/verify-translation-pairing.mjs          # bilingual pairing + language-purity check (what CI runs)
 node tools/verify-doc-numbers.mjs                  # documented counts vs the real run (what CI runs)
 

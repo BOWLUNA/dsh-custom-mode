@@ -179,6 +179,7 @@ const suites = [
   'manifests.test.mjs',
   'atomic-recovery.test.mjs',
   'client-async.test.mjs',
+  'client-update.test.mjs',
   'install-script.test.mjs',
 ]
 const env = { ...process.env, DSH_SHIPPED_PRESETS_DIR: found.dir }

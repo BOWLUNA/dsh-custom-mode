@@ -2,9 +2,21 @@
 
 English | [中文](CURRENT_COMPATIBILITY.zh.md)
 
+## 2.3.0 verification in progress
+
+Version `2.3.0` adds a manual update entry and repository guidance. Local Windows/Node `24.21.0` checks on DSH `0.2.1-rc.2`, `0.2.1-rc.4` and `0.2.2-alpha.2` each passed 19 suites / 1164 checks, the version/translation/documentation/literal guards, marketplace adapter self-test, a 32-file package and isolated install/boot. Update-component checks include draft recovery and existing-style-tag refresh. Rendered update UI and controlled native update handoff are pending; local checks do not complete those boundaries or the final-commit release gates. The 2.2.6 results below remain historical evidence for that version.
+
+| Exact host | Native update capability checked in official source | 2.3.0 acceptance |
+| --- | --- | --- |
+| `0.2.2-alpha.2` | `pluginManager.listVersions` and official plugin-details update flow; registry-eligible packages only | Native query, draft-protected navigation and official confirmation/result handoff pending; Node >=24.9 |
+| `0.2.1-rc.2`, `0.2.1-rc.4` | No native version-query/update API; public plugin-details navigation exists | Details/manual-guide fallback and editor regression pending |
+| `0.1.7-rc.2`, `0.2.0-rc.2` | Same missing native query/update capability; public plugin-details navigation exists | Legacy regression pending; no new desktop claim |
+
+The page detects actual services rather than inferring capability from a version string. In `0.2.2-alpha.2`, viewing versions and updating have separate host permissions. The checked `0.1.7-rc.2`/`0.2.0-rc.2` do not ship that remote-access service; `0.2.1-rc.2`/`rc.4` include an older `source(kind, id, action)` interface, without alpha's `whenAccess` or the new version-query/update APIs. Older-host navigation leaves management to the official page. File/link/tarball installs keep their original source. This feature adds no standalone updater, new HTTP update route or credential access. Electron, commercial-model and GPU acceptance remain separate.
+
 ## 2.2.6 verification scope
 
-Results are tied to exact installations and generated source snapshots. The current integrated Windows/Node `24.21.0` check on DSH `0.2.1-rc.2` passed **18 suites / 1139 checks**. The installer includes partial-write, exclusive-publication, concurrent-file, failed-rollback and recovery-before-fill cases; an independent reviewer reproduced the publication failure boundaries. These are local/component checks, not a complete desktop conversation.
+Results are tied to exact installations and generated source snapshots. The 2.2.6 integrated Windows/Node `24.21.0` check on DSH `0.2.1-rc.2` passed **18 suites / 1139 checks**. The installer includes partial-write, exclusive-publication, concurrent-file, failed-rollback and recovery-before-fill cases; an independent reviewer reproduced the publication failure boundaries. These are local/component checks, not a complete desktop conversation.
 
 The final production UI code was also checked against an isolated Windows `0.2.1-rc.2` host using Linux Chrome: the picker and 74 browser checks passed. Chinese/English with real light/dark themes passed at 1440, 720 and 480 pixels, including long assistant/history labels and visible native menus. A separate interaction probe injected a delayed POST, a failed follow-up GET and an application-failure response; refresh did not repeat the save, and activation retry sent a real sync request. Those injected responses are not spontaneous production failures. The host's toolbar button and its dedicated Language selector have different backgrounds; the plugin preserves the native atoms rather than asserting they look identical.
 

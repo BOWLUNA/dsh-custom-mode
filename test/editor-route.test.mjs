@@ -137,6 +137,7 @@ process.env.DSH_SHIPPED_PRESETS_DIR = shippedDir
 const { renderComposition, collectRows, setShippedPresetsDir } = await import('../composition.mjs')
 const { readPresetMeta } = await import('../meta.mjs')
 const editor = await import('../index.mjs')
+const expectedVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 
 // 装上一份生成好的组合文件，让 readState() 有东西可读（和真实安装后的状态一致）
 writeFileSync(compositionPath, renderComposition('standard', new Map()), 'utf8')
@@ -170,10 +171,10 @@ function rosterRows() {
   return [...rows, ...user]
 }
 
-function makeCtx({ connectionAvailable = true, registryState = null } = {}) {
+function makeCtx({ connectionAvailable = true, registryState = null, listedRows = null } = {}) {
   const agentPresets = registryState === null ? {
     async list() {
-      return rosterRows()
+      return listedRows ?? rosterRows()
     },
     async remove(id) {
       const row = rosterRows().find((entry) => entry.id === id)
@@ -379,6 +380,14 @@ console.log('=== 3. GET /custom-mode：助手列表 ===')
   check('只列出本工具拥有的模式（custom），不含出厂模式', Array.isArray(payload.assistants) && payload.assistants.length === 1, JSON.stringify(payload.assistants))
   check('带显示名', payload.assistants[0]?.name === '自定义模式', JSON.stringify(payload.assistants[0]))
   check('带用户预设根目录', payload.root === userRoot, String(payload.root))
+  check('列表带当前运行插件版本', payload.version === expectedVersion, String(payload.version))
+
+  mounted = mount({ listedRows: [] })
+  const emptyResponse = await call(makeReq('GET', { url: '/custom-mode' }))
+  const empty = JSON.parse(emptyResponse.body)
+  check('空列表路由仍返回成功且没有助手', emptyResponse.statusCode === 200 && empty.ok === true && Array.isArray(empty.assistants) && empty.assistants.length === 0, emptyResponse.body)
+  check('没有助手或选中助手时仍带同一运行版本', empty.version === expectedVersion && empty.version === payload.version, String(empty.version))
+  check('空列表仍保留根目录和姿态结构', empty.root === payload.root && JSON.stringify(empty.postures) === JSON.stringify(payload.postures), emptyResponse.body)
 }
 
 console.log()

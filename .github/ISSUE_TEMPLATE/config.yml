@@ -1,11 +1,17 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Read the troubleshooting guide first (most problems are already answered)
+  - name: Troubleshooting / 故障排查
     url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/TROUBLESHOOTING.md
-    about: A dsh that will not start after installing, pnpm failing under WSL, a settings page that never appears, a mode missing from the picker, a rejected save — each with symptoms, cause and a way out.
-  - name: Where the conclusions come from (measurement log)
+    about: Start with current recovery steps for installation, settings, saves and assistant selection. / 先查看安装、设置、保存及助手选择的当前排查步骤。
+  - name: Contributing / 参与贡献
+    url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/CONTRIBUTING.md
+    about: Development setup, applicable checks and release requirements. / 开发准备、适用检查与发布要求。
+  - name: Security policy / 安全政策
+    url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/SECURITY.md
+    about: Read the current policy before sharing vulnerability details. / 提交安全问题细节前，请先阅读当前政策。
+  - name: Measurements and historical evidence / 测量与历史证据
     url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/MEASUREMENTS.md
-    about: The raw commands and output behind the install, security, save-path, hot-reload and i18n claims, ready to re-run.
+    about: Dated commands and results; historical checks do not establish current support. / 带日期的命令与结果；历史检查不代表当前支持结论。
   - name: 中文文档
     url: https://github.com/BOWLUNA/dsh-custom-mode/blob/main/README.zh.md
-    about: Every document in this repository also has a Chinese twin — README.zh.md, docs/ARCHITECTURE.zh.md, docs/TROUBLESHOOTING.zh.md, docs/MEASUREMENTS.zh.md, docs/PUBLISHING.zh.md.
+    about: 中文安装、使用、兼容性与排查入口。 / Chinese installation, usage, compatibility and troubleshooting links.

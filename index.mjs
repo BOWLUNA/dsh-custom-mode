@@ -468,7 +468,7 @@ export function readState(rows, id, options = {}) {
 }
 
 /**
- * The list payload: every managed assistant, plus the root they live in.
+ * The list payload: managed assistants, their root, and the running plugin version.
  *
  * @param {Array<object>} rows - the current roster.
  */
@@ -478,7 +478,7 @@ export function readList(rows) {
   const list = assistantsFromRoster(rows).map((item) =>
     typeof item.broken === 'string' ? { ...item, brokenRows: brokenRowIds(item.broken) } : item,
   )
-  return { ok: true, assistants: list, postures: publicPostures(), root: userPresetRoot(rows) }
+  return { ok: true, assistants: list, postures: publicPostures(), root: userPresetRoot(rows), version: PLUGIN_VERSION }
 }
 
 /**
