@@ -2092,3 +2092,67 @@ PASS market-row-probe.mjs (10 checks; native on/save/off/save; default off)
 ```
 
 Compatibility peak aggregate RSS: 530436 KiB. Runtime peak: 1883952 KiB; minimum host available memory: 2084440 KiB. No model/GPU calls or production changes. The first attempt caught two old README version pins; after fixing both languages all guards passed. A 1536 MiB test budget stopped one browser attempt; the final clean run passed within a 2048 MiB cap and left no owned process. Earlier hosts reuse v2.2.4 acceptance evidence; required release CI retains them. Windows/Electron desktop and real model/tool execution are unverified.
+
+## 38. Unreleased review fixes (2026-11-04)
+
+This work starts from published `2.3.0` source and remains unreleased at package version `2.3.0`. The public npm package does not include these edits. The current suite total and later acceptance status are maintained in [CURRENT_COMPATIBILITY.md](CURRENT_COMPATIBILITY.md#231-validation), separately from the 2026-10-28 release evidence.
+
+The initial synthetic persistence probe demonstrated two losses: a failed history append allowed a stale draft to overwrite an external prompt, and a metadata/switch-only save left the old prompt-history token valid for another tab. The fixed route now rejects those stale requests and preserves all three editable files byte for byte. Fresh full-state saves still succeed when the history path is unusable.
+
+The new state token covers raw prompt/metadata/composition bytes and missing-file markers. Regression faults also place an external write immediately after commit, and independently make reads fail after commit: neither fault makes the successful write adopt an unseen generation or become a false persistence failure. Checked repair/reorder operations return only their own generations so a held dirty draft can continue without a conflict caused by its own operation. These are deterministic synthetic counterexamples, not spontaneous user incidents or cross-process transaction guarantees.
+
+Reproduction commands (isolated fixtures only):
+
+```sh
+node test/editor-route.test.mjs
+node test/base-composition.test.mjs
+node test/run.mjs
+node tools/prompt-contract-check.mjs --host-install "<exact-host-install>"
+```
+
+Observed result lines from the first two commands:
+
+```text
+# editor-route.test.mjs
+结果: 278 通过, 0 失败
+# base-composition.test.mjs
+结果: 56 通过, 0 失败
+```
+
+The real prompt-registry/working-directory component contract passed independently on exact hosts `0.2.1-rc.5`, `0.2.2-rc.1` and `0.2.2-alpha.3`. The projections are synthetic; the checks preserve the original prompt, custom suffix and directory-repair contract without running a full agent loop, server, browser, model or GPU. The source matrices now name those current channels, retaining older regression legs; no remote CI result follows merely from that edit.
+
+Local evidence is retained outside the package in `DSH-FIX-20261104-01`: `persistence-editor-route.log`, `persistence-base-composition.log`, `integration-unit.log` and `prompt-contract-<exact-host>.log`. Draft-memory and duplicate-confirmation checks run through the UI-handler fixture. Uninstall checks drive the real Bash script with a synthetic host CLI and temporary files; they do not remove a live installation. Component/fixture results do not establish packed installation, rendered-page, native-update, Electron, real-model or GPU acceptance. Later results must be recorded separately rather than inferred from these logs.
+
+An independent Windows run of `node test/uninstall-script.test.mjs` passed 30 checks with zero failures. It covers the bounded purge planner and link/realpath containment; the actual POSIX newline-filename probe is skipped on Windows and retained for Linux CI. This is synthetic local script evidence, not a completed remote Linux run.
+
+The prior-checkpoint local compatibility runs on `0.2.1-rc.5`, `0.2.2-rc.1` and `0.2.2-alpha.3` each passed 8/8 gate checks, including the registered 20-suite/1265-check run, document guards, packaged installation and loopback boot. The five compatibility/native-input archives share SHA256 `7fc9a88de71726e73969af8b9c7db999c83b066fac9ca58ea06dcaf54d8251b2`; `package-source-comparison.json` records all 32 packaged files matching that captured source. Root's adversarial probe log reports 60+24+10 = 94 assertions and zero failures. Native inputs being byte-identical is separate from the completed API outcomes below; browser acceptance remains pending in the compatibility record.
+
+```sh
+node tools/compat-check.mjs --host-install "<exact-host-install>" --out "<new-evidence-directory>"
+```
+
+At the same pre-predicate-fix checkpoint, the tightened native API reports on exact `0.2.2-rc.1` (`native-rc1-03`) and `0.2.2-alpha.3` (`native-alpha-01`) each completed 24 checks with zero failures. Both report the actual public 2.2.6 migration as `applied`; the controlled 2.2.7 fixture's real target-tar 503 as `failed`/`restore: applied` with installed and running 2.2.7; and healthy HMR as `applied`. Their no-HMR case reports `restart-required`, verifies disk/new versus runtime/old, then restarts the process and checks the candidate version, preserved files and a successful save. Data hashes and save checks bind to each scenario's own observed files, not an assumed entire user home.
+
+Independent review found and closed two gate defects before those runs: malformed/cancelled outcomes could pass negative checks, and the injected 503 was not required to be observed. The revised gate validates exact transport/API/version/application fields, old disk/runtime versions after restore and the scenario's registry-event interval. The author recorded 22 pure predicate cases; a non-author independently ran another 24 positive/negative cases and audited both bounded final reports (`review-native.json`). This is report/source review, not an independent host replay. The controlled lower-version fixture is distinct from public 2.2.6, and the observer API is distinct from Plugins UI clicks or browser same-document HMR. Browser/Electron/model/GPU claims are not inferred.
+
+### Predicate adaptation and final source package
+
+Visual QA after the earlier `7fc9a88d…` checkpoint found that live host YAML encodes a condition as `disabled: !!js '!ctx.get(''profileContext'')'`. Treating that scalar as raw JavaScript produced a false predicate warning; evaluating outside native context could also disable the default tool. The fix decodes YAML quoting once, passes supported conditions as native `__jsExpr`, and truly disables unknown context conditions even when a native unknown-service lookup would merely return undefined. The editor receives only an immutable per-request boolean capability snapshot through AsyncLocalStorage. Non-context JavaScript retains its existing successful evaluation behavior and official Boolean coercion; decoded-source comparison prevents quote-only differences from becoming false user overrides.
+
+The final local registered suite passed 20/1315 with zero failures (`predicate-integration-unit.log`). Focused results are composition-edge 87/0, preset-backend 43/0 and editor-route 281/0, including concurrent snapshot isolation, known context present/absent, unknown context fail-closed, quoted single/double scalars and untouched-byte/tri-state behavior. Real host YAML/Loader/register/activation/inventory contracts passed 70/0 separately on `0.1.7-rc.2`, `0.2.0-rc.2`, `0.2.1-rc.5`, `0.2.2-rc.1` and `0.2.2-alpha.3` (`final-disabled-contract-*.log`).
+
+Fresh compatibility runs `verified-rc1-01`, `verified-latest-01` and `verified-alpha-01` each passed 8/8, including 20/1315, documentation guards, packing, install and boot. Their archives and both new native-run inputs have identical SHA256 `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`; all 32 packaged files match the frozen source in `package-source-comparison.json`. The old comparison was preserved as `package-source-comparison.pre-predicate.json`. The final native API and rendered-browser results are recorded below; the old package's passing checks remain diagnostics and are not reused as acceptance of this package.
+
+Final-package browser completion: each of `verified-rc1-01`, `verified-latest-01`, `verified-alpha-01` has a `runtime-report.json` with 28 passing checks, no failures and browser mode `full`; its `drafts-report.json` has 49/0 and eight screenshots (Chinese/English × host light/dark × 1440/480px). Each existing browser verifier passed 74/0, alongside picker, native market, API, five base modes, restart, remove/reinstall, delete and observer cleanup. The flow includes dirty replacement both directions, saved-copy confirmation retaining the original draft, settings remount, actual refresh/close beforeunload cancellation and no prompt after deliberate discard. DOM composition/keyCode-229 coverage is not a real OS IME session.
+
+Root visually reviewed RC1's eight screenshots and two per other host. The erroneous predicate warning disappeared; the independent authenticated official inventory agrees with the native Switch: RC1/alpha have profileContext and enable the factory manager condition, whereas latest preserves its literal disabled factory state. The older host's 480px native sidebar/dialog differs from RC1's wider native surface without observed overflow or occluded controls.
+
+Final-package native runs `verified-native-rc1-01` and `verified-native-alpha-01` each completed the strict 24 checks with zero failures and successful script exit. Both record public-2.2.6 migration `applied`, the controlled 2.2.7 fixture's observed tarball 503 with failed target/applied restore and installed=running=2.2.7, healthy HMR `applied`, and no-HMR `restart-required` with the disk/runtime split followed by an actual restart. Preserved user-file hashes and save checks passed at their stated transitions. A non-author audited both final reports against the revised gate; that audit is not an independent host replay (`review-native.json`). Candidate package hashes in both reports match the final `28046e77…` package.
+
+These are local isolated Web results. Plugins UI update clicks, strict same-Document frontend HMR, Electron, real models/GPU, remote CI and actual POSIX newline-filename execution on this Windows machine remain unverified. Earlier diagnostic passes are not substituted for these final-source results. The package remains an unreleased source build at version 2.3.0; no tag, npm publication or GitHub Release was performed for these bytes.
+
+## 39. Patch 2.3.1 release preparation (2026-11-04)
+
+The release preparation starts from `d93bb765a5f422743d881655a997937af708f740`, the completed review-fix runtime snapshot recorded in §38 with package metadata `2.3.0`. Patch metadata is now `2.3.1`; runtime files remain unchanged, while package/version and README/release guidance change. Prior 20-suite/1315-check, three-host 8/74/49/28, two-host native 24 and five-host condition-contract 70 results stay bound to that earlier source/archive identity. The new archive, its installed/running version, required remote CI and eventual tag/npm/GitHub Release/asset read-back require separate evidence.
+
+This is preparation, not a publication result. The [stable 2.3.1 validation record](CURRENT_COMPATIBILITY.md#231-validation) records candidate status until the release workflow and distribution checks are complete. Runtime counts and earlier validation boundaries are unchanged; no credential or real user-home access was used for this metadata/documentation step. Release evidence for this step is retained outside the package under `DSH-RELEASE-231-20261104-01` (`docs-*.json` / `docs-*.log`).

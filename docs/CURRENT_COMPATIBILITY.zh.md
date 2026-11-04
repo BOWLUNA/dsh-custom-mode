@@ -2,6 +2,49 @@
 
 [English](CURRENT_COMPATIBILITY.md) | 中文
 
+<a id="231-validation"></a>
+
+## 2.3.1 候选验证
+
+必需工作流及分发读回完成前，补丁版`2.3.1`仍为发布候选。本次准备变更包版本及发布/README说明，运行文件与已验证源码`d93bb765a5f422743d881655a997937af708f740`相同。下列检查使用元数据版本`2.3.0`、归档SHA256 `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`，验证的是该运行源码快照，不是新打包`2.3.1`归档或已完成的`2.3.1`发布。
+
+新版本打包、版本钉定检查、必需远端CI、标签/npm/GitHub Release及下载资产读回仍须另行完成。精确版本发布前不要安装`2.3.1`；历史`2.3.0`发布记录在下方单独保留。
+
+2026-11-04公开宿主通道为`latest=0.2.1-rc.5`、`next=0.2.2-rc.1`、`alpha=0.2.2-alpha.3`。源码CI矩阵以这些精确宿主为目标，保留`0.1.7-rc.2`与`0.2.0-rc.2`回归；编辑工作流配置不等于已完成远端CI。
+
+### 已验证运行快照d93bb76
+
+| 本地检查 | 已完成结果 | 边界 |
+| --- | --- | --- |
+| 已登记套件，Windows / Node `24.21.0` | 20个套件 / 1315项检查 / 零失败 | 已验证`d93bb76`/元数据`2.3.0`，fixture不能替代浏览器验收 |
+| 真实提示词注册表/工作目录组件合约 | 三个当前精确宿主分别通过 | 会话/文件系统投影为合成，未运行完整agent loop、模型或GPU |
+| 原生禁用表达式合约 | 三个当前宿主及`0.1.7-rc.2`、`0.2.0-rc.2`分别70/0 | 实际宿主YAML/Loader/注册/激活/inventory对比，不等于页面渲染检查 |
+| 打包安装/单元/文档/启动门禁 | 三个当前精确宿主分别8/8，均含20个套件/1315项检查 | 新隔离运行`verified-rc1-01`、`verified-latest-01`、`verified-alpha-01` |
+| 已验证基线包的原生管理器API | `0.2.2-rc.1`、`0.2.2-alpha.3`分别24/0 | observer驱动严格官方API检查；Plugins UI和同文档前端HMR另计 |
+| 设置页渲染/选择器/市场 | 三个当前宿主分别74/0，选择器与原生市场操作通过 | 隔离Chrome中的真实打包插件，不声称Electron或模型验收 |
+| 草稿与新建浏览器流程 | 三个当前宿主分别49/0，各有8张截图 | DOM组合输入/keyCode-229事件及可信普通Enter，不是操作系统输入法实测 |
+| 完整生命周期与observer清理 | 三个当前宿主分别28/0，浏览器模式`full` | API、五基础模式、重启、移除/重装、数据保留与删除，任务运行均成功退出 |
+
+已验证基线包（元数据`2.3.0`）SHA256为`28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`。三个兼容归档及`verified-native-rc1-01`/`verified-native-alpha-01`的输入归档逐字节一致；32项打包文件均吻合`d93bb76`源码快照（`package-source-comparison.json`）。三个基线运行报告、三份草稿报告与两个基线原生报告均绑定该`2.3.0`包身份；`2.3.1`的版本/README字节不同，需自己的归档对比。
+
+后期视觉QA发现YAML引用的context条件可能误报，并错误关闭默认插件管理工具。修复后的源码解码YAML引用，将已知条件保留给原生Loader，对不支持的context条件真正关闭，并按请求隔离编辑器不可变布尔能力快照。编译diff比较解码后的源，不因YAML引用方式不同制造用户开关覆盖。五个精确宿主70/0合约日志为`final-disabled-contract-rc1.log`及`final-disabled-contract-<other-exact-host>.log`，最终单元日志为`predicate-integration-unit.log`。
+
+持久化用例包括历史写失败、元数据/模式/开关过期保存、精确保存版本及持有草稿时经校验的修复/排序。真实Bash卸载脚本以合成CLI和临时文件检查（30/0）；POSIX换行文件名执行探针在本机Windows跳过，保留在Linux CI。复现命令及边界见[MEASUREMENTS.zh.md §38](MEASUREMENTS.zh.md#38-未发布审阅修复2026-11-04)。证据在包外`DSH-FIX-20261104-01`保留。
+
+基线渲染运行沿用`verified-rc1-01`、`verified-latest-01`、`verified-alpha-01`目录，各`runtime-report.json`有28项通过、未跳过浏览器；各`drafts-report.json`有49项通过和八张截图，覆盖中英文、宿主真实明暗主题及1440/480像素宽度。流程包含新建聚焦/Enter、两向脏草稿替换、明确复制已保存配置且保留原稿、设置导航重挂、真实刷新/关闭的beforeunload取消，以及放弃草稿后的干净刷新。组合输入事件属于合成DOM输入，不等于操作系统输入法实测。
+
+主审视觉QA逐张查看RC1八图及其他宿主各两图，条件表达式误报已经消失。经鉴权的独立observer核对原生inventory与UI一致：RC1/alpha的`profileContext=true`使出厂管理器条件启用，latest保留字面`disabled:true`出厂态（`enabled=false`）。480像素下，较旧latest宿主保留原生侧栏与约432像素对话框，较新RC1采用更宽原生布局；检查的控件没有横向溢出或遮挡。
+
+基线原生API运行`verified-native-rc1-01`与`verified-native-alpha-01`各24/0，脚本成功退出。真实公开`2.2.6`迁移报告`applied`且观察到的用户文件保留，实际重启宿主后运行候选且保存通过。受控修复旧版`2.2.7`fixture中，目标tar真实503产生`failed`/`restore: applied`，磁盘和运行恢复旧版本、用户文件散列不变且不重启可保存；健康更新后再通过宿主HMR应用并保存。无HMR fixture报告`restart-required`，核对磁盘新/运行旧，实际重启进程后版本/数据/保存均通过。该降版fixture不是公开`2.2.6`，不把Windows终止声称为优雅关闭。
+
+非作者审计了有限最终原生报告及修订源码，没有独立重跑宿主。这是observer API测试，不是Plugins UI点击或严格同文档前端HMR证明；Electron、真实模型/GPU、远端CI及本机实际执行POSIX换行文件名探针仍不在已完成范围。
+
+### 前一诊断检查点
+
+较早的`7fc9a88de71726e73969af8b9c7db999c83b066fac9ca58ea06dcaf54d8251b2`包通过20/1265、三个8/8兼容运行，以及`native-rc1-03`/`native-alpha-01`两个24/0 API运行；这些结果发生在发现条件表达式缺陷之前，不是变更后源码的最终验收。旧包对比保留为`package-source-comparison.pre-predicate.json`；有限API结果与94/0对抗探针继续作为§38中的诊断证据。独立审阅在当时API运行前关闭宽松结果谓词和未观察503的缺口，但未独立重跑宿主。
+
+此处不声称`2.3.1`标签、npm发布、GitHub Release或远端CI已经完成；Plugins UI更新验收、同文档前端HMR、Electron及真实模型/GPU仍不在已完成范围。
+
 ## 2.3.0 发布与验收
 
 版本`2.3.0`已于2026-10-28发布：[GitHub Release](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0)。发布标签`v2.3.0`与npm `gitHead`均指向`2f76c206e156a9950f00f4cefc50ad85d22bdfd6`。[发布工作流](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/40681712038)在该源码commit上完成全部10项兼容性/测试任务、3项浏览器/生命周期任务及发布，均成功。npm读回的版本与`latest`均为`2.3.0`。

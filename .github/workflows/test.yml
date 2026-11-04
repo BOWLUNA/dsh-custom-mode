@@ -25,20 +25,20 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest]
-        # 2026-10-27 current latest / next / alpha. Alpha requires Node >=24.9.
+        # 2026-11-04 current latest / next / alpha. New hosts require Node >=24.9.
         # A new prerelease tuple needs an explicit range branch and its own real-host gate.
         node-version: ['24']
-        dsh: ['0.2.1-rc.2', '0.2.1-rc.4', '0.2.2-alpha.2']
+        dsh: ['0.2.1-rc.5', '0.2.2-rc.1', '0.2.2-alpha.3']
         include:
           - os: windows-latest
             node-version: '24'
-            dsh: '0.2.1-rc.2'
+            dsh: '0.2.1-rc.5'
           - os: windows-latest
             node-version: '24'
-            dsh: '0.2.1-rc.4'
+            dsh: '0.2.2-rc.1'
           - os: windows-latest
             node-version: '24'
-            dsh: '0.2.2-alpha.2'
+            dsh: '0.2.2-alpha.3'
           # Older declared hosts retain real Node24 boot and prompt-contract regression.
           - os: ubuntu-latest
             node-version: '24'
@@ -125,6 +125,10 @@ jobs:
         if: matrix.node-version != '20'
         run: node tools/prompt-contract-check.mjs --host-install .
 
+      - name: Exact-host disabled expression context and native effective enablement
+        if: matrix.node-version != '20'
+        run: node tools/disabled-contract-check.mjs --host-install .
+
       # ★★ 对抗性探针 —— 79 条断言，写的是**期望行为**，所以在有缺陷的代码上会红。
       #
       # 为什么必须进 CI：这套探针 2026-09-21 写过一轮（79 条里 20 条失败），修完之后
@@ -153,6 +157,10 @@ jobs:
         run: |
           bash -n install.sh
           bash -n uninstall.sh
+
+      - name: POSIX newline-bearing preset purge remains inside its root
+        if: runner.os == 'Linux'
+        run: node tools/probes/uninstall-newline.mjs
 
       # 包版本必须等于 CI 钉住并测试的 dsh 版本（允许 .revN 修订后缀）。
       # 只改一处会让 CI 在旧运行时上通过，而发布的包声称适配了没测过的版本。

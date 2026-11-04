@@ -22,6 +22,16 @@ while [ $# -gt 0 ]; do
   esac
 done
 
+# Reject invalid selectors before any package or filesystem operation.
+if ! printf '%s' "$PROFILE" | grep -Eq '^[a-z0-9][a-z0-9_-]*$'; then
+  echo "profile 不合法: $PROFILE（只能用小写字母、数字、连字符与下划线）" >&2
+  exit 2
+fi
+if ! printf '%s' "$PRESET_ID" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
+  echo "助手 id 不合法: $PRESET_ID（只能用 a-z、0-9 与连字符，且不能是路径）" >&2
+  exit 2
+fi
+
 # ── 桌面端的 profile 不是 CLI 的地盘（与 install.sh 同一条闸门）────────────────
 # Electron 独占 `$DSH_HOME/profiles/desktop`：依赖与 bundle 列表由应用维护，包操作持有 profile
 # 事务锁，启动恢复还会自己重命名 `cordis.patch.yml`。dsh 自己就会拒（实测 0.1.7-rc.2：
@@ -43,94 +53,27 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKG_NAME="$(cd "$ROOT" && node tools/package-facts.mjs name 2>/dev/null || true)"
 [ -n "$PKG_NAME" ] || { echo "无法从 package.json 读取包名" >&2; exit 1; }
 
-if command -v dsh >/dev/null 2>&1; then
-  dsh plugin --profile "$PROFILE" remove "$PKG_NAME" || true
+command -v dsh >/dev/null 2>&1 || { echo "找不到 dsh CLI；未卸载，未清理任何安装或助手数据。" >&2; exit 1; }
+# A failed host transaction is authoritative. Never bypass it by deleting files or editing bundles.
+if dsh plugin --profile "$PROFILE" remove "$PKG_NAME"; then
+  node "$ROOT/tools/uninstall-state.mjs" "$DSH_HOME" "$PROFILE" "$PKG_NAME"
 else
-  echo "    找不到 dsh CLI，跳过（请手动从 profile 的 dsh.profile.bundles 中移除）"
-fi
-
-# 实测：`dsh plugin remove` 会清掉 package.json 的依赖与 bundles 条目，但 pnpm 可能在
-# node_modules 里留下指向本仓库的软链（pnpm 12.4.2 上复现过）。它不影响 dsh 装配
-# （装配只看 bundles 列表），但 uninstall 就该不留痕迹——尤其当你随后要删掉这个仓库时，
-# 它会变成一个指不到任何地方的断链。只删我们自己这一个包名。
-for modules_dir in "$DSH_HOME/profiles/$PROFILE/node_modules" "$DSH_HOME/profiles/node_modules"; do
-  if [ -L "$modules_dir/$PKG_NAME" ] || [ -e "$modules_dir/$PKG_NAME" ]; then
-    rm -rf "$modules_dir/$PKG_NAME"
-    echo "    已清掉 node_modules 里的残留: $modules_dir/$PKG_NAME"
-  fi
-done
-
-# remove 之后 bundles 列表若仍留有名字，补一次清理。
-node - "$PROFILE" "$DSH_HOME" "$PKG_NAME" <<'NODE' || true
-const fs = require('fs')
-const [profile, dshHome, name] = process.argv.slice(2)
-const manifest = `${dshHome}/profiles/${profile}/package.json`
-if (!fs.existsSync(manifest)) process.exit(0)
-const j = JSON.parse(fs.readFileSync(manifest, 'utf8'))
-const bundles = j.dsh?.profile?.bundles ?? []
-const next = bundles.filter((b) => b !== name)
-if (next.length !== bundles.length) {
-  j.dsh.profile.bundles = next
-  fs.writeFileSync(manifest, JSON.stringify(j, null, 2) + '\n')
-  console.log(`    已从 bundles 移除: ${JSON.stringify(next)}`)
-}
-NODE
-
-if ! printf '%s' "$PRESET_ID" | grep -Eq '^[a-z0-9][a-z0-9-]*$'; then
-  echo "助手 id 不合法: $PRESET_ID（只能用 a-z、0-9 与连字符，且不能是路径）" >&2
-  exit 2
+  status=$?
+  echo "宿主卸载失败（退出 $status）；保留安装与助手数据，请处理错误后重试。" >&2
+  exit "$status"
 fi
 
 PRESET_ROOT="$DSH_HOME/.agent-presets"
-PRESET_DIR="$PRESET_ROOT/$PRESET_ID"
-
-# 一个设置页可以管理多个助手：每个助手是预设根目录下的一个目录。判据与插件一致——
-# 目录里有 prompt.md，且（有 prompt-reader.mjs，或组成文件里引用了 './prompt-reader.mjs'）。
-# 手写的 preset 不会被误伤：它们两者都不满足。
-managed_dirs() {
-  for dir in "$PRESET_ROOT"/*/; do
-    [ -d "$dir" ] || continue
-    name="$(basename "$dir")"
-    case "$name" in .*) continue ;; esac
-    [ -f "$dir/prompt.md" ] || continue
-    if [ -f "$dir/prompt-reader.mjs" ] || grep -qF "'./prompt-reader.mjs'" "$dir/agent.cordis.yml" 2>/dev/null; then
-      printf '%s\n' "${dir%/}"
-    fi
-  done
-}
-
-# 先把名单算出来再用，不要写成 `managed_dirs | grep -q`：脚本开了 pipefail，grep 命中即退出
-# 会让 managed_dirs 收到 SIGPIPE，整条管道的状态变成 141，判断随之反过来。
-MANAGED="$(managed_dirs)"
-
 if [ "$PURGE" = "1" ]; then
   echo "==> 删除本工具创建的助手目录（含提示词）"
-  named=0
-  while IFS= read -r dir; do
-    if [ "$dir" = "$PRESET_DIR" ]; then named=1; fi
-  done <<< "$MANAGED"
-  if [ -d "$PRESET_DIR" ] && [ "$named" = "0" ] && [ "$PRESET_ID_EXPLICIT" = "1" ]; then
-    # 组成文件被改坏、或身份不再走 prompt-reader.mjs 时名单会漏掉它；
-    # 但 --preset-id 明确点名了这个目录，就按点名的删。
-    echo "    $PRESET_DIR（按 --preset-id 指名）"
-    rm -rf "$PRESET_DIR"
+  if [ "$PRESET_ID_EXPLICIT" = "1" ]; then
+    node "$ROOT/tools/uninstall-presets.mjs" purge "$PRESET_ROOT" "$PRESET_ID"
+  else
+    node "$ROOT/tools/uninstall-presets.mjs" purge "$PRESET_ROOT"
   fi
-  while IFS= read -r dir; do
-    [ -n "$dir" ] || continue
-    echo "    $dir"
-    rm -rf "$dir"
-  done <<< "$MANAGED"
-  # 播种标记一并删掉，否则重装时不会再建出第一个助手。
-  rm -f "$PRESET_ROOT/.custom-mode.json"
 else
   echo "==> 保留助手目录与提示词"
-  found=0
-  while IFS= read -r dir; do
-    [ -n "$dir" ] || continue
-    found=1
-    echo "    $dir/prompt.md"
-  done <<< "$MANAGED"
-  if [ "$found" = "0" ]; then echo "    （没有找到本工具创建的模式）"; fi
+  node "$ROOT/tools/uninstall-presets.mjs" list "$PRESET_ROOT"
   echo "    如需一并删除，重新执行 ./uninstall.sh --purge"
 fi
 echo

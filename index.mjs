@@ -55,7 +55,8 @@ import {
   effectiveRosterRows,
 } from './preset-backend/index.mjs'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { createHash } from 'node:crypto'
+import { basename, dirname, join } from 'node:path'
 import { PROMPT_PATH, COMPOSITION_PATH, ROUTE_PATH, PRESET_DIR, dshHome } from './paths.mjs'
 import { ensureUnsetDefaultPreset } from './defaults.mjs'
 import {
@@ -76,6 +77,7 @@ import {
   setBaseCompositions,
   setShippedPresetsDir,
   unresolvableRows,
+  withPredicateCapabilities,
 } from './composition.mjs'
 import { presetMetaText, readPresetMeta, writePresetMeta, presetMetaPath, PRESET_META_PATH } from './meta.mjs'
 import { listHistory, readVersion, recordExternalChange, recordPrompt, HISTORY_SOURCE } from './journal.mjs'
@@ -373,11 +375,42 @@ export function brokenRowIds(message) {
   return [...new Set(ids)]
 }
 
+/**
+ * An opaque content revision of the complete editable state. Length framing and
+ * an explicit missing marker distinguish absent files from empty ones. History
+ * is deliberately excluded: losing an audit write must not disable conflict checks.
+ */
+export function stateRevision(directory) {
+  return revisionWithEntries(directory)
+}
+
+function revisionWithEntries(directory, entries = []) {
+  const replacements = new Map(entries.map(([file, text]) => [basename(file), Buffer.from(text, 'utf8')]))
+  const hash = createHash('sha256')
+  for (const name of ['prompt.md', 'preset.yml', 'agent.cordis.yml']) {
+    hash.update(name + '\0')
+    let bytes
+    try {
+      bytes = replacements.has(name) ? replacements.get(name) : readFileSync(join(directory, name))
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error
+      hash.update('missing\0')
+      continue
+    }
+    hash.update('present:' + String(bytes.length) + '\0')
+    hash.update(bytes)
+  }
+  return hash.digest('hex')
+}
+
 export function readState(rows, id, options = {}) {
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
   const recovery = restoreBackups(directory)
   if (recovery.ok !== true) return { ok: false, code: 'recoveryRequired', params: { path: directory, detail: recovery.detail }, error: '助手文件需要恢复：' + recovery.detail }
+  // Take the token before reading the displayed fields. A later external edit
+  // can then cause a conservative conflict, never bless an older displayed value.
+  const revision = stateRevision(directory)
   const composition = compositionFile(directory)
   if (!existsSync(composition)) return { ok: false, code: 'compositionMissing', params: { path: composition }, error: '找不到组成文件：' + composition }
   const text = readFileSync(composition, 'utf8')
@@ -423,6 +456,7 @@ export function readState(rows, id, options = {}) {
   return {
     ok: true,
     id,
+    revision,
     mode,
     modes: BASE_MODES,
     rows: rowTree,
@@ -503,33 +537,75 @@ const writeChains = new Map()
 /**
  * 打开页面之后、按下保存之前，`prompt.md` 可能已被会话工具或手工改过。
  *
- * 先把磁盘上的那一版记进历史。页面带了 JSON 数字 `baseN`，且那个版本不是磁盘上这一版时，
- * 拒绝写入：磁盘保持外部文本。不带 `baseN` 的旧客户端仍覆盖，但原文已经在历史里。
- * 数字字符串不算 `baseN`。留痕自己失败时不挡住这次保存。
+ * 新页面用 baseRevision 比较三个编辑文件的原始内容。旧页面的 JSON 数字
+ * baseN 仍比较提示词历史；没有 token 的旧 API 保留覆盖语义。
+ * 冲突判定与审计写入隔离：历史不可写时也不能放行过期草稿。
  *
  * @param {string} directory
  * @param {string} prompt - the text this save wants to write.
  * @param {unknown} baseN
+ * @param {unknown} baseRevision - opaque revision returned when the draft was loaded.
  * @returns {object|null} a `conflict` result, or null when the write may proceed.
  */
-function refuseStalePrompt(directory, prompt, baseN) {
-  try {
-    const diskPrompt = readPrompt(directory)
-    if (diskPrompt.ok !== true || diskPrompt.text === prompt) return null
-    recordExternalChange(directory, diskPrompt.text)
-    if (typeof baseN === 'number' && readVersion(directory, baseN) !== diskPrompt.text) {
-      return {
-        ok: false,
-        code: 'conflict',
-        params: { baseN },
-        error: '磁盘上的提示词已经变了，这次保存没有写入。',
-        note: '磁盘上的提示词已经变了，这次保存没有写入。',
-      }
+function refuseStaleState(directory, prompt, baseN, baseRevision) {
+  const diskPrompt = readPrompt(directory)
+  let stale = false
+  if (typeof baseRevision === 'string') {
+    try {
+      stale = stateRevision(directory) !== baseRevision
+    } catch {
+      // An unreadable editable file cannot prove the loaded baseline is current.
+      stale = true
     }
-  } catch {
-    /* 审计留痕失败不挡住这次保存 */
+  } else if (typeof baseN === 'number') {
+    stale = diskPrompt.ok !== true || (diskPrompt.text !== prompt && readVersion(directory, baseN) !== diskPrompt.text)
   }
-  return null
+  if (diskPrompt.ok === true && diskPrompt.text !== prompt) {
+    try {
+      recordExternalChange(directory, diskPrompt.text)
+    } catch {
+      /* 审计留痕失败不改变上面已经完成的冲突判定 */
+    }
+  }
+  return stale ? {
+    ok: false,
+    code: 'conflict',
+    params: typeof baseRevision === 'string' ? {} : { baseN },
+    error: '磁盘上的助手文件已经变了或无法核对，这次保存没有写入。',
+    note: '磁盘上的助手文件已经变了或无法核对，这次保存没有写入。',
+  } : null
+}
+
+/** Reordering writes every assistant's metadata, so validate all held baselines first. */
+function reorderState(rows, input) {
+  const baselines = input?.baseRevisions
+  if (baselines !== null && typeof baselines === 'object') {
+    for (const [id, revision] of Object.entries(baselines)) {
+      const directory = assistantDir(rows, id)
+      if (directory === undefined || typeof revision !== 'string') {
+        return { ok: false, code: 'conflict', params: {}, error: '助手列表或文件已经变了，这次排序没有写入。' }
+      }
+      const conflict = refuseStaleState(directory, readPrompt(directory).text ?? '', undefined, revision)
+      if (conflict !== null) return conflict
+    }
+  }
+  const ids = new Map(assistantsFromRoster(rows).map(({ id }) => [assistantDir(rows, id), id]))
+  const revisions = {}
+  const result = reorderAssistant(rows, input, (name, description, directory, options) => {
+    const rendered = presetMetaText(name, description, directory, options)
+    if (rendered.ok !== true) return rendered
+    try {
+      const entries = [[presetMetaPath(directory), rendered.text]]
+      const revision = revisionWithEntries(directory, entries)
+      writeAtomic(presetMetaPath(directory), rendered.text)
+      revisions[ids.get(directory)] = revision
+      return { ok: true, name: rendered.name }
+    } catch (error) {
+      return { ok: false, code: 'metaWriteFailed', params: { detail: describe(error) }, error: '写入 preset.yml 失败：' + describe(error) }
+    }
+  })
+  // Failed reorders can roll back earlier writes; none of their tokens may be adopted.
+  return result.ok === true ? { ...result, revisions } : result
 }
 
 function serializedWrite(key, work) {
@@ -549,13 +625,15 @@ function serializedWrite(key, work) {
  * 的行集合也就不变，这是所有选项里破坏性最小的一个。
  *
  * @param {string} directory - the assistant's preset directory.
- * @param {{id: string, mode: string, prompt: string, name: string, description: string, displayName?: string, baseN?: number}} input
+ * @param {{id: string, mode: string, prompt: string, name: string, description: string, displayName?: string, baseN?: number, baseRevision?: string}} input
  *   - the validated save; `name` decides whether `preset.yml` is written, `displayName` is what the response
  *   reports (the disk name when the request omitted one — issue #9). `baseN` is the same stale-save
  *   token as {@link saveState}: a JSON number only.
  * @returns {object} the shape `saveState` returns, with `code: 'savedPromptOnly'`.
  */
-export function savePromptOnly(directory, { id, mode, prompt, name, description, displayName, baseN }) {
+export function savePromptOnly(directory, { id, mode, prompt, name, description, displayName, baseN, baseRevision }) {
+  const recovery = restoreBackups(directory)
+  if (recovery.ok !== true) return { ok: false, code: 'recoveryRequired', params: { path: directory, detail: recovery.detail }, error: '助手文件需要恢复：' + recovery.detail }
   // 与正常保存同一条纪律：提示词与 preset.yml 一起换名，失败则两个都不动。
   let metaText = null
   if (name !== '') {
@@ -563,13 +641,18 @@ export function savePromptOnly(directory, { id, mode, prompt, name, description,
     if (rendered.ok !== true) return rendered
     metaText = rendered.text
   }
-  const conflict = refuseStalePrompt(directory, prompt, baseN)
+  const conflict = refuseStaleState(directory, prompt, baseN, baseRevision)
   if (conflict !== null) return conflict
+  let revision
   try {
-    writeAtomicPair([
+    const entries = [
       [promptFile(directory), prompt],
       ...metaText === null ? [] : [[presetMetaPath(directory), metaText]],
-    ])
+    ]
+    // Return our exact submitted generation, without a post-commit read that
+    // could fail or accidentally adopt a different writer's subsequent change.
+    revision = revisionWithEntries(directory, entries)
+    writeAtomicPair(entries)
   } catch (error) {
     return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
   }
@@ -583,6 +666,7 @@ export function savePromptOnly(directory, { id, mode, prompt, name, description,
     id,
     mode,
     code: 'savedPromptOnly',
+    revision,
     // 响应里的名字用**磁盘上的那个**（issue #9）：请求省略 name 时不该把 params.name 报成裸目录 id。
     params: { name: (displayName === undefined || displayName === '' ? name : displayName) === '' ? id : (displayName === undefined || displayName === '' ? name : displayName), mode },
     note: '已保存系统提示词（本机取不到基础模式的出厂组成，插件开关与基础模式未改动）。下一步组装时会重读这个文件。',
@@ -669,6 +753,7 @@ export function saveState(rows, input) {
           description,
           displayName: effectiveName,
           baseN: input !== null && typeof input === 'object' ? input.baseN : undefined,
+          baseRevision: input !== null && typeof input === 'object' ? input.baseRevision : undefined,
         })
       }
       return {
@@ -701,14 +786,17 @@ export function saveState(rows, input) {
     if (rendered.ok !== true) return rendered
     metaText = rendered.text
   }
-  const conflict = refuseStalePrompt(directory, prompt, input !== null && typeof input === 'object' ? input.baseN : undefined)
+  const conflict = refuseStaleState(directory, prompt, input?.baseN, input?.baseRevision)
   if (conflict !== null) return conflict
+  let revision
   try {
-    writeAtomicPair([
+    const entries = [
       [compositionFile(directory), composition],
       [promptFile(directory), prompt],
       ...metaText === null ? [] : [[presetMetaPath(directory), metaText]],
-    ])
+    ]
+    revision = revisionWithEntries(directory, entries)
+    writeAtomicPair(entries)
   } catch (error) {
     return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
   }
@@ -732,6 +820,7 @@ export function saveState(rows, input) {
       id,
       mode,
       code: 'savedWithExclusiveRows',
+      revision,
       // `rows` 用行 id：页面自己按 `row.<id>.label` 渲染，英文界面不会因为这条掉回中文。
       params: { name: displayName, mode, rows: autoOff.join(', ') },
       note:
@@ -744,6 +833,7 @@ export function saveState(rows, input) {
     id,
     mode,
     code: 'saved',
+    revision,
     params: { name: displayName, mode },
     note: '已保存（' + displayName + '，基础模式 ' + mode + '）。下一步组装时会重读已保存的提示词。',
   }
@@ -976,6 +1066,8 @@ export function repairComposition(rows, input) {
   const id = input !== null && typeof input === 'object' && typeof input.id === 'string' ? input.id : ''
   const directory = assistantDir(rows, id)
   if (directory === undefined) return unknownAssistant(id)
+  const conflict = refuseStaleState(directory, readPrompt(directory).text ?? '', undefined, input?.baseRevision)
+  if (conflict !== null) return conflict
   const file = compositionFile(directory)
   if (!existsSync(file)) return { ok: false, code: 'compositionMissing', params: { path: file }, error: '找不到组成文件：' + file }
   const text = readFileSync(file, 'utf8')
@@ -1006,7 +1098,9 @@ export function repairComposition(rows, input) {
   }
   // **就地**关闭那几行，不重渲染：重渲染会顺手丢掉 base 之外的自有行，而用户的数据不该被这样动。
   const rendered = disableRowsInPlace(text, bad.map((row) => row.id))
+  let revision
   try {
+    revision = revisionWithEntries(directory, [[file, rendered]])
     writeAtomic(file, rendered)
   } catch (error) {
     return { ok: false, code: 'writeFailed', params: { detail: describe(error) }, error: '写入失败：' + describe(error) }
@@ -1016,6 +1110,7 @@ export function repairComposition(rows, input) {
     ok: true,
     id,
     code: 'repaired',
+    revision,
     // `ids` 是给人看的一串；`repairedIds` 是给**页面**用的数组 —— 页面必须把这几行写进它自己的
     // 草稿，否则下一次保存会按草稿重渲染，把刚才的修复原样撤销（issue #8 实测：
     // 修复写进了磁盘，但草稿里那几行仍是启用的，于是保存后 ghost 行又回来了）。
@@ -1422,7 +1517,15 @@ export function apply(ctx) {
       detail: outcome.failures.map((failure) => failure.error ?? failure.code ?? 'unknown').join('; '),
     })
 
-    const handle = async (request, pathname) => {
+    const capabilitySnapshot = () => {
+      try {
+        if (typeof scope.get === 'function') return { profileContext: Boolean(scope.get('profileContext')) }
+      } catch {
+        /* Optional host capability is unknown; keep predicate warning/fail-safe. */
+      }
+      return {}
+    }
+    const handle = (request, pathname) => withPredicateCapabilities(capabilitySnapshot(), async () => {
       try {
         const url = new URL(request.url)
         if (request.method === 'GET' && pathname === ROUTE_PATH) {
@@ -1488,7 +1591,7 @@ export function apply(ctx) {
           const result = pathname === STATE_PATH ? saveState(rows, parsed)
             : pathname === CREATE_PATH ? createAssistant(rows, parsed)
               : pathname === REPAIR_PATH ? repairComposition(rows, parsed)
-                : pathname === REORDER_PATH ? reorderAssistant(rows, parsed)
+                : pathname === REORDER_PATH ? reorderState(rows, parsed)
                   : await deleteAssistant(rows, parsed, presetRemover())
           if (result.ok !== true) return json(result, 400)
           const synced = await resyncPresets()
@@ -1507,7 +1610,7 @@ export function apply(ctx) {
         // ——中文界面里会蹦出一句英文。带 code 后页面用自己的词典渲染，原始串只作为 `detail` 参数。
         return json({ ok: false, code: 'internalError', params: { detail: describe(error) }, error: describe(error) }, 500)
       }
-    }
+    })
 
     // One registration per exact path — the platform's Fetch registry matches exact paths, not prefixes —
     // each declaring the methods it owns. The method table doubles as the guarantee that a prefetched

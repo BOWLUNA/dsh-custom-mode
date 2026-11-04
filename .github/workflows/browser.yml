@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         # Exact current channels; all use Node24 (alpha requires >=24.9).
-        dsh: ['0.2.1-rc.2', '0.2.1-rc.4', '0.2.2-alpha.2']
+        dsh: ['0.2.1-rc.5', '0.2.2-rc.1', '0.2.2-alpha.3']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,5 +52,41 @@ jobs:
             ${{ runner.temp }}/evidence/*.log
             ${{ runner.temp }}/evidence/*.png
             ${{ runner.temp }}/evidence/*.txt
+          retention-days: 14
+          if-no-files-found: ignore
+  native-update:
+    # Exercise the host's actual package-manager API, HMR and rollback, in addition to UI mocks.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        dsh: ['0.2.2-rc.1', '0.2.2-alpha.3']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Prepare exact isolated host and the actual public old package
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-host"
+          printf '{"private":true,"name":"native-update-ci-host","version":"1.0.0"}\n' > "$RUNNER_TEMP/native-host/package.json"
+          npm install --prefix "$RUNNER_TEMP/native-host" --no-audit --no-fund --save-exact "@deepseek-ai/dsh@${{ matrix.dsh }}" pnpm@12
+          npm pack dsh-custom-mode@2.2.6 --ignore-scripts --pack-destination "$RUNNER_TEMP" --json > "$RUNNER_TEMP/public-old-pack.json"
+      - name: Fail-closed native update outcome contracts
+        run: node tools/native-update-selftest.mjs
+      - name: Native update, download failure recovery and restart without HMR
+        run: node tools/native-update-check.mjs --host-install "$RUNNER_TEMP/native-host" --old-package "$RUNNER_TEMP/dsh-custom-mode-2.2.6.tgz" --out "$RUNNER_TEMP/native-update"
+      - name: Keep sanitized native-update evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-update-${{ matrix.dsh }}
+          path: |
+            ${{ runner.temp }}/native-update/native-update-report.json
+            ${{ runner.temp }}/native-update/*.log
+            ${{ runner.temp }}/native-update/registry-requests.jsonl
+            ${{ runner.temp }}/native-update/*/blocked-network.jsonl
           retention-days: 14
           if-no-files-found: ignore

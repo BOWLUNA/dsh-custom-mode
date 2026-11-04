@@ -247,11 +247,18 @@ console.log('=== 4. 降级：读得到提示词、存得下提示词、开关被
   check('告警里点名了它', Array.isArray(state.warnings) && state.warnings.includes('baseCompositionUnavailable'), JSON.stringify(state.warnings))
 
   // 4b. 只存提示词 → 成功，组成文件一字不动
-  const saved = saveState(rows, { id: 'custom', mode: 'standard', overrides: {}, prompt: '改过的提示词\n', name: '测试助手', description: '' })
+  const saved = saveState(rows, { id: 'custom', mode: 'standard', overrides: {}, prompt: '改过的提示词\n', name: '测试助手', description: '', baseRevision: state.revision })
   check('降级保存成功', saved.ok === true, JSON.stringify(saved))
   check('降级保存的 code 是 savedPromptOnly', saved.code === 'savedPromptOnly', String(saved.code))
   check('提示词已落盘', readFileSync(join(presetDir, 'prompt.md'), 'utf8') === '改过的提示词\n')
   check('组成文件未被触碰', readFileSync(compositionPath, 'utf8') === compositionText)
+  const afterDegradedSave = readState(rows, 'custom', {})
+  check('降级状态与成功响应都给出同一完整 revision', typeof saved.revision === 'string' && saved.revision === afterDegradedSave.revision && saved.revision !== state.revision)
+  writeFileSync(join(presetDir, 'preset.yml'), 'name: 外部改名\n', 'utf8')
+  const staleDegraded = saveState(rows, { id: 'custom', mode: 'standard', overrides: {}, prompt: '过期降级草稿\n', name: '测试助手', baseRevision: saved.revision })
+  check('降级提示词保存也会拒绝元数据变化后的旧完整版本', staleDegraded.ok === false && staleDegraded.code === 'conflict')
+  check('降级冲突保留外部名称、提示词和组成', readFileSync(join(presetDir, 'preset.yml'), 'utf8') === 'name: 外部改名\n' && readFileSync(join(presetDir, 'prompt.md'), 'utf8') === '改过的提示词\n' && readFileSync(compositionPath, 'utf8') === compositionText)
+  writeFileSync(join(presetDir, 'preset.yml'), 'name: 测试助手\n', 'utf8')
 
   // 4c. 还想改开关 → 明确拒绝，不静默丢弃
   const refused = saveState(rows, { id: 'custom', mode: 'standard', overrides: { 'tool-web': false }, prompt: '又改了\n', name: '测试助手', description: '' })

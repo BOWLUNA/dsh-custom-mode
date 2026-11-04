@@ -8,6 +8,19 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [2.3.1] — 2026-11-04
+
+This patch covers editing and draft-safety fixes and adaptation to DSH `0.2.2-rc.1`. See the [version-specific validation and limits](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md#231-validation).
+
+- Reject stale saves against prompt, metadata and composition bytes, including missing-file state. Failed audit writes cannot bypass conflicts; save/repair/reorder return only their own exact submitted generations while preserving legacy tokens.
+- Keep drafts in the current browser document across settings navigation, without silently advancing dirty baselines. Warn before reload/close and require an explicit draft-discarding read after a conflict; this is not a disk backup.
+- Confirm before restoring the starting prompt, importing a file or loading history over unsaved prompt text. Cancellation preserves the draft; replacement still needs saving.
+- Confirm that duplication uses the saved configuration when pending edits exist, retaining the original draft and unrelated creation input.
+- Add the page-header New assistant entry, focus its form, and prevent composition/IME-confirm Enter from creating an assistant while ordinary Enter remains available. Keep native UI controls.
+- Stop cleanup/purge on failed or unverifiable host removal. Bound purge paths, preserve newline-bearing names as complete targets, avoid traversing links, retain shared installations and respect desktop ownership.
+- Adapt current exact hosts, including `0.2.2-rc.1`: decode YAML-quoted disable predicates, preserve supported conditions for native loader context, isolate the editor's boolean capability snapshot, keep unknown context conditions disabled and avoid quote-only false overrides.
+- Align security, onboarding and release records with actual validation and current host CI targets. Earlier source checks cover 20 suites / 1315 checks, three-host packed/browser/draft/lifecycle results and two-host native API scenarios; they are not new-version publication or remote CI evidence. [Detailed boundaries](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md#231-validation) retain the untested Electron, real-model/GPU, OS IME and strict same-document frontend HMR limits.
+
 ## [2.3.0] — 2026-10-28
 
 Published on [GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0) and [npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0). The completed release gates and downloaded asset checksums are recorded in [current compatibility](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md).

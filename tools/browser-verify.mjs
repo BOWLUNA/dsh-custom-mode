@@ -374,7 +374,14 @@ try {
     const broken = await editorText()
     check('能把编辑器内容改成任意文本（准备阶段）', broken === '被改坏的提示词（浏览器验证）', JSON.stringify(broken))
 
-    check('点得到「恢复出厂」按钮', (await clickButton(z('btn.reset'))) === 'clicked')
+    // This is deliberately dirty: acknowledge the real native dialog and verify it
+    // was emitted. Never replace window.confirm with a test stub.
+    const resetDialogsBefore = session.dialogs.length
+    session.dialogPolicy = 'accept'
+    const resetClicked = await clickButton(z('btn.reset'))
+    const resetDialogs = session.dialogs.slice(resetDialogsBefore)
+    check('点得到「恢复出厂」按钮', resetClicked === 'clicked' && resetDialogs.length === 1 &&
+      resetDialogs[0].type === 'confirm' && resetDialogs[0].accepted === true && resetDialogs[0].message === z('prompt.replaceConfirm'))
     const afterReset = await editorText()
     check(
       '点「恢复出厂提示词」→ 编辑器变回出厂模板',

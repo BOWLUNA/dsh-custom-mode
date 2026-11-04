@@ -181,6 +181,7 @@ const suites = [
   'client-async.test.mjs',
   'client-update.test.mjs',
   'install-script.test.mjs',
+  'uninstall-script.test.mjs',
 ]
 const env = { ...process.env, DSH_SHIPPED_PRESETS_DIR: found.dir }
 let failed = 0

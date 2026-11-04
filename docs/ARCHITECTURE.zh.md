@@ -4,7 +4,18 @@
 
 本页同时记录当前源码契约与历史实测故障。旧编号章节会说明当时调查的宿主，不代表每个当前宿主都已重新验收。
 
-## 2.3.0 当前契约
+## 2.3.1 源码契约
+
+以下契约准备随补丁版`2.3.1`交付，不迁移助手文件，也不改写其格式；候选/发布状态见[当前兼容记录](CURRENT_COMPATIBILITY.zh.md#231-validation)。
+
+`!!js`外层YAML引用在解释前解码。已知禁用条件保留为原生`__jsExpr`节点，交官方Loader的真实上下文处理；不支持的context条件真正关闭。编辑器以AsyncLocalStorage隔离每请求不可变布尔快照，理解当前出厂`profileContext`条件，不保留服务对象，也不新增硬依赖。成功的非context表达式保留原求值行为及原生Boolean语义；diff比较解码后的条件源，同时保留字面量与表达式三态区别及未触碰源码字节。
+
+- `GET /api/custom-mode/state`返回不透明`revision`，覆盖`prompt.md`、`preset.yml`与`agent.cordis.yml`原始字节，并明确区分文件缺失。新保存发送`baseRevision`；任何编辑字段变化或无法读取，都在写入前返回`conflict`。旧数字`baseN`继续比较提示词历史，判定与审计追加成功与否分离；两个token都不带的旧请求保留覆盖语义。
+- 修复发送`baseRevision`；排序为所有已加载助手发送`baseRevisions`映射，所有提供的基线都在任何排序写入前校验。保存/修复成功返回`revision`，排序成功仅返回自己本次提交的`revisions`映射。token在提交前按精确预期写入计算，不在提交后重读文件；持久化失败/排序已回滚时不能采纳暂定token；已保存但未同步的响应仍随`persisted:true`保留已完成写入的token。
+- 普通读取保留脏草稿原内容与基线；只有经检查的本地操作成功后，才能推进其影响的基线，外部读取不能悄悄认可尚未合入草稿的改动。草稿内存属于当前插件context/浏览器文档，跨设置区卸载重挂保留，插件dispose时清除；不写localStorage，也不是磁盘备份，刷新/关闭提醒不能恢复已确认丢弃的文本。
+- clone卸载器以宿主卸载结果为准，失败或profile仍有无法核实的声明时停止后续清理/purge。核实后的残留清理限定于点名包路径，并保留其他profile引用的共享安装；桌面profile仍由应用独占。
+
+## 继承自2.3.0的契约
 
 - 预设管理提示词内容，根profile bundle管理编辑页。第5节的八条精确路径继续走载体受鉴权的共享 `/api` 通道；`POST /api/custom-mode/sync`只重试注册，不重放保存/新建/删除/排序。
 - loop提供model/provider；存在workingDirectory的宿主由reader从真实会话目录提供作用域cwd兼容变量，并在宿主组装/ensure之后刷新。旧宿主保留原生cwd。只在渲染时归一精确旧目录独立句，不落盘修改用户提示词/suffix（第7节）。

@@ -38,13 +38,13 @@ New-Item -ItemType Directory -Path $DSH_HOST_DIR | Out-Null
 回到clone根目录，下面命令适用于上述两种准备方式。精确rc.2宿主来自现有兼容记录，仅作为示例：
 
 ```sh
-npm install --prefix "$DSH_HOST_DIR" --cache "$DSH_CHECK_ROOT/npm-cache" --ignore-scripts --save-exact --no-audit --no-fund @deepseek-ai/dsh@0.2.1-rc.2
+npm install --prefix "$DSH_HOST_DIR" --cache "$DSH_CHECK_ROOT/npm-cache" --ignore-scripts --save-exact --no-audit --no-fund @deepseek-ai/dsh@0.2.2-rc.1
 node -p "require(process.argv[1]).version" "$DSH_HOST_DIR/node_modules/@deepseek-ai/dsh/package.json"
 node tools/prompt-contract-check.mjs --host-install "$DSH_HOST_DIR"
 node tools/compat-check.mjs --host-install "$DSH_HOST_DIR" --out "$DSH_CHECK_ROOT/check-01" --port 32110
 ```
 
-核对版本读回为`0.2.1-rc.2`。组件检查不启动模型或服务。兼容检查把源码复制到`--out/candidate`，将该候选链接到指定宿主依赖，并使用独立的合成`DSH_HOME`；它运行单元/守卫/包检查及本机回环启动检查，端口需空闲。结果保存在`check-01/report.json`及日志中。每个源码快照使用新的`--out`，不手改生成副本。
+核对版本读回为`0.2.2-rc.1`。组件检查不启动模型或服务。兼容检查把源码复制到`--out/candidate`，将该候选链接到指定宿主依赖，并使用独立的合成`DSH_HOME`；它运行单元/守卫/包检查及本机回环启动检查，端口需空闲。结果保存在`check-01/report.json`及日志中。每个源码快照使用新的`--out`，不手改生成副本。
 
 不要把`--host-install`指向使用中的安装、封存依赖树或全局包：单元入口会在该宿主node_modules下派生fixture文件。审阅证据时保留新工作区，其中是测试数据，不是真实用户home。纯文档改动先做翻译、链接和diff检查，无需先启动宿主。
 
@@ -77,6 +77,8 @@ npm pack --dry-run --ignore-scripts --json
 - 可选宿主服务在作用域注入内等待，缺少 Web 服务不能卡住整行插件。
 - 页面/工具的提示词校验器、浏览器/宿主的词典保持一致。
 - 提示词、元数据与组成属于用户数据，受管代码分开刷新，测试只用临时 fixture。
+- 保存、修复和排序都保留完整状态`baseRevision`检查；审计失败不能绕过过期写入拒绝，提交后读取也不能将其他writer的数据纳入草稿基线。以合成竞争编辑检查磁盘真值。
+- 普通读取和设置区重挂保留脏草稿及加载基线，说明当前文档/插件生命周期边界，不声称未实现的刷新/关闭恢复能力。
 - 保留恢复证据，在发现助手前恢复；进程终止检查不能证明物理断电耐久性。
 - 持久化修改与注册表同步串行，区分已保存未应用与完整成功，重试同步不重放变更操作。
 - 使用官方原生 UI 控件与实测默认度量，不重涂禁用态、间距或字体另造一套控件。

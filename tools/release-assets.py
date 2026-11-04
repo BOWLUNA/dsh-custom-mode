@@ -4,18 +4,36 @@ from pathlib import Path
 import datetime
 import hashlib
 import json
+import shutil
 import subprocess
 import sys
 import zipfile
+
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 
 repo = Path(__file__).resolve().parent.parent
 out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else repo / 'dist'
 out.mkdir(parents=True, exist_ok=True)
 pkg = json.loads((repo / 'package.json').read_text(encoding='utf-8'))
 assert pkg['name'] == 'dsh-custom-mode'
+# Invoke npm's JavaScript entry with Node, avoiding Windows shell/.cmd resolution.
+node = shutil.which('node')
+if node is None:
+    raise RuntimeError('Node.js is required to build release assets')
+npm_cli = subprocess.check_output([node, '-e', """
+const fs = require('node:fs'), path = require('node:path');
+const candidates = [process.env.npm_execpath,
+  path.join(path.dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  path.join(path.dirname(process.execPath), '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js')];
+const found = candidates.find(file => file && fs.existsSync(file));
+if (!found) { process.stderr.write('Cannot locate npm-cli.js alongside Node.js\\n'); process.exit(2); }
+process.stdout.write(found);
+"""], cwd=repo, text=True, encoding='utf-8').strip()
 pack = json.loads(subprocess.check_output(
-    ['npm', 'pack', '--ignore-scripts', '--json', '--pack-destination', str(out)],
-    cwd=repo, text=True))[0]
+    [node, npm_cli, 'pack', '--ignore-scripts', '--json', '--pack-destination', str(out)],
+    cwd=repo, text=True, encoding='utf-8'))[0]
 tarball = out / pack['filename']
 assert tarball.name == 'dsh-custom-mode-' + pkg['version'] + '.tgz'
 # Commit time makes the preset ZIP repeatable locally and in the release workflow.

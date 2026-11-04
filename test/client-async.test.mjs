@@ -22,6 +22,7 @@ export const fixture = (id = 'a', prompt = 'OLD ' + id, n = 1) => ({
   ok: true, id, name: id.toUpperCase(), description: '', prompt, mode: 'standard', overrides: {},
   modes: [{ id: 'standard' }, { id: 'minimal' }], rows: [], warnings: [],
   history: [{ n, at: '2026-10-27T00:00:00.000Z', bytes: 5, by: 'settings' }],
+  revision: 'revision-' + id + '-' + n,
 })
 export const roster = (ids = ['a', 'b']) => ({
   ok: true, version: '2.2.6', assistants: ids.map((id) => ({ id, name: id.toUpperCase() })),
@@ -32,6 +33,7 @@ export const text = (node) => node == null ? '' : typeof node !== 'object' ? Str
 
 export function harness(options = {}) {
   const hooks = [], pendingEffects = [], requests = [], files = [], queuedStates = [], moduleDisposers = []
+  const events = new Map()
   let cursor = 0, writes = 0, component, tree
   const atoms = Object.fromEntries(['Button', 'Input', 'Switch', 'Tag', 'Pill', 'Menu', 'IconChevronDownOutlineRegular'].map((name) => [name, function Atom() {}]))
   if (options.nativeRisk) atoms.RiskConfirmation = function RiskConfirmation() {}
@@ -59,7 +61,10 @@ export function harness(options = {}) {
   let registration
   const sandbox = {
     console, setTimeout, clearTimeout, URL,
-    window: { confirm: (message) => options.confirm ? options.confirm(message) : true, __ModuleLoader__: { load: (entry) => { registration = entry } } },
+    window: { confirm: (message) => options.confirm ? options.confirm(message) : true,
+      addEventListener(name, callback) { const listeners = events.get(name) || new Set(); listeners.add(callback); events.set(name, listeners) },
+      removeEventListener(name, callback) { events.get(name)?.delete(callback) },
+      __ModuleLoader__: { load: (entry) => { registration = entry } } },
     fetch(url, options = {}) {
       const result = deferred()
       requests.push({ url, options, result })
@@ -112,8 +117,16 @@ export function harness(options = {}) {
         observer.cleanup = allowed ? observer.callback() : null
       }
     },
-    effects() { for (const at of pendingEffects.splice(0)) { hooks[at].cleanup?.(); hooks[at].cleanup = hooks[at].effect() } },
+    effects() { for (const at of new Set(pendingEffects.splice(0))) { hooks[at].cleanup?.(); hooks[at].cleanup = hooks[at].effect() } },
     cleanup() { for (const hook of hooks) hook.cleanup?.() },
+    remount() { api.cleanup(); hooks.length = 0; pendingEffects.length = 0; queuedStates.length = 0; return api },
+    newContext() { api.remount(); bundle.apply(scopedContext(['slots', 'locale'])); return api },
+    beforeUnload() {
+      const event = { prevented: false, returnValue: undefined, preventDefault() { this.prevented = true } }
+      for (const callback of events.get('beforeunload') || []) callback(event)
+      return event
+    },
+    listenerCount(name) { return events.get(name)?.size || 0 },
     applyAgain() { bundle.apply(rootContext) },
     disposeModule() { for (const dispose of moduleDisposers.splice(0).reverse()) dispose() },
     replay() { for (const hook of hooks) if (hook.effect) hook.cleanup = hook.effect() },
@@ -263,7 +276,7 @@ const cases = {
     const app = await harness().ready()
     app.prompt().props.onChange({ target: { value: 'PERSISTED' } }); app.render()
     const save = app.button(en['btn.save']).props.onClick()
-    app.request('/state', 'POST').result.resolve({ ok: false, code: 'savedButSyncFailed', persisted: true, synchronized: false, params: { ids: 'a' } })
+    app.request('/state', 'POST').result.resolve({ ok: false, code: 'savedButSyncFailed', persisted: true, synchronized: false, revision: 'revision-a-2', params: { ids: 'a' } })
     await save; await app.flush()
     assert.equal(app.prompt().props.value, 'PERSISTED')
     assert.equal(app.button(en['btn.save']).props.disabled, true)
@@ -277,7 +290,7 @@ const cases = {
     assert.equal(app.prompt().props.value, 'NEWER DRAFT', 'sync retry preserves edits made since the failed activation')
     const next = app.button(en['btn.save']).props.onClick()
     const post = app.request('/state', 'POST')
-    assert.equal(JSON.parse(post.options.body).baseN, 2, 'next save uses the refreshed baseline, not stale draft history')
+    assert.equal(JSON.parse(post.options.body).baseRevision, 'revision-a-2', 'next save uses its own committed generation after activation retry')
     post.result.resolve({ ok: false, code: 'badJson' }); await next; await app.flush()
   },
   async persistedCreateAndEmptyFeedback() {
@@ -364,6 +377,188 @@ const cases = {
       assert.equal(trigger.props.children[1].type, named.atoms.IconChevronDownOutlineRegular, 'chevron follows the complete text')
       assert.equal(trigger.props.children[1].props['aria-hidden'], true, 'decorative chevron does not change the accessible name')
     }
+  },
+  async draftLifecycleAndInstanceIsolation() {
+    const app = await harness().ready()
+    assert.equal(app.listenerCount('beforeunload'), 1)
+    assert.equal(app.beforeUnload().prevented, false)
+    app.prompt().props.onChange({ target: { value: 'PRIVATE UNSAVED DRAFT' } }); app.render()
+    app.find((node) => node.props?.className === 'cpfe-newinput').props.onChange({ target: { value: 'PENDING NAME' } }); app.render()
+    assert.equal(app.beforeUnload().prevented, true)
+    await app.remount().ready()
+    assert.equal(app.prompt().props.value, 'PRIVATE UNSAVED DRAFT', 'same document and plugin context restores the draft')
+    assert.equal(app.find((node) => node.props?.className === 'cpfe-newinput').props.value, 'PENDING NAME')
+    app.cleanup()
+    assert.equal(app.beforeUnload().prevented, true, 'a cached draft is protected while the section is unmounted')
+    await app.remount().ready()
+    const discard = app.button(en['btn.reloadDiscard']).props.onClick()
+    app.request('').result.resolve(roster()); await app.flush()
+    app.request('/state?id=a').result.resolve(fixture()); await discard; await app.flush()
+    app.find((node) => node.props?.className === 'cpfe-newinput').props.onChange({ target: { value: '' } }); app.render()
+    assert.equal(app.beforeUnload().prevented, false, 'explicit discard and clearing new input remove the warning')
+    app.prompt().props.onChange({ target: { value: 'FIRST CONTEXT ONLY' } }); app.render()
+    await app.newContext().ready()
+    assert.equal(app.prompt().props.value, 'OLD a', 'another ctx using the same module never inherits the first ctx draft')
+    app.disposeModule()
+    assert.equal(app.listenerCount('beforeunload'), 0, 'plugin disposal clears every owned listener')
+    app.cleanup()
+    app.applyAgain(); await app.remount().ready()
+    assert.equal(app.prompt().props.value, 'OLD a', 'disposed private memory does not reappear on reactivation')
+    app.disposeModule(); app.cleanup()
+  },
+  async replacementGuards() {
+    let allow = false, confirmations = 0
+    const app = harness({ confirm: () => { confirmations++; return allow } })
+    app.render(); app.effects(); app.request('').result.resolve(roster()); await app.flush()
+    app.request('/state?id=a').result.resolve({ ...fixture(), factoryPrompt: 'FACTORY' }); await app.flush()
+    app.prompt().props.onChange({ target: { value: 'KEEP UNSAVED' } }); app.render()
+    app.button(en['btn.reset']).props.onClick(); app.render()
+    assert.equal(app.prompt().props.value, 'KEEP UNSAVED')
+    app.find((node) => node.type === app.atoms.Menu && node.props.items?.[0]?.id === '1').props.onSelect('1'); app.render()
+    await app.button(en['history.load']).props.onClick()
+    assert.equal(app.requests.length, 0, 'cancelled history replacement never starts a request')
+    const input = app.find((node) => node.type === 'input' && node.props.type === 'file')
+    await input.props.onChange({ target: { files: [{ size: 2 }], value: 'fixture' } })
+    assert.equal(app.files.length, 0, 'cancelled import does not read a file or change the draft')
+    assert.equal(confirmations, 3)
+    allow = true; app.button(en['btn.reset']).props.onClick(); app.render()
+    assert.equal(app.prompt().props.value, 'FACTORY')
+    const load = app.button(en['history.load']).props.onClick()
+    app.request('/history?id=a&n=1').result.resolve({ ok: true, text: 'HISTORY' }); await load; await app.flush()
+    assert.equal(app.prompt().props.value, 'HISTORY')
+    const imported = input.props.onChange({ target: { files: [{ size: 2 }], value: 'fixture' } })
+    app.files[0].result = 'IMPORT'; app.files[0].onload(); await imported; await app.flush()
+    assert.equal(app.prompt().props.value, 'IMPORT')
+    assert.equal(app.requests.length, 0, 'replacement remains a draft until Save')
+    app.cleanup(); app.disposeModule()
+  },
+  async imeAndDiscoverableCreate() {
+    const app = await harness().ready()
+    let scrolled = 0, focused = 0
+    app.find((node) => node.props?.className === 'cpfe-create').props.ref.current = { scrollIntoView() { scrolled++ } }
+    app.find((node) => node.props?.className === 'cpfe-newinput').props.ref.current = { focus() { focused++ } }
+    app.button(en['btn.newAssistant']).props.onClick()
+    assert.equal(scrolled, 1); assert.equal(focused, 1)
+    app.find((node) => node.props?.className === 'cpfe-newinput').props.onChange({ target: { value: '合成助手' } }); app.render()
+    const input = app.find((node) => node.props?.className === 'cpfe-newinput')
+    for (const flags of [{ isComposing: true }, { nativeEvent: { isComposing: true } }, { keyCode: 229 }, { nativeEvent: { keyCode: 229 } }]) input.props.onKeyDown({ key: 'Enter', ...flags })
+    assert.equal(app.requests.length, 0, 'IME Enter never creates, including keyCode 229 fallback')
+    input.props.onKeyDown({ key: 'Enter', nativeEvent: { isComposing: false } })
+    const created = app.request('/create', 'POST')
+    assert.equal(JSON.parse(created.options.body).name, '合成助手', 'ordinary Enter still creates')
+    created.result.resolve({ ok: true, id: 'c', code: 'created', synchronized: true, params: { name: '合成助手' } }); await app.flush()
+    app.request('').result.resolve(roster(['a', 'b', 'c'])); await app.flush()
+    app.request('/state?id=c').result.resolve(fixture('c')); await app.flush()
+    let editorScroll = 0, editorFocus = 0
+    app.find((node) => node.props?.['data-assistant-editor']).props.ref.current = {
+      scrollIntoView() { editorScroll++ }, focus() { editorFocus++ },
+    }
+    app.effects(); app.render()
+    assert.equal(editorScroll, 1); assert.equal(editorFocus, 1)
+    assert.match(text(app.status()), /choose it in the mode menu for a new session/, 'creation gives the session-selection next step')
+    app.cleanup(); app.disposeModule()
+  },
+  async revisionDoesNotAdvanceUnderDirtyDraft() {
+    const app = await harness().ready()
+    app.prompt().props.onChange({ target: { value: 'MY CHANGES' } }); app.render()
+    app.selector().props.onSelect('a')
+    app.request('/state?id=a').result.resolve(fixture('a', 'SOMEONE ELSE', 2)); await app.flush()
+    assert.equal(app.prompt().props.value, 'MY CHANGES')
+    const save = app.button(en['btn.save']).props.onClick()
+    const post = app.request('/state', 'POST')
+    assert.equal(JSON.parse(post.options.body).baseRevision, 'revision-a-1', 'a fresh GET cannot authorize overwriting someone else')
+    assert.equal(JSON.parse(post.options.body).baseN, undefined, 'new clients use the complete revision')
+    post.result.resolve({ ok: false, code: 'conflict' }); await save; await app.flush()
+    assert.equal(app.prompt().props.value, 'MY CHANGES')
+    assert.equal(app.beforeUnload().prevented, true)
+    app.cleanup(); app.disposeModule()
+  },
+  async savedRevisionSurvivesRefreshFailure() {
+    const app = await harness().ready()
+    app.prompt().props.onChange({ target: { value: 'SAVED BY ME' } }); app.render()
+    const save = app.button(en['btn.save']).props.onClick()
+    app.request('/state', 'POST').result.resolve({ ok: true, code: 'saved', synchronized: true, revision: 'revision-a-2' }); await app.flush()
+    app.request('/state?id=a').result.reject(new Error('synthetic refresh failure')); await save; await app.flush()
+    assert.equal(app.beforeUnload().prevented, false, 'a confirmed write is no longer an unsaved draft')
+    app.prompt().props.onChange({ target: { value: 'NEW INPUT AFTER SAVE' } }); app.render()
+    assert.equal(app.button(en['btn.save']).props.disabled, true, 'refresh recovery must finish before another save')
+    const retry = app.button(en['btn.retryRead']).props.onClick()
+    app.request('').result.resolve(roster()); await app.flush()
+    app.request('/state?id=a').result.resolve(fixture('a', 'EXTERNAL AFTER MY SAVE', 3)); await retry; await app.flush()
+    assert.equal(app.prompt().props.value, 'NEW INPUT AFTER SAVE')
+    const next = app.button(en['btn.save']).props.onClick()
+    const post = app.request('/state', 'POST')
+    assert.equal(JSON.parse(post.options.body).baseRevision, 'revision-a-2', 'new edits use only our precise committed revision, not a later external generation')
+    post.result.resolve({ ok: false, code: 'conflict' }); await next; await app.flush()
+    app.cleanup(); app.disposeModule()
+  },
+  async duplicateSavedGuardKeepsDraftAndNewInput() {
+    let allow = false, confirmed = ''
+    const app = await harness({ confirm: (message) => { confirmed = message; return allow } }).ready()
+    app.prompt().props.onChange({ target: { value: 'UNSAVED SOURCE' } }); app.render()
+    app.find((node) => node.props?.className === 'cpfe-newinput').props.onChange({ target: { value: 'SEPARATE NEW NAME' } }); app.render()
+    app.button(en['btn.duplicate']).props.onClick()
+    assert.equal(app.requests.length, 0)
+    assert.equal(confirmed, en['assistant.duplicateSavedConfirm'])
+    allow = true; const duplicate = app.button(en['btn.duplicate']).props.onClick()
+    const post = app.request('/create', 'POST')
+    assert.equal(JSON.parse(post.options.body).from, 'a')
+    assert.equal(JSON.parse(post.options.body).prompt, undefined, 'copy remains an explicitly confirmed copy of saved data')
+    post.result.resolve({ ok: true, id: 'c', code: 'duplicated', synchronized: true }); await app.flush()
+    app.request('').result.resolve(roster(['a', 'b', 'c'])); await app.flush()
+    app.request('/state?id=c').result.resolve(fixture('c')); await duplicate; await app.flush()
+    assert.equal(app.find((node) => node.props?.className === 'cpfe-newinput').props.value, 'SEPARATE NEW NAME', 'copying does not clear unrelated new-assistant input')
+    app.selector().props.onSelect('a'); await app.flush()
+    assert.equal(app.prompt().props.value, 'UNSAVED SOURCE')
+    app.cleanup(); app.disposeModule()
+  },
+  async reorderAdvancesOnlyItsCheckedGenerations() {
+    const app = await harness().ready()
+    app.prompt().props.onChange({ target: { value: 'DIRTY A' } }); app.render()
+    app.selector().props.onSelect('b')
+    app.request('/state?id=b').result.resolve(fixture('b')); await app.flush()
+    app.prompt().props.onChange({ target: { value: 'DIRTY B' } }); app.render()
+    const moving = app.button(en['btn.moveUp']).props.onClick()
+    const post = app.request('/reorder', 'POST')
+    assert.deepEqual(JSON.parse(post.options.body).baseRevisions, { a: 'revision-a-1', b: 'revision-b-1' })
+    post.result.resolve({ ok: true, code: 'reordered', revisions: { a: 'revision-a-2', b: 'revision-b-2' } }); await app.flush()
+    app.request('').result.resolve(roster(['b', 'a'])); await app.flush()
+    app.request('/state?id=b').result.resolve(fixture('b', 'EXTERNAL AFTER REORDER', 3)); await moving; await app.flush()
+    assert.equal(app.prompt().props.value, 'DIRTY B')
+    let saving = app.button(en['btn.save']).props.onClick()
+    let save = app.request('/state', 'POST')
+    assert.equal(JSON.parse(save.options.body).baseRevision, 'revision-b-2')
+    save.result.resolve({ ok: false, code: 'conflict' }); await saving; await app.flush()
+    app.find((node) => node.type === app.atoms.Menu && node.props.items?.some((item) => item.id === 'a')).props.onSelect('a'); await app.flush()
+    assert.equal(app.prompt().props.value, 'DIRTY A')
+    saving = app.button(en['btn.save']).props.onClick(); save = app.request('/state', 'POST')
+    assert.equal(JSON.parse(save.options.body).baseRevision, 'revision-a-2', 'reorder updates other checked dirty assistants too')
+    save.result.resolve({ ok: false, code: 'conflict' }); await saving; await app.flush()
+    const refused = app.button(en['btn.moveDown']).props.onClick()
+    app.request('/reorder', 'POST').result.resolve({ ok: false, code: 'conflict' }); await refused; await app.flush()
+    assert.equal(app.requests.length, 0, 'a rejected reorder does not reload or advance a draft')
+    app.cleanup(); app.disposeModule()
+  },
+  async repairPreservesDraftAndAdvancesItsGeneration() {
+    const app = harness(); app.render(); app.effects()
+    app.request('').result.resolve(roster(['a'])); await app.flush()
+    app.request('/state?id=a').result.resolve({ ...fixture(), overrides: { ghost: true }, warnings: ['unresolvableRows'] }); await app.flush()
+    app.prompt().props.onChange({ target: { value: 'MY UNSAVED PROMPT' } }); app.render()
+    const repair = app.button(en['btn.repair']).props.onClick()
+    const post = app.request('/repair', 'POST')
+    assert.equal(JSON.parse(post.options.body).baseRevision, 'revision-a-1')
+    post.result.resolve({ ok: true, code: 'repaired', revision: 'revision-a-2', params: { repairedIds: ['ghost'] } }); await app.flush()
+    app.request('').result.resolve(roster(['a'])); await app.flush()
+    app.request('/state?id=a').result.resolve({ ...fixture('a', 'OLD a', 2), overrides: { ghost: false } }); await repair; await app.flush()
+    assert.equal(app.prompt().props.value, 'MY UNSAVED PROMPT')
+    assert.equal(app.all((node) => node.props?.className === 'cpfe-warns').length, 0, 'recovered diagnostics refresh without rebasing the draft')
+    const saving = app.button(en['btn.save']).props.onClick()
+    const save = app.request('/state', 'POST'), body = JSON.parse(save.options.body)
+    assert.equal(body.baseRevision, 'revision-a-2')
+    assert.equal(body.overrides.ghost, false)
+    assert.equal(body.prompt, 'MY UNSAVED PROMPT')
+    save.result.resolve({ ok: false, code: 'conflict' }); await saving; await app.flush()
+    app.cleanup(); app.disposeModule()
   },
 }
 

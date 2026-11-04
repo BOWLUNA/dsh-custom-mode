@@ -6,6 +6,19 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [2.3.1] — 2026-11-04
+
+本补丁包含编辑与草稿保护修复，以及DSH `0.2.2-rc.1`适配。见[本版本验证与边界](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.zh.md#231-validation)。
+
+- 保存时校验提示词、元数据与组成字节及缺失状态；审计写失败不能绕过冲突。保存/修复/排序只返回自己精确提交的版本，并兼容旧token。
+- 当前浏览器文档内跨设置导航保留草稿，不悄悄推进脏草稿基线。刷新/关闭前提醒，冲突后须明确放弃草稿再读取；它不是磁盘备份。
+- 恢复起步提示词、导入文件或载入历史会覆盖未保存提示词时先确认；取消保留草稿，替换后仍需保存。
+- 尚有编辑时复制助手，先确认副本使用已保存配置，保留原草稿及无关新建输入。
+- 页首增加「新建助手」入口并聚焦表单，组合输入/输入法确认Enter不创建助手，普通Enter仍可提交，沿用原生UI控件。
+- 宿主卸载失败或结果无法核实时停止清理/purge；限定purge路径，换行名称作为完整目标保留，不遍历链接，保留共享安装并遵守桌面独占边界。
+- 适配包括`0.2.2-rc.1`的当前精确宿主：解码YAML引用条件，将支持的条件交原生Loader上下文，隔离编辑器布尔能力快照，对未知context条件保持关闭，避免仅引用编码不同产生假覆盖。
+- 安全、首次使用及发布记录对应真实验证和当前宿主CI目标。既有源码结果包括20个套件/1315项检查、三个宿主打包/浏览器/草稿/生命周期及两个宿主原生API场景，不等于新版本发布或远端CI证据。[详细边界](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.zh.md#231-validation)保留Electron、真实模型/GPU、操作系统输入法及严格同文档前端HMR未测限制。
+
 ## [2.3.0] — 2026-10-28
 
 已发布至[GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0)。已完成发布门禁及下载资产散列见[当前兼容记录](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.zh.md)。

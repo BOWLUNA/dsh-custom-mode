@@ -39,6 +39,56 @@ export class CompositionParseError extends Error {
 const isBlank = (line) => line.trim() === '' || line.trim().startsWith('#')
 const indentOf = (line) => line.length - line.trimStart().length
 
+/** Decode the YAML scalar around a tagged JS source; never execute the expression. */
+export function decodeJsExpression(raw, lineNo = 0) {
+  const source = String(raw).trim()
+  if (source === '') throw new CompositionParseError('!!js 后面没有表达式', lineNo)
+  if (source.startsWith("'")) {
+    if (!/^'(?:[^']|'')*'$/.test(source)) throw new CompositionParseError('!!js 单引号标量无效', lineNo)
+    return source.slice(1, -1).replace(/''/g, "'")
+  }
+  if (source.startsWith('"')) {
+    try {
+      const decoded = JSON.parse(source)
+      if (typeof decoded !== 'string') throw new Error('Expected a string')
+      return decoded
+    } catch {
+      throw new CompositionParseError('!!js 双引号标量无效', lineNo)
+    }
+  }
+  return source
+}
+
+/** The only context-service predicate currently understood by the editor. */
+export function profileContextPredicate(source) {
+  const match = /^(!{0,2})\s*ctx\s*\.\s*get\s*\(\s*(['"])profileContext\2\s*\)$/.exec(source)
+  return match === null ? null : match[1].length
+}
+
+/**
+ * Preserve existing non-context evaluation semantics for installed composition
+ * code, while unknown context references stay unsupported rather than guessed.
+ */
+export function evaluateDisabledPredicate(source, capabilities = {}) {
+  const negations = profileContextPredicate(source)
+  if (negations !== null) {
+    if (typeof capabilities?.profileContext !== 'boolean') return undefined
+    return negations === 1 ? !capabilities.profileContext : capabilities.profileContext
+  }
+  const code = source
+    .replace(/'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g, '')
+    .replace(/\/\*[\s\S]*?\*\/|\/\/[^\r\n]*/g, '')
+  if (/\bctx\b/.test(code)) return undefined
+  try {
+    // Composition files are installed executable code. No real host context is
+    // supplied, and the ctx parameter shadows any unrelated global of that name.
+    const evaluate = new Function('process', 'ctx', `return (${source});`)
+    return Boolean(evaluate(process, undefined))
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Parse a composition document into plain JS.
  *
@@ -156,9 +206,7 @@ export function parseScalar(raw, lineNo = 0) {
   const value = raw.trim()
   if (value === '') return null
   if (value.startsWith('!!js')) {
-    const source = value.slice(4).trim()
-    if (source === '') throw new CompositionParseError('!!js 后面没有表达式', lineNo)
-    return { __js: source }
+    return { __js: decodeJsExpression(value.slice(4), lineNo) }
   }
   if (value === 'true') return true
   if (value === 'false') return false

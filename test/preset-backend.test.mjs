@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createDeclarativeBackend, toPluginRows } from '../preset-backend/declarative.mjs'
-import { parseComposition } from '../preset-backend/parse-composition.mjs'
+import { parseComposition, CompositionParseError } from '../preset-backend/parse-composition.mjs'
 
 let passed = 0
 let failed = 0
@@ -251,6 +251,28 @@ console.log('=== 11. cleanup 失败仍处理其他 owner 凭据，保留失败�
   live.set('cleanup-fails', replacement)
   await backend.disposeAll()
   check('旧 owner 重复 cleanup 不移除新 owner', live.get('cleanup-fails') === replacement)
+}
+
+console.log('=== 12. disabled 表达式保留为 Loader 原生节点，不脱离 ctx 提前求值 ===')
+{
+  for (const source of ["!ctx.get('profileContext')", "'!ctx.get(''profileContext'')'", JSON.stringify("!ctx.get('profileContext')")]) {
+    const parsed = parseComposition('- id: manager\n  name: @synthetic/manager\n  disabled: !!js ' + source + '\n')
+    const before = JSON.stringify(parsed)
+    const row = toPluginRows(parsed, base)[0]
+    check('plain/single/double 引号都解码为同一原生 disabled 源', row.disabled?.__jsExpr === "!ctx.get('profileContext')")
+    check('原生条件转换不改解析输入，也不提前折成布尔值', JSON.stringify(parsed) === before && typeof row.disabled === 'object' && !('__js' in row.disabled))
+  }
+  const platform = toPluginRows(parseComposition('- id: platform\n  name: @synthetic/platform\n  disabled: !!js process.platform === "win32"\n'), base)[0]
+  check('平台条件也由原生 Loader 带真实上下文求值', platform.disabled?.__jsExpr === 'process.platform === "win32"')
+  const nested = toPluginRows(parseComposition('- id: group\n  group: true\n  config:\n    - id: child\n      name: @synthetic/child\n      disabled: !!js \'!ctx.get(\'\'profileContext\'\')\'\n'), base)[0]
+  check('组内子行也保留 decoded native disabled 节点', nested.config[0].disabled?.__jsExpr === "!ctx.get('profileContext')")
+  const existingJs = toPluginRows(parseComposition('- id: existing-js\n  name: @synthetic/existing-js\n  disabled: !!js Math.max(1, 2) > 0\n'), base)[0]
+  check('既有非 ctx JS 条件仍保留原生节点，不额外收窄', existingJs.disabled?.__jsExpr === 'Math.max(1, 2) > 0')
+  const unknownService = toPluginRows(parseComposition('- id: unknown-service\n  name: @synthetic/unknown-service\n  disabled: !!js ctx.get("someUnknownService")\n'), base)[0]
+  check('未知 ctx.get 返回 undefined 会启用的反例仍真实关闭', unknownService.disabled === true && Boolean(undefined) === false)
+  let malformed
+  try { parseComposition("- id: bad\n  disabled: !!js 'unclosed\n") } catch (error) { malformed = error }
+  check('无效 tagged YAML 引号报带行号的类型化解析错误', malformed instanceof CompositionParseError && malformed.line === 2)
 }
 
 rmSync(base, { recursive: true, force: true })

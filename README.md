@@ -10,9 +10,21 @@ Edit your DeepSeek Harness (`dsh`) assistants' system prompts, base modes and pl
 
 [Install](#install-and-make-the-first-request) · [First use](#verify-the-whole-path) · [Updates](#plugin-updates) · [Screenshots](#screenshots) · [Compatibility](#compatibility-and-versioning) · [Help](#help-and-docs)
 
+## Editing and draft safety
+
+This section describes editing and draft protection in `2.3.1`. Confirm that exact version is available in [Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases) before installing.
+
+Select **New assistant…** in the page header to move to the existing creation form and focus its name input. Creating the assistant still requires choosing its starting settings, naming it and submitting the form. The currently selected assistant remains the editing target until creation succeeds. Enter is ignored while text is being composed; ordinary Enter submits the completed name.
+
+Drafts remain in memory for the **current browser document**, including when you leave and return to the settings page. They are not a disk backup: reloading the document, closing the tab or restarting/unloading the plugin can lose unsaved edits. A leave-page warning cannot restore text after you confirm leaving. Copy or export important draft text first. When duplicating with pending edits, confirm that the copy uses the saved configuration; the original draft is retained.
+
+Restoring the starting prompt, importing a file or loading saved history replaces only the prompt draft. If that would overwrite unsaved prompt text, confirm the replacement first; canceling keeps the text. Saving is still required to write the files.
+
+If a save reports a conflict, copy the complete draft before selecting **Discard edits and reload**. A routine refresh keeps the dirty draft and its original baseline; it does not resolve the conflict. Compare the newly loaded files with your copied text before applying the intended edits again.
+
 ## Install and make the first request
 
-These instructions describe version `2.3.0`. Confirm that the exact version is available in [Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases), and check the [exact-host results and acceptance limits](docs/CURRENT_COMPATIBILITY.md) before installing or updating.
+These instructions describe version `2.3.1`. Confirm that the exact version is available in [Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases), and check the [exact-host results and acceptance limits](docs/CURRENT_COMPATIBILITY.md) before installing or updating.
 
 Start with an installed [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) and a model configured through its own interface. Check `dsh --version` against the exact hosts in the compatibility record. This package does not install the host or configure model credentials.
 
@@ -22,21 +34,21 @@ Pin the plugin version; a bare name can resolve an older build during pnpm's rel
 
 ```sh
 dsh --version
-dsh plugin --profile web add dsh-custom-mode@2.3.0
+dsh plugin --profile web add dsh-custom-mode@2.3.1
 ```
 
 Restart the process that serves this Web profile using its usual launcher. For a local CLI instance, the existing launch form is `dsh web --port 3081 --no-open`; use a free port and open the URL printed by that process. Restart only that instance. Installing a bundle does not refresh an already running host.
 
 ### Desktop and Windows
 
-In the desktop app, use its **Plugins** page to install `dsh-custom-mode@2.3.0`, then restart the app. This project's scripts deliberately refuse `--profile desktop`; do not modify its profile files by hand. Windows/Electron acceptance remains separate from Web acceptance; see the compatibility record.
+In the desktop app, use its **Plugins** page to install `dsh-custom-mode@2.3.1`, then restart the app. This project's scripts deliberately refuse `--profile desktop`; do not modify its profile files by hand. Windows/Electron acceptance remains separate from Web acceptance; see the compatibility record.
 
 On Windows, the npm installation above can use the host's `dsh` command from PowerShell. Only the optional clone installer requires Git Bash (plus Node.js and npm). If `dsh` is not on PATH, use the host's supplied launcher, or replace `dsh` with `node "<host-install>/node_modules/@deepseek-ai/dsh/lib/bin.js"`. Do not point that path at this plugin's directory unless the host is actually installed there.
 
 ### Verify the whole path
 
 1. Open Settings → Custom mode and check the displayed version. A page that opens is only the first check.
-2. Scroll to **New assistant at the bottom of the page**. When the built-in `custom` assistant already exists, this section follows its editor. Choose a starting setting such as Writing, enter a recognizable name, and select New assistant. The created assistant becomes the editing target.
+2. Select **New assistant…** in the page header to focus the creation form. Choose a starting setting such as Writing, enter a recognizable name and select New assistant. The created assistant becomes the editing target.
 3. Set a temporary prompt such as `For the next readiness check, reply with exactly CUSTOM_MODE_READY.` Save and wait for the page to confirm that it was applied. If it says the file was saved but application failed, select Retry activation before continuing.
 4. Start a **new session**, open its mode/assistant selector, and explicitly choose that named assistant. Send `Readiness check.` through a model already configured in DSH.
 5. Success means the assistant is selectable without a broken-preset warning and returns the expected readiness reply without a prompt-assembly error. Restore your intended prompt after the check. If it fails, use the [current recovery steps](docs/TROUBLESHOOTING.md#current-recovery-steps).
@@ -76,7 +88,7 @@ The prompt is stored in `prompt.md` and reread when the next model step is assem
 
 ## Upgrade, clone development, and removal
 
-The page header shows the **running plugin version**. With DSH `0.2.2-alpha.2`'s native update capability, select **Check for updates** to ask the host for eligible versions. A recommended version offers **Update in Plugins**, which opens the official plugin details for its own confirmation, progress and result. The custom page does not install a package itself. Save pending drafts and resolve activation/refresh warnings before leaving the page.
+The page header shows the **running plugin version**. When the host provides its native update capability, select **Check for updates** to ask the host for eligible versions. A recommended version offers **Update in Plugins**, which opens the official plugin details for its own confirmation, progress and result. The custom page does not install a package itself. Save pending drafts and resolve activation/refresh warnings before leaving the page.
 
 On `0.2.1-rc.2`, `0.2.1-rc.4`, `0.2.0-rc.2` and `0.1.7-rc.2`, the native version-query API is absent: use **Open plugin details** or **Update guide** and the manual fixed-version path below. File, tarball and source-linked installations remain managed by their original source; checking does not silently convert them to npm. Permission denial, network failure, filtered versions or a partial result do not mean the plugin is current. A separate **Installed on disk** version does not prove that the running code has changed.
 
@@ -88,13 +100,13 @@ That command targets Web/CLI only. Desktop users must use an update path actuall
 
 For source development, follow [the isolated setup](CONTRIBUTING.md#isolated-development). The optional `./install.sh --profile web` keeps the source-linked workflow and preserves existing prompt, metadata and composition. Its local package/code rollback and recovery paths are explained in [package and release assets](docs/PUBLISHING.md#package-and-release-assets).
 
-`./uninstall.sh` removes the plugin but keeps assistant data. `--purge` explicitly deletes the managed assistant directories and their prompts; keep your own backup before using it.
+`./uninstall.sh` removes the plugin but keeps assistant data. `--purge` explicitly deletes the managed assistant directories and their prompts; keep your own backup before using it. In `2.3.1`, a failed or unverifiable host removal stops cleanup and purge, preserves the remaining files and exits with an error. Resolve the reported host error before retrying; desktop removal stays in the app's Plugins page.
 
 ## Compatibility and versioning
 
 Declared host range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0 || >=0.2.2-alpha.2 <0.3.0-0`
 
-The plugin version is its own stable `x.y.z` line; it does not mirror DSH. On 2026-10-27 the public host tags were `latest=0.2.1-rc.2`, `next=0.2.1-rc.4`, and `alpha=0.2.2-alpha.2`. Tags move; the declared range and completed checks are separate facts. See [exact versions, acceptance limits and historical evidence](docs/CURRENT_COMPATIBILITY.md) for the tested scope.
+The plugin version is its own stable `x.y.z` line; it does not mirror DSH. On 2026-11-04 the public host tags were `latest=0.2.1-rc.5`, `next=0.2.2-rc.1`, and `alpha=0.2.2-alpha.3`. Tags move; the declared range and completed checks are separate facts. See [exact versions, acceptance limits and historical evidence](docs/CURRENT_COMPATIBILITY.md) for the tested scope.
 
 Release requires the compatibility and browser workflows. The unit runner, real prompt-component checks, packed-install checks and browser checks cover different boundaries. Windows/Electron, a real model response and GPU execution must each have their own evidence; they are not inferred from a page screenshot or unit count. Headless mode does not start an agent-preset session.
 
