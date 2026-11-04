@@ -92,7 +92,13 @@ jobs:
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
-      - name: 发布（已存在的版本直接跳过）
+      - name: Build fixed plugin archive, preset import archive, and checksums
+        if: steps.release_target.outputs.tag != ''
+        run: |
+          node tools/release-package-selftest.mjs
+          python3 tools/release-assets.py dist
+
+      - name: Publish or verify the exact already-published package
         # Blank dispatch checks identity; an explicit matching version publishes only from main.
         if: steps.release_target.outputs.tag != ''
         # 混合认证：若配置了仓库 secret NPM_TOKEN（granular token，可勾 Bypass 2FA），就用它；
@@ -101,36 +107,37 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           RELEASE_TAG: ${{ steps.release_target.outputs.tag }}
         run: |
-          # tee must not turn a failed npm publish into a successful release.
-          set -o pipefail
+          # Only a public 404 permits publication. Authentication/network failures never mean absent.
+          set -euo pipefail
           VERSION="$(node -p "require('./package.json').version")"
+          ARCHIVE="dist/dsh-custom-mode-${VERSION}.tgz"
           if [ "${RELEASE_TAG}" != "v${VERSION}" ]; then
             echo "::error::tag ${RELEASE_TAG} 与 package.json ${VERSION} 不一致"
             exit 1
           fi
-          if npm view "dsh-custom-mode@${VERSION}" version >/dev/null 2>&1; then
-            echo "dsh-custom-mode@${VERSION} 已经在 npm 上 —— 什么都不做"
+          if node tools/verify-published-package.mjs --archive "$ARCHIVE" --commit "$GITHUB_SHA"; then
+            echo "Exact published gitHead and tarball bytes verified; publication is already complete."
             exit 0
+          else
+            STATUS=$?
+            if [ "$STATUS" -ne 3 ]; then
+              echo '::error::Could not establish an absent or identical published version; no publication attempted'
+              exit "$STATUS"
+            fi
           fi
-          # ★ 竞态兜底（实测踩过，v1.9.16）：上面那次 npm view 读的是**注册表缓存**，而本地刚
-          #   publish 的版本要 1–3 分钟才可见。于是这条闸门会在"本地已发、注册表还没醒"的窗口里
-          #   判定"尚不存在"，然后 publish —— 拿到 EPUBLISHCONFLICT
-          #   （`cannot publish over the previously published versions`）并让整步失败，
-          #   **连带把后面的 GitHub Release 一起跳过**。
-          #   那个报错的语义是"目标状态已经达成"，所以它不是失败：把它当成功，其余照旧失败。
-          if npm publish --tag latest 2>&1 | tee /tmp/publish.log; then
+          # Keep directory publication so npm records the checked-out commit as gitHead.
+          # --ignore-scripts matches the fixed archive build and prevents a publish hook changing it.
+          if npm publish --ignore-scripts --tag latest 2>&1 | tee /tmp/publish.log; then
+            node tools/verify-published-package.mjs --archive "$ARCHIVE" --commit "$GITHUB_SHA" --attempts 12
             exit 0
           fi
           if grep -q "previously published versions" /tmp/publish.log; then
-            echo "::notice::dsh-custom-mode@${VERSION} 已被发布（竞态），视为成功。"
+            # A conflict can be a successful concurrent publication only after identical identity/bytes.
+            node tools/verify-published-package.mjs --archive "$ARCHIVE" --commit "$GITHUB_SHA" --attempts 12
             exit 0
           fi
           echo "::error::发布失败，日志见上。"
           exit 1
-
-      - name: Build plugin archive, preset import archive, and checksums
-        if: steps.release_target.outputs.tag != ''
-        run: python3 tools/release-assets.py dist
 
       # ★ 建 GitHub Release。原先这条工作流只发 npm，所以仓库的 Releases 面板一直停在旧版本，
       #   而 README / 代码其实早就更新了 —— 一个纯粹"看不见"的缺口。

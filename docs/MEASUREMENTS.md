@@ -2095,7 +2095,7 @@ Compatibility peak aggregate RSS: 530436 KiB. Runtime peak: 1883952 KiB; minimum
 
 ## 38. Unreleased review fixes (2026-11-04)
 
-This work starts from published `2.3.0` source and remains unreleased at package version `2.3.0`. The public npm package does not include these edits. The current suite total and later acceptance status are maintained in [CURRENT_COMPATIBILITY.md](CURRENT_COMPATIBILITY.md#unreleased-source-checks), separately from the 2026-10-28 release evidence.
+This work starts from published `2.3.0` source and remains unreleased at package version `2.3.0`. The public npm package does not include these edits. The current suite total and later acceptance status are maintained in [CURRENT_COMPATIBILITY.md](CURRENT_COMPATIBILITY.md#231-validation), separately from the 2026-10-28 release evidence.
 
 The initial synthetic persistence probe demonstrated two losses: a failed history append allowed a stale draft to overwrite an external prompt, and a metadata/switch-only save left the old prompt-history token valid for another tab. The fixed route now rejects those stale requests and preserves all three editable files byte for byte. Fresh full-state saves still succeed when the history path is unusable.
 
@@ -2150,3 +2150,9 @@ Root visually reviewed RC1's eight screenshots and two per other host. The erron
 Final-package native runs `verified-native-rc1-01` and `verified-native-alpha-01` each completed the strict 24 checks with zero failures and successful script exit. Both record public-2.2.6 migration `applied`, the controlled 2.2.7 fixture's observed tarball 503 with failed target/applied restore and installed=running=2.2.7, healthy HMR `applied`, and no-HMR `restart-required` with the disk/runtime split followed by an actual restart. Preserved user-file hashes and save checks passed at their stated transitions. A non-author audited both final reports against the revised gate; that audit is not an independent host replay (`review-native.json`). Candidate package hashes in both reports match the final `28046e77…` package.
 
 These are local isolated Web results. Plugins UI update clicks, strict same-Document frontend HMR, Electron, real models/GPU, remote CI and actual POSIX newline-filename execution on this Windows machine remain unverified. Earlier diagnostic passes are not substituted for these final-source results. The package remains an unreleased source build at version 2.3.0; no tag, npm publication or GitHub Release was performed for these bytes.
+
+## 39. Patch 2.3.1 release preparation (2026-11-04)
+
+The release preparation starts from `d93bb765a5f422743d881655a997937af708f740`, the completed review-fix runtime snapshot recorded in §38 with package metadata `2.3.0`. Patch metadata is now `2.3.1`; runtime files remain unchanged, while package/version and README/release guidance change. Prior 20-suite/1315-check, three-host 8/74/49/28, two-host native 24 and five-host condition-contract 70 results stay bound to that earlier source/archive identity. The new archive, its installed/running version, required remote CI and eventual tag/npm/GitHub Release/asset read-back require separate evidence.
+
+This is preparation, not a publication result. The [stable 2.3.1 validation record](CURRENT_COMPATIBILITY.md#231-validation) records candidate status until the release workflow and distribution checks are complete. Runtime counts and earlier validation boundaries are unchanged; no credential or real user-home access was used for this metadata/documentation step. Release evidence for this step is retained outside the package under `DSH-RELEASE-231-20261104-01` (`docs-*.json` / `docs-*.log`).

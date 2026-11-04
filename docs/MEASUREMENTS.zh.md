@@ -1964,7 +1964,7 @@ PASS market-row-probe.mjs (10 checks; native on/save/off/save; default off)
 
 ## 38. 未发布审阅修复（2026-11-04）
 
-本轮从公开`2.3.0`源码开始，包版本仍为`2.3.0`，变更尚未发布；公开npm包不包含这些编辑。当前套件总数与后续验收状态统一维护于[CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md#未发布源码检查)，与2026-10-28发布证据分开。
+本轮从公开`2.3.0`源码开始，包版本仍为`2.3.0`，变更尚未发布；公开npm包不包含这些编辑。当前套件总数与后续验收状态统一维护于[CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md#231-validation)，与2026-10-28发布证据分开。
 
 初始合成持久化探针复现了两类丢失：历史追加失败放行旧草稿覆盖外部新提示词；只保存元数据/开关后，另一标签页的旧提示词历史token仍然有效。修复后的路由拒绝这些过期请求，三个编辑文件逐字节保留；历史路径不可用时，新鲜完整状态保存仍可成功。
 
@@ -2019,3 +2019,9 @@ node tools/compat-check.mjs --host-install "<exact-host-install>" --out "<new-ev
 最终包原生运行`verified-native-rc1-01`、`verified-native-alpha-01`各完成严格24项、零失败，脚本成功退出。两者均记录公开2.2.6迁移`applied`；受控2.2.7 fixture观察到tarball真实503，目标失败/恢复应用且磁盘=运行=2.2.7；健康HMR为`applied`；无HMR为`restart-required`，先核对磁盘/运行分离，再实际重启。各声明转移点的用户文件散列保留与保存检查通过。非作者按修订门禁审计两份最终报告，该审计不是独立重跑宿主（`review-native.json`）；两份报告的候选包散列均吻合最终`28046e77…`包。
 
 这些是本地隔离Web结果。Plugins UI更新点击、严格同文档前端HMR、Electron、真实模型/GPU、远端CI，以及本Windows机器实际执行POSIX换行文件名探针仍未验证；不拿较早诊断通过替代最终源码结果。包仍是版本2.3.0的未发布源码构建，未为这些字节打标签、发布npm或GitHub Release。
+
+## 39. 补丁版2.3.1发布准备（2026-11-04）
+
+本轮发布准备从`d93bb765a5f422743d881655a997937af708f740`开始，即§38已完成的审阅修复运行快照，当时包元数据为`2.3.0`。补丁元数据现为`2.3.1`，运行文件不变，包/版本与README/发布说明发生变化。既有20个套件/1315项、三个宿主8/74/49/28、两个宿主原生24及五宿主条件合约70结果仍绑定之前的源码/归档身份；新归档、安装/运行版本、必需远端CI及后续标签/npm/GitHub Release/资产读回须另行留证。
+
+这属于准备，不是发布结果。[稳定的2.3.1验证记录](CURRENT_COMPATIBILITY.zh.md#231-validation)在发布工作流及分发核验完成前记录候选状态。运行检查数与此前验证边界不变；本元数据/文档步骤未访问凭据或真实用户home。此步骤的发布证据在包外`DSH-RELEASE-231-20261104-01`保留（`docs-*.json`/`docs-*.log`）。

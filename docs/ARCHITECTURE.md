@@ -4,9 +4,9 @@ English | [中文](ARCHITECTURE.zh.md)
 
 This document combines the current source contract with measured historical incidents. Older numbered sections name the hosts investigated at the time; they are not fresh acceptance of every current host.
 
-## Unreleased source contract
+## 2.3.1 source contract
 
-These additions belong to the source checkout after the published `2.3.0` package; they do not migrate assistant files or rewrite their format.
+These additions are prepared for patch `2.3.1`; they do not migrate assistant files or rewrite their format. The candidate/publication state is tracked in [current compatibility](CURRENT_COMPATIBILITY.md#231-validation).
 
 YAML quoting around `!!js` is decoded before interpretation. Known disable conditions remain native `__jsExpr` nodes for the official loader's real context; unsupported context conditions are truly disabled. The editor understands the shipped `profileContext` condition using only a request-scoped immutable boolean snapshot, isolated with AsyncLocalStorage, without retaining service objects or adding a hard dependency. Successful non-context expressions keep their prior evaluation behavior and native Boolean result. Diffing compares decoded expression sources while preserving literal-versus-expression tri-state and untouched source bytes.
 
@@ -15,7 +15,7 @@ YAML quoting around `!!js` is decoded before interpretation. Known disable condi
 - Dirty drafts retain their original content and baseline during ordinary reads. Only a checked successful local mutation can advance its affected baseline; external reads cannot silently bless changes the draft has not incorporated. Draft memory belongs to the current plugin context/browser document, survives settings-section remounts, and is cleared on plugin disposal. It is not localStorage or a disk backup; reload/close reminders do not recover confirmed losses.
 - The clone uninstaller treats the host removal result as authoritative. Failure or unverifiable remaining profile declarations stop later cleanup/purge. Confirmed leftover package cleanup stays within the named package path and preserves a shared installation referenced by another profile; desktop profiles remain owned by the app.
 
-## Current contract in 2.3.0
+## Inherited contract from 2.3.0
 
 - The preset owns prompt content; the root profile bundle owns the editor. The eight exact paths in §5 stay on the carrier's authenticated shared `/api` channel. `POST /api/custom-mode/sync` retries only registration, never a save/create/delete/reorder operation.
 - The loop supplies model/provider. On hosts with workingDirectory, the reader provides a scoped cwd compatibility variable from the real session directory and refreshes it after host assembly/ensure. Older hosts retain their native cwd. Only the exact old standalone directory sentence is normalized at render time; no user prompt/suffix file is rewritten (§7).

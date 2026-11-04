@@ -8,16 +8,18 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
-## [Unreleased]
+## [2.3.1] — 2026-11-04
 
-These source changes are not included in published npm `2.3.0`. The package version remains unchanged until a separately verified release.
+This patch covers editing and draft-safety fixes and adaptation to DSH `0.2.2-rc.1`. See the [version-specific validation and limits](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md#231-validation).
 
-- Preserve YAML-quoted disable predicates and native loader context. Scope the editor's known capability snapshot per request, retain fail-closed behavior for unknown context conditions, and compare decoded predicate sources without changing untouched row bytes.
-- Reject stale saves against the raw bytes and missing-file state of prompt, metadata and composition. Keep the legacy prompt-history token compatible without letting failed audit writes bypass conflicts. Return only the exact generation submitted by a successful save, repair or reorder.
-- Preserve drafts in the current browser document across settings navigation; keep dirty baselines during reads, explain reload/close limits, and require an explicit draft-discarding refresh after a conflict. Confirm explicitly before duplicating the saved assistant when unsaved edits exist, retaining the original draft.
-- Add a page-header New assistant entry that moves to the existing form and focuses its name input. Retain native controls and keyboard behavior.
-- Stop uninstall cleanup and purge when the host's removal fails or its successful result cannot be verified. Keep shared installations used by another profile and preserve desktop ownership.
-- Refresh exact-host test targets to the current release channels and correct stale security/release guidance. Completed local checks and remaining acceptance boundaries are tracked in [current compatibility](docs/CURRENT_COMPATIBILITY.md#unreleased-source-checks); changing CI configuration is not evidence that those remote jobs ran.
+- Reject stale saves against prompt, metadata and composition bytes, including missing-file state. Failed audit writes cannot bypass conflicts; save/repair/reorder return only their own exact submitted generations while preserving legacy tokens.
+- Keep drafts in the current browser document across settings navigation, without silently advancing dirty baselines. Warn before reload/close and require an explicit draft-discarding read after a conflict; this is not a disk backup.
+- Confirm before restoring the starting prompt, importing a file or loading history over unsaved prompt text. Cancellation preserves the draft; replacement still needs saving.
+- Confirm that duplication uses the saved configuration when pending edits exist, retaining the original draft and unrelated creation input.
+- Add the page-header New assistant entry, focus its form, and prevent composition/IME-confirm Enter from creating an assistant while ordinary Enter remains available. Keep native UI controls.
+- Stop cleanup/purge on failed or unverifiable host removal. Bound purge paths, preserve newline-bearing names as complete targets, avoid traversing links, retain shared installations and respect desktop ownership.
+- Adapt current exact hosts, including `0.2.2-rc.1`: decode YAML-quoted disable predicates, preserve supported conditions for native loader context, isolate the editor's boolean capability snapshot, keep unknown context conditions disabled and avoid quote-only false overrides.
+- Align security, onboarding and release records with actual validation and current host CI targets. Earlier source checks cover 20 suites / 1315 checks, three-host packed/browser/draft/lifecycle results and two-host native API scenarios; they are not new-version publication or remote CI evidence. [Detailed boundaries](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md#231-validation) retain the untested Electron, real-model/GPU, OS IME and strict same-document frontend HMR limits.
 
 ## [2.3.0] — 2026-10-28
 

@@ -23,14 +23,14 @@ platform limits are maintained in [CURRENT_COMPATIBILITY.md](docs/CURRENT_COMPAT
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `2.3.0` | See the declared range and exact-host evidence in [current compatibility](docs/CURRENT_COMPATIBILITY.md) | **Supported declared range; released** — completed release checks and remaining platform limits are maintained in that record |
+| `2.3.1` | See the declared range and exact-host evidence in [current compatibility](docs/CURRENT_COMPATIBILITY.md#231-validation) | **Supported declared range** — validation, CI and distribution status are maintained in that record |
 
 This records the current package's compatibility and verification scope. It does not define a security
 support expiry date or a backport schedule.
 
-The current checkout also contains unreleased review fixes. They are not included in the published npm
-`2.3.0` package. Their exact-host checks and validation limits are recorded separately in
-[current compatibility](docs/CURRENT_COMPATIBILITY.md#unreleased-source-checks).
+For patch `2.3.1`, prior runtime-source checks, new-package checks, remote CI and distribution read-back
+are recorded separately in [current compatibility](docs/CURRENT_COMPATIBILITY.md#231-validation).
+The published `2.3.0` history remains below that record.
 
 ## Historical Records
 
