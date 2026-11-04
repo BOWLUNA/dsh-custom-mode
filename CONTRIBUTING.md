@@ -38,13 +38,13 @@ New-Item -ItemType Directory -Path $DSH_HOST_DIR | Out-Null
 From the clone root, the following commands work with either setup. The exact rc.2 host is an example from the compatibility record:
 
 ```sh
-npm install --prefix "$DSH_HOST_DIR" --cache "$DSH_CHECK_ROOT/npm-cache" --ignore-scripts --save-exact --no-audit --no-fund @deepseek-ai/dsh@0.2.1-rc.2
+npm install --prefix "$DSH_HOST_DIR" --cache "$DSH_CHECK_ROOT/npm-cache" --ignore-scripts --save-exact --no-audit --no-fund @deepseek-ai/dsh@0.2.2-rc.1
 node -p "require(process.argv[1]).version" "$DSH_HOST_DIR/node_modules/@deepseek-ai/dsh/package.json"
 node tools/prompt-contract-check.mjs --host-install "$DSH_HOST_DIR"
 node tools/compat-check.mjs --host-install "$DSH_HOST_DIR" --out "$DSH_CHECK_ROOT/check-01" --port 32110
 ```
 
-Confirm that the version read-back is `0.2.1-rc.2`. The component check starts no model or server. The compatibility checker copies the source to `--out/candidate`, links that candidate to the supplied host dependencies, and uses its own synthetic `DSH_HOME`. It runs unit/guard/package checks and a loopback boot check; choose a free port. Results are written to `check-01/report.json` and its logs. Use a fresh `--out` for each source snapshot; never hand-edit the generated copy.
+Confirm that the version read-back is `0.2.2-rc.1`. The component check starts no model or server. The compatibility checker copies the source to `--out/candidate`, links that candidate to the supplied host dependencies, and uses its own synthetic `DSH_HOME`. It runs unit/guard/package checks and a loopback boot check; choose a free port. Results are written to `check-01/report.json` and its logs. Use a fresh `--out` for each source snapshot; never hand-edit the generated copy.
 
 Do not point `--host-install` at a live installation, an archived dependency tree or global packages: the unit runner can derive fixture files under that host's node_modules. Keep the new workspace while reviewing evidence; it contains test data, not a live user home. For documentation-only edits, start with translation, link and diff checks rather than starting a host.
 
@@ -77,6 +77,8 @@ For update-related changes, test the actual native capability rather than only a
 - Wait for optional host services inside scoped injection; missing Web services must not stall the whole plugin row.
 - Keep the page/tool prompt validators and the browser/host dictionaries consistent.
 - Treat prompt, metadata and composition as user data. Refresh managed code separately; use temporary fixtures in tests.
+- Preserve complete-state `baseRevision` checks through save, repair and reorder. Audit failures must not bypass stale-write rejection, and a post-commit read must not expand a draft's baseline to another writer's data. Test the disk outcome with synthetic competing edits.
+- Keep dirty drafts and their loaded baselines across ordinary reads and settings remounts. Document the current-document/plugin-lifetime limit; never claim a refresh/close recovery mechanism that is not implemented.
 - Preserve recovery evidence and recover before assistant discovery; process-termination checks do not prove physical power-loss durability.
 - Serialize persisted changes with registry synchronization, and distinguish saved-but-not-applied from a completed operation. Retry synchronization without replaying a mutation.
 - Use the official native UI primitives and measured defaults; do not repaint their disabled states, spacing or typography to invent another control system.

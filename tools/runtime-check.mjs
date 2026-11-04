@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 /** Run API, rendered UI, uninstall and reinstall checks on compat-check's packed install.
  * --host-install <directory> --out <compat evidence> --browser <Chrome executable>
- * [--port 32110] [--cdp-port 9229] [--api-only]. Uses only the generated boot-home.
+ * [--port 32110] [--cdp-port 9229] [--api-only] [--drafts-only].
+ * Uses only the generated boot-home. The browser leg temporarily installs a
+ * read-only official-registry observer, then removes it after stopping the host.
  */
 import { spawn, spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import net from 'node:net'
 import { dirname, join, resolve, delimiter } from 'node:path'
@@ -34,7 +36,7 @@ if (![port, cdp].every((value) => Number.isInteger(value) && value >= 1024 && va
 }
 const env = { ...process.env, DSH_HOME: home, CDP_PORT: String(cdp), NPM_CONFIG_USERCONFIG: join(output, 'npmrc'),
   PATH: join(host, 'node_modules', '.bin') + delimiter + process.env.PATH }
-const report = { hostVersion: compatibility.hostVersion, packageVersion: compatibility.packageVersion, browserSkipped: apiOnly, checks: [] }
+const report = { hostVersion: compatibility.hostVersion, packageVersion: compatibility.packageVersion, browserSkipped: apiOnly, browserMode: args.includes('--drafts-only') ? 'drafts-only-diagnostic' : args.includes('--diagnose-ui') ? 'ui-diagnostic' : 'full', checks: [] }
 const redact = (value) => String(value ?? '').replace(/([?&]token=)[A-Za-z0-9_-]+/g, '$1[redacted]')
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 const check = (label, ok, details = {}) => {
@@ -44,6 +46,9 @@ const check = (label, ok, details = {}) => {
 }
 let server, browser, stdout = '', stderr = '', launch = 0
 let browserReady = false, browserOutput = '', browserError
+let nativeRowObserverInstalled = false
+const nativeRowObserverName = 'dsh-browser-native-row-probe'
+const nativeRowObserver = join(output, 'browser-native-row-probe')
 const browserLog = join(output, 'browser-startup-sanitized.log')
 async function stopServer() {
   if (!server || server.exitCode !== null) return
@@ -84,6 +89,39 @@ function packageOperation(...argv) {
   check('plugin ' + argv[0], result.status === 0, { exitCode: result.status })
   if (result.status !== 0) throw new Error('Plugin operation failed: ' + argv[0])
 }
+function prepareNativeRowObserver() {
+  // A test-only package in the throwaway profile reads the official registry.
+  // It never changes declarations, starts an Agent or exposes prompt/config data.
+  mkdirSync(nativeRowObserver, { recursive: true })
+  writeFileSync(join(nativeRowObserver, 'package.json'), JSON.stringify({ name: nativeRowObserverName, version: '1.0.0', private: true, type: 'module', main: './index.mjs', dsh: { bundle: { patch: './cordis.patch.yml' } } }) + '\n')
+  writeFileSync(join(nativeRowObserver, 'cordis.patch.yml'), '- insert:\n    - id: browser-native-row-probe\n      name: ' + nativeRowObserverName + '\n')
+  writeFileSync(join(nativeRowObserver, 'index.mjs'), `
+export function apply(ctx) {
+  ctx.inject(['connection', 'agentPresets'], (scope) => {
+    scope.effect(() => scope.connection.fetch.register({
+      path: '/api/dsh-browser-native-row-probe', methods: ['GET'], requestBody: 'buffered',
+      fetch: async (request) => {
+        try {
+          const id = new URL(request.url, 'http://synthetic.invalid').searchParams.get('id') ?? ''
+          if (!/^[A-Za-z0-9_.-]{1,128}$/.test(id)) return Response.json({ ok: false, code: 'badSyntheticId' }, { status: 400 })
+          const inventory = await scope.agentPresets.compositionInventory()
+          const preset = inventory.find(item => item.id === id)
+          const row = preset?.rows?.find(item => item.entryId === 'tool-plugin-manager')
+          return Response.json({ ok: Boolean(row), presetId: id, profileContext: scope.get('profileContext') !== undefined,
+            row: row ? { entryId: row.entryId, enabled: row.enabled, condition: typeof row.condition === 'string' ? row.condition : null,
+              fiberState: typeof row.fiberState === 'string' ? row.fiberState : null } : null })
+        } catch { return Response.json({ ok: false, code: 'nativeInventoryReadFailed' }, { status: 500 }) }
+      },
+    }))
+  })
+}
+`)
+  const syntax = spawnSync(process.execPath, ['--check', join(nativeRowObserver, 'index.mjs')], { encoding: 'utf8', windowsHide: true })
+  check('native registry observer syntax', syntax.status === 0, { exitCode: syntax.status })
+  if (syntax.status !== 0) throw new Error('Synthetic native registry observer failed syntax check')
+  packageOperation('add', nativeRowObserver)
+  nativeRowObserverInstalled = true
+}
 try {
   for (const testPort of apiOnly ? [port] : [port, cdp]) {
     await new Promise((resolve, reject) => {
@@ -92,12 +130,20 @@ try {
       socket.listen(testPort, '127.0.0.1', () => socket.close(resolve))
     })
   }
+  if (!apiOnly && !args.includes('--diagnose-ui')) prepareNativeRowObserver()
   const settingsFile = join(home, 'settings.yaml')
   let settings = existsSync(settingsFile) ? readFileSync(settingsFile, 'utf8') : ''
   if (!/^locale:/m.test(settings)) settings += '\nlocale: zh\n'
   writeFileSync(settingsFile, settings)
   let live = await startServer()
   check('unauthenticated state is rejected', (await fetch(live.base + '/api/custom-mode/state?id=custom')).status === 401)
+  if (nativeRowObserverInstalled) check('unauthenticated native registry observer is rejected', (await fetch(live.base + '/api/dsh-browser-native-row-probe?id=custom')).status === 401)
+  if (nativeRowObserverInstalled) {
+    const native = await live.request('/api/dsh-browser-native-row-probe?id=custom')
+    const ready = native.status === 200 && native.data?.ok === true && typeof native.data.row?.enabled === 'boolean'
+    check('official native registry observer answers independently', ready, { status: native.status, native: native.data })
+    if (!ready) throw new Error('Synthetic official registry observer did not answer')
+  }
   const roster = await live.request('/api/custom-mode')
   check('plugin roster answers', roster.status === 200 && roster.data.ok)
   const initial = await live.request('/api/custom-mode/state?id=custom')
@@ -134,7 +180,8 @@ try {
     await pause(250)
   }
   if (!browserReady) throw new Error(`Isolated headless browser did not become ready (exit ${browser.exitCode}, signal ${browser.signalCode ?? 'none'}): ${browserError?.message ?? browserOutput.trim().slice(-4000)}`)
-  const browserChecks = args.includes('--diagnose-ui') ? [['ui-diagnosis.mjs', 'ui-diagnosis.png', []]] : [['picker-probe.mjs', 'picker.png', ['--expect', '自定义模式', '--reuse-page']], ['browser-verify.mjs', 'settings.png', []], ['market-row-probe.mjs', 'market-row.png', ['--version', report.hostVersion]]]
+  const draftCheck = ['browser-draft-check.mjs', 'drafts.png', ['--home', home]]
+  const browserChecks = args.includes('--drafts-only') ? [draftCheck] : args.includes('--diagnose-ui') ? [['ui-diagnosis.mjs', 'ui-diagnosis.png', []]] : [['picker-probe.mjs', 'picker.png', ['--expect', '自定义模式', '--reuse-page']], ['browser-verify.mjs', 'settings.png', []], ['market-row-probe.mjs', 'market-row.png', ['--version', report.hostVersion]], draftCheck]
   for (const [script, picture, extra] of browserChecks) {
     const result = spawnSync(process.execPath, [join(tools, script), '--url', live.auth, '--out', join(output, picture), ...extra],
       { cwd: candidate, env, encoding: 'utf8', timeout: 180000, maxBuffer: 8 * 1024 * 1024, windowsHide: true })
@@ -176,5 +223,9 @@ finally {
     browser.kill('SIGTERM')
   }
   await stopServer()
+  if (nativeRowObserverInstalled) {
+    try { packageOperation('remove', nativeRowObserverName) }
+    catch (error) { check('remove synthetic native registry observer', false, { error: redact(error.message) }) }
+  }
 }
 process.exitCode = report.checks.some((check) => !check.passed) ? 1 : 0

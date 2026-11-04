@@ -32,6 +32,8 @@
  */
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import fs from 'node:fs'
+import { syncBuiltinESMExports } from 'node:module'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -134,7 +136,7 @@ writeFileSync(join(presetDir, 'prompt-tool.mjs'), '// fixture tool\nexport funct
 process.env.DSH_CUSTOM_PROMPT_PATH = promptPath
 process.env.DSH_SHIPPED_PRESETS_DIR = shippedDir
 
-const { renderComposition, collectRows, setShippedPresetsDir } = await import('../composition.mjs')
+const { renderComposition, collectRows, setShippedPresetsDir, modeOf, overridesOf } = await import('../composition.mjs')
 const { readPresetMeta } = await import('../meta.mjs')
 const editor = await import('../index.mjs')
 const expectedVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
@@ -171,7 +173,7 @@ function rosterRows() {
   return [...rows, ...user]
 }
 
-function makeCtx({ connectionAvailable = true, registryState = null, listedRows = null, cleanups = null } = {}) {
+function makeCtx({ connectionAvailable = true, registryState = null, listedRows = null, cleanups = null, profileGetterAvailable = false, profileContext } = {}) {
   const agentPresets = registryState === null ? {
     async list() {
       return listedRows ?? rosterRows()
@@ -204,6 +206,7 @@ function makeCtx({ connectionAvailable = true, registryState = null, listedRows 
     },
   }
   const scope = {
+    ...(profileGetterAvailable ? { get: (name) => name === 'profileContext' ? profileContext : undefined } : {}),
     // Cordis 的作用域上也有 effect：注册路由时用它，disposer 交给宿主。
     effect: (fn) => {
       const cleanup = fn()
@@ -1325,6 +1328,226 @@ console.log('=== 5.12 同步告警按助手隔离，冲突与组成问题不混�
   await call(post('/custom-mode/sync', {}))
   const noComposition = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=isolated-failure' }))).body)
   check('缺失组成不能被误导为重启即可修复', noComposition.registrationSync.restartSuggested === false && !noComposition.warnings.includes('presetRegistrationRestartSuggested'))
+}
+
+console.log()
+console.log('=== 5.13 完整编辑状态版本阻止元数据、基础模式和开关的丢失更新 ===')
+{
+  mount()
+  const getState = async () => JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  const bytesOnDisk = () => [promptPath, presetMetaPath, compositionPath].map((file) => readFileSync(file).toString('hex')).join(':')
+  const baselineInput = { id: 'custom', mode: 'standard', prompt: 'REVISION BASELINE\n', name: 'Revision Baseline', description: '', overrides: {} }
+  await call(post('/custom-mode/state', baselineInput))
+  const baseline = await getState()
+  check('GET state 提供非空不透明 revision', typeof baseline.revision === 'string' && baseline.revision.length > 0)
+  writeFileSync(compositionPath, readFileSync(compositionPath))
+  const unchanged = await getState()
+  check('文件字节未变时 revision 不因重复读取或重写而变化', unchanged.revision === baseline.revision)
+  const fresh = await call(post('/custom-mode/state', { ...baselineInput, prompt: 'FRESH REVISION SAVE\n', baseRevision: baseline.revision, baseN: -1 }))
+  const freshBody = JSON.parse(fresh.body)
+  const afterFresh = await getState()
+  check('完整 revision 新鲜时允许保存，优先于旧 baseN', fresh.statusCode === 200 && readFileSync(promptPath, 'utf8') === 'FRESH REVISION SAVE\n')
+  check('保存响应 revision 对应实际已落盘状态', typeof freshBody.revision === 'string' && freshBody.revision === afterFresh.revision && freshBody.revision !== baseline.revision)
+
+  for (const change of [
+    { label: '名称和描述', patch: { name: 'Renamed In Tab A', description: 'Changed in tab A' }, verify: () => readPresetMeta(presetDir).name === 'Renamed In Tab A' && readPresetMeta(presetDir).description === 'Changed in tab A' },
+    { label: '基础模式', patch: { mode: 'ptc' }, verify: () => modeOf(readFileSync(compositionPath, 'utf8')) === 'ptc' },
+    { label: '插件开关', patch: { overrides: { 'tool-web': false } }, verify: () => overridesOf(readFileSync(compositionPath, 'utf8'), 'standard')['tool-web'] === false },
+  ]) {
+    await call(post('/custom-mode/state', baselineInput))
+    const opened = await getState()
+    const first = await call(post('/custom-mode/state', { ...baselineInput, ...change.patch, baseRevision: opened.revision }))
+    const firstState = await getState()
+    check(change.label + '单独修改确实落盘，提示词历史序号不变', first.statusCode === 200 && change.verify() && firstState.history[0]?.n === opened.history[0]?.n)
+    const persisted = bytesOnDisk()
+    const stale = await call(post('/custom-mode/state', { ...baselineInput, prompt: 'STALE TAB B\n', baseRevision: opened.revision }))
+    check(change.label + '变化后旧标签页返回 conflict', stale.statusCode === 400 && JSON.parse(stale.body).code === 'conflict')
+    check(change.label + '冲突不会覆盖三个编辑文件的任何字节', bytesOnDisk() === persisted)
+  }
+}
+
+console.log()
+console.log('=== 5.14 历史日志失败不再关闭冲突保护，新鲜完整版本仍可保存 ===')
+{
+  mount()
+  await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: 'AUDIT BASELINE\n', name: 'Audit Baseline', overrides: {} }))
+  const opened = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  const historyPath = join(presetDir, 'prompt-history.jsonl')
+  const oldHistory = readFileSync(historyPath)
+  rmSync(historyPath)
+  mkdirSync(historyPath)
+  try {
+    writeFileSync(promptPath, 'EXTERNAL WHILE AUDIT IS BROKEN\n')
+    const expected = [promptPath, presetMetaPath, compositionPath].map((file) => readFileSync(file).toString('hex')).join(':')
+    for (const token of [{ baseN: opened.history[0].n }, { baseRevision: opened.revision }]) {
+      const stale = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: 'STALE AUDIT DRAFT\n', name: 'Audit Baseline', overrides: {}, ...token }))
+      check((token.baseN === undefined ? '完整 revision' : '旧 baseN') + '在审计追加失败时仍返回 conflict', stale.statusCode === 400 && JSON.parse(stale.body).code === 'conflict')
+      check('审计失败下的过期保存没有改动编辑文件', [promptPath, presetMetaPath, compositionPath].map((file) => readFileSync(file).toString('hex')).join(':') === expected)
+    }
+    const fresh = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+    check('历史损坏仍能载入完整状态版本', fresh.ok === true && typeof fresh.revision === 'string' && fresh.history.length === 0)
+    const saved = await call(post('/custom-mode/state', { id: 'custom', mode: 'standard', prompt: 'FRESH DESPITE AUDIT FAILURE\n', name: 'Audit Baseline', overrides: {}, baseRevision: fresh.revision }))
+    check('新鲜完整版本的保存不依赖历史写入成功', saved.statusCode === 200 && readFileSync(promptPath, 'utf8') === 'FRESH DESPITE AUDIT FAILURE\n')
+    check('审计失败时成功响应仍给出实际新版本', JSON.parse(saved.body).revision === editor.stateRevision(presetDir))
+  } finally {
+    rmSync(historyPath, { recursive: true, force: true })
+    writeFileSync(historyPath, oldHistory)
+  }
+}
+
+console.log()
+console.log('=== 5.15 完整状态版本区分缺失、空文件和原始字节 ===')
+{
+  const originalMeta = readFileSync(presetMetaPath)
+  const unchangedFiles = () => [promptPath, compositionPath].map((file) => readFileSync(file).toString('hex')).join(':')
+  try {
+    rmSync(presetMetaPath)
+    const missing = editor.readState([{ id: 'custom', trust: 'user', path: compositionPath }], 'custom')
+    writeFileSync(presetMetaPath, '')
+    const empty = editor.readState([{ id: 'custom', trust: 'user', path: compositionPath }], 'custom')
+    check('缺失元数据和空元数据产生不同 revision', missing.ok === true && empty.ok === true && missing.revision !== empty.revision)
+    const before = unchangedFiles()
+    const stale = editor.saveState([{ id: 'custom', trust: 'user', path: compositionPath }], { id: 'custom', mode: 'standard', prompt: 'MISSING BASELINE DRAFT', name: 'Missing Baseline', baseRevision: missing.revision })
+    check('缺失状态已变化时拒绝保存，并保持空文件', stale.code === 'conflict' && readFileSync(presetMetaPath).length === 0 && unchangedFiles() === before)
+    writeFileSync(presetMetaPath, Buffer.from([0x23, 0x80]))
+    const first = editor.stateRevision(presetDir)
+    writeFileSync(presetMetaPath, Buffer.from([0x23, 0x81]))
+    check('不能用 UTF-8 解码后的相同替代字符掩盖不同原始字节', editor.stateRevision(presetDir) !== first)
+  } finally {
+    writeFileSync(presetMetaPath, originalMeta)
+  }
+}
+
+console.log()
+console.log('=== 5.16 提交后读失败不能把已保存误报成未保存 ===')
+{
+  mount()
+  const opened = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))).body)
+  const read = fs.readFileSync
+  const rename = fs.renameSync
+  const files = new Set([promptPath, presetMetaPath, compositionPath])
+  let journalRenames = 0
+  let committed = false
+  fs.renameSync = (from, to) => {
+    const result = rename(from, to)
+    if (String(to).includes('.custom-mode-transaction-') && String(to).endsWith('.json')) {
+      journalRenames += 1
+      if (journalRenames === 2) committed = true
+    }
+    return result
+  }
+  fs.readFileSync = (file, ...args) => {
+    if (committed && files.has(String(file))) throw Object.assign(new Error('synthetic post-commit read failure'), { code: 'EIO' })
+    return read(file, ...args)
+  }
+  syncBuiltinESMExports()
+  let saved
+  let failedRead
+  let refusedUnreadable
+  try {
+    saved = editor.saveState([{ id: 'custom', trust: 'user', path: compositionPath }], { id: 'custom', mode: 'standard', prompt: 'COMMITTED BEFORE READ FAILURE\n', name: 'Committed Generation', overrides: {}, baseRevision: opened.revision })
+    failedRead = await call(makeReq('GET', { url: '/custom-mode/state?id=custom' }))
+    refusedUnreadable = editor.saveState([{ id: 'custom', trust: 'user', path: compositionPath }], { id: 'custom', mode: 'standard', prompt: 'MUST NOT REPLACE UNREADABLE STATE', name: 'Unreadable State', overrides: {}, baseRevision: saved.revision })
+  } finally {
+    fs.readFileSync = read
+    fs.renameSync = rename
+    syncBuiltinESMExports()
+  }
+  check('模拟故障发生在事务提交后，保存仍返回成功和精确提交版本', committed && saved.ok === true && typeof saved.revision === 'string')
+  check('保存结果与磁盘上的三个已提交文件一致', readFileSync(promptPath, 'utf8') === 'COMMITTED BEFORE READ FAILURE\n' && readPresetMeta(presetDir).name === 'Committed Generation' && saved.revision === editor.stateRevision(presetDir))
+  check('后续 GET 读取错误单独报告，未伪装成有效新基线', failedRead.statusCode === 500 && JSON.parse(failedRead.body).code === 'internalError' && JSON.parse(failedRead.body).revision === undefined)
+  check('不可读编辑文件不能当成缺失而放行保存', refusedUnreadable.code === 'conflict' && readFileSync(promptPath, 'utf8') === 'COMMITTED BEFORE READ FAILURE\n')
+}
+
+console.log()
+console.log('=== 5.17 提交后的外部修改不能被纳入自己尚未见过的保存版本 ===')
+{
+  const rows = [{ id: 'custom', trust: 'user', path: compositionPath }]
+  const baseRevision = editor.stateRevision(presetDir)
+  const rename = fs.renameSync
+  let journals = 0
+  fs.renameSync = (from, to) => {
+    const result = rename(from, to)
+    if (String(to).includes('.custom-mode-transaction-') && String(to).endsWith('.json') && ++journals === 2) {
+      writeFileSync(promptPath, 'EXTERNAL WRITER AFTER COMMIT\n')
+    }
+    return result
+  }
+  syncBuiltinESMExports()
+  let saved
+  try {
+    saved = editor.saveState(rows, { id: 'custom', mode: 'standard', prompt: 'OWN SUBMITTED GENERATION\n', name: 'Own Generation', overrides: {}, baseRevision })
+  } finally {
+    fs.renameSync = rename
+    syncBuiltinESMExports()
+  }
+  check('自己的提交仍成功，随后外部修改保留在磁盘', saved.ok === true && readFileSync(promptPath, 'utf8') === 'EXTERNAL WRITER AFTER COMMIT\n')
+  check('响应只确认自己的提交版本，没有采纳外部新文本的版本', saved.revision !== editor.stateRevision(presetDir))
+  const refused = editor.saveState(rows, { id: 'custom', mode: 'standard', prompt: 'NEXT OWN DRAFT\n', name: 'Own Generation', overrides: {}, baseRevision: saved.revision })
+  check('使用自己的版本继续保存会冲突，并保留外部文本', refused.code === 'conflict' && readFileSync(promptPath, 'utf8') === 'EXTERNAL WRITER AFTER COMMIT\n')
+}
+
+console.log()
+console.log('=== 5.18 自己排序与修复后的精确版本允许保留的草稿继续保存 ===')
+{
+  mount()
+  const stateFor = async (id) => JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + encodeURIComponent(id) }))).body)
+  const list = JSON.parse((await call(makeReq('GET', { url: '/custom-mode' }))).body).assistants
+  const states = await Promise.all(list.map(({ id }) => stateFor(id)))
+  const baselines = Object.fromEntries(states.map(({ id, revision }) => [id, revision]))
+  const current = states.find(({ id }) => id === 'custom')
+  const sibling = states.find(({ id }) => id !== 'custom')
+  const siblingPrompt = join(userRoot, sibling.id, 'prompt.md')
+  writeFileSync(siblingPrompt, 'EXTERNAL SIBLING BEFORE REORDER\n')
+  const allBytes = () => list.flatMap(({ id }) => ['prompt.md', 'preset.yml', 'agent.cordis.yml'].map((name) => {
+    const file = join(userRoot, id, name)
+    return existsSync(file) ? readFileSync(file).toString('hex') : 'missing'
+  })).join(':')
+  const before = allBytes()
+  const direction = list.findIndex(({ id }) => id === 'custom') === 0 ? 'down' : 'up'
+  const refused = await call(post('/custom-mode/reorder', { id: 'custom', direction, baseRevisions: baselines }))
+  check('任意已加载助手版本变化会在排序前整体拒绝', refused.statusCode === 400 && JSON.parse(refused.body).code === 'conflict')
+  check('被拒排序没有写入任何助手文件', allBytes() === before)
+  writeFileSync(siblingPrompt, sibling.prompt)
+  const moved = await call(post('/custom-mode/reorder', { id: 'custom', direction, baseRevisions: baselines }))
+  const movedBody = JSON.parse(moved.body)
+  check('排序成功只返回本次精确提交的各助手版本', moved.statusCode === 200 && states.every(({ id }) => movedBody.revisions?.[id] === editor.stateRevision(join(userRoot, id))))
+  const savedDraft = await call(post('/custom-mode/state', { id: 'custom', mode: current.mode, name: current.name, description: current.description, overrides: current.overrides, prompt: 'DIRTY DRAFT HELD THROUGH REORDER\n', baseRevision: movedBody.revisions?.custom }))
+  check('排序前保留的提示词草稿用本次token继续保存，无自身假冲突', savedDraft.statusCode === 200 && readFileSync(promptPath, 'utf8') === 'DIRTY DRAFT HELD THROUGH REORDER\n')
+
+  writeFileSync(compositionPath, readFileSync(compositionPath, 'utf8') + '\n- id: repair-ghost\n  name: \'@synthetic-missing/repair-ghost\'\n')
+  const repairOpened = await stateFor('custom')
+  writeFileSync(presetMetaPath, readFileSync(presetMetaPath, 'utf8') + '# external metadata change\n')
+  const repairBefore = [promptPath, presetMetaPath, compositionPath].map((file) => readFileSync(file).toString('hex')).join(':')
+  const staleRepair = await call(post('/custom-mode/repair', { id: 'custom', baseRevision: repairOpened.revision }))
+  check('旧版本修复被拒绝，三文件字节不变', staleRepair.statusCode === 400 && JSON.parse(staleRepair.body).code === 'conflict' && [promptPath, presetMetaPath, compositionPath].map((file) => readFileSync(file).toString('hex')).join(':') === repairBefore)
+  const repairFresh = await stateFor('custom')
+  const repaired = JSON.parse((await call(post('/custom-mode/repair', { id: 'custom', baseRevision: repairFresh.revision }))).body)
+  check('修复返回自己组成写入的精确版本与受影响行', repaired.code === 'repaired' && repaired.revision === editor.stateRevision(presetDir) && repaired.params.repairedIds.includes('repair-ghost'))
+  const savedAfterRepair = await call(post('/custom-mode/state', { id: 'custom', mode: repairFresh.mode, name: repairFresh.name, description: repairFresh.description, overrides: { ...repairFresh.overrides, 'repair-ghost': false }, prompt: 'DIRTY DRAFT HELD THROUGH REPAIR\n', baseRevision: repaired.revision }))
+  check('修复前保留的提示词草稿继续保存，无自身假冲突', savedAfterRepair.statusCode === 200 && readFileSync(promptPath, 'utf8') === 'DIRTY DRAFT HELD THROUGH REPAIR\n')
+}
+
+console.log()
+console.log('=== 5.19 路由按所属宿主能力显示 native ctx 条件，不跨实例串扰 ===')
+{
+  const original = readFileSync(compositionPath)
+  writeFileSync(compositionPath, original.toString('utf8') + "\n- id: profile-gated\n  name: @synthetic/profile-gated\n  disabled: !!js '!ctx.get(''profileContext'')'\n")
+  try {
+    const present = [...mount({ profileGetterAvailable: true, profileContext: { synthetic: true } })]
+    const absent = [...mount({ profileGetterAvailable: true })]
+    const stateFrom = async (routes) => {
+      const route = routes.find((entry) => entry.path === '/api/custom-mode/state')
+      return (await route.fetch(new Request('http://127.0.0.1/api/custom-mode/state?id=custom'))).json()
+    }
+    const [hasProfile, noProfile] = await Promise.all([stateFrom(present), stateFrom(absent)])
+    check('有服务的请求显示条件行启用且无 predicateFailed', hasProfile.rows.find((row) => row.id === 'profile-gated')?.disabled === false && !hasProfile.warnings.includes('predicateFailed'))
+    check('确认无服务的另一个实例显示关闭且不误报求值失败', noProfile.rows.find((row) => row.id === 'profile-gated')?.disabled === true && !noProfile.warnings.includes('predicateFailed'))
+    const unknown = await stateFrom([...mount()])
+    check('旧宿主缺少可选 getter 时保持 typed warning/关闭，不阻塞页面', unknown.ok === true && unknown.rows.find((row) => row.id === 'profile-gated')?.disabled === true && unknown.warnings.includes('predicateFailed'))
+  } finally {
+    writeFileSync(compositionPath, original)
+  }
 }
 
 rmSync(dir, { recursive: true, force: true })

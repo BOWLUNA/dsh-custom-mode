@@ -8,6 +8,17 @@ CI asserts the DSH version it actually installs and tests falls inside them — 
 section of the README. Entries from `0.1.6-alpha.*` and earlier follow the old convention (the version
 mirrored the DSH release) and are kept as history.
 
+## [Unreleased]
+
+These source changes are not included in published npm `2.3.0`. The package version remains unchanged until a separately verified release.
+
+- Preserve YAML-quoted disable predicates and native loader context. Scope the editor's known capability snapshot per request, retain fail-closed behavior for unknown context conditions, and compare decoded predicate sources without changing untouched row bytes.
+- Reject stale saves against the raw bytes and missing-file state of prompt, metadata and composition. Keep the legacy prompt-history token compatible without letting failed audit writes bypass conflicts. Return only the exact generation submitted by a successful save, repair or reorder.
+- Preserve drafts in the current browser document across settings navigation; keep dirty baselines during reads, explain reload/close limits, and require an explicit draft-discarding refresh after a conflict. Confirm explicitly before duplicating the saved assistant when unsaved edits exist, retaining the original draft.
+- Add a page-header New assistant entry that moves to the existing form and focuses its name input. Retain native controls and keyboard behavior.
+- Stop uninstall cleanup and purge when the host's removal fails or its successful result cannot be verified. Keep shared installations used by another profile and preserve desktop ownership.
+- Refresh exact-host test targets to the current release channels and correct stale security/release guidance. Completed local checks and remaining acceptance boundaries are tracked in [current compatibility](docs/CURRENT_COMPATIBILITY.md#unreleased-source-checks); changing CI configuration is not evidence that those remote jobs ran.
+
 ## [2.3.0] — 2026-10-28
 
 Published on [GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0) and [npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0). The completed release gates and downloaded asset checksums are recorded in [current compatibility](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.md).

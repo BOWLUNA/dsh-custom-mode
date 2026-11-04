@@ -6,6 +6,8 @@ English | [中文](TROUBLESHOOTING.zh.md)
 
 This section describes version `2.3.0`. Check release availability and the [exact-host results and acceptance limits](CURRENT_COMPATIBILITY.md) before updating. The numbered incident archive below preserves old observations and commands in their historical context, not a current setup recipe.
 
+The draft-memory, complete-state conflict and uninstall-failure protections described below are unreleased source changes, not fixes already present in the public npm `2.3.0` package.
+
 1. Record the host version (`dsh --version`), installed plugin version shown in Settings → Custom mode, platform, and the failing step: installation, page opening, save/application, assistant selection, or first request. Desktop uses its in-app Plugins page; these CLI steps target the Web profile.
 2. Run `dsh --profile web --dump-config`. A `dsh-custom-mode` row only proves that the composed configuration contains the plugin. It does **not** prove activation, page rendering, preset health, or a model request. No matching row calls for checking the selected profile and installed package; a restart alone does not install a missing package.
 3. Restart only the process serving that profile through its normal launcher. Read its activation errors and the page's typed warning. Follow [the README first-request check](../README.md#verify-the-whole-path); do not stop at an open settings page.
@@ -14,6 +16,10 @@ This section describes version `2.3.0`. Check release availability and the [exac
 | Symptom | Recovery and success check |
 | --- | --- |
 | Wrong plugin version installed | Use the exact published version below and verify the version in the page after restart. A bare name or successful package-manager exit is insufficient. |
+| Cannot find New assistant | In the unreleased source, select New assistant… in the page header to move to the existing form and focus its name field. Published `2.3.0` has that form at the page bottom. Creation does not select the assistant for an existing/new conversation. |
+| Unsaved edits after leaving Settings | The unreleased source keeps drafts only in the current plugin context/browser document. Returning to the section restores them; reloading, closing the tab or disposing the plugin can clear them. Copy or export important text before confirming a leave-page warning. |
+| Save reports a conflict | Copy/export the complete held draft first. Then explicitly select Discard edits and reload, compare disk content and reapply the intended edits. Ordinary refresh preserves the dirty baseline; repeatedly pressing Save cannot resolve the conflict. In the unreleased source the checked state includes prompt, metadata and composition, even when history writes fail. |
+| Duplicate while edits are unsaved | In the unreleased source, confirmation explains that duplication copies the saved configuration. Confirm only if that is intended; the existing unsaved draft is retained. Cancel and save first when the copy should include those edits. |
 | Update check unavailable | If an older host lacks the native query API, open plugin details or the [update guide](../README.md#plugin-updates). On a capable host, check the reported permission/network state. Do not remove a working installation merely to query its version. |
 | Update status unknown, no recommended version, or permission refused | A query result is not an installation result. Keep the actual error/filtered/partial status; query and update permissions are separate on capable alpha hosts. Continue only through the official Plugins controls available to your connection. |
 | Installed version differs from running version | Read both labels. A package on disk may await host restart/application; follow the official result and verify the running version afterward. Do not repeatedly reinstall based only on the displayed disk version. |
@@ -24,6 +30,7 @@ This section describes version `2.3.0`. Check release availability and the [exac
 | Operation succeeded but page refresh failed | Select Retry refresh. Do not repeat create/delete/save, which already completed; the retry only reads the current state. |
 | Assistant missing after an interrupted save | Stop further edits and preserve the assistant directory, backups and recovery records. The repair release attempts recovery before discovery. If it still fails, retain the evidence for diagnosis; do not delete backups or assume permanent data loss. |
 | Clone installer reports failure | Read the printed transaction directory. A verified rollback reinstalls the local old package and restores managed code. Exit 5 means recovery is incomplete: keep the old archive/logs and reinstall that actual archive through the host's plugin manager before restarting. Copying only package.json does not restore an installation. |
+| Clone uninstaller reports failure | The unreleased script stops cleanup/purge if the host removal fails or cannot be verified. Preserve the remaining installation and assistant files, resolve that reported error and retry through the same host. Do not erase profile files as a workaround; desktop removal belongs to the app's Plugins page. |
 | `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION` | Check the profile's pnpm policy and the requested exact version. If you choose a package-specific exception, keep one `minimumReleaseAgeExclude` entry (`- dsh-custom-mode`), not accumulating version entries. Do not disable the release-age policy for every package. The script does not edit this policy for you. |
 
 <a id="native-226-recovery"></a>

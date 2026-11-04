@@ -10,6 +10,16 @@ Edit your DeepSeek Harness (`dsh`) assistants' system prompts, base modes and pl
 
 [Install](#install-and-make-the-first-request) · [First use](#verify-the-whole-path) · [Updates](#plugin-updates) · [Screenshots](#screenshots) · [Compatibility](#compatibility-and-versioning) · [Help](#help-and-docs)
 
+## Unreleased source changes
+
+This checkout contains review fixes that are **not included in npm `2.3.0`**. The installation instructions below install that published release; the following behavior applies to the updated source build.
+
+Select **New assistant…** in the page header to move to the existing creation form and focus its name input. Creating the assistant still requires choosing its starting settings, naming it and submitting the form. The currently selected assistant remains the editing target until creation succeeds.
+
+Drafts remain in memory for the **current browser document**, including when you leave and return to the settings page. They are not a disk backup: reloading the document, closing the tab or restarting/unloading the plugin can lose unsaved edits. A leave-page warning cannot restore text after you confirm leaving. Copy or export important draft text first. When duplicating with pending edits, confirm that the copy uses the saved configuration; the original draft is retained.
+
+If a save reports a conflict, copy the complete draft before selecting **Discard edits and reload**. A routine refresh keeps the dirty draft and its original baseline; it does not resolve the conflict. Compare the newly loaded files with your copied text before applying the intended edits again.
+
 ## Install and make the first request
 
 These instructions describe version `2.3.0`. Confirm that the exact version is available in [Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases), and check the [exact-host results and acceptance limits](docs/CURRENT_COMPATIBILITY.md) before installing or updating.
@@ -76,7 +86,7 @@ The prompt is stored in `prompt.md` and reread when the next model step is assem
 
 ## Upgrade, clone development, and removal
 
-The page header shows the **running plugin version**. With DSH `0.2.2-alpha.2`'s native update capability, select **Check for updates** to ask the host for eligible versions. A recommended version offers **Update in Plugins**, which opens the official plugin details for its own confirmation, progress and result. The custom page does not install a package itself. Save pending drafts and resolve activation/refresh warnings before leaving the page.
+The page header shows the **running plugin version**. When the host provides its native update capability, select **Check for updates** to ask the host for eligible versions. A recommended version offers **Update in Plugins**, which opens the official plugin details for its own confirmation, progress and result. The custom page does not install a package itself. Save pending drafts and resolve activation/refresh warnings before leaving the page.
 
 On `0.2.1-rc.2`, `0.2.1-rc.4`, `0.2.0-rc.2` and `0.1.7-rc.2`, the native version-query API is absent: use **Open plugin details** or **Update guide** and the manual fixed-version path below. File, tarball and source-linked installations remain managed by their original source; checking does not silently convert them to npm. Permission denial, network failure, filtered versions or a partial result do not mean the plugin is current. A separate **Installed on disk** version does not prove that the running code has changed.
 
@@ -88,13 +98,13 @@ That command targets Web/CLI only. Desktop users must use an update path actuall
 
 For source development, follow [the isolated setup](CONTRIBUTING.md#isolated-development). The optional `./install.sh --profile web` keeps the source-linked workflow and preserves existing prompt, metadata and composition. Its local package/code rollback and recovery paths are explained in [package and release assets](docs/PUBLISHING.md#package-and-release-assets).
 
-`./uninstall.sh` removes the plugin but keeps assistant data. `--purge` explicitly deletes the managed assistant directories and their prompts; keep your own backup before using it.
+`./uninstall.sh` removes the plugin but keeps assistant data. `--purge` explicitly deletes the managed assistant directories and their prompts; keep your own backup before using it. In the unreleased source, a failed or unverifiable host removal stops cleanup and purge, preserves the remaining files and exits with an error. Resolve the reported host error before retrying; desktop removal stays in the app's Plugins page.
 
 ## Compatibility and versioning
 
 Declared host range: `>=0.1.5-rc.2 <0.2.0-0 || >=0.1.6-alpha.1 <0.2.0-0 || >=0.1.7-alpha.1 <0.2.0-0 || >=0.2.0-0 <0.3.0-0 || >=0.2.1-alpha.1 <0.3.0-0 || >=0.2.2-alpha.2 <0.3.0-0`
 
-The plugin version is its own stable `x.y.z` line; it does not mirror DSH. On 2026-10-27 the public host tags were `latest=0.2.1-rc.2`, `next=0.2.1-rc.4`, and `alpha=0.2.2-alpha.2`. Tags move; the declared range and completed checks are separate facts. See [exact versions, acceptance limits and historical evidence](docs/CURRENT_COMPATIBILITY.md) for the tested scope.
+The plugin version is its own stable `x.y.z` line; it does not mirror DSH. On 2026-11-04 the public host tags were `latest=0.2.1-rc.5`, `next=0.2.2-rc.1`, and `alpha=0.2.2-alpha.3`. Tags move; the declared range and completed checks are separate facts. See [exact versions, acceptance limits and historical evidence](docs/CURRENT_COMPATIBILITY.md) for the tested scope.
 
 Release requires the compatibility and browser workflows. The unit runner, real prompt-component checks, packed-install checks and browser checks cover different boundaries. Windows/Electron, a real model response and GPU execution must each have their own evidence; they are not inferred from a page screenshot or unit count. Headless mode does not start an agent-preset session.
 

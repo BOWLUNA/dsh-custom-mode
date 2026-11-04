@@ -6,6 +6,17 @@
 `engines.dsh` 与 `@deepseek-ai/dsh` peer 范围声明，CI 断言它实际安装并测试的 dsh 版本落在这些范围内
 —— 见 README「版本」。`0.1.6-alpha.*` 及更早的条目遵循旧约定（版本号镜像 DSH 版本），作为历史保留。
 
+## [Unreleased]（未发布）
+
+以下源码变更不包含于公开 npm `2.3.0`。包版本保持不变，另行完成验证后才发布新版本。
+
+- 保留YAML引用的禁用条件及原生Loader上下文，按请求隔离编辑器已知能力快照，对未知context条件保持关闭；比较解码后的条件源，不改未触碰行字节。
+- 保存时校验提示词、元数据与组成的原始字节及缺失状态。保留旧提示词历史token兼容，审计写失败不能绕过冲突保护；保存、修复与排序成功时只返回本次精确提交的版本。
+- 草稿在当前浏览器文档内跨设置导航保留；读取时保留脏草稿基线，说明刷新/关闭边界，冲突后须明确放弃草稿并重新读取。存在未保存编辑时，复制已保存助手须明确确认，并保留原草稿。
+- 页首增加「新建助手」入口，定位到既有表单并聚焦名称输入，沿用原生控件与键盘操作。
+- 宿主卸载失败，或成功结果无法核实时，停止清理与purge；保留其他profile仍在使用的共享安装，遵守桌面端独占边界。
+- 将精确宿主测试目标更新到当前发布通道，修正过期安全/发布说明。已完成本地检查与剩余验收边界见[当前兼容记录](docs/CURRENT_COMPATIBILITY.zh.md#未发布源码检查)；改动CI配置不证明远端任务已经执行。
+
 ## [2.3.0] — 2026-10-28
 
 已发布至[GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0)。已完成发布门禁及下载资产散列见[当前兼容记录](https://github.com/BOWLUNA/dsh-custom-mode/blob/main/docs/CURRENT_COMPATIBILITY.zh.md)。

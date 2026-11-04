@@ -23,14 +23,18 @@ platform limits are maintained in [CURRENT_COMPATIBILITY.md](docs/CURRENT_COMPAT
 
 | Plugin version | DSH version | Status |
 | --- | --- | --- |
-| `2.3.0` (candidate) | Declared range unchanged; current exact-host targets are `0.2.1-rc.2`, `0.2.1-rc.4`, `0.2.2-alpha.2`, with legacy regressions | **Supported host range declared; verification pending** — new-release integration and native update-flow acceptance are not inherited from 2.2.6. See CURRENT_COMPATIBILITY.md for completed evidence and limits |
+| `2.3.0` | See the declared range and exact-host evidence in [current compatibility](docs/CURRENT_COMPATIBILITY.md) | **Supported declared range; released** — completed release checks and remaining platform limits are maintained in that record |
 
 This records the current package's compatibility and verification scope. It does not define a security
 support expiry date or a backport schedule.
 
+The current checkout also contains unreleased review fixes. They are not included in the published npm
+`2.3.0` package. Their exact-host checks and validation limits are recorded separately in
+[current compatibility](docs/CURRENT_COMPATIBILITY.md#unreleased-source-checks).
+
 ## Historical Records
 
-The [2.2.6 verification record](docs/CURRENT_COMPATIBILITY.md#226-verification-scope) retains its exact-host results and acceptance limits. The earlier 2.2.5 record includes the cwd prompt-contract gap found after page/lifecycle checks had passed. Neither is fresh acceptance of 2.3.0.
+The [2.2.6 verification record](docs/CURRENT_COMPATIBILITY.md#226-verification-scope) retains its exact-host results and acceptance limits. The earlier 2.2.5 record includes the cwd prompt-contract gap found after page/lifecycle checks had passed. Historical results do not extend a later release's acceptance beyond the evidence recorded for that release.
 
 Older release declarations remain in the [changelog](CHANGELOG.md), compatibility history and Git history. They do not promise current support, a backport schedule or fresh desktop acceptance. Initial `0.1.6-alpha.1` builds before `review/2026-09-fixes` were affected by the route issue below; upgrading is recommended.
 

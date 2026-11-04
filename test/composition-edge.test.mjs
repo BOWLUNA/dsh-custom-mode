@@ -39,7 +39,7 @@ for (const mode of ['standard', 'ptc', 'minimal', 'cordis']) {
 }
 process.env.DSH_SHIPPED_PRESETS_DIR = shippedDir
 
-const { renderComposition, collectRows, modeOf, overridesOf } = await import('../composition.mjs')
+const { renderComposition, collectRows, modeOf, overridesOf, hasFailedPredicate, withPredicateCapabilities } = await import('../composition.mjs')
 
 /** 把某个模式的基础文件换成给定内容，再渲染它。 */
 function renderWith(text, overrides = new Map()) {
@@ -327,6 +327,65 @@ console.log('=== 8. 往返：反推的开关再渲染，行集合一致 ===')
       repaired)
   }
   process.env.DSH_SHIPPED_PRESETS_DIR = prevShipped
+}
+
+console.log()
+console.log('=== 8. YAML 引号表达式与每请求宿主能力不改变默认开关 ===')
+{
+  const forms = ["!ctx.get('profileContext')", "'!ctx.get(''profileContext'')'", JSON.stringify("!ctx.get('profileContext')")]
+  const composition = (source) => '- id: tool-plugin-manager\n  name: @synthetic/plugin-manager\n  disabled: !!js ' + source + '\n'
+  for (const source of forms) {
+    const text = composition(source)
+    withPredicateCapabilities({ profileContext: true }, () => {
+      check('有 profileContext 时表达式保持启用：' + source, collectRows(text)[0].disabled === false && !hasFailedPredicate(text))
+      const untouched = renderWith(text)
+      check('未动表达式逐字保留且不产生虚假覆盖', untouched.includes(text) && overridesOf(untouched, 'standard')['tool-plugin-manager'] === undefined)
+      const on = renderWith(text, new Map([['tool-plugin-manager', true]]))
+      check('显式开启已启用条件行时保留原 YAML 字节', on.includes(text) && overridesOf(on, 'standard')['tool-plugin-manager'] === undefined)
+    })
+    withPredicateCapabilities({ profileContext: false }, () => {
+      check('确认没有 profileContext 时关闭但不误报求值失败', collectRows(text)[0].disabled === true && !hasFailedPredicate(text))
+      const on = renderWith(text, new Map([['tool-plugin-manager', true]]))
+      check('显式开启可覆盖已关闭的宿主条件', /disabled: false/.test(on) && overridesOf(on, 'standard')['tool-plugin-manager'] === true)
+    })
+    check('能力未知时保持关闭并报告失败，不伪造宿主能力', collectRows(text)[0].disabled === true && hasFailedPredicate(text))
+    const onUnknown = renderWith(text, new Map([['tool-plugin-manager', true]]))
+    check('能力未知时显式开启写成 false，不保留未知表达式假称已启用', /disabled: false/.test(onUnknown) && collectRows(onUnknown).find((row) => row.id === 'tool-plugin-manager')?.disabled === false)
+  }
+  for (const [source, disabled] of [['1', true], ['0', false], [JSON.stringify("'nonempty'"), true], [JSON.stringify("''"), false]]) {
+    check('表达式结果沿用官方 Boolean 语义：' + source, collectRows(composition(source))[0].disabled === disabled && !hasFailedPredicate(composition(source)))
+  }
+  withPredicateCapabilities({ profileContext: true }, () => {
+    renderWith(composition(forms[2]))
+    check('live 单引号与 patch 双引号仅编码不同，不制造用户开关覆盖', overridesOf(composition(forms[1]), 'standard')['tool-plugin-manager'] === undefined)
+    const literal = composition(forms[1]).replace('disabled: !!js ' + forms[1], 'disabled: false')
+    check('解码比较仍区分显式 false 与未触碰的表达式', overridesOf(literal, 'standard')['tool-plugin-manager'] === true)
+  })
+  const quotedPlatform = "'process.platform === ''win32'''"
+  check('YAML 单引号平台表达式按本机正常求值', collectRows(composition(quotedPlatform))[0].disabled === (process.platform === 'win32') && !hasFailedPredicate(composition(quotedPlatform)))
+  check('既有非 ctx 纯 JS 条件保留成功求值及 Boolean 语义', collectRows(composition('Math.max(1, 2)'))[0].disabled === true && !hasFailedPredicate(composition('Math.max(1, 2)')))
+  const unknown = composition("!ctx.get('futureSecretService')")
+  withPredicateCapabilities({ profileContext: true }, () => {
+    check('未知 ctx 服务仍关闭并告警', collectRows(unknown)[0].disabled === true && hasFailedPredicate(unknown))
+  })
+  const absentUnknown = composition("ctx.get('someUnknownService')")
+  withPredicateCapabilities({ profileContext: true }, () => {
+    check('未知 ctx 服务返回 undefined 而不抛错的条件仍告警/关闭', collectRows(absentUnknown)[0].disabled === true && hasFailedPredicate(absentUnknown))
+  })
+  for (const malformed of ["'unclosed", '"bad\\q"']) {
+    check('无效 YAML 引号表达式保持失败告警/关闭', collectRows(composition(malformed))[0].disabled === true && hasFailedPredicate(composition(malformed)))
+  }
+  const text = composition(forms[1])
+  const concurrent = await Promise.all([
+    withPredicateCapabilities({ profileContext: true }, async () => { await new Promise(setImmediate); return collectRows(text)[0].disabled }),
+    withPredicateCapabilities({ profileContext: false }, async () => { await Promise.resolve(); return collectRows(text)[0].disabled }),
+  ])
+  check('并发异步请求的能力快照互不串扰', concurrent[0] === false && concurrent[1] === true)
+  const nested = withPredicateCapabilities({ profileContext: true }, () => [collectRows(text)[0].disabled, withPredicateCapabilities({ profileContext: false }, () => collectRows(text)[0].disabled), collectRows(text)[0].disabled])
+  check('嵌套请求完成后恢复所属快照，作用域外仍未知', JSON.stringify(nested) === '[false,true,false]' && hasFailedPredicate(text))
+  withPredicateCapabilities({ profileContext: { private: 'SYNTHETIC ONLY' } }, () => {
+    check('快照只接纳显式布尔值，不保留服务对象', hasFailedPredicate(text) && collectRows(text)[0].disabled === true)
+  })
 }
 
 rmSync(dir, { recursive: true, force: true })

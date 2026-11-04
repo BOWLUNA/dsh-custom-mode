@@ -2,6 +2,43 @@
 
 English | [中文](CURRENT_COMPATIBILITY.zh.md)
 
+## Unreleased source checks
+
+The current checkout contains review fixes beyond published `2.3.0`; its package version is still `2.3.0`. Installing the public npm package does not obtain these fixes. The release evidence in the next section applies only to the published bytes.
+
+On 2026-11-04 the public host channels were `latest=0.2.1-rc.5`, `next=0.2.2-rc.1` and `alpha=0.2.2-alpha.3`. The source CI matrices target these exact hosts, retaining older `0.1.7-rc.2` and `0.2.0-rc.2` regressions. Edited workflow configuration is not a completed remote CI result.
+
+| Local check | Completed result | Boundary |
+| --- | --- | --- |
+| Registered suite, Windows / Node `24.21.0` | 20 suites / 1315 checks / zero failures | Current source; synthetic fault/UI-handler fixtures do not replace browser acceptance |
+| Real prompt-registry / working-directory component contract | Passed on the three current exact hosts | Synthetic session/filesystem projections; no full agent loop, model or GPU |
+| Native disabled-expression contract | 70/0 on each current host and on `0.1.7-rc.2`, `0.2.0-rc.2` | Actual host YAML/Loader/registration/activation/inventory comparison; not a rendered-page check |
+| Packed installation / unit / documentation / boot gate | 8/8 on each current exact host, including 20 suites / 1315 checks | Fresh isolated `verified-rc1-01`, `verified-latest-01`, `verified-alpha-01` runs |
+| Native manager API on the final package | 24/0 on each of `0.2.2-rc.1`, `0.2.2-alpha.3` | Strict observer-driven official API checks; Plugins UI and same-document frontend HMR remain separate |
+| Rendered settings / picker / marketplace | 74/0 browser checks on each current host; picker and native marketplace operations passed | Packed plugin in isolated Chrome; no Electron or model claim |
+| Draft and creation browser flow | 49/0 on each current host, with 8 screenshots per host | DOM composition/keyCode-229 events and trusted ordinary Enter; not an OS IME test |
+| Full lifecycle and observer cleanup | 28/0 on each current host, browser mode `full` | API, five base modes, restart, removal/reinstall, data preservation and deletion; all task runs exited successfully |
+
+The frozen source package SHA256 is `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`. The three compatibility archives and both inputs to `verified-native-rc1-01` / `verified-native-alpha-01` are byte-identical; all 32 packaged files match current source (`package-source-comparison.json`). All three final runtime reports, three draft reports and both final native reports bind to this package identity.
+
+Late visual QA identified YAML-quoted context predicates that could warn and incorrectly disable the default plugin-manager tool. The fixed source decodes YAML quoting, preserves known conditions for the native loader, truly disables unsupported context conditions and scopes the editor's immutable boolean capability snapshot per request. Compiler diffs compare decoded sources without manufacturing an override for different YAML quoting. The five exact-host 70/0 contract logs are `final-disabled-contract-rc1.log` and `final-disabled-contract-<other-exact-host>.log`; the final unit log is `predicate-integration-unit.log`.
+
+Persistence cases include failed history writes, stale metadata/mode/switch saves, exact post-save generations and checked repair/reorder with held drafts. The real Bash uninstall script is exercised with a synthetic CLI and temporary files (30/0); the POSIX newline-filename execution probe is skipped locally on Windows and retained for Linux CI. Reproduction commands and boundaries are in [MEASUREMENTS.md §38](MEASUREMENTS.md#38-unreleased-review-fixes-2026-11-04). Evidence is retained outside the package under `DSH-FIX-20261104-01`.
+
+The final rendered runs use the same `verified-rc1-01`, `verified-latest-01` and `verified-alpha-01` directories. Each `runtime-report.json` contains 28 passing checks with no browser skip, and each `drafts-report.json` contains 49 passing checks and eight captures covering Chinese/English, real light/dark host themes, and 1440/480-pixel widths. The flow exercises creation focus/Enter, dirty draft replacement both ways, explicit saved-copy behavior retaining the original draft, settings navigation/remount, real refresh/close beforeunload cancellation and a clean refresh after discard. Composition-event coverage is synthetic DOM input, not an operating-system IME.
+
+Root visual QA inspected all eight RC1 captures and two captures from each other host. The predicate warning is gone. An authenticated independent observer confirmed native inventory and the UI agree: on RC1/alpha, `profileContext=true` makes the shipped manager condition enabled; latest retains its literal `disabled:true` factory state (`enabled=false`). At 480 pixels the older latest host retains its native sidebar and approximately 432-pixel dialog, while newer RC1 uses a wider native layout; inspected controls had no overflow or occlusion.
+
+Final native API runs `verified-native-rc1-01` and `verified-native-alpha-01` each completed 24/0 with successful script exits. The actual public `2.2.6` migration reported `applied` and preserved the observed user files; a real host restart then ran the candidate and saving passed. In the controlled fixed-old `2.2.7` fixture, the observed target-tar 503 produced `failed`/`restore: applied`, with installed and running old versions, unchanged user-file hashes and successful saving without restart; a healthy update then applied and saved under host HMR. The no-HMR fixture reported `restart-required`, verified new disk/old runtime, and passed version/data/save checks after an actual process restart. This lowered-version fixture is not public `2.2.6`; Windows termination is not claimed to be graceful.
+
+The non-author audited the bounded final native reports and revised source, without independently replaying the hosts. These are observer API tests, not Plugins UI clicks or strict same-document frontend HMR proof. Electron, real models/GPU, remote CI and local execution of the POSIX newline-filename probe remain outside completed scope.
+
+### Earlier diagnostic checkpoint
+
+The earlier `7fc9a88de71726e73969af8b9c7db999c83b066fac9ca58ea06dcaf54d8251b2` package passed 20/1265, three 8/8 compatibility runs and the two 24/0 API runs `native-rc1-03` / `native-alpha-01`; those results preceded discovery of the predicate defect and are not final acceptance of the changed source. Its package comparison is retained as `package-source-comparison.pre-predicate.json`. The bounded API results and 94/0 adversarial probes remain diagnostic evidence in §38. Independent review closed permissive outcome-predicate and unobserved-503 gaps before those API runs, but did not independently replay their hosts.
+
+No new version, tag, npm publication, GitHub Release, remote CI success, Plugins UI update acceptance, same-document frontend HMR, Electron or real-model/GPU result is claimed for this checkout.
+
 ## 2.3.0 release and verification
 
 Version `2.3.0` was published on 2026-10-28: [GitHub Release](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0) and [npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0). Release tag `v2.3.0` and npm `gitHead` both resolve to `2f76c206e156a9950f00f4cefc50ad85d22bdfd6`. The [release workflow](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/40681712038) completed all 10 compatibility/test jobs, all 3 browser/lifecycle jobs and publication successfully at that source commit. The npm read-back reported both version and `latest` as `2.3.0`.

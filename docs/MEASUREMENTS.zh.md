@@ -1961,3 +1961,61 @@ PASS market-row-probe.mjs (10 checks; native on/save/off/save; default off)
 ```
 
 兼容检查总 RSS 峰值 530436 KiB；运行检查峰值 1883952 KiB，宿主可用内存最低 2084440 KiB。未调用模型/GPU，未改生产实例。首轮发现两份 README 的旧版本安装示例，修正后全部守卫通过。一次浏览器测试被自设 1536 MiB 预算停止；最终从干净目录以 2048 MiB 上限通过，没有残留自有进程。旧宿主复用 v2.2.4 验收证据，发布必经 CI 仍保留。Windows/Electron 桌面端和真实模型/工具执行尚未验证。
+
+## 38. 未发布审阅修复（2026-11-04）
+
+本轮从公开`2.3.0`源码开始，包版本仍为`2.3.0`，变更尚未发布；公开npm包不包含这些编辑。当前套件总数与后续验收状态统一维护于[CURRENT_COMPATIBILITY.zh.md](CURRENT_COMPATIBILITY.zh.md#未发布源码检查)，与2026-10-28发布证据分开。
+
+初始合成持久化探针复现了两类丢失：历史追加失败放行旧草稿覆盖外部新提示词；只保存元数据/开关后，另一标签页的旧提示词历史token仍然有效。修复后的路由拒绝这些过期请求，三个编辑文件逐字节保留；历史路径不可用时，新鲜完整状态保存仍可成功。
+
+新token覆盖提示词/元数据/组成原始字节及缺失标记。回归故障还在提交后立即插入外部写入，或独立使提交后读取失败：二者都不能让已成功写入采纳尚未见过的版本，或误报持久化失败。经校验的修复/排序仅返回自己的提交版本，使持有的脏草稿不会因为自己的操作产生假冲突。这些是确定性的合成反例，不是自发用户事故或跨进程事务保证。
+
+复现命令（仅隔离fixture）：
+
+```sh
+node test/editor-route.test.mjs
+node test/base-composition.test.mjs
+node test/run.mjs
+node tools/prompt-contract-check.mjs --host-install "<exact-host-install>"
+```
+
+前两条命令的实际结果行：
+
+```text
+# editor-route.test.mjs
+结果: 278 通过, 0 失败
+# base-composition.test.mjs
+结果: 56 通过, 0 失败
+```
+
+真实提示词注册表/工作目录组件合约分别在精确宿主`0.2.1-rc.5`、`0.2.2-rc.1`、`0.2.2-alpha.3`通过。投影为合成，检查保留原提示词、自定义suffix与目录修复合约，不运行完整agent loop、服务、浏览器、模型或GPU。源码矩阵现已列出这三个当前通道并保留旧回归腿；仅该配置编辑不能推出远端CI结果。
+
+本地证据在包外的`DSH-FIX-20261104-01`中保留：`persistence-editor-route.log`、`persistence-base-composition.log`、`integration-unit.log`及`prompt-contract-<exact-host>.log`。草稿内存与复制确认由UI处理器fixture检查；卸载用例以合成宿主CLI和临时文件驱动真实Bash脚本，不卸载真实安装。组件/fixture结果不能证明打包安装、页面渲染、原生更新、Electron、真实模型或GPU验收；后续结果必须单独留证，不能从这些日志推断。
+
+独立Windows运行`node test/uninstall-script.test.mjs`通过30项、零失败，覆盖限定purge规划与链接/realpath界限；真实POSIX换行文件名探针在Windows跳过，保留在Linux CI执行。这是合成本地脚本证据，不代表远端Linux任务已经完成。
+
+前一检查点的本地兼容检查在`0.2.1-rc.5`、`0.2.2-rc.1`、`0.2.2-alpha.3`分别8/8门禁通过，包含已登记20个套件/1265项检查、文档守卫、打包安装与回环启动。五个兼容/原生输入归档共用SHA256 `7fc9a88de71726e73969af8b9c7db999c83b066fac9ca58ea06dcaf54d8251b2`，`package-source-comparison.json`记录32项打包文件均吻合该检查点捕获的源码。主审对抗探针日志为60+24+10=94项断言、零失败。原生输入字节一致与下述已完成API结果分别记录；浏览器验收在兼容记录中继续单列待完成。
+
+```sh
+node tools/compat-check.mjs --host-install "<exact-host-install>" --out "<new-evidence-directory>"
+```
+
+同一条件表达式修复前检查点的收紧原生API报告在精确`0.2.2-rc.1`（`native-rc1-03`）与`0.2.2-alpha.3`（`native-alpha-01`）均完成24项、零失败。两者都将真实公开2.2.6迁移报告为`applied`；受控2.2.7 fixture的目标tar真实503报告为`failed`/`restore: applied`，恢复后磁盘与运行均为2.2.7；健康HMR报告为`applied`。无HMR场景报告`restart-required`，先核对磁盘新/运行旧，再实际重启进程，检查候选版本、文件保留与成功保存。数据散列及保存检查绑定各场景自己观察到的文件，不推断整个用户home。
+
+独立审阅在上述运行前发现并关闭两项门禁缺陷：负向判断可能放行畸形/取消结果，且不要求实际观察到注入503。修订门禁校验精确传输/API/版本/应用字段、恢复后的旧磁盘/运行版本及当前场景注册表事件区间。作者记录22个纯谓词用例，非作者另独立运行24个正反用例并审计两份最终有限结果报告（`review-native.json`）；这属于报告/源码复核，不是独立重跑宿主。受控降版fixture与公开2.2.6不同，observer API与点击Plugins UI或浏览器同文档HMR不同，不能从中推断浏览器/Electron/模型/GPU验收。
+
+### 条件表达式适配与最终源码包
+
+较早`7fc9a88d…`检查点后的视觉QA发现，live宿主YAML将条件编码为`disabled: !!js '!ctx.get(''profileContext'')'`；将该标量直接当JavaScript会误报条件失败，脱离原生上下文求值还可能关闭默认工具。修复统一解码YAML引用，将支持的条件作为原生`__jsExpr`传递；未知context条件即使原生查询仅返回undefined也真正关闭。编辑器通过AsyncLocalStorage仅接收每请求不可变布尔能力快照。非context JavaScript保留既有成功求值行为与官方Boolean转换，解码源比较避免仅引用方式不同被误当用户覆盖。
+
+最终本地已登记套件20/1315、零失败（`predicate-integration-unit.log`）；聚焦结果为composition-edge 87/0、preset-backend 43/0、editor-route 281/0，覆盖并发快照隔离、已知context有/无、未知context关闭、单/双引用标量及未触碰字节/三态。真实宿主YAML/Loader/注册/激活/inventory合约分别在`0.1.7-rc.2`、`0.2.0-rc.2`、`0.2.1-rc.5`、`0.2.2-rc.1`、`0.2.2-alpha.3`通过70/0（`final-disabled-contract-*.log`）。
+
+新兼容运行`verified-rc1-01`、`verified-latest-01`、`verified-alpha-01`分别8/8通过，包含20/1315、文档守卫、打包、安装与启动。三个归档和两个新原生运行输入共用SHA256 `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`，`package-source-comparison.json`中32项打包文件均吻合冻结源码；旧对比保留为`package-source-comparison.pre-predicate.json`。最终原生API与页面渲染结果在下方单独记录；旧包通过结果仅保留作诊断，不能复用为本包验收。
+
+最终包浏览器完成：`verified-rc1-01`、`verified-latest-01`、`verified-alpha-01`各有`runtime-report.json`，均28项通过、零失败、浏览器模式`full`；各`drafts-report.json`为49/0及八张截图（中英文×宿主明暗主题×1440/480px）。既有浏览器验证器分别74/0，并通过选择器、原生市场、API、五基础模式、重启、移除/重装、删除与observer清理。流程包括两向脏草稿替换、复制已保存配置确认且保留原稿、设置区重挂、真实刷新/关闭beforeunload取消，以及明确放弃草稿后不再提示；DOM组合输入/keyCode-229覆盖不等于真实操作系统输入法会话。
+
+主审逐张视觉复核RC1八图及其他宿主各两图；误报的条件警告消失，经鉴权的独立官方inventory与原生Switch一致：RC1/alpha存在profileContext，启用出厂管理器条件，而latest保留字面关闭出厂态。旧宿主480px原生侧栏/对话框与RC1较宽原生表面不同，未观察到溢出或控件遮挡。
+
+最终包原生运行`verified-native-rc1-01`、`verified-native-alpha-01`各完成严格24项、零失败，脚本成功退出。两者均记录公开2.2.6迁移`applied`；受控2.2.7 fixture观察到tarball真实503，目标失败/恢复应用且磁盘=运行=2.2.7；健康HMR为`applied`；无HMR为`restart-required`，先核对磁盘/运行分离，再实际重启。各声明转移点的用户文件散列保留与保存检查通过。非作者按修订门禁审计两份最终报告，该审计不是独立重跑宿主（`review-native.json`）；两份报告的候选包散列均吻合最终`28046e77…`包。
+
+这些是本地隔离Web结果。Plugins UI更新点击、严格同文档前端HMR、Electron、真实模型/GPU、远端CI，以及本Windows机器实际执行POSIX换行文件名探针仍未验证；不拿较早诊断通过替代最终源码结果。包仍是版本2.3.0的未发布源码构建，未为这些字节打标签、发布npm或GitHub Release。

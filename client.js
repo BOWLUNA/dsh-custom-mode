@@ -139,6 +139,9 @@ try {
         "assistant.brokenHint": "此模式在本机无法启动，不会出现在新会话菜单里。点「按本线修复」只关闭那些行。",
         "assistant.switchHint": "切换助手保留各自的未保存草稿；列表中的「未保存」标记即为此。",
         "btn.create": "新增助手",
+        "btn.newAssistant": "新建助手…",
+        "assistant.duplicateSavedConfirm": "复制使用磁盘上已保存的配置，不包含当前未保存的修改。继续复制已保存版本？当前草稿会保留。",
+        "prompt.replaceConfirm": "替换当前提示词草稿？尚未保存的提示词会被替换，无法从保存历史中恢复。请先复制保留需要的内容。",
         "create.heading": "新建助手",
         "btn.creating": "创建中…",
         "btn.duplicate": "复制",
@@ -188,7 +191,7 @@ try {
         "meta.version": "插件版本",
         "meta.versionHint": "未钉版本时，可能装到较旧的发布。要换版本，按 README 钉版本重装，然后重启。",
         "api.saved": "已保存（{name}，{mode}）。下一步组装时会重读已保存的提示词。",
-        "api.conflict": "磁盘上的提示词已经变了，这次没有写入。先重新读取，再决定要不要覆盖。",
+        "api.conflict": "磁盘上的助手配置已经变了，这次没有写入。请先导出或复制保留草稿，再重新读取并合并修改。",
         "api.savedWithExclusiveRows": "已保存（{name}，{mode}）。已关闭不能同时启用的行：{rows}。",
         "api.created": "已创建「{name}」。可继续编辑；使用时请在新会话的模式菜单选择它。",
         "api.savedPrompt": "已保存系统提示词（{name}）。下一步组装时会重读这个文件。",
@@ -441,6 +444,9 @@ try {
         "assistant.brokenHint": "This mode cannot start here, so it will not appear for a new session. Fix for this line turns off only those rows.",
         "assistant.switchHint": "Switching assistants keeps each draft; the \"Unsaved\" marker in the list is exactly that.",
         "btn.create": "New assistant",
+        "btn.newAssistant": "New assistant…",
+        "assistant.duplicateSavedConfirm": "Copy the saved configuration from disk? Unsaved changes are not included, and your current draft will be kept.",
+        "prompt.replaceConfirm": "Replace the current prompt draft? Unsaved prompt text will be replaced and cannot be recovered from saved history. Copy any content you need to keep first.",
         "create.heading": "New assistant",
         "btn.creating": "Creating…",
         "btn.duplicate": "Duplicate",
@@ -490,7 +496,7 @@ try {
         "meta.version": "Plugin version",
         "meta.versionHint": "Without a pinned version, an older release may be installed. To change it, reinstall with the version pin from the README, then restart.",
         "api.saved": "Saved ({name}, {mode}). The next model step rereads the saved prompt.",
-        "api.conflict": "The prompt on disk has changed, so this save was not written. Reload, then decide whether to overwrite.",
+        "api.conflict": "The assistant configuration on disk has changed. Nothing was written. Export or copy your draft, then reload and merge your changes.",
         "api.savedWithExclusiveRows": "Saved ({name}, {mode}). Turned off rows that cannot be on together: {rows}.",
         "api.created": "Created {name}. Continue editing here, then choose it in the mode menu for a new session.",
         "api.savedPrompt": "System prompt saved ({name}). The next model step rereads this file.",
@@ -1139,6 +1145,39 @@ try {
         )
       }
 
+      // Private to this module instance in this document. Leaving a settings
+      // section must not lose a draft; no prompt is written to browser storage.
+      const draftContexts = new WeakMap()
+      function mountDraftProtection(ctx) {
+        let session = draftContexts.get(ctx)
+        if (session === undefined) {
+          const memory = { entries: {}, selected: "", newName: "", syncNeeded: false, refreshNeeded: null }
+          session = { memory, owners: new Set(), beforeUnload: (event) => {
+            if (memory.newName === "" && Object.keys(memory.entries).length === 0) return
+            event.preventDefault()
+            event.returnValue = ""
+          } }
+          draftContexts.set(ctx, session)
+        }
+        ctx.effect(() => {
+          const owner = {}
+          session.owners.add(owner)
+          if (session.owners.size === 1 && typeof window.addEventListener === "function") window.addEventListener("beforeunload", session.beforeUnload)
+          return () => {
+            session.owners.delete(owner)
+            if (session.owners.size !== 0) return
+            if (typeof window.removeEventListener === "function") window.removeEventListener("beforeunload", session.beforeUnload)
+            session.memory.entries = {}
+            session.memory.selected = ""
+            session.memory.newName = ""
+            session.memory.syncNeeded = false
+            session.memory.refreshNeeded = null
+            draftContexts.delete(ctx)
+          }
+        }, "custom-mode: draft protection")
+        return session.memory
+      }
+
       /** `「名称」副本`-style copy name, from a locale template. */
       function copyName(template, name) {
         return String(template).replace("{name}", name)
@@ -1325,6 +1364,7 @@ try {
       }
 
       function CustomModeSection(props) {
+        const draftMemory = props.draftMemory
         // Compatibility: a shell that does not hand us a bound `t` (older or
         // changed settings contract) must still render real copy. Falling back to
         // the Chinese dictionary means the worst case is "Chinese text", never a
@@ -1390,28 +1430,38 @@ try {
         const [list, setListState] = react.useState(null)
         const heldRoster = react.useRef(list)
         const setList = (value) => { heldRoster.current = value; setListState(value) }
-        const [selected, setSelected] = react.useState("")
+        const [selected, setSelectedState] = react.useState(draftMemory.selected)
+        const setSelected = (value) => { draftMemory.selected = value; setSelectedState(value) }
         /** id → { payload, saved, value }: loaded state, baseline and live draft. */
-        const [entries, setEntriesState] = react.useState({})
+        const [entries, setEntriesState] = react.useState(draftMemory.entries)
         const heldEntries = react.useRef(entries)
         const setEntries = (next) => {
           heldEntries.current = typeof next === "function" ? next(heldEntries.current) : next
+          draftMemory.entries = Object.fromEntries(Object.entries(heldEntries.current).filter(([, held]) => !sameDraft(held.value, held.saved)))
           setEntriesState(heldEntries.current)
         }
         const [status, setStatus] = react.useState("")
         const [failed, setFailed] = react.useState(false)
         const [busy, setBusy] = react.useState(false)
         const [pending, setPending] = react.useState("")
-        const [syncNeeded, setSyncNeededState] = react.useState(false)
-        const [refreshNeeded, setRefreshNeededState] = react.useState(null)
-        const navigationState = react.useRef({ syncNeeded: false, refreshNeeded: null, newName: "" })
-        const setSyncNeeded = (value) => { navigationState.current.syncNeeded = value; setSyncNeededState(value) }
-        const setRefreshNeeded = (value) => { navigationState.current.refreshNeeded = value; setRefreshNeededState(value) }
+        const [syncNeeded, setSyncNeededState] = react.useState(draftMemory.syncNeeded)
+        const [refreshNeeded, setRefreshNeededState] = react.useState(draftMemory.refreshNeeded)
+        const navigationState = react.useRef({ syncNeeded, refreshNeeded, newName: draftMemory.newName })
+        const setSyncNeeded = (value) => { draftMemory.syncNeeded = value; navigationState.current.syncNeeded = value; setSyncNeededState(value) }
+        const setRefreshNeeded = (value) => { draftMemory.refreshNeeded = value; navigationState.current.refreshNeeded = value; setRefreshNeededState(value) }
         // A ref closes the interval before React renders disabled controls. Only the
         // owning operation may apply a response or release the busy state.
         const operation = react.useRef({ alive: true, current: null })
-        const [newName, setNewNameState] = react.useState("")
-        const setNewName = (value) => { navigationState.current.newName = value; setNewNameState(value) }
+        const [newName, setNewNameState] = react.useState(draftMemory.newName)
+        const setNewName = (value) => { draftMemory.newName = value; navigationState.current.newName = value; setNewNameState(value) }
+        const createSection = react.useRef(null)
+        const createNameInput = react.useRef(null)
+        const editorSection = react.useRef(null)
+        const [focusCreated, setFocusCreated] = react.useState("")
+        const focusCreate = () => {
+          createSection.current?.scrollIntoView?.({ block: "start", behavior: "auto" })
+          createNameInput.current?.focus?.({ preventScroll: true })
+        }
         const [runtimeVersion, setRuntimeVersion] = react.useState("")
         const [updateResult, setUpdateResult] = react.useState(null)
         const [updateNotice, setUpdateNotice] = react.useState("")
@@ -1444,7 +1494,9 @@ try {
         const repairRowsNow = async () => {
           if (draft === null) return
           return runOperation("status.repairing", "msg.saveFailed", async (token) => {
-            const result = await postJson(ROUTES.repair, { id: selected })
+            const baseRevision = entry?.payload?.revision
+            const result = await postJson(ROUTES.repair, { id: selected,
+              ...(typeof baseRevision === "string" ? { baseRevision } : {}) })
             if (!ownsOperation(token)) return
             showResult(result, "msg.repaired", "msg.saveFailed")
             if (result?.ok === true || result?.persisted === true) {
@@ -1457,9 +1509,17 @@ try {
               const repairedIds = Array.isArray(result.params?.repairedIds) ? result.params.repairedIds : []
               if (repairedIds.length > 0 && draft !== null) {
                 // 草稿里的 `overrides` 是"显式**启用**"语义，所以关闭 = false。
-                const nextOverrides = { ...draft.overrides }
-                for (const rowId of repairedIds) nextOverrides[rowId] = false
-                update({ overrides: nextOverrides }, { force: true })
+                setEntries((previous) => {
+                  const before = previous[selected]
+                  const overrides = { ...before.value.overrides }
+                  const savedOverrides = { ...before.saved.overrides }
+                  for (const rowId of repairedIds) { overrides[rowId] = false; savedOverrides[rowId] = false }
+                  const ownRevision = typeof result.revision === "string" && before.payload.revision === baseRevision
+                  return { ...previous, [selected]: { ...before,
+                    value: { ...before.value, overrides },
+                    ...(ownRevision ? { payload: { ...before.payload, revision: result.revision },
+                      saved: { ...before.saved, overrides: savedOverrides } } : {}) } }
+                })
               }
               await refreshAfterWrite(result, "msg.repaired", selected, token, () => reload(selected, undefined, token))
             }
@@ -1497,6 +1557,12 @@ try {
         const payload = entry === undefined ? null : entry.payload
         const editorReady = draft !== null && payload !== null
         const dirty = editorReady && !sameDraft(draft, entry.saved)
+        react.useEffect(() => {
+          if (focusCreated === "" || focusCreated !== selected || !editorReady) return
+          editorSection.current?.scrollIntoView?.({ block: "start", behavior: "auto" })
+          editorSection.current?.focus?.({ preventScroll: true })
+          setFocusCreated("")
+        }, [focusCreated, selected, editorReady])
 
         /** Which assistants hold unsaved edits — the list marks them. */
         const dirtyIds = new Set()
@@ -1575,8 +1641,14 @@ try {
           const fresh = draftOf(result)
           setEntries((previous) => {
             const before = previous[id]
-            const keep = discard !== true && before !== undefined && !sameDraft(before.value, before.saved) ? before.value : fresh
-            return { ...previous, [id]: { payload: result, saved: fresh, value: keep } }
+            const keep = discard !== true && before !== undefined && !sameDraft(before.value, before.saved)
+            // A dirty draft owns the revision it was loaded from. A read may
+            // discover someone else's change, but cannot authorize overwriting it.
+            if (keep && typeof before.payload?.revision === "string") return { ...previous, [id]: { ...before,
+              // Diagnostics may recover independently of this draft. Refresh
+              // those fields without changing its editable baseline or token.
+              value: { ...before.value, warnings: fresh.warnings, broken: fresh.broken, baseUnavailable: fresh.baseUnavailable } } }
+            return { ...previous, [id]: { payload: result, saved: fresh, value: keep ? before.value : fresh } }
           })
         }
 
@@ -1856,13 +1928,17 @@ try {
             if (!ownsOperation(token)) return
             showResult(result, from === undefined ? "msg.created" : "msg.duplicated", "msg.createFailed")
             if (result?.ok === true || result?.persisted === true) {
-              setNewName("")
+              if (from === undefined) setNewName("")
+              setFocusCreated(result.id)
               await refreshAfterWrite(result, from === undefined ? "msg.created" : "msg.duplicated", result.id, token, () => reload(result.id, undefined, token))
             }
           })
         }
 
-        const duplicate = () => create({ from: draft.id, name: copyName(t("assistant.copyName"), draft.name || draft.id) })
+        const duplicate = () => {
+          if (dirty && (typeof window.confirm !== "function" || !window.confirm(t("assistant.duplicateSavedConfirm")))) return
+          return create({ from: draft.id, name: copyName(t("assistant.copyName"), draft.name || draft.id) })
+        }
 
         /**
          * Move the selected assistant one slot in the picker order.
@@ -1872,10 +1948,18 @@ try {
          */
         const move = async (direction) => {
           return runOperation("status.reordering", "msg.reorderFailed", async (token) => {
-            const result = await postJson(ROUTES.reorder, { id: draft.id, direction })
+            const baseRevisions = Object.fromEntries(Object.entries(heldEntries.current)
+              .filter(([, held]) => typeof held.payload?.revision === "string")
+              .map(([id, held]) => [id, held.payload.revision]))
+            const result = await postJson(ROUTES.reorder, { id: draft.id, direction, baseRevisions })
             if (!ownsOperation(token)) return
             showResult(result, "msg.reordered", "msg.reorderFailed")
             if (result?.ok === true || result?.persisted === true) {
+              setEntries((previous) => Object.fromEntries(Object.entries(previous).map(([id, held]) => {
+                const revision = result.revisions?.[id]
+                return [id, typeof revision === "string" && typeof baseRevisions[id] === "string" &&
+                  held.payload?.revision === baseRevisions[id] ? { ...held, payload: { ...held.payload, revision } } : held]
+              })))
               await refreshAfterWrite(result, "msg.reordered", draft.id, token, () => reload(draft.id, undefined, token))
             }
           })
@@ -1888,16 +1972,21 @@ try {
          * 只改**草稿**，不写盘：这样"一键回到官方"既立刻可见，又可被「重新读取」撤销 ——
          * 与页面其余部分一样，一切改动都要点保存才落盘。
          */
+        const allowPromptReplacement = () => {
+          const held = heldEntries.current[selected]
+          return held === undefined || sameDraft(held.value, held.saved) ||
+            (typeof window.confirm === "function" && window.confirm(t("prompt.replaceConfirm")))
+        }
         const resetPrompt = () => {
           const factory = typeof draft.factoryPrompt === "string" ? draft.factoryPrompt : ""
-          if (factory === "") return
+          if (factory === "" || !allowPromptReplacement()) return
           update({ prompt: factory })
         }
 
         /** 把某个历史版本载入编辑器。与「恢复出厂」同一条纪律：只改草稿，保存前不落盘。 */
         const loadVersion = async () => {
           const picked = typeof draft.historyPick === "string" ? draft.historyPick : ""
-          if (picked === "" || draft.id === undefined) return
+          if (picked === "" || draft.id === undefined || !allowPromptReplacement()) return
           return runOperation("status.reading", "msg.loadFailed", async (token) => {
             // 版本键是序号（时间戳会在同一毫秒内撞车 —— 单测就是那样抓到它的）。
             const response = await fetch(ROUTES.history + "?id=" + encodeURIComponent(draft.id) + "&n=" + encodeURIComponent(picked))
@@ -1952,6 +2041,7 @@ try {
             setStatus(t("msg.importTooLarge"))
             return
           }
+          if (!allowPromptReplacement()) return
           return runOperation("status.importing", "msg.importFailed", async (token) => {
             const text = await new Promise((resolve, reject) => {
               const reader = new FileReader()
@@ -2014,7 +2104,7 @@ try {
         }
 
         const save = async () => {
-          if (draft === null) return
+          if (draft === null || navigationState.current.refreshNeeded !== null || navigationState.current.syncNeeded) return
           return runOperation("status.saving", "msg.saveFailed", async (token) => {
             const savedHistory = entry?.saved?.history
             const newest = Array.isArray(savedHistory) && savedHistory.length > 0 ? savedHistory[0].n : undefined
@@ -2025,11 +2115,16 @@ try {
               prompt: draft.prompt,
               name: draft.name,
               description: draft.description,
-              ...(typeof newest === "number" ? { baseN: newest } : {}),
+              ...(typeof entry?.payload?.revision === "string" ? { baseRevision: entry.payload.revision }
+                : typeof newest === "number" ? { baseN: newest } : {}),
             })
             if (!ownsOperation(token)) return
             if (result?.synchronized === false) setSyncNeeded(true)
             else if (result?.synchronized === true) setSyncNeeded(false)
+            if ((result?.ok === true || result?.persisted === true) && typeof result.revision === "string") {
+              setEntries((previous) => ({ ...previous, [draft.id]: { ...previous[draft.id],
+                payload: { ...previous[draft.id].payload, revision: result.revision }, saved: draft } }))
+            }
             if (result !== null && result !== undefined && result.ok === true) {
               setFailed(false)
               const compositionChanged =
@@ -2104,7 +2199,7 @@ try {
         ]
         const createGroup = react.createElement(
           "section",
-          { className: "cpfe-create" },
+          { className: "cpfe-create", ref: createSection },
           react.createElement("h2", { className: "cpfe-h" }, t("create.heading")),
           react.createElement(SectionHint, { text: t("posture.hint") }),
           react.createElement(
@@ -2145,13 +2240,15 @@ try {
               "div",
               { className: "cpfe-newrow" },
             react.createElement(A.Input, {
+              ref: createNameInput,
               className: "cpfe-newinput",
               value: newName,
               disabled: busy,
               placeholder: t("assistant.newPlaceholder"),
               "aria-label": t("assistant.newPlaceholder"),
               onKeyDown: (event) => {
-                if (event.key === "Enter" && busy !== true) create()
+                if (event.key === "Enter" && !event.isComposing && !event.nativeEvent?.isComposing &&
+                    event.keyCode !== 229 && event.nativeEvent?.keyCode !== 229 && busy !== true) create()
               },
               onChange: (event) => {
                 setNewName(event.target.value)
@@ -2241,7 +2338,9 @@ try {
         const assistantList = react.createElement(
           "section",
           null,
-          react.createElement("h2", { className: "cpfe-h" }, t("assistant.heading")),
+          react.createElement("div", { className: "cpfe-sec-head" },
+            react.createElement("h2", { className: "cpfe-h" }, t("assistant.heading")),
+            react.createElement(A.Button, { variant: "outline", disabled: busy, onClick: focusCreate, "data-create-entry": true }, t("btn.newAssistant"))),
                 react.createElement(SectionHint, { text: t("assistant.hint") }),
           list === null
             ? react.createElement(
@@ -2713,7 +2812,7 @@ try {
           editorReady
             ? react.createElement(
                 "section",
-                null,
+                { ref: editorSection, tabIndex: -1, "data-assistant-editor": true },
                 react.createElement("h2", { className: "cpfe-h" }, t("editor.heading")),
                 react.createElement(SectionHint, { text: fillPlaceholders(t("editor.hint"), { name: draft.name || draft.id }) }),
                 react.createElement(
@@ -2728,7 +2827,7 @@ try {
               {
                 variant: "primary",
                 icon: A.IconCheckOutline14 === undefined ? null : react.createElement(A.IconCheckOutline14),
-                disabled: busy || syncNeeded || editorReady === false || dirty === false,
+                disabled: busy || syncNeeded || refreshNeeded !== null || editorReady === false || dirty === false,
                 onClick: save,
               },
               pending === "status.saving" ? t("btn.saving") : t("btn.save"),
@@ -2863,6 +2962,7 @@ try {
             console.warn("dsh-custom-mode: slots service unavailable; settings page not registered")
             return
           }
+          const draftMemory = mountDraftProtection(ctx)
           try { mountUpdateServices(ctx) }
           catch { console.warn("dsh-custom-mode: optional native update services unavailable") }
           slots.inject("settings.section", () => {
@@ -2880,7 +2980,7 @@ try {
                 label: () => translate("nav", undefined, navT === null ? undefined : navT),
                 locale: NS,
               },
-              CustomModeSection,
+              function CustomModeSettings(props) { return CustomModeSection({ ...props, draftMemory }) },
             )
           })
         } catch (error) {

@@ -8,6 +8,8 @@
 
 版本`2.3.0`已于2026-10-28在[发布工作流](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/40681712038)通过必需门禁后发布至[GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0)。发布标签、npm `gitHead`与下载资产散列见[当前兼容记录](CURRENT_COMPATIBILITY.zh.md)。源码、本地检查、独立审阅、远端CI、npm发布和GitHub Release的结果分别记录；下列路径仍用于后续发布。
 
+本轮审阅修复源码刻意保持包版本`2.3.0`，变更尚未发布；不要用既有版本发布这些新字节，也不要移动既有标签。后续发布需要自己的新版本、最终源码证据与下方门禁；[当前兼容记录](CURRENT_COMPATIBILITY.zh.md#未发布源码检查)将本地结果与待完成的打包/浏览器/原生更新验收分开。
+
 1. 在 `package.json` 固定候选版本，同步两种语言文档及配对记录，记录完整候选 commit。插件版本不镜像宿主版本；只有精确宿主完成适配验证后才改宿主钉定与范围。
 2. 跑已登记套件、真实提示词组件合约、翻译与文档守卫、语法检查和真实 npm packlist。打包安装、重启、预设选择、浏览器交互、卸载重装使用隔离 home。中断保存与安装回滚用合成数据验证；发布检查表明确未覆盖的桌面/模型/GPU 边界。
 3. 由非作者检查最终 diff 与对应证据。push 已检查分支后读回远端完整 SHA，可用 draft PR 承载审阅；合并默认/生产分支属于另行授权的动作。

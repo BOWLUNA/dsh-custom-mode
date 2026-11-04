@@ -24,6 +24,18 @@
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { decodeJsExpression, evaluateDisabledPredicate } from './preset-backend/parse-composition.mjs'
+
+// Capabilities belong to the request that observed them, never to a module-global
+// host context. Store only known booleans, not service objects or arbitrary ctx access.
+const predicateCapabilities = new AsyncLocalStorage()
+export function withPredicateCapabilities(snapshot, work) {
+  const capabilities = typeof snapshot?.profileContext === 'boolean'
+    ? Object.freeze({ profileContext: snapshot.profileContext })
+    : Object.freeze({})
+  return predicateCapabilities.run(capabilities, work)
+}
 
 // 出厂组成「从哪来」是两条 dsh 线唯一还没收进后端的一处：旧线是文件，0.1.7 是
 // agentPresets.readDocument()。解析链整个搬到了 base-composition.mjs（含它的理由与实测），
@@ -460,7 +472,7 @@ function setDisabled(segmentText, disabled) {
     const shipped = lines[index].trim().replace(/^disabled:\s*/, '')
     if (disabled) {
       lines[index] = `${' '.repeat(indent)}disabled: true${carriage}`
-    } else if (shipped.startsWith('!!js') && evalDisabledExpression(shipped) !== true) {
+    } else if (shipped.startsWith('!!js') && evalDisabledExpression(shipped) === false) {
       // 显式打开，但出厂那行是平台表达式、且它在本机求值就是"开"：这不是覆盖，而是**撤销覆盖** ——
       // 保持出厂表达式原样，这一行就回到"跟随平台"。（原先这里删掉整行，结果是文件既不是出厂原样、
       // 也不是显式覆盖，页面却显示"未拨过" —— 文件与显示同时失真。）
@@ -496,9 +508,8 @@ function setDisabled(segmentText, disabled) {
 function evalDisabledExpression(expression) {
   if (typeof expression !== 'string' || !expression.startsWith('!!js')) return undefined
   try {
-    // eslint-disable-next-line no-new-func -- evaluating the composition's own predicate is the point
-    const fn = new Function('process', `return (${expression.slice(4).trim()});`)
-    return fn(process) === true
+    const source = decodeJsExpression(expression.slice(4))
+    return evaluateDisabledPredicate(source, predicateCapabilities.getStore())
   } catch {
     // 求值失败与「表达式不存在」都是 undefined。调用方若已经确认这是 `!!js`，
     // 必须把 undefined 当成关闭：挂载侧同样按关闭处理，两边不能一个开一个关。
@@ -1020,11 +1031,17 @@ export function overridesOf(text, modeId) {
     // 某个字面量一致 —— 只看求值结果，会把"表达式被换成字面量"误判成"没动过"。
     const sameForm = baseRow !== undefined
       && baseRow.disabled === row.disabled
-      && baseRow.disabledExpression === row.disabledExpression
+      && predicateForm(baseRow.disabledExpression) === predicateForm(row.disabledExpression)
     if (sameForm) continue
     overrides[id] = row.disabled !== true
   }
   return overrides
+}
+
+/** YAML quoting is transport syntax, while literal versus expression remains significant. */
+function predicateForm(expression) {
+  if (typeof expression !== 'string') return expression
+  try { return decodeJsExpression(expression.slice(4)) } catch { return expression }
 }
 
 /**

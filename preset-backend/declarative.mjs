@@ -26,20 +26,17 @@
 import { existsSync, readFileSync, renameSync, rmSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { parseComposition } from './parse-composition.mjs'
+import { parseComposition, evaluateDisabledPredicate, profileContextPredicate } from './parse-composition.mjs'
 
 export const BACKEND_ID = 'declarative'
 
-/** Evaluate a `!!js` predicate. Only ever applied to text this feature itself wrote. */
+/** Preserve the host-native predicate node so the loader evaluates it against its real Entry.ctx. */
 function resolveDisabled(value) {
   if (value !== null && typeof value === 'object' && typeof value.__js === 'string') {
-    try {
-      // eslint-disable-next-line no-new-func
-      return Boolean(new Function(`"use strict"; return (${value.__js});`)())
-    } catch {
-      // 表达式求值不了时按"关掉"处理：宁可少一行能力，也不要让整条 preset 挂载失败。
-      return true
-    }
+    // An unknown ctx service can return undefined rather than throw, which would
+    // make the native loader enable it. Keep unsupported conditions truly off.
+    if (profileContextPredicate(value.__js) === null && evaluateDisabledPredicate(value.__js) === undefined) return true
+    return { __jsExpr: value.__js }
   }
   return value === true
 }
