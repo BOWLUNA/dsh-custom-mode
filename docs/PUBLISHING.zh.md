@@ -8,7 +8,7 @@
 
 版本`2.3.0`已于2026-10-28在[发布工作流](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/40681712038)通过必需门禁后发布至[GitHub Releases](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.0)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.0)。发布标签、npm `gitHead`与下载资产散列见[当前兼容记录](CURRENT_COMPATIBILITY.zh.md)。源码、本地检查、独立审阅、远端CI、npm发布和GitHub Release的结果分别记录；下列路径仍用于后续发布。
 
-本轮补丁发布准备采用新版本`2.3.1`，不重发`2.3.0`或移动旧标签。运行文件与已验证的`d93bb765a5f422743d881655a997937af708f740`源码相同，包元数据及发布/README说明发生变化。须重新打包核验新版本、通过既有必需远端门禁，再发布并读回分发结果，才可称发布完成。[当前兼容记录](CURRENT_COMPATIBILITY.zh.md#231-validation)将既有源码证据与新包/CI/发布结果分开。
+补丁版`2.3.1`已发布至[GitHub](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.1)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.1)，标签及npm gitHead均为`78a72481dbb7a9af344ae455f6933d8d395cbcdb`；[发布工作流](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41906432486)通过16/16。公开读回31/0、实际下载资产/源码检查111/0，包含npm全部32项输入及预设六项内容。[当前兼容记录](CURRENT_COMPATIBILITY.zh.md#231-validation)保留实际分发散列与已诊断的Windows/公开ZIP表示差异，不声称所有资产都与Windows归档同字节。本收尾不改变任何打包输入。
 
 1. 在 `package.json` 固定候选版本，同步两种语言文档及配对记录，记录完整候选 commit。插件版本不镜像宿主版本；只有精确宿主完成适配验证后才改宿主钉定与范围。
 2. 跑已登记套件、真实提示词组件合约、翻译与文档守卫、语法检查和真实 npm packlist。打包安装、重启、预设选择、浏览器交互、卸载重装使用隔离 home。中断保存与安装回滚用合成数据验证；发布检查表明确未覆盖的桌面/模型/GPU 边界。

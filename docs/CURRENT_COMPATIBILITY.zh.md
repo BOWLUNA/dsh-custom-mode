@@ -4,11 +4,21 @@
 
 <a id="231-validation"></a>
 
-## 2.3.1 候选验证
+## 2.3.1 发布与验收
 
-必需工作流及分发读回完成前，补丁版`2.3.1`仍为发布候选。本次准备变更包版本及发布/README说明，运行文件与已验证源码`d93bb765a5f422743d881655a997937af708f740`相同。下列检查使用元数据版本`2.3.0`、归档SHA256 `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`，验证的是该运行源码快照，不是新打包`2.3.1`归档或已完成的`2.3.1`发布。
+版本`2.3.1`已在[GitHub Release](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.1)与[npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.1)可用；GitHub Release发布时间为2026-11-04 20:47:01 UTC。标签`v2.3.1`及npm exact/latest的`gitHead`均指向`78a72481dbb7a9af344ae455f6933d8d395cbcdb`。[PR 23](https://github.com/BOWLUNA/dsh-custom-mode/pull/23)在`6abaad98743026cd5f40d77c7c038c549256e4b6`上全部15项必需检查通过（[test 10/10](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41905432683)、[browser/native 5/5](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41905432847)），合并/标签树相同；[发布工作流](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41906432486)随后16项全过，包括10兼容、5浏览器/原生及发布。
 
-新版本打包、版本钉定检查、必需远端CI、标签/npm/GitHub Release及下载资产读回仍须另行完成。精确版本发布前不要安装`2.3.1`；历史`2.3.0`发布记录在下方单独保留。
+公开读回31/0（`PUBLIC-DISTRIBUTION-02.json`）：npm exact/latest均为`2.3.1`，gitHead/SRI/SHA1相符，npm与GitHub插件归档逐字节相同。实际下载资产的独立检查111/0：npm全部32项输入吻合最终标签，预设ZIP六项内容吻合最终标签manifest与五个源码文件。
+
+| 公开资产 | 字节数 | SHA256 |
+| --- | --- | --- |
+| npm / GitHub `dsh-custom-mode-2.3.1.tgz` | 184539 | `b5945b4462fca82e8da97856a357afc666c20eccc3bcc1b87c914f021b2a3a24` |
+| GitHub `dsh-custom-mode.dshpreset` | 16672 | `dc982f92fc2bbb102e269539353714cca5d8d5b166ebd6cceab557a395bde294` |
+| GitHub `SHA256SUMS` | 184 | `f1b56bc025f82a49354373610352763339261b017b22aa7319f7d4cf1f25bbc7` |
+
+公开预设ZIP与16881字节的Windows构建ZIP并非整包同字节：六项解压载荷、manifest和时间戳一致，DEFLATE压缩长度解释全部209字节差异，另有平台`create_system`及派生偏移不同。校验以上实际公开散列；首次预期归档不符保留于`PUBLIC-DISTRIBUTION-01.json`，源码/内容诊断与未放宽公开校验器的第二次成功读回分别留证。发布散列文件是实际184字节LF资产，不是此前Windows CRLF预期。
+
+运行文件与已验证源码`d93bb765a5f422743d881655a997937af708f740`相同，下方本地证据仍绑定其`2.3.0`元数据/归档；新`2.3.1`打包与远端发布检查由上方单独验证。下方保留历史`2.3.0`发布记录。
 
 2026-11-04公开宿主通道为`latest=0.2.1-rc.5`、`next=0.2.2-rc.1`、`alpha=0.2.2-alpha.3`。源码CI矩阵以这些精确宿主为目标，保留`0.1.7-rc.2`与`0.2.0-rc.2`回归；编辑工作流配置不等于已完成远端CI。
 
@@ -25,7 +35,7 @@
 | 草稿与新建浏览器流程 | 三个当前宿主分别49/0，各有8张截图 | DOM组合输入/keyCode-229事件及可信普通Enter，不是操作系统输入法实测 |
 | 完整生命周期与observer清理 | 三个当前宿主分别28/0，浏览器模式`full` | API、五基础模式、重启、移除/重装、数据保留与删除，任务运行均成功退出 |
 
-已验证基线包（元数据`2.3.0`）SHA256为`28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`。三个兼容归档及`verified-native-rc1-01`/`verified-native-alpha-01`的输入归档逐字节一致；32项打包文件均吻合`d93bb76`源码快照（`package-source-comparison.json`）。三个基线运行报告、三份草稿报告与两个基线原生报告均绑定该`2.3.0`包身份；`2.3.1`的版本/README字节不同，需自己的归档对比。
+已验证基线包（元数据`2.3.0`）SHA256为`28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`。三个兼容归档及`verified-native-rc1-01`/`verified-native-alpha-01`的输入归档逐字节一致；32项打包文件均吻合`d93bb76`源码快照（`package-source-comparison.json`）。三个基线运行报告、三份草稿报告与两个基线原生报告均绑定该`2.3.0`包身份；已发布`2.3.1`的版本/README字节不同，已按上方记录与最终标签单独对比。
 
 后期视觉QA发现YAML引用的context条件可能误报，并错误关闭默认插件管理工具。修复后的源码解码YAML引用，将已知条件保留给原生Loader，对不支持的context条件真正关闭，并按请求隔离编辑器不可变布尔能力快照。编译diff比较解码后的源，不因YAML引用方式不同制造用户开关覆盖。五个精确宿主70/0合约日志为`final-disabled-contract-rc1.log`及`final-disabled-contract-<other-exact-host>.log`，最终单元日志为`predicate-integration-unit.log`。
 
@@ -37,13 +47,13 @@
 
 基线原生API运行`verified-native-rc1-01`与`verified-native-alpha-01`各24/0，脚本成功退出。真实公开`2.2.6`迁移报告`applied`且观察到的用户文件保留，实际重启宿主后运行候选且保存通过。受控修复旧版`2.2.7`fixture中，目标tar真实503产生`failed`/`restore: applied`，磁盘和运行恢复旧版本、用户文件散列不变且不重启可保存；健康更新后再通过宿主HMR应用并保存。无HMR fixture报告`restart-required`，核对磁盘新/运行旧，实际重启进程后版本/数据/保存均通过。该降版fixture不是公开`2.2.6`，不把Windows终止声称为优雅关闭。
 
-非作者审计了有限最终原生报告及修订源码，没有独立重跑宿主。这是observer API测试，不是Plugins UI点击或严格同文档前端HMR证明；Electron、真实模型/GPU、远端CI及本机实际执行POSIX换行文件名探针仍不在已完成范围。
+非作者审计了有限最终原生报告及修订源码，没有独立重跑宿主。这是observer API测试，不是Plugins UI点击或严格同文档前端HMR证明；Electron、真实模型/GPU及本机实际执行POSIX换行文件名探针不在这些本地运行范围；发布CI在上方单独记录。
 
 ### 前一诊断检查点
 
 较早的`7fc9a88de71726e73969af8b9c7db999c83b066fac9ca58ea06dcaf54d8251b2`包通过20/1265、三个8/8兼容运行，以及`native-rc1-03`/`native-alpha-01`两个24/0 API运行；这些结果发生在发现条件表达式缺陷之前，不是变更后源码的最终验收。旧包对比保留为`package-source-comparison.pre-predicate.json`；有限API结果与94/0对抗探针继续作为§38中的诊断证据。独立审阅在当时API运行前关闭宽松结果谓词和未观察503的缺口，但未独立重跑宿主。
 
-此处不声称`2.3.1`标签、npm发布、GitHub Release或远端CI已经完成；Plugins UI更新验收、同文档前端HMR、Electron及真实模型/GPU仍不在已完成范围。
+发布与必需远端CI已按上方记录完成；Plugins UI更新验收、严格同文档前端HMR、操作系统输入法、Electron及真实模型/GPU仍不在已完成范围，本机Windows未实际执行POSIX文件名探针。
 
 ## 2.3.0 发布与验收
 

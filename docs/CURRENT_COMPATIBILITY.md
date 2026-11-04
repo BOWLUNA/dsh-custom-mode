@@ -4,11 +4,21 @@ English | [中文](CURRENT_COMPATIBILITY.zh.md)
 
 <a id="231-validation"></a>
 
-## 2.3.1 candidate validation
+## 2.3.1 release and verification
 
-Patch `2.3.1` is a release candidate until its required workflow and distribution read-back complete. This preparation changes package version and release/README guidance; runtime files remain unchanged from validated source `d93bb765a5f422743d881655a997937af708f740`. The checks below were run with metadata version `2.3.0` and archive SHA256 `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`. They validate that runtime-source snapshot, not a newly packed `2.3.1` archive or a completed `2.3.1` release.
+Version `2.3.1` is available from [GitHub Release](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.1) and [npm](https://www.npmjs.com/package/dsh-custom-mode/v/2.3.1). The GitHub Release was published on 2026-11-04 at 20:47:01 UTC. Tag `v2.3.1` and npm exact/latest `gitHead` resolve to `78a72481dbb7a9af344ae455f6933d8d395cbcdb`. [PR 23](https://github.com/BOWLUNA/dsh-custom-mode/pull/23) passed all 15 required checks on `6abaad98743026cd5f40d77c7c038c549256e4b6` ([test: 10/10](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41905432683), [browser/native: 5/5](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41905432847)); the merge/tag tree is identical. The [release workflow](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41906432486) then passed all 16 jobs: 10 compatibility, 5 browser/native and publication.
 
-New-version packaging, version-pin checks, required remote CI, tag/npm/GitHub Release and downloaded-asset read-back are pending separately. Do not install `2.3.1` until the exact version is published. The historical `2.3.0` publication record remains in its own section below.
+Public read-back passed 31/0 (`PUBLIC-DISTRIBUTION-02.json`): npm exact/latest are `2.3.1`, gitHead/SRI/SHA1 agree, and npm/GitHub plugin archives are byte-identical. Independent inspection of actual downloaded assets passed 111/0: all 32 npm inputs match the final tag, and all six preset ZIP entries match the final-tag manifest and five source files.
+
+| Public asset | Bytes | SHA256 |
+| --- | --- | --- |
+| npm / GitHub `dsh-custom-mode-2.3.1.tgz` | 184539 | `b5945b4462fca82e8da97856a357afc666c20eccc3bcc1b87c914f021b2a3a24` |
+| GitHub `dsh-custom-mode.dshpreset` | 16672 | `dc982f92fc2bbb102e269539353714cca5d8d5b166ebd6cceab557a395bde294` |
+| GitHub `SHA256SUMS` | 184 | `f1b56bc025f82a49354373610352763339261b017b22aa7319f7d4cf1f25bbc7` |
+
+The public preset ZIP is not byte-identical to the 16881-byte Windows-built ZIP: all six decompressed payloads, manifest and timestamp are identical, while DEFLATE lengths account for the entire 209-byte difference, with platform `create_system` and derived offsets differing. Use the actual public hashes above. The first expected-archive mismatch remains recorded in `PUBLIC-DISTRIBUTION-01.json`; source/content diagnosis and the unchanged public verifier's successful second read-back are retained separately. The published checksum file is the actual 184-byte LF asset, not the earlier Windows CRLF expectation.
+
+Runtime files are unchanged from validated source `d93bb765a5f422743d881655a997937af708f740`; the local evidence below remains bound to its `2.3.0` metadata/archive. New `2.3.1` packaging and remote release checks are the separately verified results above. The historical `2.3.0` publication record is preserved below.
 
 On 2026-11-04 the public host channels were `latest=0.2.1-rc.5`, `next=0.2.2-rc.1` and `alpha=0.2.2-alpha.3`. The source CI matrices target these exact hosts, retaining older `0.1.7-rc.2` and `0.2.0-rc.2` regressions. Edited workflow configuration is not a completed remote CI result.
 
@@ -25,7 +35,7 @@ On 2026-11-04 the public host channels were `latest=0.2.1-rc.5`, `next=0.2.2-rc.
 | Draft and creation browser flow | 49/0 on each current host, with 8 screenshots per host | DOM composition/keyCode-229 events and trusted ordinary Enter; not an OS IME test |
 | Full lifecycle and observer cleanup | 28/0 on each current host, browser mode `full` | API, five base modes, restart, removal/reinstall, data preservation and deletion; all task runs exited successfully |
 
-The validated baseline package (metadata `2.3.0`) SHA256 is `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`. The three compatibility archives and both inputs to `verified-native-rc1-01` / `verified-native-alpha-01` are byte-identical; all 32 packaged files matched the `d93bb76` source snapshot (`package-source-comparison.json`). All three baseline runtime reports, three draft reports and both baseline native reports bind to that `2.3.0` package identity. The `2.3.1` package has different version/README bytes and needs its own archive comparison.
+The validated baseline package (metadata `2.3.0`) SHA256 is `28046e7728613d7ed7654cab6b08d5590a31516c50252b96f050cd0ec3967fa9`. The three compatibility archives and both inputs to `verified-native-rc1-01` / `verified-native-alpha-01` are byte-identical; all 32 packaged files matched the `d93bb76` source snapshot (`package-source-comparison.json`). All three baseline runtime reports, three draft reports and both baseline native reports bind to that `2.3.0` package identity. The released `2.3.1` archive has different version/README bytes and was separately compared with its final tag as recorded above.
 
 Late visual QA identified YAML-quoted context predicates that could warn and incorrectly disable the default plugin-manager tool. The fixed source decodes YAML quoting, preserves known conditions for the native loader, truly disables unsupported context conditions and scopes the editor's immutable boolean capability snapshot per request. Compiler diffs compare decoded sources without manufacturing an override for different YAML quoting. The five exact-host 70/0 contract logs are `final-disabled-contract-rc1.log` and `final-disabled-contract-<other-exact-host>.log`; the final unit log is `predicate-integration-unit.log`.
 
@@ -37,13 +47,13 @@ Root visual QA inspected all eight RC1 captures and two captures from each other
 
 Baseline native API runs `verified-native-rc1-01` and `verified-native-alpha-01` each completed 24/0 with successful script exits. The actual public `2.2.6` migration reported `applied` and preserved the observed user files; a real host restart then ran the candidate and saving passed. In the controlled fixed-old `2.2.7` fixture, the observed target-tar 503 produced `failed`/`restore: applied`, with installed and running old versions, unchanged user-file hashes and successful saving without restart; a healthy update then applied and saved under host HMR. The no-HMR fixture reported `restart-required`, verified new disk/old runtime, and passed version/data/save checks after an actual process restart. This lowered-version fixture is not public `2.2.6`; Windows termination is not claimed to be graceful.
 
-The non-author audited the bounded final native reports and revised source, without independently replaying the hosts. These are observer API tests, not Plugins UI clicks or strict same-document frontend HMR proof. Electron, real models/GPU, remote CI and local execution of the POSIX newline-filename probe remain outside completed scope.
+The non-author audited the bounded final native reports and revised source, without independently replaying the hosts. These are observer API tests, not Plugins UI clicks or strict same-document frontend HMR proof. Electron, real models/GPU and local execution of the POSIX newline-filename probe remain outside these local runs; release CI is recorded separately above.
 
 ### Earlier diagnostic checkpoint
 
 The earlier `7fc9a88de71726e73969af8b9c7db999c83b066fac9ca58ea06dcaf54d8251b2` package passed 20/1265, three 8/8 compatibility runs and the two 24/0 API runs `native-rc1-03` / `native-alpha-01`; those results preceded discovery of the predicate defect and are not final acceptance of the changed source. Its package comparison is retained as `package-source-comparison.pre-predicate.json`. The bounded API results and 94/0 adversarial probes remain diagnostic evidence in §38. Independent review closed permissive outcome-predicate and unobserved-503 gaps before those API runs, but did not independently replay their hosts.
 
-No completed `2.3.1` tag, npm publication, GitHub Release or remote CI success is claimed here. Plugins UI update acceptance, same-document frontend HMR, Electron and real-model/GPU results remain outside completed scope.
+Publication and required remote CI are complete as recorded above. Plugins UI update acceptance, strict same-document frontend HMR, OS IME, Electron and real-model/GPU results remain outside completed scope; the POSIX filename probe was not executed locally on Windows.
 
 ## 2.3.0 release and verification
 

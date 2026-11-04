@@ -2025,3 +2025,11 @@ node tools/compat-check.mjs --host-install "<exact-host-install>" --out "<new-ev
 本轮发布准备从`d93bb765a5f422743d881655a997937af708f740`开始，即§38已完成的审阅修复运行快照，当时包元数据为`2.3.0`。补丁元数据现为`2.3.1`，运行文件不变，包/版本与README/发布说明发生变化。既有20个套件/1315项、三个宿主8/74/49/28、两个宿主原生24及五宿主条件合约70结果仍绑定之前的源码/归档身份；新归档、安装/运行版本、必需远端CI及后续标签/npm/GitHub Release/资产读回须另行留证。
 
 这属于准备，不是发布结果。[稳定的2.3.1验证记录](CURRENT_COMPATIBILITY.zh.md#231-validation)在发布工作流及分发核验完成前记录候选状态。运行检查数与此前验证边界不变；本元数据/文档步骤未访问凭据或真实用户home。此步骤的发布证据在包外`DSH-RELEASE-231-20261104-01`保留（`docs-*.json`/`docs-*.log`）。
+
+### 2.3.1发布收尾
+
+[2.3.1发布](https://github.com/BOWLUNA/dsh-custom-mode/releases/tag/v2.3.1)时间为`2026-11-04T20:47:01Z`；标签及npm exact/latest gitHead均为`78a72481dbb7a9af344ae455f6933d8d395cbcdb`。PR 23在`6abaad98743026cd5f40d77c7c038c549256e4b6`通过15/15，合并后树相同；[发布运行](https://github.com/BOWLUNA/dsh-custom-mode/actions/runs/41906432486)通过16/16。公开读回`PUBLIC-DISTRIBUTION-02.json`为31/0，实际下载的独立源码/内容审计111/0，含npm32文件吻合标签、ZIP六项载荷吻合manifest/五个源码文件。npm exact/latest均为`2.3.1`，npm与GitHub插件tarball逐字节相同。
+
+实际分发资产：插件184539字节、SHA256 `b5945b4462fca82e8da97856a357afc666c20eccc3bcc1b87c914f021b2a3a24`；预设16672字节、`dc982f92fc2bbb102e269539353714cca5d8d5b166ebd6cceab557a395bde294`；散列清单184字节、`f1b56bc025f82a49354373610352763339261b017b22aa7319f7d4cf1f25bbc7`。npm SHA1为`8026f496b4006c1974b1229ed06082cf38681d2c`，SRI为`sha512-cBfVJohMsxKd1UVpkg3ZPJXUrdn98Lzf7arpl0OQZ1oQbLQJIM+18hJyr8qpVmLk/L5mMVhtMlDVLWPn7jN/8g==`。
+
+首次公开对比（`PUBLIC-DISTRIBUTION-01.json`：17通过、1失败）因Windows ZIP字节预期而拒绝预设，该失败继续保留。诊断证实六项解压载荷、manifest和时间戳一致，压缩长度解释全部209字节差，另有平台create_system及偏移不同；未推断远端压缩器版本。Windows CRLF散列输出同样保留作本地预期，不用于公开散列；未放宽校验器按独立审计的实际公开资产再次通过。这些发布检查不新增Electron、真实模型/GPU、操作系统输入法、严格同文档前端HMR或本机Windows POSIX文件名验收。上方准备记录保留为历史，仅更新限定的非包收尾文档与配对记录。
