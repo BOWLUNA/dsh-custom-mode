@@ -6,7 +6,7 @@ English | [中文](TROUBLESHOOTING.zh.md)
 
 This section describes version `2.3.1`. Check release availability and the [exact-host results and acceptance limits](CURRENT_COMPATIBILITY.md) before updating. The numbered incident archive below preserves old observations and commands in their historical context, not a current setup recipe.
 
-The protections below describe the `2.3.1` candidate. Check exact release availability before using its installation command; prior runtime validation and new-version release status are separated in the compatibility record.
+The protections below describe published `2.3.1`. Its exact tag/npm identity and downloaded-asset verification are recorded separately from runtime acceptance limits in the compatibility record.
 
 1. Record the host version (`dsh --version`), installed plugin version shown in Settings → Custom mode, platform, and the failing step: installation, page opening, save/application, assistant selection, or first request. Desktop uses its in-app Plugins page; these CLI steps target the Web profile.
 2. Run `dsh --profile web --dump-config`. A `dsh-custom-mode` row only proves that the composed configuration contains the plugin. It does **not** prove activation, page rendering, preset health, or a model request. No matching row calls for checking the selected profile and installed package; a restart alone does not install a missing package.
@@ -43,7 +43,7 @@ Restart only the corresponding Web host once through its normal launcher. Reopen
 
 This path was observed on isolated DSH Web `0.2.2-alpha.2` with the real published `2.2.6`: a target-tar download failure restored the old package and preserved the saved files, but subsequent saves did not activate. One host restart restored registration of both test assistants (2/2), selection and a subsequent save. The package recovery and later intentional edits were checked separately; no model request was made. This evidence does not establish a seamless hot migration or desktop/model/GPU acceptance.
 
-Once `2.3.1` is published and accepted on your exact host, the manual Web update command is:
+For published `2.3.1` accepted on your exact host, the manual Web update command is:
 
 ```sh
 dsh plugin --profile web add dsh-custom-mode@2.3.1
