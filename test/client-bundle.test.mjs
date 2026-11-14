@@ -171,8 +171,8 @@ console.log('=== 1. 注册进 settings.section 的那一条 ===')
   check('有稳定的 id（设置面板按它去重）', options?.id === 'custom-system-prompt', String(options?.id))
   check('声明了 locale 命名空间（shell 才会递进来绑定的 t）', options?.locale === 'settings.customMode', String(options?.locale))
   check(
-    '注册了中英两份词典',
-    seen.dictionaries?.ns === 'settings.customMode' && typeof seen.dictionaries?.dictionaries === 'object',
+    '注册了中英法三份词典',
+    seen.dictionaries?.ns === 'settings.customMode' && JSON.stringify(Object.keys(seen.dictionaries?.dictionaries ?? {}).sort()) === JSON.stringify(['en', 'fr', 'zh']),
     JSON.stringify(Object.keys(seen.dictionaries?.dictionaries ?? {})),
   )
   check('label 是 thunk 而不是字符串', typeof options?.label === 'function')
@@ -228,7 +228,7 @@ console.log('=== 3. 壳的词典查不到时：内置词典兜底，绝不显示
   // 完全没有 locale 服务、也没有浏览器语言时，用英文。裸键仍然不允许。
   const none = makeCtx({ withLocale: false })
   exports.apply(none.ctx)
-  check('没有 locale 服务时导航标签是英文，不是裸键', none.seen.registered?.options?.label?.() === 'Custom mode', String(none.seen.registered?.options?.label?.()))
+  check('没有 locale 服务时导航标签回退到英文', none.seen.registered?.options?.label?.() === 'Mode personnalisé', String(none.seen.registered?.options?.label?.()))
 }
 
 console.log()

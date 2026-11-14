@@ -796,6 +796,14 @@ console.log('=== 6b. 姿态只是起点，底子仍是官方预设 ===')
   check('聊天不把 persona 关掉', chatState.overrides.persona !== false)
   check('聊天用英文起步提示词', typeof chatState.prompt === 'string' && chatState.prompt.includes('conversation partner'), String(chatState.prompt).slice(0, 80))
 
+  const chattedFr = JSON.parse((await call(post('/custom-mode/create', { name: 'Posture Chat FR', posture: 'chat', locale: 'fr-FR' }))).body)
+  const chatFrState = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + chattedFr.id }))).body)
+  check('聊天识别法语 locale', typeof chatFrState.prompt === 'string' && chatFrState.prompt.includes('partenaire de conversation'), String(chatFrState.prompt).slice(0, 100))
+
+  const writtenFr = JSON.parse((await call(post('/custom-mode/create', { name: 'Posture Write FR', posture: 'write', locale: 'fr' }))).body)
+  const writeFrState = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + writtenFr.id }))).body)
+  check('写作识别法语 locale', typeof writeFrState.prompt === 'string' && writeFrState.prompt.includes('Vous aidez l’utilisateur'), String(writeFrState.prompt).slice(0, 100))
+
   const written = JSON.parse((await call(post('/custom-mode/create', { name: 'Posture Write', posture: 'write', locale: 'zh-CN' }))).body)
   const writeState = JSON.parse((await call(makeReq('GET', { url: '/custom-mode/state?id=' + written.id }))).body)
   check('写作姿态的底仍是 standard', writeState.mode === 'standard', writeState.mode)
@@ -978,14 +986,14 @@ console.log('=== 12. 每个用户可见的结果都带 code，且每个 code 都
 
     for (const m of hostSource.matchAll(/code:\s*([^,}\n]+)/g)) {
       for (const s of m[1].matchAll(/'([A-Za-z][A-Za-z0-9]*)'/g)) {
-        // 中英各一条：`'api.x':` 在 locales.mjs 里必须恰好出现两次（多的那次是重复键）。
+        // 中英法各一条：`'api.x':` 在 locales.mjs 里必须恰好出现三次（多的那次是重复键）。
         const twice = localesSource.split(`'api.${s[1]}':`).length - 1
-        if (twice !== 2) missing.push(`${moduleName}: ${s[1]}(${twice})`)
+        if (twice !== 3) missing.push(`${moduleName}: ${s[1]}(${twice})`)
       }
     }
   }
   check(`宿主半每个模块的 ok: false 都带 code（扫了 ${String(hostModules.length)} 个）`, naked.length === 0, naked.join(' | '))
-  check('每个 code 在 locales.mjs 里都有中英两条', missing.length === 0, missing.join(', '))
+  check('每个 code 在 locales.mjs 里都有中英法三条', missing.length === 0, missing.join(', '))
 }
 
 console.log()

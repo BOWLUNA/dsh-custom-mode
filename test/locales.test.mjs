@@ -14,7 +14,7 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { zh, en } from '../locales.mjs'
+import { zh, en, fr } from '../locales.mjs'
 import { ROW_META, BASE_MODES } from '../composition.mjs'
 
 let passed = 0
@@ -31,19 +31,24 @@ const check = (label, condition, detail = '') => {
 
 const zhKeys = Object.keys(zh).sort()
 const enKeys = Object.keys(en).sort()
+const frKeys = Object.keys(fr).sort()
 
 console.log('=== 1. 键集完全一致 ===')
 const missingInEn = zhKeys.filter((key) => !(key in en))
 const missingInZh = enKeys.filter((key) => !(key in zh))
+const missingInFr = zhKeys.filter((key) => !(key in fr))
+const extraInFr = frKeys.filter((key) => !(key in zh))
 check('英文不缺键', missingInEn.length === 0, JSON.stringify(missingInEn))
 check('中文不缺键', missingInZh.length === 0, JSON.stringify(missingInZh))
-check(`键总数一致（${zhKeys.length}）`, zhKeys.length === enKeys.length)
+check('法文不缺键', missingInFr.length === 0, JSON.stringify(missingInFr))
+check('法文没有多余键', extraInFr.length === 0, JSON.stringify(extraInFr))
+check(`键总数一致（${zhKeys.length}）`, zhKeys.length === enKeys.length && zhKeys.length === frKeys.length)
 
 console.log()
 console.log('=== 2. 每个基础模式都有标签与说明 ===')
 for (const mode of BASE_MODES) {
-  check(`base.${mode.id}.label`, typeof zh[`base.${mode.id}.label`] === 'string' && typeof en[`base.${mode.id}.label`] === 'string')
-  check(`base.${mode.id}.note`, typeof zh[`base.${mode.id}.note`] === 'string' && typeof en[`base.${mode.id}.note`] === 'string')
+  check(`base.${mode.id}.label`, typeof zh[`base.${mode.id}.label`] === 'string' && typeof en[`base.${mode.id}.label`] === 'string' && typeof fr[`base.${mode.id}.label`] === 'string')
+  check(`base.${mode.id}.note`, typeof zh[`base.${mode.id}.note`] === 'string' && typeof en[`base.${mode.id}.note`] === 'string' && typeof fr[`base.${mode.id}.note`] === 'string')
 }
 
 console.log()
@@ -164,7 +169,7 @@ for (const [name, source] of [['locales.mjs', readFileSync(new URL('../locales.m
 }
 
 for (const [name, source] of [['locales.mjs', readFileSync(new URL('../locales.mjs', import.meta.url), 'utf8')], ['client.js', readFileSync(new URL('../client.js', import.meta.url), 'utf8')]]) {
-  for (const variable of ['ZH', 'EN']) {
+  for (const variable of ['ZH', 'EN', 'FR']) {
     const duplicates = duplicateKeys(source, variable)
     check(`${name} 的 ${variable} 词典没有重复键（后值会静默覆盖前值）`, duplicates.length === 0, JSON.stringify(duplicates))
   }
@@ -172,16 +177,18 @@ for (const [name, source] of [['locales.mjs', readFileSync(new URL('../locales.m
 
 let clientZh
 let clientEn
+let clientFr
 try {
   const clientSource = readFileSync(new URL('../client.js', import.meta.url), 'utf8')
   clientZh = extractDictionary(clientSource, 'ZH')
   clientEn = extractDictionary(clientSource, 'EN')
-  check('能从 client.js 解析出 ZH / EN', true)
+    clientFr = extractDictionary(clientSource, 'FR')
+  check('能从 client.js 解析出 ZH / EN / FR', true)
 } catch (error) {
-  check('能从 client.js 解析出 ZH / EN', false, String(error.message))
+  check('能从 client.js 解析出 ZH / EN / FR', false, String(error.message))
 }
 
-if (clientZh !== undefined && clientEn !== undefined) {
+if (clientZh !== undefined && clientEn !== undefined && clientFr !== undefined) {
   /** Report which keys are missing on either side plus which values differ. */
   const drift = (clientDict, moduleDict, label) => {
     const onlyClient = Object.keys(clientDict).filter((key) => !(key in moduleDict))
@@ -237,7 +244,7 @@ const MARKDOWN = [
   { name: '标题', re: /(^|\n)#{1,6}\s/ },
 ]
 const markdownLeaks = []
-for (const [lang, dict] of [['zh', zh], ['en', en]]) {
+for (const [lang, dict] of [['zh', zh], ['en', en], ['fr', fr]]) {
   for (const [key, value] of Object.entries(dict)) {
     if (typeof value !== 'string') continue
     for (const { name, re } of MARKDOWN) {
