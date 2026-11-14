@@ -6,7 +6,7 @@
  * 和今天「只填名字就新建」相同。`hands: 'allow'` 是一张允许名单：出厂是开、又不在名单里的行
  * 会被显式关掉。上游以后新增的行因此默认关闭，而不是悄悄出现在「聊天」里。
  *
- * 提示词草稿放在 `preset/postures/<id>.<zh|en>.md`，不写进代码，也从不复制进用户的预设目录。
+ * 提示词草稿放在 `preset/postures/<id>.<zh|en|fr>.md`，不写进代码，也从不复制进用户的预设目录。
  * 只有用户点了新建，才会把对应草稿写进那一个新助手的 `prompt.md`。`develop` 不读这些文件，
  * 它用的就是 `preset/prompt.md`，这样老的创建路径字节级不变。
  *
@@ -49,26 +49,35 @@ export function publicPostures() {
 }
 
 /**
- * @param {unknown} value - 请求里的 locale。只有明确的中文走中文草稿，其余走英文。
- * @returns {'zh' | 'en'}
+ * @param {unknown} value - 请求里的 locale。识别中文、法语；未知值回退到英文。
+ * @returns {'zh' | 'en' | 'fr'}
  */
 export function postureLocale(value) {
-  return typeof value === 'string' && value.toLowerCase().startsWith('zh') ? 'zh' : 'en'
+  if (typeof value !== 'string') return 'en'
+  const locale = value.toLowerCase()
+  if (locale.startsWith('zh')) return 'zh'
+  if (locale === 'fr' || locale.startsWith('fr-')) return 'fr'
+  return 'en'
 }
 
 /**
  * 某个姿态的起步提示词。`develop` 返回 null，调用方继续用出厂 `prompt.md`。
  *
  * @param {string} id
- * @param {'zh' | 'en'} locale
+ * @param {'zh' | 'en' | 'fr'} locale
  * @returns {string | null}
  */
 export function posturePrompt(id, locale) {
   if (id === 'develop') return null
-  const lang = locale === 'zh' ? 'zh' : 'en'
+  const lang = locale === 'zh' || locale === 'fr' ? locale : 'en'
   try {
     return readFileSync(join(DIR, id + '.' + lang + '.md'), 'utf8')
   } catch {
-    return readFileSync(join(DIR, id + '.' + (lang === 'zh' ? 'en' : 'zh') + '.md'), 'utf8')
+    const fallback = lang === 'zh' || lang === 'fr' ? 'en' : 'zh'
+    try {
+      return readFileSync(join(DIR, id + '.' + fallback + '.md'), 'utf8')
+    } catch {
+      return readFileSync(join(DIR, id + '.zh.md'), 'utf8')
+    }
   }
 }

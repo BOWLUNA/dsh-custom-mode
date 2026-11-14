@@ -16,12 +16,12 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { zh, en } from '../locales.mjs'
+import { zh, en, fr } from '../locales.mjs'
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
 const CLIENT = join(REPO, 'client.js')
 const OPEN = '      const ZH = {'
-const TRANSLATIONS = '      const TRANSLATIONS = { zh: ZH, en: EN }'
+const TRANSLATIONS = '      const TRANSLATIONS = { zh: ZH, en: EN, fr: FR }'
 
 /** Render one dictionary exactly as it appears in the bundle. */
 const block = (name, obj) =>
@@ -39,7 +39,7 @@ if (start === -1 || end === -1 || end < start) {
   process.exit(1)
 }
 
-const next = current.slice(0, start) + block('ZH', zh) + '\n\n' + block('EN', en) + '\n\n' + current.slice(end)
+const next = current.slice(0, start) + block('ZH', zh) + '\n\n' + block('EN', en) + '\n\n' + block('FR', fr) + '\n\n' + current.slice(end)
 const stale = next !== current
 
 if (process.argv.includes('--check')) {
